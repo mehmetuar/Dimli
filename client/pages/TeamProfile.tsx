@@ -2,37 +2,32 @@
 
 
 import React, { useState, useEffect } from 'react';
-import { MOCK_TEAMS, CURRENT_USER, MOCK_PITCHES, MOCK_MATCHES, MOCK_JOKERS } from '../constants';
+import { MOCK_TEAMS, MOCK_PITCHES, MOCK_JOKERS } from '../constants';
 import { generateTeamBio } from '../services/geminiService';
 import { FairPlayScore } from '../components/FairPlayScore';
 import { LevelBadge } from '../components/LevelBadge';
-import { MapPin, Shield, Sparkles, Edit2, Shirt, TrendingUp, Zap, Footprints, Settings, Plus, Inbox, Check, X, UserPlus, LogOut, Crown, MoreVertical, Trash2, Save } from 'lucide-react';
-import { Team, Pitch, MatchOffer, Player, Position } from '../types';
+import { MapPin, Shield, Sparkles, Edit2, Plus, X, UserPlus, LogOut, Crown, MoreVertical, Trash2, Save } from 'lucide-react';
+import { Team, Player, Position } from '../types';
 import { CreateTeamModal } from '../components/CreateTeamModal';
 import { JoinTeamModal } from '../components/JoinTeamModal';
 import { AddPlayerModal } from '../components/AddPlayerModal';
-
-// Mock some roster members for demo purposes
-const MOCK_ROSTER: Partial<Player>[] = [
-  { id: 'u1', name: 'Can Kaptan', position: Position.MID, avatarUrl: 'https://picsum.photos/100/100?random=99', rating: 82 }, // Current User (Initial)
-  { id: 'u5', name: 'Volkan (2.K)', position: Position.GK, avatarUrl: 'https://picsum.photos/100/100?random=88', rating: 79 },
-  { id: 'u6', name: 'Emre', position: Position.FWD, avatarUrl: 'https://picsum.photos/100/100?random=77', rating: 85 },
-  { id: 'u7', name: 'Mert', position: Position.DEF, avatarUrl: 'https://picsum.photos/100/100?random=66', rating: 76 },
-];
+import api from '../services/api';
 
 export const TeamProfile: React.FC = () => {
   // State to toggle between Player View and Team View
   const [activeTab, setActiveTab] = useState<'PLAYER' | 'TEAM'>('PLAYER');
 
+  // State for real user data
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
   // Local state for the current team
-  const [myTeam, setMyTeam] = useState<Team | undefined>(
-    MOCK_TEAMS.find(t => t.id === CURRENT_USER.teamId)
-  );
+  const [myTeam, setMyTeam] = useState<Team | undefined>(undefined);
 
   // Local state for roster
   const [roster, setRoster] = useState<Partial<Player>[]>([]);
 
-  const [bio, setBio] = useState(myTeam?.description || '');
+  const [bio, setBio] = useState('');
   const [isEditingBio, setIsEditingBio] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isEditingPitch, setIsEditingPitch] = useState(false);
@@ -40,30 +35,42 @@ export const TeamProfile: React.FC = () => {
   const [isJoinTeamModalOpen, setIsJoinTeamModalOpen] = useState(false);
   const [isAddPlayerModalOpen, setIsAddPlayerModalOpen] = useState(false);
 
-  // Initialize roster when team loads or changes
+  // Fetch User Data on Mount
   useEffect(() => {
-    // Re-fetch team from mock to ensure we have latest data (in case of navigation back)
-    const currentTeamData = MOCK_TEAMS.find(t => t.id === CURRENT_USER.teamId);
-    setMyTeam(currentTeamData);
+    const fetchUser = async () => {
+      try {
+        const response = await api.get('/users/me');
+        const user = response.data;
+        setCurrentUser(user);
 
-    if (currentTeamData) {
-      if (currentTeamData.id === 't1') {
-        setRoster(MOCK_ROSTER);
-      } else {
-        // For new teams, just put current user
-        setRoster([{
-          id: CURRENT_USER.id,
-          name: CURRENT_USER.name,
-          position: CURRENT_USER.position,
-          avatarUrl: CURRENT_USER.avatarUrl,
-          rating: CURRENT_USER.rating
-        }]);
+        if (user.team) {
+          // Fetch full team details to get captain, players etc.
+          const teamResponse = await api.get(`/teams/${user.team.id}`);
+          const fullTeam = teamResponse.data;
+
+          setMyTeam(fullTeam);
+          setBio(fullTeam.description || '');
+
+          // Map backend players to frontend format
+          if (fullTeam.players) {
+            const mappedRoster = fullTeam.players.map((p: any) => ({
+              id: p.id,
+              name: p.full_name || p.username,
+              position: p.position || 'Orta Saha',
+              avatarUrl: 'https://picsum.photos/100/100?random=' + p.id,
+              rating: p.rating || 0
+            }));
+            setRoster(mappedRoster);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch user profile", error);
+      } finally {
+        setLoading(false);
       }
-      setBio(currentTeamData.description);
-    } else {
-      setRoster([]);
-    }
-  }, [CURRENT_USER.teamId]); // Dependency on global user teamId
+    };
+    fetchUser();
+  }, []);
 
   // Actions
   const handleGenerateBio = async () => {
@@ -74,11 +81,6 @@ export const TeamProfile: React.FC = () => {
     // Also save to team object
     const updatedTeam = { ...myTeam, description: newBio };
     setMyTeam(updatedTeam);
-
-    // Update Global Mock
-    const globalTeamIndex = MOCK_TEAMS.findIndex(t => t.id === myTeam.id);
-    if (globalTeamIndex > -1) MOCK_TEAMS[globalTeamIndex] = updatedTeam;
-
     setIsGenerating(false);
   };
 
@@ -86,9 +88,6 @@ export const TeamProfile: React.FC = () => {
     if (myTeam) {
       const updatedTeam = { ...myTeam, description: bio };
       setMyTeam(updatedTeam);
-      // Update Global Mock
-      const globalTeamIndex = MOCK_TEAMS.findIndex(t => t.id === myTeam.id);
-      if (globalTeamIndex > -1) MOCK_TEAMS[globalTeamIndex] = updatedTeam;
     }
     setIsEditingBio(false);
   }
@@ -97,105 +96,73 @@ export const TeamProfile: React.FC = () => {
     if (myTeam) {
       const updatedTeam = { ...myTeam, homePitchId: pitchId };
       setMyTeam(updatedTeam);
-
-      // Update Global Mock
-      const globalTeamIndex = MOCK_TEAMS.findIndex(t => t.id === myTeam.id);
-      if (globalTeamIndex > -1) MOCK_TEAMS[globalTeamIndex] = updatedTeam;
-
       setIsEditingPitch(false);
     }
   };
 
-  const handleCreateTeam = (teamData: Partial<Team>) => {
-    const newId = `t${Date.now()}`;
-    const newTeam: Team = {
-      id: newId,
-      name: teamData.name!,
-      level: teamData.level!,
-      location: teamData.location!,
-      primaryColor: teamData.primaryColor!,
-      captainId: CURRENT_USER.id, // Creator is captain
-      fairPlayScore: 5.0,
-      wins: 0,
-      losses: 0,
-      description: teamData.description || '',
-      logoUrl: teamData.logoUrl || '',
-      guestPlayerIds: []
-    };
+  const handleCreateTeam = async (teamData: Partial<Team>) => {
+    try {
+      const response = await api.post('/teams', teamData);
+      const newTeam = response.data;
 
-    // Update global mock (simulation)
-    MOCK_TEAMS.push(newTeam);
-    CURRENT_USER.teamId = newId;
+      setMyTeam(newTeam);
+      // Update current user locally to reflect team ownership
+      setCurrentUser({ ...currentUser, team: newTeam });
 
-    setMyTeam(newTeam);
+      setRoster([{
+        id: currentUser.id,
+        name: currentUser.full_name || currentUser.username,
+        position: currentUser.position || Position.MID,
+        avatarUrl: 'https://picsum.photos/100/100?random=1',
+        rating: currentUser.rating || 0
+      }]);
 
-    // Update roster for new team
-    setRoster([{
-      id: CURRENT_USER.id,
-      name: CURRENT_USER.name,
-      position: CURRENT_USER.position,
-      avatarUrl: CURRENT_USER.avatarUrl,
-      rating: CURRENT_USER.rating
-    }]);
-
-    setActiveTab('TEAM');
+      setActiveTab('TEAM');
+    } catch (error) {
+      console.error("Failed to create team", error);
+      alert("Takım oluşturulurken bir hata oluştu.");
+    }
   };
 
   const handleLeaveTeam = () => {
     if (!myTeam) return;
-    const isCaptain = myTeam.captainId === CURRENT_USER.id;
+    const isCaptain = myTeam.captain?.id === currentUser.id || myTeam.captainId === currentUser.id; // Handle both structure types if needed
 
     if (isCaptain) {
       alert("Takım kaptanısın. Ayrılmadan önce kaptanlığı başka bir oyuncuya devretmelisin.");
       return;
     }
 
-    if (confirm(`${myTeam.name} takımından ayrılmak istediğine emin misin?`)) {
-      // 1. Update Global User
-      CURRENT_USER.teamId = undefined;
-
-      // 2. Update UI State
+    if (confirm(`${myTeam.name} takımından ayrılmak istediğine emin misin ? `)) {
+      // In real app: call API to leave team
       setMyTeam(undefined);
       setRoster([]);
       setActiveTab('PLAYER');
     }
   };
 
-  const handleKickPlayer = (playerId: string) => {
+  const handleKickPlayer = async (playerId: string) => {
+    if (!myTeam) return;
     if (confirm("Bu oyuncuyu takımdan çıkarmak istiyor musun?")) {
-      setRoster(prev => prev.filter(p => p.id !== playerId));
-      // In real app, update DB to remove user's teamId
+      try {
+        await api.delete(`/teams/${myTeam.id}/players/${playerId}`);
+        setRoster(prev => prev.filter(p => p.id !== playerId));
+      } catch (error) {
+        console.error("Failed to kick player", error);
+        alert("Oyuncu çıkarılamadı.");
+      }
     }
   };
 
-  const handlePromotePlayer = (playerId: string, role: 'CAPTAIN' | 'VICE') => {
+  const handlePromotePlayer = async (playerId: string, role: 'CAPTAIN' | 'VICE') => {
     if (!myTeam) return;
-
-    const player = roster.find(p => p.id === playerId);
-    if (!player) return;
-
-    if (role === 'CAPTAIN') {
-      if (confirm(`${player.name} adlı oyuncuyu KAPTAN yapmak üzeresin. Kendi yetkilerini devredeceksin. Emin misin?`)) {
-        const updatedTeam = {
-          ...myTeam,
-          captainId: playerId,
-          // If they were vice, clear vice
-          viceCaptainId: myTeam.viceCaptainId === playerId ? undefined : myTeam.viceCaptainId
-        };
-
-        setMyTeam(updatedTeam);
-
-        // Update Global Mock so it persists
-        const globalTeamIndex = MOCK_TEAMS.findIndex(t => t.id === myTeam.id);
-        if (globalTeamIndex > -1) MOCK_TEAMS[globalTeamIndex] = updatedTeam;
-      }
-    } else {
-      // VICE Captain
-      const updatedTeam = { ...myTeam, viceCaptainId: playerId };
-      setMyTeam(updatedTeam);
-
-      const globalTeamIndex = MOCK_TEAMS.findIndex(t => t.id === myTeam.id);
-      if (globalTeamIndex > -1) MOCK_TEAMS[globalTeamIndex] = updatedTeam;
+    try {
+      await api.patch(`/teams/${myTeam.id}/players/${playerId}/role`, { role });
+      alert("Oyuncu rolü güncellendi!");
+      window.location.reload(); // Refresh to see changes (e.g. icon updates)
+    } catch (error) {
+      console.error("Failed to promote player", error);
+      alert("Rol güncellenemedi.");
     }
   };
 
@@ -210,6 +177,24 @@ export const TeamProfile: React.FC = () => {
     });
   }
 
+  if (loading) {
+    return <div className="min-h-screen bg-pitch flex items-center justify-center text-white">Yükleniyor...</div>;
+  }
+
+  if (!currentUser) {
+    return (
+      <div className="min-h-screen bg-pitch flex flex-col items-center justify-center text-white gap-4">
+        <p>Kullanıcı bulunamadı. Lütfen giriş yapın.</p>
+        <button
+          onClick={() => window.location.href = '/login'}
+          className="px-6 py-3 bg-turf-600 text-white font-bold rounded-xl hover:bg-turf-500 transition-colors"
+        >
+          Giriş Yap
+        </button>
+      </div>
+    );
+  }
+
   // --- SUB-COMPONENT: PLAYER CARD ---
   const PlayerCard = () => (
     <div className="animate-fade-in">
@@ -219,23 +204,23 @@ export const TeamProfile: React.FC = () => {
         <div className="relative z-10 p-6 flex flex-col items-center">
           <div className="w-32 h-32 rounded-full p-1 bg-gradient-to-r from-turf-500 to-blue-500 mb-4">
             <img
-              src={CURRENT_USER.avatarUrl}
+              src={'https://picsum.photos/100/100?random=1'}
               alt="Profile"
               className="w-full h-full rounded-full object-cover border-4 border-slate-900"
             />
           </div>
 
           <h2 className="font-sport font-bold text-4xl text-white uppercase italic tracking-wide mb-1">
-            {CURRENT_USER.name}
+            {currentUser.full_name || currentUser.username}
           </h2>
           <div className="flex items-center gap-2 text-slate-400 mb-6">
-            <MapPin className="w-4 h-4 text-turf-500" /> {CURRENT_USER.location}
+            <MapPin className="w-4 h-4 text-turf-500" /> {currentUser.location || 'İstanbul'}
           </div>
 
           <div className="grid grid-cols-2 gap-4 w-full mb-6">
             <div className="bg-slate-800/50 p-3 rounded-xl border border-slate-700 flex items-center justify-between">
               <span className="text-slate-400 text-xs font-bold uppercase">Mevki</span>
-              <span className="text-turf-400 font-sport text-2xl font-bold">{CURRENT_USER.position}</span>
+              <span className="text-turf-400 font-sport text-2xl font-bold">{currentUser.position || '-'}</span>
             </div>
             <div className="bg-slate-800/50 p-3 rounded-xl border border-slate-700 flex items-center justify-between">
               <span className="text-slate-400 text-xs font-bold uppercase">Ayak</span>
@@ -244,15 +229,14 @@ export const TeamProfile: React.FC = () => {
           </div>
 
           <div className="w-full space-y-3">
-            {Object.entries(CURRENT_USER.stats || {}).slice(0, 3).map(([key, val]) => (
-              <div key={key} className="flex items-center gap-3">
-                <div className="w-8 text-center font-sport font-bold text-xl text-white">{val}</div>
-                <div className="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden">
-                  <div className="h-full bg-turf-500" style={{ width: `${val}%` }}></div>
-                </div>
-                <div className="text-xs font-bold text-slate-500 w-12 uppercase">{key.substring(0, 3)}</div>
+            {/* Mock Stats for now */}
+            <div className="flex items-center gap-3">
+              <div className="w-8 text-center font-sport font-bold text-xl text-white">85</div>
+              <div className="flex-1 h-2 bg-slate-700 rounded-full overflow-hidden">
+                <div className="h-full bg-turf-500" style={{ width: `85 % ` }}></div>
               </div>
-            ))}
+              <div className="text-xs font-bold text-slate-500 w-12 uppercase">HIZ</div>
+            </div>
           </div>
         </div>
       </div>
@@ -299,17 +283,18 @@ export const TeamProfile: React.FC = () => {
   // --- SUB-COMPONENT: TEAM DASHBOARD ---
   const TeamDashboard = () => {
     if (!myTeam) return null;
-    const isCaptain = myTeam.captainId === CURRENT_USER.id;
+    // Check if current user is captain (handling both object and id reference for safety)
+    const isCaptain = (myTeam.captain && (myTeam.captain as any).id === currentUser.id) || myTeam.captainId === currentUser.id;
 
     return (
       <div className="animate-fade-in space-y-6">
         {/* Header Card */}
         <div className="bg-slate-800 rounded-2xl p-6 border border-slate-700 relative overflow-hidden">
-          <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-${myTeam.primaryColor.replace('bg-', '')} to-transparent opacity-20 rounded-bl-full`}></div>
+          <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-${myTeam.primaryColor?.replace('bg-', '') || 'blue-500'} to-transparent opacity-20 rounded-bl-full`}></div>
 
           <div className="flex justify-between items-start relative z-10">
             <div className="flex items-center gap-4">
-              <img src={myTeam.logoUrl} className="w-20 h-20 rounded-full border-4 border-slate-800 bg-slate-900 object-cover shadow-lg" alt="Logo" />
+              <img src={myTeam.logoUrl || 'https://via.placeholder.com/150'} className="w-20 h-20 rounded-full border-4 border-slate-800 bg-slate-900 object-cover shadow-lg" alt="Logo" />
               <div>
                 <h2 className="font-sport font-black text-3xl text-white italic tracking-wide uppercase">{myTeam.name}</h2>
                 <div className="flex items-center gap-2 mt-1">
@@ -464,12 +449,12 @@ export const TeamProfile: React.FC = () => {
                 <div key={player.id} className="flex items-center gap-3 p-2 rounded-lg bg-slate-900/50 hover:bg-slate-700/50 transition-colors group">
                   <div className="w-10 h-10 rounded-full bg-slate-600 overflow-hidden relative border border-slate-700">
                     <img src={player.avatarUrl} alt="Player" className="w-full h-full object-cover" />
-                    {myTeam.captainId === player.id && (
+                    {myTeam.captain?.id === player.id && (
                       <div className="absolute bottom-0 right-0 bg-yellow-500 rounded-full p-0.5 border border-slate-900" title="Kaptan">
                         <Crown className="w-2.5 h-2.5 text-black fill-black" />
                       </div>
                     )}
-                    {myTeam.viceCaptainId === player.id && (
+                    {myTeam.viceCaptain?.id === player.id && (
                       <div className="absolute bottom-0 right-0 bg-slate-400 rounded-full p-0.5 border border-slate-900" title="2. Kaptan">
                         <Shield className="w-2.5 h-2.5 text-slate-900 fill-slate-900" />
                       </div>
@@ -479,7 +464,7 @@ export const TeamProfile: React.FC = () => {
                   <div className="flex-1 min-w-0">
                     <div className="text-white text-sm font-bold flex items-center gap-2">
                       {player.name}
-                      {player.id === CURRENT_USER.id && <span className="text-[10px] text-slate-500">(Sen)</span>}
+                      {player.id === currentUser.id && <span className="text-[10px] text-slate-500">(Sen)</span>}
                     </div>
                     <div className="text-slate-500 text-[10px] uppercase font-bold">{player.position}</div>
                   </div>
@@ -487,7 +472,7 @@ export const TeamProfile: React.FC = () => {
                   <div className="text-white font-sport font-bold text-lg mr-2">{player.rating}</div>
 
                   {/* Manager Actions - Visible only if I am captain AND target is not me */}
-                  {isCaptain && player.id !== CURRENT_USER.id && (
+                  {isCaptain && player.id !== currentUser.id && (
                     <div className="relative group/menu">
                       <button className="p-1.5 text-slate-500 hover:text-white rounded hover:bg-slate-700 transition-colors">
                         <MoreVertical className="w-4 h-4" />
@@ -543,10 +528,6 @@ export const TeamProfile: React.FC = () => {
                               const updatedGuestIds = myTeam.guestPlayerIds.filter(id => id !== player.id);
                               const updatedTeam = { ...myTeam, guestPlayerIds: updatedGuestIds };
                               setMyTeam(updatedTeam);
-
-                              // Sync global
-                              const globalTeamIndex = MOCK_TEAMS.findIndex(t => t.id === myTeam.id);
-                              if (globalTeamIndex > -1) MOCK_TEAMS[globalTeamIndex] = updatedTeam;
                             }
                           }}
                           className="text-slate-500 hover:text-red-400"
@@ -566,7 +547,7 @@ export const TeamProfile: React.FC = () => {
   }
 
   return (
-    <div className="pb-28 pt-20 px-4 max-w-3xl mx-auto min-h-screen">
+    <div className="pb-28 pt-20 px-4 max-w-3xl mx-auto min-h-screen bg-pitch">
       <CreateTeamModal
         isOpen={isCreateTeamModalOpen}
         onClose={() => setIsCreateTeamModalOpen(false)}
@@ -582,6 +563,7 @@ export const TeamProfile: React.FC = () => {
         isOpen={isAddPlayerModalOpen}
         onClose={() => setIsAddPlayerModalOpen(false)}
         currentRosterIds={roster.map(p => p.id!)}
+        teamId={myTeam?.id}
       />
 
       {/* Tab Switcher */}

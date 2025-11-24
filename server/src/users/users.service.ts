@@ -24,6 +24,16 @@ export class UsersService {
     }
 
     async findOne(username: string): Promise<User | null> {
-        return this.usersRepository.findOne({ where: { username } });
+        return this.usersRepository.findOne({ where: { username }, relations: ['team'] });
+    }
+
+    async findById(id: string): Promise<User | null> {
+        return this.usersRepository.findOne({ where: { id }, relations: ['team'] });
+    }
+
+    async search(query: string): Promise<User[]> {
+        return this.usersRepository.createQueryBuilder('user')
+            .where('user.username ILIKE :query OR user.full_name ILIKE :query', { query: `%${query}%` })
+            .getMany();
     }
 }

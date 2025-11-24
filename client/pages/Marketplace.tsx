@@ -11,12 +11,12 @@ export const Marketplace: React.FC = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   return (
-    <div className="pb-28 pt-20 px-4 max-w-3xl mx-auto">
-      <CreateMatchModal 
-        isOpen={isCreateModalOpen} 
-        onClose={() => setIsCreateModalOpen(false)} 
+    <div className="pb-28 pt-20 px-4 max-w-3xl mx-auto min-h-screen bg-pitch">
+      <CreateMatchModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
       />
-      
+
       <header className="mb-8">
         <h1 className="font-sport font-black text-5xl text-white uppercase italic tracking-tighter leading-none">
           MAÇ <span className="text-turf-500">PAZARI</span>
@@ -30,9 +30,9 @@ export const Marketplace: React.FC = () => {
           <span className="skew-x-[6deg] flex items-center gap-2"><Filter className="w-4 h-4" /> TÜMÜ</span>
         </button>
         {['YAKINIMDA', 'BU AKŞAM', 'ORTA SEVİYE'].map((label) => (
-           <button key={label} className="px-5 py-2.5 bg-slate-800 border border-slate-700 text-slate-300 rounded-xl text-sm font-bold whitespace-nowrap hover:border-turf-500 hover:text-white transition-colors skew-x-[-6deg]">
-              <span className="skew-x-[6deg]">{label}</span>
-           </button>
+          <button key={label} className="px-5 py-2.5 bg-slate-800 border border-slate-700 text-slate-300 rounded-xl text-sm font-bold whitespace-nowrap hover:border-turf-500 hover:text-white transition-colors skew-x-[-6deg]">
+            <span className="skew-x-[6deg]">{label}</span>
+          </button>
         ))}
       </div>
 
@@ -62,12 +62,12 @@ export const Marketplace: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                
+
                 {/* Clarified Pay Section */}
                 <div className="text-center bg-slate-900/50 p-2 rounded-lg border border-slate-700/50 backdrop-blur-sm min-w-[80px]">
-                   <span className="block text-[10px] text-slate-500 uppercase font-bold">SAHA PAYI</span>
-                   <span className="block text-lg font-bold text-white">₺{match.priceShare}</span>
-                   <span className="block text-[8px] text-slate-600 uppercase font-bold">(TAKIM BAŞI)</span>
+                  <span className="block text-[10px] text-slate-500 uppercase font-bold">SAHA PAYI</span>
+                  <span className="block text-lg font-bold text-white">₺{match.priceShare}</span>
+                  <span className="block text-[8px] text-slate-600 uppercase font-bold">(TAKIM BAŞI)</span>
                 </div>
               </div>
 
@@ -75,37 +75,37 @@ export const Marketplace: React.FC = () => {
               <div className="grid grid-cols-2 gap-3 mb-5">
                 <div className="flex items-center gap-3 bg-slate-900/50 p-3 rounded-xl border border-slate-700/50">
                   <div className="bg-slate-800 p-2 rounded-lg">
-                     <Calendar className="w-4 h-4 text-blue-400" />
+                    <Calendar className="w-4 h-4 text-blue-400" />
                   </div>
                   <div>
-                     <div className="text-[10px] text-slate-500 font-bold uppercase">Tarih</div>
-                     <div className="text-sm font-bold text-slate-200">{match.date}</div>
+                    <div className="text-[10px] text-slate-500 font-bold uppercase">Tarih</div>
+                    <div className="text-sm font-bold text-slate-200">{match.date}</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-3 bg-slate-900/50 p-3 rounded-xl border border-slate-700/50">
                   <div className="bg-slate-800 p-2 rounded-lg">
-                     <Clock className="w-4 h-4 text-orange-400" />
+                    <Clock className="w-4 h-4 text-orange-400" />
                   </div>
                   <div>
-                     <div className="text-[10px] text-slate-500 font-bold uppercase">Saat</div>
-                     <div className="text-sm font-bold text-slate-200">{match.time}</div>
+                    <div className="text-[10px] text-slate-500 font-bold uppercase">Saat</div>
+                    <div className="text-sm font-bold text-slate-200">{match.time}</div>
                   </div>
                 </div>
                 <div className="col-span-2 flex items-center gap-3 bg-slate-900/50 p-3 rounded-xl border border-slate-700/50">
                   <div className="bg-slate-800 p-2 rounded-lg">
-                     <MapPin className="w-4 h-4 text-turf-500" />
+                    <MapPin className="w-4 h-4 text-turf-500" />
                   </div>
                   <div className="overflow-hidden">
-                     <div className="text-[10px] text-slate-500 font-bold uppercase">Saha & Konum</div>
-                     <div className="text-sm font-bold text-slate-200 truncate">{match.pitchName}, {match.location}</div>
+                    <div className="text-[10px] text-slate-500 font-bold uppercase">Saha & Konum</div>
+                    <div className="text-sm font-bold text-slate-200 truncate">{match.pitchName}, {match.location}</div>
                   </div>
                 </div>
               </div>
-              
+
               {match.message && (
-                 <div className="mb-4 text-sm text-slate-400 italic">
-                    "{match.message}"
-                 </div>
+                <div className="mb-4 text-sm text-slate-400 italic">
+                  "{match.message}"
+                </div>
               )}
 
               {/* Action Button */}
@@ -116,9 +116,9 @@ export const Marketplace: React.FC = () => {
           </div>
         ))}
       </div>
-      
+
       {/* Floating Action Button */}
-      <button 
+      <button
         onClick={() => setIsCreateModalOpen(true)}
         className="fixed bottom-24 right-6 bg-turf-600 text-white p-4 rounded-2xl shadow-xl shadow-turf-600/40 hover:scale-110 transition-transform z-40 border-2 border-white/20 rotate-3 hover:rotate-0"
       >

@@ -14,28 +14,28 @@ export const Chat: React.FC = () => {
   const [showTactic, setShowTactic] = useState(false);
   const [tactic, setTactic] = useState('');
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
-  
+
   const endRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
 
   // Auto-open channel from navigation state
   useEffect(() => {
     if (location.state?.channelId) {
-       setSelectedChannelId(location.state.channelId);
-       // Clear state so it doesn't stick if we navigate back
-       window.history.replaceState({}, document.title);
+      setSelectedChannelId(location.state.channelId);
+      // Clear state so it doesn't stick if we navigate back
+      window.history.replaceState({}, document.title);
     }
   }, [location]);
 
   // Get current active channel and its messages
-  const activeChannel = MOCK_CHANNELS.find(c => c.id === selectedChannelId) || 
-                        (selectedChannelId ? { id: selectedChannelId, type: 'DM', name: 'Sohbet', lastMessage: '', timestamp: '', unreadCount: 0 } as ChatChannel : null);
-                        
+  const activeChannel = MOCK_CHANNELS.find(c => c.id === selectedChannelId) ||
+    (selectedChannelId ? { id: selectedChannelId, type: 'DM', name: 'Sohbet', lastMessage: '', timestamp: '', unreadCount: 0 } as ChatChannel : null);
+
   const messages = selectedChannelId ? (MOCK_MESSAGES[selectedChannelId] || []) : [];
 
   // Identify Opponents (Team or Joker)
-  const opponentTeam = activeChannel?.type === 'DM' && activeChannel.opponentTeamId 
-    ? MOCK_TEAMS.find(t => t.id === activeChannel.opponentTeamId) 
+  const opponentTeam = activeChannel?.type === 'DM' && activeChannel.opponentTeamId
+    ? MOCK_TEAMS.find(t => t.id === activeChannel.opponentTeamId)
     : null;
 
   const opponentJoker = activeChannel?.type === 'DM' && activeChannel.participantId
@@ -43,16 +43,16 @@ export const Chat: React.FC = () => {
     : null;
 
   const handleSend = () => {
-    if(!input.trim()) return;
+    if (!input.trim()) return;
     setInput('');
   };
 
   const handleGetTactics = async () => {
     if (!activeChannel) return;
-    
+
     setTactic('Koç analiz yapıyor...');
     setShowTactic(true);
-    
+
     // Context-aware prompt simulation
     const contextLevel = activeChannel.type === 'MATCH_GROUP' ? SkillLevel.ADVANCED : SkillLevel.INTERMEDIATE;
     const advice = await getTacticalAdvice(contextLevel, SkillLevel.INTERMEDIATE);
@@ -66,7 +66,7 @@ export const Chat: React.FC = () => {
   // --- COMPONENT: CHANNEL LIST ---
   if (!selectedChannelId) {
     return (
-      <div className="pb-24 pt-20 px-4 max-w-3xl mx-auto min-h-screen">
+      <div className="pb-24 pt-20 px-4 max-w-3xl mx-auto min-h-screen bg-pitch">
         <header className="mb-6">
           <h1 className="font-sport font-black text-4xl text-white uppercase italic tracking-tighter">
             OPERASYON <span className="text-turf-500">MERKEZİ</span>
@@ -76,9 +76,9 @@ export const Chat: React.FC = () => {
 
         <div className="space-y-4">
           <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Aktif Sohbetler</h3>
-          
+
           {MOCK_CHANNELS.map(channel => (
-            <div 
+            <div
               key={channel.id}
               onClick={() => setSelectedChannelId(channel.id)}
               className="bg-slate-800 p-4 rounded-2xl border border-slate-700 flex gap-4 items-center hover:bg-slate-750 active:scale-95 transition-all cursor-pointer"
@@ -116,7 +116,7 @@ export const Chat: React.FC = () => {
   // --- COMPONENT: ACTIVE CHAT VIEW ---
   return (
     <div className="flex flex-col h-screen bg-pitch-surface pb-4 md:pb-0 relative">
-      <InviteJokerModal 
+      <InviteJokerModal
         isOpen={isInviteModalOpen}
         onClose={() => setIsInviteModalOpen(false)}
         joker={opponentJoker}
@@ -125,72 +125,72 @@ export const Chat: React.FC = () => {
       {/* Custom Header */}
       <div className="bg-slate-900/90 backdrop-blur pt-safe-top p-4 border-b border-slate-800 flex flex-col gap-3 sticky top-0 z-50 shadow-lg">
         <div className="flex items-center gap-3">
-          <button 
+          <button
             onClick={() => setSelectedChannelId(null)}
             className="p-2 -ml-2 rounded-full hover:bg-slate-800 text-slate-400 hover:text-white"
           >
             <ChevronLeft className="w-6 h-6" />
           </button>
-          
+
           <img src={activeChannel?.avatarUrl || 'https://picsum.photos/200'} className="w-10 h-10 rounded-full bg-slate-800 object-cover" />
           <div className="flex-1">
             <h2 className="text-white font-bold leading-tight">{activeChannel?.name}</h2>
             <div className="flex items-center gap-2 text-xs text-slate-400">
-               {activeChannel?.type === 'MATCH_GROUP' ? (
-                 <span className="flex items-center gap-1 text-turf-500"><Users className="w-3 h-3" /> 14 Oyuncu Aktif</span>
-               ) : (
-                 <span className="flex items-center gap-1 text-green-500"><span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span> Çevrimiçi</span>
-               )}
+              {activeChannel?.type === 'MATCH_GROUP' ? (
+                <span className="flex items-center gap-1 text-turf-500"><Users className="w-3 h-3" /> 14 Oyuncu Aktif</span>
+              ) : (
+                <span className="flex items-center gap-1 text-green-500"><span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span> Çevrimiçi</span>
+              )}
             </div>
           </div>
-          
+
           {/* Action Buttons */}
           <div className="flex gap-2">
-              {/* Show Invite Button ONLY if chatting with a Joker */}
-              {opponentJoker && (
-                <button 
-                  onClick={() => setIsInviteModalOpen(true)}
-                  className="bg-gradient-to-r from-turf-600 to-green-500 text-white px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-lg shadow-turf-500/20 animate-pulse-slow"
-                >
-                    <UserPlus className="w-4 h-4" />
-                    <span className="text-xs font-bold hidden sm:inline">Maça Davet Et</span>
-                </button>
-              )}
-
-              <button 
-                onClick={handleGetTactics}
-                className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-lg shadow-purple-500/20"
+            {/* Show Invite Button ONLY if chatting with a Joker */}
+            {opponentJoker && (
+              <button
+                onClick={() => setIsInviteModalOpen(true)}
+                className="bg-gradient-to-r from-turf-600 to-green-500 text-white px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-lg shadow-turf-500/20 animate-pulse-slow"
               >
-                <Bot className="w-4 h-4" />
-                <span className="text-xs font-bold hidden sm:inline">Koç'a Sor</span>
+                <UserPlus className="w-4 h-4" />
+                <span className="text-xs font-bold hidden sm:inline">Maça Davet Et</span>
               </button>
+            )}
+
+            <button
+              onClick={handleGetTactics}
+              className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-lg shadow-purple-500/20"
+            >
+              <Bot className="w-4 h-4" />
+              <span className="text-xs font-bold hidden sm:inline">Koç'a Sor</span>
+            </button>
           </div>
         </div>
 
         {/* Captain Quick Actions (Only for DM with Team) */}
         {activeChannel?.type === 'DM' && opponentTeam && (
           <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
-             <div className="flex items-center gap-2 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700 min-w-fit">
-                <div className="w-6 h-6 rounded-full bg-yellow-500 flex items-center justify-center">
-                   <span className="font-black text-[10px] text-yellow-900">C</span>
+            <div className="flex items-center gap-2 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700 min-w-fit">
+              <div className="w-6 h-6 rounded-full bg-yellow-500 flex items-center justify-center">
+                <span className="font-black text-[10px] text-yellow-900">C</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[9px] text-slate-400 uppercase font-bold leading-none">Kaptan</span>
+                <span className="text-xs text-white font-bold leading-none">Ulaşılabilir</span>
+              </div>
+            </div>
+
+            {opponentTeam.viceCaptainId && (
+              <div className="flex items-center gap-2 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700 min-w-fit opacity-75 hover:opacity-100">
+                <div className="w-6 h-6 rounded-full bg-slate-600 flex items-center justify-center border border-slate-500">
+                  <span className="font-black text-[10px] text-white">2.K</span>
                 </div>
                 <div className="flex flex-col">
-                   <span className="text-[9px] text-slate-400 uppercase font-bold leading-none">Kaptan</span>
-                   <span className="text-xs text-white font-bold leading-none">Ulaşılabilir</span>
+                  <span className="text-[9px] text-slate-400 uppercase font-bold leading-none">2. Kaptan</span>
+                  <span className="text-xs text-white font-bold leading-none">Müsait</span>
                 </div>
-             </div>
-             
-             {opponentTeam.viceCaptainId && (
-                <div className="flex items-center gap-2 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700 min-w-fit opacity-75 hover:opacity-100">
-                  <div className="w-6 h-6 rounded-full bg-slate-600 flex items-center justify-center border border-slate-500">
-                     <span className="font-black text-[10px] text-white">2.K</span>
-                  </div>
-                  <div className="flex flex-col">
-                     <span className="text-[9px] text-slate-400 uppercase font-bold leading-none">2. Kaptan</span>
-                     <span className="text-xs text-white font-bold leading-none">Müsait</span>
-                  </div>
-                </div>
-             )}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -207,49 +207,48 @@ export const Chat: React.FC = () => {
         {messages.map((msg) => (
           <div key={msg.id} className={`flex gap-3 ${msg.isMe ? 'justify-end' : 'justify-start'}`}>
             {!msg.isMe && (
-               <div className="flex flex-col items-center gap-1">
-                  <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-white overflow-hidden">
-                     {msg.senderName.charAt(0)}
-                  </div>
-               </div>
+              <div className="flex flex-col items-center gap-1">
+                <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-white overflow-hidden">
+                  {msg.senderName.charAt(0)}
+                </div>
+              </div>
             )}
-            
+
             <div className={`max-w-[75%] space-y-1`}>
-               {!msg.isMe && activeChannel?.type === 'MATCH_GROUP' && (
-                  <span className="text-[10px] text-slate-400 ml-1 block">{msg.senderName}</span>
-               )}
-               <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed shadow-sm ${
-                  msg.isMe 
-                    ? 'bg-turf-600 text-white rounded-tr-none' 
-                    : 'bg-slate-800 text-slate-200 border border-slate-700 rounded-tl-none'
-               }`}>
-                  {msg.text}
-               </div>
-               <span className={`text-[10px] block ${msg.isMe ? 'text-right text-slate-500' : 'text-left text-slate-500'}`}>
-                  {msg.timestamp}
-               </span>
+              {!msg.isMe && activeChannel?.type === 'MATCH_GROUP' && (
+                <span className="text-[10px] text-slate-400 ml-1 block">{msg.senderName}</span>
+              )}
+              <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed shadow-sm ${msg.isMe
+                  ? 'bg-turf-600 text-white rounded-tr-none'
+                  : 'bg-slate-800 text-slate-200 border border-slate-700 rounded-tl-none'
+                }`}>
+                {msg.text}
+              </div>
+              <span className={`text-[10px] block ${msg.isMe ? 'text-right text-slate-500' : 'text-left text-slate-500'}`}>
+                {msg.timestamp}
+              </span>
             </div>
           </div>
         ))}
 
         {/* AI Coach Advice Bubble */}
         {showTactic && (
-           <div className="flex justify-center my-6 animate-fade-in-up">
-             <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-purple-500/30 p-5 rounded-2xl max-w-[90%] shadow-2xl shadow-purple-900/20 relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-indigo-500"></div>
-                <div className="flex items-center gap-2 mb-3 text-purple-400 font-sport font-bold text-lg uppercase tracking-wide">
-                  <Bot className="w-5 h-5" /> Koç'un Tavsiyesi
-                </div>
-                <p className="text-sm text-slate-300 whitespace-pre-line leading-relaxed font-medium">
-                  {tactic}
-                </p>
-                <div className="mt-3 flex justify-end">
-                   <button className="text-[10px] bg-purple-500/10 text-purple-400 px-2 py-1 rounded hover:bg-purple-500/20 transition-colors">
-                      Teşekkür Et
-                   </button>
-                </div>
-             </div>
-           </div>
+          <div className="flex justify-center my-6 animate-fade-in-up">
+            <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-purple-500/30 p-5 rounded-2xl max-w-[90%] shadow-2xl shadow-purple-900/20 relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-indigo-500"></div>
+              <div className="flex items-center gap-2 mb-3 text-purple-400 font-sport font-bold text-lg uppercase tracking-wide">
+                <Bot className="w-5 h-5" /> Koç'un Tavsiyesi
+              </div>
+              <p className="text-sm text-slate-300 whitespace-pre-line leading-relaxed font-medium">
+                {tactic}
+              </p>
+              <div className="mt-3 flex justify-end">
+                <button className="text-[10px] bg-purple-500/10 text-purple-400 px-2 py-1 rounded hover:bg-purple-500/20 transition-colors">
+                  Teşekkür Et
+                </button>
+              </div>
+            </div>
+          </div>
         )}
         <div ref={endRef} />
       </div>
@@ -258,19 +257,19 @@ export const Chat: React.FC = () => {
       <div className="p-3 bg-slate-900 border-t border-slate-800 pb-safe-bottom">
         <div className="flex gap-2 items-end">
           <button className="p-3 rounded-xl bg-slate-800 text-slate-400 hover:text-turf-500 transition-colors">
-             <Phone className="w-5 h-5" />
+            <Phone className="w-5 h-5" />
           </button>
           <div className="flex-1 bg-slate-800 rounded-xl flex items-center border border-slate-700 focus-within:border-turf-500 transition-colors">
-             <input 
-               type="text" 
-               value={input}
-               onChange={(e) => setInput(e.target.value)}
-               onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-               placeholder="Mesaj yaz..." 
-               className="w-full bg-transparent px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none"
-             />
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+              placeholder="Mesaj yaz..."
+              className="w-full bg-transparent px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none"
+            />
           </div>
-          <button 
+          <button
             onClick={handleSend}
             className={`p-3 rounded-xl transition-all ${input.trim() ? 'bg-turf-600 text-white shadow-lg shadow-turf-600/20 scale-100' : 'bg-slate-800 text-slate-500 scale-95'}`}
           >

@@ -1,4 +1,4 @@
-import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, ManyToOne } from 'typeorm';
 
 @Entity()
 export class User {
@@ -23,9 +23,12 @@ export class User {
     @Column({ nullable: true })
     position: string;
 
+    @Column({ nullable: true })
+    location: string;
+
     @Column('float', { default: 0 })
     rating: number;
 
-    @Column({ nullable: true })
-    team_id: string; // Relation will be added later
+    @ManyToOne('Team', (team: any) => team.players, { nullable: true })
+    team: any; // Using 'any' or import Team to avoid circular dependency issues for now, or use forwardRef
 }

@@ -40,7 +40,7 @@ export const Register: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen flex flex-col items-center justify-center px-4 pt-20 pb-28">
+        <div className="min-h-screen bg-pitch flex flex-col items-center justify-center px-4 pt-20 pb-28">
             <div className="w-full max-w-md bg-slate-800 p-8 rounded-3xl border border-slate-700 shadow-2xl">
                 <div className="text-center mb-8">
                     <div className="inline-block bg-turf-600 p-3 rounded-xl skew-x-[-12deg] mb-4">
