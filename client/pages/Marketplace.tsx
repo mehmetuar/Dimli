@@ -1,14 +1,50 @@
 
 import React, { useState } from 'react';
-import { MOCK_MATCHES } from '../constants';
-import { MapPin, Calendar, Clock, ChevronRight, Filter, Shield } from 'lucide-react';
+import { MOCK_MATCHES, MOCK_TEAMS, CURRENT_USER } from '../constants';
+import { MapPin, Calendar, Clock, ChevronRight, Filter, Shield, Lock } from 'lucide-react';
 import { LevelBadge } from '../components/LevelBadge';
 import { FairPlayScore } from '../components/FairPlayScore';
 import { CreateMatchModal } from '../components/CreateMatchModal';
+import { ChallengeModal } from '../components/ChallengeModal';
+import api from '../services/api';
 
 export const Marketplace: React.FC = () => {
   const [matches, setMatches] = useState(MOCK_MATCHES);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isChallengeModalOpen, setIsChallengeModalOpen] = useState(false);
+  const [selectedMatch, setSelectedMatch] = useState<any>(null);
+
+  // Find user's team
+  const myTeam = MOCK_TEAMS.find(team => team.captainId === CURRENT_USER.id || team.viceCaptainIds?.includes(CURRENT_USER.id));
+
+  // Check if user is authorized (captain or vice-captain)
+  const isAuthorized = (teamId: string) => {
+    const team = MOCK_TEAMS.find(t => t.id === teamId);
+    if (!team) return false;
+    return team.captainId === CURRENT_USER.id || team.viceCaptainIds?.includes(CURRENT_USER.id) || false;
+  };
+
+  const canChallenge = !!myTeam && (myTeam.captainId === CURRENT_USER.id || myTeam.viceCaptainIds?.includes(CURRENT_USER.id));
+
+  const handleOpenChallengeModal = (match: any) => {
+    setSelectedMatch(match);
+    setIsChallengeModalOpen(true);
+  };
+
+  const handleSubmitChallenge = async (note: string) => {
+    if (!myTeam || !selectedMatch) return;
+    try {
+      await api.post('/challenges', {
+        fromTeamId: myTeam.id,
+        toMatchId: selectedMatch.id,
+        note
+      });
+      alert('Meydan okuma gönderildi!');
+    } catch (error) {
+      console.error('Failed to send challenge:', error);
+      alert('Meydan okuma gönderilemedi.');
+    }
+  };
 
   return (
     <div className="pb-28 pt-20 px-4 max-w-3xl mx-auto min-h-screen bg-pitch">
@@ -109,13 +145,40 @@ export const Marketplace: React.FC = () => {
               )}
 
               {/* Action Button */}
-              <button className="w-full bg-white text-slate-900 py-3.5 rounded-xl font-black text-sm uppercase tracking-wider hover:bg-turf-400 hover:text-slate-900 transition-colors flex items-center justify-center gap-2 shadow-lg group-hover:shadow-turf-500/20">
-                Meydan Oku <ChevronRight className="w-5 h-5" />
-              </button>
+              {canChallenge ? (
+                <button
+                  onClick={() => handleOpenChallengeModal(match)}
+                  className="w-full bg-turf-600 text-white py-3.5 rounded-xl font-black text-sm uppercase tracking-wider hover:bg-turf-500 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-turf-600/20"
+                >
+                  Meydan Oku <ChevronRight className="w-5 h-5" />
+                </button>
+              ) : (
+                <div className="w-full bg-slate-700/50 text-slate-500 py-3.5 rounded-xl font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 border border-slate-600/50 cursor-not-allowed">
+                  <Lock className="w-4 h-4" />
+                  Sadece Kaptan ve Yardımcıları
+                </div>
+              )}
             </div>
           </div>
         ))}
       </div>
+
+      {/* Challenge Modal */}
+      {selectedMatch && (
+        <ChallengeModal
+          isOpen={isChallengeModalOpen}
+          onClose={() => setIsChallengeModalOpen(false)}
+          match={{
+            id: selectedMatch.id,
+            teamName: selectedMatch.teamName,
+            teamLogo: selectedMatch.teamLogo,
+            date: selectedMatch.date,
+            time: selectedMatch.time,
+            location: selectedMatch.location
+          }}
+          onSubmit={handleSubmitChallenge}
+        />
+      )}
 
       {/* Floating Action Button */}
       <button

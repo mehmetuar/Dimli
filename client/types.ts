@@ -42,7 +42,7 @@ export interface Team {
   logoUrl: string;
   primaryColor: string; // Tailwind class e.g. "bg-red-600"
   captainId: string;
-  viceCaptainId?: string; // New: 2. Kaptan
+  viceCaptainIds?: string[]; // Array of vice-captain IDs (max 2)
   level: SkillLevel;
   location: string;
   homePitchId?: string; // The ID of their favorite pitch

@@ -43,4 +43,13 @@ export class TeamsController {
     ) {
         return this.teamsService.updatePlayerRole(id, playerId, role);
     }
+
+    @UseGuards(JwtAuthGuard)
+    @Patch(':id/vice-captains')
+    updateViceCaptains(
+        @Param('id') id: string,
+        @Body() dto: { add?: string; remove?: string }
+    ) {
+        return this.teamsService.updateViceCaptains(id, dto.add, dto.remove);
+    }
 }

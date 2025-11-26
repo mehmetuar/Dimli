@@ -178,12 +178,31 @@ export const TeamProfile: React.FC = () => {
     }
   };
 
+  // Handle setting vice-captain (add)
+  const handleSetViceCaptain = async (userId: string) => {
+    if (!myTeam) return;
+    try {
+      // Call API to add vice-captain
+      const response = await api.patch(`/teams/${myTeam.id}/vice-captains`, {
+        add: userId
+      });
+
+      // Update local state with response
+      setMyTeam(response.data);
+
+      alert('Kaptan yardımcısı başarıyla atandı!');
+    } catch (error) {
+      console.error('Failed to set vice-captain:', error);
+      alert('Kaptan yardımcısı atama başarısız oldu.');
+    }
+  };
+
   const handlePromotePlayer = async (playerId: string, role: 'CAPTAIN' | 'VICE') => {
     if (!myTeam) return;
     try {
-      await api.patch(`/teams/${myTeam.id}/players/${playerId}/role`, { role });
+      const response = await api.patch(`/teams/${myTeam.id}/players/${playerId}/role`, { role });
+      setMyTeam(response.data); // Update state instead of reload
       alert("Oyuncu rolü güncellendi!");
-      window.location.reload(); // Refresh to see changes (e.g. icon updates)
     } catch (error) {
       console.error("Failed to promote player", error);
       alert("Rol güncellenemedi.");
@@ -493,8 +512,8 @@ export const TeamProfile: React.FC = () => {
                         <Crown className="w-2.5 h-2.5 text-black fill-black" />
                       </div>
                     )}
-                    {myTeam.viceCaptain?.id === player.id && (
-                      <div className="absolute bottom-0 right-0 bg-slate-400 rounded-full p-0.5 border border-slate-900" title="2. Kaptan">
+                    {myTeam.viceCaptainIds?.includes(player.id) && (
+                      <div className="absolute bottom-0 right-0 bg-slate-400 rounded-full p-0.5 border border-slate-900" title="Kaptan Yardımcısı">
                         <Shield className="w-2.5 h-2.5 text-slate-900 fill-slate-900" />
                       </div>
                     )}

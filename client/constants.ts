@@ -115,7 +115,7 @@ export const MOCK_TEAMS: Team[] = [
     logoUrl: 'https://picsum.photos/200/200?random=1',
     primaryColor: 'bg-red-600',
     captainId: 'u1',
-    viceCaptainId: 'u5',
+    viceCaptainIds: ['u5', 'u6'], // 2 vice-captains
     level: SkillLevel.INTERMEDIATE,
     location: 'Kadıköy, İstanbul',
     homePitchId: 'p1',
@@ -131,7 +131,7 @@ export const MOCK_TEAMS: Team[] = [
     logoUrl: 'https://picsum.photos/200/200?random=2',
     primaryColor: 'bg-blue-600',
     captainId: 'u2',
-    viceCaptainId: 'u6',
+    viceCaptainIds: ['u6', 'u7'], // 2 vice-captains
     level: SkillLevel.ADVANCED,
     location: 'Şişli, İstanbul',
     homePitchId: 'p3',
@@ -147,6 +147,7 @@ export const MOCK_TEAMS: Team[] = [
     logoUrl: 'https://picsum.photos/200/200?random=3',
     primaryColor: 'bg-yellow-500',
     captainId: 'u3',
+    viceCaptainIds: [], // No vice-captains yet
     level: SkillLevel.BEGINNER,
     location: 'Göztepe, İstanbul',
     fairPlayScore: 5.0,

@@ -38,9 +38,8 @@ export class Team {
     @JoinColumn()
     captain: User;
 
-    @OneToOne(() => User, { nullable: true })
-    @JoinColumn()
-    viceCaptain: User;
+    @Column('simple-array', { nullable: true })
+    viceCaptainIds: string[];
 
     @OneToMany(() => User, (user) => user.team, { cascade: true })
     players: User[];

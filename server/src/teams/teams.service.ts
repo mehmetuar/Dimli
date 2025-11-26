@@ -23,7 +23,7 @@ export class TeamsService {
     }
 
     async findAll(): Promise<Team[]> {
-        const teams = await this.teamsRepository.find({ relations: ['captain', 'viceCaptain'] });
+        const teams = await this.teamsRepository.find({ relations: ['captain'] });
 
         // For each team, manually load players using query builder
         for (const team of teams) {
@@ -40,7 +40,7 @@ export class TeamsService {
     async findOne(id: string): Promise<Team | null> {
         const team = await this.teamsRepository.findOne({
             where: { id },
-            relations: ['captain', 'viceCaptain']
+            relations: ['captain']
         });
 
         if (!team) return null;
@@ -95,9 +95,9 @@ export class TeamsService {
 
         team.players = team.players.filter(p => p.id !== playerId);
 
-        // If vice captain is removed, unset vice captain
-        if (team.viceCaptain?.id === playerId) {
-            team.viceCaptain = null as any;
+        // If vice captain is removed, remove from viceCaptainIds
+        if (team.viceCaptainIds?.includes(playerId)) {
+            team.viceCaptainIds = team.viceCaptainIds.filter(id => id !== playerId);
         }
 
         return this.teamsRepository.save(team);
@@ -112,11 +112,34 @@ export class TeamsService {
 
         if (role === 'CAPTAIN') {
             // Swap captain
-            const oldCaptain = team.captain;
             team.captain = player;
-            // Old captain becomes regular player (already in players list)
         } else if (role === 'VICE') {
-            team.viceCaptain = player;
+            // Add to viceCaptainIds if not already present (max 2)
+            if (!team.viceCaptainIds) team.viceCaptainIds = [];
+            if (!team.viceCaptainIds.includes(playerId) && team.viceCaptainIds.length < 2) {
+                team.viceCaptainIds.push(playerId);
+            }
+        }
+
+        return this.teamsRepository.save(team);
+    }
+
+    async updateViceCaptains(teamId: string, add?: string, remove?: string): Promise<Team> {
+        const team = await this.findOne(teamId);
+        if (!team) throw new Error('Team not found');
+
+        if (!team.viceCaptainIds) team.viceCaptainIds = [];
+
+        if (add) {
+            // Add vice-captain (max 2)
+            if (!team.viceCaptainIds.includes(add) && team.viceCaptainIds.length < 2) {
+                team.viceCaptainIds.push(add);
+            }
+        }
+
+        if (remove) {
+            // Remove vice-captain
+            team.viceCaptainIds = team.viceCaptainIds.filter(id => id !== remove);
         }
 
         return this.teamsRepository.save(team);
