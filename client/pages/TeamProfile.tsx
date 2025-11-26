@@ -2,15 +2,17 @@
 
 
 import React, { useState, useEffect } from 'react';
-import { MOCK_TEAMS, MOCK_PITCHES, MOCK_JOKERS } from '../constants';
+import { MOCK_TEAMS, MOCK_PITCHES, MOCK_JOKERS, MOCK_MATCH_HISTORY } from '../constants';
 import { generateTeamBio } from '../services/geminiService';
 import { FairPlayScore } from '../components/FairPlayScore';
 import { LevelBadge } from '../components/LevelBadge';
-import { MapPin, Shield, Sparkles, Edit2, Plus, X, UserPlus, LogOut, Crown, MoreVertical, Trash2, Save } from 'lucide-react';
+import { MapPin, Shield, Sparkles, Edit2, Plus, X, UserPlus, LogOut, Crown, MoreVertical, Trash2, Save, History } from 'lucide-react';
 import { Team, Player, Position } from '../types';
 import { CreateTeamModal } from '../components/CreateTeamModal';
 import { JoinTeamModal } from '../components/JoinTeamModal';
 import { AddPlayerModal } from '../components/AddPlayerModal';
+import { ConfirmModal } from '../components/ConfirmModal';
+import { MatchHistoryModal } from '../components/MatchHistoryModal';
 import api from '../services/api';
 
 export const TeamProfile: React.FC = () => {
@@ -34,6 +36,16 @@ export const TeamProfile: React.FC = () => {
   const [isCreateTeamModalOpen, setIsCreateTeamModalOpen] = useState(false);
   const [isJoinTeamModalOpen, setIsJoinTeamModalOpen] = useState(false);
   const [isAddPlayerModalOpen, setIsAddPlayerModalOpen] = useState(false);
+  const [isMatchHistoryOpen, setIsMatchHistoryOpen] = useState(false);
+
+  // Confirmation modal states
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    isDangerous?: boolean;
+  }>({ isOpen: false, title: '', message: '', onConfirm: () => { } });
 
   // Fetch User Data on Mount
   useEffect(() => {
@@ -126,19 +138,31 @@ export const TeamProfile: React.FC = () => {
 
   const handleLeaveTeam = () => {
     if (!myTeam) return;
-    const isCaptain = myTeam.captain?.id === currentUser.id || myTeam.captainId === currentUser.id; // Handle both structure types if needed
+    const isCaptain = myTeam.captain?.id === currentUser.id || myTeam.captainId === currentUser.id;
 
     if (isCaptain) {
-      alert("Takım kaptanısın. Ayrılmadan önce kaptanlığı başka bir oyuncuya devretmelisin.");
+      setConfirmModal({
+        isOpen: true,
+        title: 'Uyarı',
+        message: 'Takım kaptanısın. Ayrılmadan önce kaptanlığı başka bir oyuncuya devretmelisin.',
+        onConfirm: () => { }, // Just close the modal
+        isDangerous: false
+      });
       return;
     }
 
-    if (confirm(`${myTeam.name} takımından ayrılmak istediğine emin misin ? `)) {
-      // In real app: call API to leave team
-      setMyTeam(undefined);
-      setRoster([]);
-      setActiveTab('PLAYER');
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: 'Takımdan Ayrıl',
+      message: `${myTeam.name} takımından ayrılmak istediğine emin misin?`,
+      onConfirm: () => {
+        // In real app: call API to leave team
+        setMyTeam(undefined);
+        setRoster([]);
+        setActiveTab('PLAYER');
+      },
+      isDangerous: true
+    });
   };
 
   const handleKickPlayer = async (playerId: string) => {
@@ -198,6 +222,27 @@ export const TeamProfile: React.FC = () => {
   // --- SUB-COMPONENT: PLAYER CARD ---
   const PlayerCard = () => (
     <div className="animate-fade-in">
+      {/* Logout Button - Top Right */}
+      <div className="flex justify-end mb-4">
+        <button
+          onClick={() => {
+            setConfirmModal({
+              isOpen: true,
+              title: 'Çıkış Yap',
+              message: 'Çıkış yapmak istediğinize emin misiniz?',
+              onConfirm: () => {
+                localStorage.removeItem('token');
+                window.location.href = '#/login';
+              },
+              isDangerous: true
+            });
+          }}
+          className="text-red-400 hover:text-red-300 font-bold text-sm flex items-center gap-2 transition-colors px-4 py-2 bg-slate-800/50 rounded-xl border border-slate-700 hover:border-red-500/50"
+        >
+          <LogOut className="w-4 h-4" /> Çıkış Yap
+        </button>
+      </div>
+
       <div className="relative bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl overflow-hidden border border-slate-700 shadow-2xl">
         <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]"></div>
 
@@ -262,21 +307,6 @@ export const TeamProfile: React.FC = () => {
           </div>
         </div>
       )}
-
-      {/* Logout Button */}
-      <div className="mt-6 text-center">
-        <button
-          onClick={() => {
-            if (confirm('Çıkış yapmak istediğinize emin misiniz?')) {
-              localStorage.removeItem('token');
-              window.location.href = '/login'; // Force reload to update Navbar state
-            }
-          }}
-          className="text-red-400 hover:text-red-300 font-bold text-sm flex items-center justify-center gap-2 mx-auto transition-colors"
-        >
-          <LogOut className="w-4 h-4" /> Çıkış Yap
-        </button>
-      </div>
     </div>
   );
 
@@ -366,6 +396,15 @@ export const TeamProfile: React.FC = () => {
             <div className="text-turf-500 font-sport text-3xl font-bold">94%</div>
           </div>
         </div>
+
+        {/* Match History Button */}
+        <button
+          onClick={() => setIsMatchHistoryOpen(true)}
+          className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold py-3 rounded-xl hover:from-purple-500 hover:to-indigo-500 transition-all shadow-lg shadow-purple-600/20 flex items-center justify-center gap-2"
+        >
+          <History className="w-5 h-5" />
+          Geçmiş Maçlar
+        </button>
 
         {/* Home Pitch Section */}
         <div className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden">
@@ -548,6 +587,25 @@ export const TeamProfile: React.FC = () => {
 
   return (
     <div className="pb-28 pt-20 px-4 max-w-3xl mx-auto min-h-screen bg-pitch">
+      {/* Confirm Modal */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        isDangerous={confirmModal.isDangerous}
+        confirmText={confirmModal.isDangerous ? "Evet, Eminim" : "Tamam"}
+        cancelText="İptal"
+      />
+
+      {/* Match History Modal */}
+      <MatchHistoryModal
+        isOpen={isMatchHistoryOpen}
+        onClose={() => setIsMatchHistoryOpen(false)}
+        matches={MOCK_MATCH_HISTORY}
+      />
+
       <CreateTeamModal
         isOpen={isCreateTeamModalOpen}
         onClose={() => setIsCreateTeamModalOpen(false)}

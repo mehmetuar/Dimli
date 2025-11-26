@@ -43,7 +43,7 @@ export const Navbar: React.FC = () => {
       </div>
 
       {/* Notification Bell (Top Right - Visible Mobile & Desktop) - Conditioned */}
-      {showBell && isLoggedIn && (
+      {showBell && isLoggedIn && location.pathname !== '/chat' && (
         <div className="fixed top-6 right-6 z-50">
           <button
             onClick={handleNotificationClick}

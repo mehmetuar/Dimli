@@ -265,9 +265,20 @@ export const PitchBooking: React.FC = () => {
 
                            {/* --- SCHEDULE GRID (AVAILABILITY) --- */}
                            <div className="mb-8">
-                              <h4 className="text-white font-bold text-sm mb-3 flex items-center gap-2">
-                                 <Clock className="w-4 h-4 text-turf-500" /> BUGÜNÜN AKIŞI
-                              </h4>
+                              {/* Header with Reservation Button */}
+                              <div className="flex items-center justify-between mb-3">
+                                 <h4 className="text-white font-bold text-sm flex items-center gap-2">
+                                    <Clock className="w-4 h-4 text-turf-500" /> BUGÜNÜN AKIŞI
+                                 </h4>
+                                 <a
+                                    href={`tel:${pitch.phone}`}
+                                    className="bg-turf-600 hover:bg-turf-500 text-white px-3 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all shadow-lg shadow-turf-600/20"
+                                 >
+                                    <Phone className="w-4 h-4" />
+                                    <span className="hidden sm:inline">Rezervasyon Yap</span>
+                                    <span className="sm:hidden">Ara</span>
+                                 </a>
+                              </div>
                               <div className="grid grid-cols-3 gap-2">
                                  {pitch.schedule?.map((slot) => {
                                     let slotClass = '';

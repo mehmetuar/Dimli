@@ -10,11 +10,11 @@ const generateMockSchedule = (startHour: number, endHour: number) => {
     // Just simple status for now, expanded logic in component
     let status: 'AVAILABLE' | 'BOOKED' | 'LOOKING_FOR_OPPONENT' = 'AVAILABLE';
     if (rand > 0.7) status = 'BOOKED';
-    
-    slots.push({ 
-      hour: i, 
+
+    slots.push({
+      hour: i,
       status,
-      activeAdIds: [] 
+      activeAdIds: []
     });
   }
   return slots;
@@ -66,11 +66,11 @@ export const MOCK_PITCHES: Pitch[] = [
     facilities: ['Otopark', 'Büfe'],
     phone: '0532-123-4567',
     schedule: [
-        { hour: 18, status: 'AVAILABLE', activeAdIds: [] },
-        { hour: 19, status: 'AVAILABLE', activeAdIds: [] },
-        { hour: 20, status: 'BOOKED', activeAdIds: [] },
-        { hour: 21, status: 'AVAILABLE', activeAdIds: [] },
-        { hour: 22, status: 'BOOKED', activeAdIds: [] },
+      { hour: 18, status: 'AVAILABLE', activeAdIds: [] },
+      { hour: 19, status: 'AVAILABLE', activeAdIds: [] },
+      { hour: 20, status: 'BOOKED', activeAdIds: [] },
+      { hour: 21, status: 'AVAILABLE', activeAdIds: [] },
+      { hour: 22, status: 'BOOKED', activeAdIds: [] },
     ]
   },
   {
@@ -168,13 +168,13 @@ export const MOCK_OFFERS: MatchOffer[] = [
     timestamp: '10:30'
   },
   {
-     id: 'o2',
-     fromTeamId: 't3',
-     fromTeamName: 'Göztepe Yıldızları',
-     toMatchId: 'm1',
-     note: 'Eğlencesine oynayalım dedik, uygunsa gelelim.',
-     status: 'REJECTED',
-     timestamp: '09:00'
+    id: 'o2',
+    fromTeamId: 't3',
+    fromTeamName: 'Göztepe Yıldızları',
+    toMatchId: 'm1',
+    note: 'Eğlencesine oynayalım dedik, uygunsa gelelim.',
+    status: 'REJECTED',
+    timestamp: '09:00'
   }
 ];
 
@@ -266,7 +266,7 @@ export const MOCK_MATCHES: MatchListing[] = [
     priceShare: 400,
     message: 'Haftaya maç yapmak isteyen var mı?'
   },
-   // FUTURE MATCH 2
+  // FUTURE MATCH 2
   {
     id: 'm4',
     teamId: 't2',
@@ -329,34 +329,34 @@ export const MOCK_JOKERS: Player[] = [
 
 // Pool of users to be searched
 export const MOCK_ALL_USERS: Player[] = [
-    ...MOCK_JOKERS,
-    {
-        id: 'u10',
-        name: 'Burak Yılmaz',
-        position: Position.FWD,
-        location: 'Sarıyer',
-        isJoker: false,
-        avatarUrl: 'https://picsum.photos/100/100?random=110',
-        rating: 81
-    },
-    {
-        id: 'u11',
-        name: 'Arda Güler',
-        position: Position.MID,
-        location: 'Fatih',
-        isJoker: false,
-        avatarUrl: 'https://picsum.photos/100/100?random=111',
-        rating: 86
-    },
-    {
-        id: 'u12',
-        name: 'Ferdi Kadıoğlu',
-        position: Position.DEF,
-        location: 'Kadıköy',
-        isJoker: false,
-        avatarUrl: 'https://picsum.photos/100/100?random=112',
-        rating: 83
-    }
+  ...MOCK_JOKERS,
+  {
+    id: 'u10',
+    name: 'Burak Yılmaz',
+    position: Position.FWD,
+    location: 'Sarıyer',
+    isJoker: false,
+    avatarUrl: 'https://picsum.photos/100/100?random=110',
+    rating: 81
+  },
+  {
+    id: 'u11',
+    name: 'Arda Güler',
+    position: Position.MID,
+    location: 'Fatih',
+    isJoker: false,
+    avatarUrl: 'https://picsum.photos/100/100?random=111',
+    rating: 86
+  },
+  {
+    id: 'u12',
+    name: 'Ferdi Kadıoğlu',
+    position: Position.DEF,
+    location: 'Kadıköy',
+    isJoker: false,
+    avatarUrl: 'https://picsum.photos/100/100?random=112',
+    rating: 83
+  }
 ];
 
 export const CURRENT_USER: Player & { teamId?: string } = {
@@ -398,13 +398,72 @@ export const MOCK_CHANNELS: ChatChannel[] = [
 
 export const MOCK_MESSAGES: Record<string, ChatMessage[]> = {
   'c1': [
-     { id: '1', senderId: 'u2', senderName: 'Rakip Kaptan', text: 'Selamlar, herkes tamam mı?', timestamp: '14:00', isMe: false },
-     { id: '2', senderId: 'u1', senderName: 'Ben', text: 'Biz hazırız, sahada görüşürüz.', timestamp: '14:05', isMe: true },
-     { id: '3', senderId: 'j1', senderName: 'Ahmet (Joker)', text: 'Ben kaleye geçerim beyler sorun yok.', timestamp: '14:30', isMe: false }
+    { id: '1', senderId: 'u2', senderName: 'Rakip Kaptan', text: 'Selamlar, herkes tamam mı?', timestamp: '14:00', isMe: false },
+    { id: '2', senderId: 'u1', senderName: 'Ben', text: 'Biz hazırız, sahada görüşürüz.', timestamp: '14:05', isMe: true },
+    { id: '3', senderId: 'j1', senderName: 'Ahmet (Joker)', text: 'Ben kaleye geçerim beyler sorun yok.', timestamp: '14:30', isMe: false }
   ],
   'c2': [
-     { id: '1', senderId: 'u2', senderName: 'Şişli Kaptan', text: 'Maç teklifinizi aldık, düşünüyoruz.', timestamp: '09:00', isMe: false },
-     { id: '2', senderId: 'u1', senderName: 'Ben', text: 'Beklemedeyiz, sağlam kadro kurduk.', timestamp: '09:15', isMe: true },
-     { id: '3', senderId: 'u1', senderName: 'Ben', text: 'Forma renginiz ne olacak?', timestamp: 'Dün', isMe: true }
+    { id: '1', senderId: 'u2', senderName: 'Şişli Kaptan', text: 'Maç teklifinizi aldık, düşünüyoruz.', timestamp: '09:00', isMe: false },
+    { id: '2', senderId: 'u1', senderName: 'Ben', text: 'Beklemedeyiz, sağlam kadro kurduk.', timestamp: '09:15', isMe: true },
+    { id: '3', senderId: 'u1', senderName: 'Ben', text: 'Forma renginiz ne olacak?', timestamp: 'Dün', isMe: true }
   ]
 };
+
+// MOCK MATCH HISTORY DATA
+export const MOCK_MATCH_HISTORY = [
+  {
+    id: 'mh1',
+    opponentId: 't2',
+    opponentName: 'Şişli United',
+    opponentLogo: 'https://picsum.photos/200/200?random=2',
+    date: '15 Kas 2024',
+    result: 'WIN' as const,
+    score: '4-2',
+    fairPlayScore: 4.5,
+    location: 'Mega Halı Saha'
+  },
+  {
+    id: 'mh2',
+    opponentId: 't3',
+    opponentName: 'Göztepe Yıldızları',
+    opponentLogo: 'https://picsum.photos/200/200?random=3',
+    date: '08 Kas 2024',
+    result: 'WIN' as const,
+    score: '5-1',
+    fairPlayScore: 5.0,
+    location: 'Arena Spor'
+  },
+  {
+    id: 'mh3',
+    opponentId: 't2',
+    opponentName: 'Şişli United',
+    opponentLogo: 'https://picsum.photos/200/200?random=2',
+    date: '01 Kas 2024',
+    result: 'LOSS' as const,
+    score: '1-3',
+    fairPlayScore: 3.8,
+    location: 'Yıldız Park'
+  },
+  {
+    id: 'mh4',
+    opponentId: 't4',
+    opponentName: 'Beşiktaş Aslanları',
+    opponentLogo: 'https://picsum.photos/200/200?random=4',
+    date: '25 Eki 2024',
+    result: 'DRAW' as const,
+    score: '2-2',
+    fairPlayScore: 4.2,
+    location: 'Mega Halı Saha'
+  },
+  {
+    id: 'mh5',
+    opponentId: 't5',
+    opponentName: 'Fenerbahçe FC',
+    opponentLogo: 'https://picsum.photos/200/200?random=5',
+    date: '18 Eki 2024',
+    result: 'LOSS' as const,
+    score: '0-2',
+    fairPlayScore: 4.7,
+    location: 'Arena Spor'
+  }
+];

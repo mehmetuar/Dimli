@@ -143,3 +143,15 @@ export interface ChatMessage {
   isSystem?: boolean;
   isMe?: boolean;
 }
+
+export interface MatchHistory {
+  id: string;
+  opponentId: string;
+  opponentName: string;
+  opponentLogo: string;
+  date: string;
+  result: 'WIN' | 'LOSS' | 'DRAW';
+  score: string; // e.g. "3-2"
+  fairPlayScore: number; // 1-5  
+  location: string;
+}
