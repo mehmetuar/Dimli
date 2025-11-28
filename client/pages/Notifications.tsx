@@ -1,26 +1,109 @@
 
-import React, { useState } from 'react';
-import { MOCK_NOTIFICATIONS, MOCK_OFFERS } from '../constants';
-import { Bell, Check, X, Calendar, Shield, Info, ChevronRight } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Bell, Check, X, Calendar, Shield, Info, ChevronRight, UserPlus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import api from '../services/api';
+
+interface JoinRequest {
+   id: string;
+   user: {
+      id: string;
+      username: string;
+      full_name?: string;
+      position?: string;
+   };
+   teamId: string;
+   message?: string;
+   status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
+   createdAt: string;
+}
+
+interface Notification {
+   id: string;
+   type: 'JOIN_REQUEST' | 'CHALLENGE' | 'MATCH_RESULT';
+   relatedId: string;
+   metadata: any;
+   read: boolean;
+   createdAt: string;
+}
 
 export const Notifications: React.FC = () => {
-   const [activeTab, setActiveTab] = useState<'ALL' | 'OFFERS'>('ALL');
+   const [activeTab, setActiveTab] = useState<'ALL' | 'JOIN_REQUESTS'>('ALL');
+   const [notifications, setNotifications] = useState<Notification[]>([]);
+   const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
+   const [loading, setLoading] = useState(true);
    const navigate = useNavigate();
 
-   const handleAcceptOffer = (id: string) => {
-      // In a real app, API call here
-      alert('Teklif kabul edildi! Sohbet başlatılıyor...');
-      navigate('/chat');
+   useEffect(() => {
+      fetchData();
+   }, []);
+
+   const fetchData = async () => {
+      try {
+         setLoading(true);
+
+         // Fetch notifications
+         const notifResponse = await api.get('/notifications');
+         setNotifications(notifResponse.data);
+
+         // Fetch join requests for user's teams (assuming user is captain)
+         // We'll need to get user's teams first
+         const teamsResponse = await api.get('/teams'); // Get all teams where user is captain
+         const myTeams = teamsResponse.data.filter((team: any) =>
+            team.captainId === getCurrentUserId() ||
+            team.captain?.id === getCurrentUserId()
+         );
+
+         // Fetch join requests for each team
+         const allJoinRequests: JoinRequest[] = [];
+         for (const team of myTeams) {
+            const reqResponse = await api.get(`/join-requests/team/${team.id}`);
+            allJoinRequests.push(...reqResponse.data);
+         }
+         setJoinRequests(allJoinRequests);
+      } catch (error) {
+         console.error('Failed to fetch notifications:', error);
+      } finally {
+         setLoading(false);
+      }
    };
 
-   const handleRejectOffer = (id: string) => {
-      alert('Teklif reddedildi.');
+   const getCurrentUserId = () => {
+      // Get from local storage or context
+      const token = localStorage.getItem('token');
+      if (!token) return null;
+      try {
+         const payload = JSON.parse(atob(token.split('.')[1]));
+         return payload.sub || payload.id || payload.userId;
+      } catch {
+         return null;
+      }
    };
 
-   const filteredList = activeTab === 'ALL'
-      ? MOCK_NOTIFICATIONS
-      : MOCK_NOTIFICATIONS.filter(n => n.type === 'OFFER');
+   const handleAcceptJoinRequest = async (requestId: string) => {
+      try {
+         await api.patch(`/join-requests/${requestId}/accept`);
+         // Refresh data
+         await fetchData();
+         alert('Katılma isteği kabul edildi! Oyuncu takıma eklendi.');
+      } catch (error: any) {
+         console.error('Failed to accept join request:', error);
+         alert(error.response?.data?.message || 'Kabul edilemedi.');
+      }
+   };
+
+   const handleRejectJoinRequest = async (requestId: string) => {
+      try {
+         await api.patch(`/join-requests/${requestId}/reject`);
+         // Refresh data
+         await fetchData();
+      } catch (error: any) {
+         console.error('Failed to reject join request:', error);
+         alert(error.response?.data?.message || 'Reddedilemedi.');
+      }
+   };
+
+   const filteredJoinRequests = joinRequests.filter(r => r.status === 'PENDING');
 
    return (
       <div className="pb-28 pt-20 px-4 max-w-3xl mx-auto min-h-screen bg-pitch">
@@ -28,90 +111,153 @@ export const Notifications: React.FC = () => {
             <h1 className="font-sport font-black text-4xl text-white uppercase italic tracking-tighter">
                BİLDİRİMLER
             </h1>
+            <p className="text-slate-400 text-sm mt-1">
+               Katılma istekleri ve diğer bildirimler
+            </p>
          </header>
 
          {/* Tab Switcher */}
          <div className="flex p-1 bg-slate-800 rounded-xl mb-6 border border-slate-700">
             <button
                onClick={() => setActiveTab('ALL')}
-               className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${activeTab === 'ALL' ? 'bg-turf-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+               className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${activeTab === 'ALL'
+                     ? 'bg-turf-600 text-white shadow-lg'
+                     : 'text-slate-400 hover:text-white'
+                  }`}
             >
-               HEPSİ
+               HEPSİ ({notifications.length})
             </button>
             <button
-               onClick={() => setActiveTab('OFFERS')}
-               className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${activeTab === 'OFFERS' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+               onClick={() => setActiveTab('JOIN_REQUESTS')}
+               className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${activeTab === 'JOIN_REQUESTS'
+                     ? 'bg-blue-600 text-white shadow-lg'
+                     : 'text-slate-400 hover:text-white'
+                  }`}
             >
-               TEKLİFLER
+               KATILMA İSTEKLERİ ({filteredJoinRequests.length})
             </button>
          </div>
 
-         <div className="space-y-4">
-            {filteredList.map(item => {
-               // If it's an offer notification, let's find the offer details to show more context
-               const relatedOffer = item.type === 'OFFER' && item.relatedOfferId
-                  ? MOCK_OFFERS.find(o => o.id === item.relatedOfferId)
-                  : null;
-
-               return (
-                  <div key={item.id} className={`relative bg-slate-800 rounded-2xl border overflow-hidden transition-all ${!item.read ? 'border-turf-500/50 shadow-[0_0_15px_rgba(34,197,94,0.1)]' : 'border-slate-700 opacity-90'}`}>
-
-                     {/* Left Accent Bar */}
-                     <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${item.type === 'OFFER' ? 'bg-blue-500' : item.type === 'SYSTEM' ? 'bg-turf-500' : 'bg-yellow-500'}`}></div>
-
-                     <div className="p-4 pl-6">
-                        <div className="flex justify-between items-start mb-1">
-                           <h3 className="font-bold text-white text-lg">{item.title}</h3>
-                           <span className="text-[10px] font-bold text-slate-500 uppercase">{item.timestamp}</span>
+         {loading ? (
+            <div className="text-center py-12">
+               <div className="animate-spin w-8 h-8 border-4 border-turf-500 border-t-transparent rounded-full mx-auto"></div>
+               <p className="text-slate-400 text-sm mt-3">Yükleniyor...</p>
+            </div>
+         ) : (
+            <div className="space-y-4">
+               {/* JOIN REQUESTS TAB */}
+               {activeTab === 'JOIN_REQUESTS' && (
+                  <>
+                     {filteredJoinRequests.length === 0 ? (
+                        <div className="text-center py-12 opacity-50">
+                           <UserPlus className="w-12 h-12 text-slate-600 mx-auto mb-3" />
+                           <p className="text-slate-400 text-sm">Bekleyen katılma isteği yok.</p>
                         </div>
+                     ) : (
+                        filteredJoinRequests.map(request => (
+                           <div
+                              key={request.id}
+                              className="relative bg-slate-800 rounded-2xl border border-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.1)] overflow-hidden"
+                           >
+                              <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-blue-500"></div>
 
-                        <p className="text-sm text-slate-300 mb-3 leading-relaxed">{item.message}</p>
+                              <div className="p-4 pl-6">
+                                 <div className="flex justify-between items-start mb-2">
+                                    <h3 className="font-bold text-white text-lg flex items-center gap-2">
+                                       <UserPlus className="w-5 h-5 text-blue-500" />
+                                       Katılma İsteği
+                                    </h3>
+                                    <span className="text-[10px] font-bold text-slate-500 uppercase">
+                                       {new Date(request.createdAt).toLocaleDateString('tr-TR')}
+                                    </span>
+                                 </div>
 
-                        {/* Offer Specific Actions */}
-                        {item.type === 'OFFER' && relatedOffer && (
-                           <div className="mt-3 bg-slate-900/50 p-3 rounded-xl border border-slate-700/50">
-                              <div className="flex items-center gap-2 mb-2 text-xs text-slate-400">
-                                 <Shield className="w-3 h-3" /> {relatedOffer.fromTeamName}
-                              </div>
-                              <p className="text-xs text-white italic mb-3">"{relatedOffer.note}"</p>
-                              <div className="flex gap-2">
-                                 <button
-                                    onClick={() => handleRejectOffer(relatedOffer.id)}
-                                    className="flex-1 py-2 bg-slate-700 text-slate-300 rounded-lg text-xs font-bold flex items-center justify-center gap-1 hover:bg-red-900/50 hover:text-red-400 transition-colors"
-                                 >
-                                    <X className="w-3 h-3" /> Reddet
-                                 </button>
-                                 <button
-                                    onClick={() => handleAcceptOffer(relatedOffer.id)}
-                                    className="flex-1 py-2 bg-turf-600 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1 hover:bg-turf-500 transition-colors shadow-lg shadow-turf-600/20"
-                                 >
-                                    <Check className="w-3 h-3" /> Kabul Et
-                                 </button>
+                                 <div className="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50">
+                                    <div className="flex items-center gap-3 mb-2">
+                                       <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-white font-bold">
+                                          {request.user.full_name?.[0] || request.user.username[0]}
+                                       </div>
+                                       <div>
+                                          <div className="text-white font-bold">
+                                             {request.user.full_name || request.user.username}
+                                          </div>
+                                          <div className="text-xs text-slate-400">
+                                             {request.user.position || 'Oyuncu'}
+                                          </div>
+                                       </div>
+                                    </div>
+
+                                    {request.message && (
+                                       <p className="text-xs text-slate-300 italic mb-3">"{request.message}"</p>
+                                    )}
+
+                                    <div className="flex gap-2">
+                                       <button
+                                          onClick={() => handleRejectJoinRequest(request.id)}
+                                          className="flex-1 py-2 bg-slate-700 text-slate-300 rounded-lg text-xs font-bold flex items-center justify-center gap-1 hover:bg-red-900/50 hover:text-red-400 transition-colors"
+                                       >
+                                          <X className="w-3 h-3" /> Reddet
+                                       </button>
+                                       <button
+                                          onClick={() => handleAcceptJoinRequest(request.id)}
+                                          className="flex-1 py-2 bg-turf-600 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1 hover:bg-turf-500 transition-colors shadow-lg shadow-turf-600/20"
+                                       >
+                                          <Check className="w-3 h-3" /> Kabul Et
+                                       </button>
+                                    </div>
+                                 </div>
                               </div>
                            </div>
-                        )}
+                        ))
+                     )}
+                  </>
+               )}
 
-                        {/* Generic Link Action */}
-                        {item.actionLink && (
-                           <button
-                              onClick={() => navigate(item.actionLink!)}
-                              className="mt-2 text-turf-500 text-xs font-bold flex items-center gap-1 hover:underline"
+               {/* ALL TAB */}
+               {activeTab === 'ALL' && (
+                  <>
+                     {notifications.length === 0 ? (
+                        <div className="text-center py-12 opacity-50">
+                           <Bell className="w-12 h-12 text-slate-600 mx-auto mb-3" />
+                           <p className="text-slate-400 text-sm">Şu an yeni bildirim yok.</p>
+                        </div>
+                     ) : (
+                        notifications.map(notif => (
+                           <div
+                              key={notif.id}
+                              className={`relative bg-slate-800 rounded-2xl border overflow-hidden transition-all ${!notif.read
+                                    ? 'border-turf-500/50 shadow-[0_0_15px_rgba(34,197,94,0.1)]'
+                                    : 'border-slate-700 opacity-90'
+                                 }`}
                            >
-                              Görüntüle <ChevronRight className="w-3 h-3" />
-                           </button>
-                        )}
-                     </div>
-                  </div>
-               );
-            })}
+                              <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${notif.type === 'JOIN_REQUEST' ? 'bg-blue-500' :
+                                    notif.type === 'CHALLENGE' ? 'bg-turf-500' :
+                                       'bg-yellow-500'
+                                 }`}></div>
 
-            {filteredList.length === 0 && (
-               <div className="text-center py-12 opacity-50">
-                  <Bell className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-                  <p className="text-slate-400 text-sm">Şu an yeni bildirim yok.</p>
-               </div>
-            )}
-         </div>
+                              <div className="p-4 pl-6">
+                                 <div className="flex justify-between items-start mb-1">
+                                    <h3 className="font-bold text-white text-lg">
+                                       {notif.type === 'JOIN_REQUEST' && 'Yeni Katılma İsteği'}
+                                       {notif.type === 'CHALLENGE' && 'Yeni Meydan Okuma'}
+                                       {notif.type === 'MATCH_RESULT' && 'Maç Sonucu'}
+                                    </h3>
+                                    <span className="text-[10px] font-bold text-slate-500 uppercase">
+                                       {new Date(notif.createdAt).toLocaleDateString('tr-TR')}
+                                    </span>
+                                 </div>
+
+                                 <p className="text-sm text-slate-300 mb-3 leading-relaxed">
+                                    Bildirim detayları
+                                 </p>
+                              </div>
+                           </div>
+                        ))
+                     )}
+                  </>
+               )}
+            </div>
+         )}
       </div>
    );
 };
