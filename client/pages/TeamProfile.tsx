@@ -112,27 +112,25 @@ export const TeamProfile: React.FC = () => {
     }
   };
 
+  // Handle CREATE TEAM
   const handleCreateTeam = async (teamData: Partial<Team>) => {
     try {
+      // Call API to create team
       const response = await api.post('/teams', teamData);
-      const newTeam = response.data;
 
-      setMyTeam(newTeam);
-      // Update current user locally to reflect team ownership
-      setCurrentUser({ ...currentUser, team: newTeam });
+      // Update local state with new team
+      setMyTeam(response.data);
 
-      setRoster([{
-        id: currentUser.id,
-        name: currentUser.full_name || currentUser.username,
-        position: currentUser.position || Position.MID,
-        avatarUrl: 'https://picsum.photos/100/100?random=1',
-        rating: currentUser.rating || 0
-      }]);
+      // Close modal
+      setIsCreateTeamModalOpen(false);
 
-      setActiveTab('TEAM');
-    } catch (error) {
-      console.error("Failed to create team", error);
-      alert("Takım oluşturulurken bir hata oluştu.");
+      alert('Takım başarıyla oluşturuldu!');
+
+      // Refresh page to load team data
+      window.location.reload();
+    } catch (error: any) {
+      console.error('Failed to create team:', error);
+      alert(error.response?.data?.message || 'Takım oluşturulamadı.');
     }
   };
 

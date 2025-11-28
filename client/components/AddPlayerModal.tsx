@@ -51,11 +51,9 @@ export const AddPlayerModal: React.FC<Props> = ({ isOpen, onClose, currentRoster
         try {
             await api.post(`/teams/${teamId}/players`, { userId });
             setInvitedIds(prev => [...prev, userId]);
-            alert("Oyuncu takıma eklendi!");
-            // Ideally we should callback to refresh roster
-            window.location.reload(); // Quick fix to refresh data
+            // Button will now show "Davet Gönderildi" and turn gray
         } catch (error: any) {
-            alert(error.response?.data?.message || "Davet edilemedi.");
+            alert(error.response?.data?.message || "Davet edilemed.");
         }
     };
 
@@ -128,7 +126,7 @@ export const AddPlayerModal: React.FC<Props> = ({ isOpen, onClose, currentRoster
                                         onClick={() => handleInvite(user.id)}
                                         disabled={isInvited}
                                         className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-colors ${isInvited
-                                            ? 'bg-green-500/20 text-green-500 cursor-default'
+                                            ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
                                             : 'bg-turf-600 text-white hover:bg-turf-500 shadow-neon'
                                             }`}
                                     >

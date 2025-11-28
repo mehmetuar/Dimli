@@ -1,0 +1,34 @@
+import { Controller, Get, Patch, Delete, Param, UseGuards, Request } from '@nestjs/common';
+import { NotificationsService } from './notifications.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+
+@Controller('notifications')
+export class NotificationsController {
+    constructor(private readonly notificationsService: NotificationsService) { }
+
+    @UseGuards(JwtAuthGuard)
+    @Get()
+    async getAll(@Request() req) {
+        return this.notificationsService.findByUser(req.user.id);
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Get('unread-count')
+    async getUnreadCount(@Request() req) {
+        const count = await this.notificationsService.getUnreadCount(req.user.id);
+        return { count };
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Patch(':id/read')
+    async markAsRead(@Param('id') id: string) {
+        return this.notificationsService.markAsRead(id);
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Delete(':id')
+    async delete(@Param('id') id: string) {
+        await this.notificationsService.delete(id);
+        return { success: true };
+    }
+}

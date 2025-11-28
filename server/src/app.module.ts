@@ -6,6 +6,8 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { TeamsModule } from './teams/teams.module';
 import { ChallengesModule } from './challenges/challenges.module';
+import { JoinRequestsModule } from './join-requests/join-requests.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -24,6 +26,8 @@ import { ChallengesModule } from './challenges/challenges.module';
     UsersModule,
     TeamsModule,
     ChallengesModule,
+    JoinRequestsModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

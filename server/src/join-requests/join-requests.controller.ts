@@ -1,0 +1,43 @@
+import { Controller, Post, Get, Patch, Param, Body, UseGuards, Request } from '@nestjs/common';
+import { JoinRequestsService } from './join-requests.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { TeamsService } from '../teams/teams.service';
+
+@Controller('join-requests')
+export class JoinRequestsController {
+    constructor(
+        private readonly joinRequestsService: JoinRequestsService,
+        private readonly teamsService: TeamsService,
+    ) { }
+
+    @UseGuards(JwtAuthGuard)
+    @Post()
+    async create(@Body() dto: { teamId: string; message?: string }, @Request() req) {
+        return this.joinRequestsService.create(req.user.id, dto.teamId, dto.message);
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Get('team/:teamId')
+    async getByTeam(@Param('teamId') teamId: string) {
+        return this.joinRequestsService.findByTeam(teamId);
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Patch(':id/accept')
+    async accept(@Param('id') id: string, @Request() req) {
+        // Get join request
+        const joinRequest = await this.joinRequestsService.findById(id);
+
+        // Add user to team
+        await this.teamsService.addPlayer(joinRequest.teamId, joinRequest.userId);
+
+        // Update status
+        return this.joinRequestsService.updateStatus(id, 'ACCEPTED');
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Patch(':id/reject')
+    async reject(@Param('id') id: string) {
+        return this.joinRequestsService.updateStatus(id, 'REJECTED');
+    }
+}
