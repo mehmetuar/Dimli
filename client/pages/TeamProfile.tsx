@@ -304,9 +304,15 @@ export const TeamProfile: React.FC = () => {
           </div>
         </div>
       </div>
+    </div>
+  );
 
-      {!myTeam && (
-        <div className="mt-6 p-6 bg-slate-800 rounded-2xl border border-slate-700 text-center animate-fade-in-up">
+  // --- SUB-COMPONENT: TEAM DASHBOARD ---
+  const TeamDashboard = () => {
+    // Show "no team" message if user doesn't have a team
+    if (!myTeam) {
+      return (
+        <div className="animate-fade-in p-6 bg-slate-800 rounded-2xl border border-slate-700 text-center mt-6">
           <Shield className="w-12 h-12 text-slate-600 mx-auto mb-3" />
           <h3 className="text-white font-bold text-lg mb-2">Henüz Bir Takımın Yok</h3>
           <p className="text-slate-400 text-sm mb-4">Bir takıma katıl veya kendi takımını kurarak sahalara hükmet.</p>
@@ -325,13 +331,9 @@ export const TeamProfile: React.FC = () => {
             </button>
           </div>
         </div>
-      )}
-    </div>
-  );
+      );
+    }
 
-  // --- SUB-COMPONENT: TEAM DASHBOARD ---
-  const TeamDashboard = () => {
-    if (!myTeam) return null;
     // Check if current user is captain (handling both object and id reference for safety)
     const isCaptain = (myTeam.captain && (myTeam.captain as any).id === currentUser.id) || myTeam.captainId === currentUser.id;
 
