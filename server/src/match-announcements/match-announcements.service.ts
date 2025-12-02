@@ -1,19 +1,33 @@
+```typescript
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { MatchAnnouncement } from './match-announcement.entity';
+import { User } from '../users/user.entity';
 
 @Injectable()
 export class MatchAnnouncementsService {
     constructor(
         @InjectRepository(MatchAnnouncement)
         private matchAnnouncementsRepository: Repository<MatchAnnouncement>,
+        @InjectRepository(User)
+        private usersRepository: Repository<User>,
     ) { }
 
     async create(data: Partial<MatchAnnouncement>, userId: string): Promise<MatchAnnouncement> {
-        // Get user's team
+        // Get user to find their team
+        const user = await this.usersRepository.findOne({
+            where: { id: userId },
+            relations: ['team']
+        });
+
+        if (!user || !user.team) {
+            throw new Error('User must be in a team to create match announcements');
+        }
+
         const announcement = this.matchAnnouncementsRepository.create({
             ...data,
+            teamId: user.team.id,
             status: 'PENDING'
         });
         return this.matchAnnouncementsRepository.save(announcement);
