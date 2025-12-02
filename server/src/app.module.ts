@@ -8,6 +8,7 @@ import { TeamsModule } from './teams/teams.module';
 import { ChallengesModule } from './challenges/challenges.module';
 import { JoinRequestsModule } from './join-requests/join-requests.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { MatchAnnouncementsModule } from './match-announcements/match-announcements.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     ChallengesModule,
     JoinRequestsModule,
     NotificationsModule,
+    MatchAnnouncementsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

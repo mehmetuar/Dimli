@@ -1,0 +1,36 @@
+import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, JoinColumn, CreateDateColumn } from 'typeorm';
+import { Team } from '../teams/team.entity';
+
+@Entity('match_announcements')
+export class MatchAnnouncement {
+    @PrimaryGeneratedColumn('uuid')
+    id: string;
+
+    @Column({ name: 'team_id' })
+    teamId: string;
+
+    @ManyToOne(() => Team)
+    @JoinColumn({ name: 'team_id' })
+    team: Team;
+
+    @Column({ name: 'pitch_id' })
+    pitchId: string;
+
+    @Column()
+    date: string; // YYYY-MM-DD
+
+    @Column()
+    time: string; // HH:MM
+
+    @Column({ name: 'player_count' })
+    playerCount: number; // 5, 6, 7, 8, 11
+
+    @Column('text', { nullable: true })
+    description: string;
+
+    @Column({ default: 'PENDING' })
+    status: string; // PENDING, CONFIRMED, CANCELLED
+
+    @CreateDateColumn({ name: 'created_at' })
+    createdAt: Date;
+}

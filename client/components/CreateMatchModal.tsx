@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { X, MapPin, Calendar, Clock, Shield, ChevronRight, CheckCircle, Trophy, Filter } from 'lucide-react';
 import { MOCK_PITCHES, MOCK_TEAMS, CURRENT_USER } from '../constants';
 import { SkillLevel } from '../types';
+import api from '../services/api';
 
 interface Props {
     isOpen: boolean;
@@ -31,17 +32,27 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
     const [time, setTime] = useState(preSelectedHour ? `${preSelectedHour}:00` : '');
     const [note, setNote] = useState('');
     const [level, setLevel] = useState<SkillLevel>(SkillLevel.INTERMEDIATE);
+    const [playerCount, setPlayerCount] = useState(10); // Default to 10 players
 
     const myTeam = MOCK_TEAMS.find(t => t.id === CURRENT_USER.teamId);
 
-    const handleSubmit = () => {
-        // API Call Simulation
-        setTimeout(() => {
-            alert('İlanınız başarıyla oluşturuldu! Rakiplerden teklif bekleniyor.');
-            onClose();
-        }, 1000);
-    };
+    const handleSubmit = async () => {
+        try {
+            await api.post('/match-announcements', {
+                pitchId: selectedPitchId,
+                date,
+                time,
+                playerCount: parseInt(playerCount as any), // Cast to any to satisfy parseInt type, as it expects string
+                description: note
+            });
 
+            alert('Maç ilanı başarıyla yayınlandı!');
+            onClose();
+        } catch (error) {
+            console.error('Failed to create match announcement:', error);
+            alert('İlan oluşturulamıyor. Lütfen tekrar deneyin.');
+        }
+    };
     const selectedPitch = MOCK_PITCHES.find(p => p.id === selectedPitchId);
 
     // Filter Logic
@@ -86,8 +97,8 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
                                             key={region}
                                             onClick={() => setSelectedRegion(region)}
                                             className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-colors ${selectedRegion === region
-                                                    ? 'bg-turf-600 text-white'
-                                                    : 'bg-slate-900 text-slate-400 border border-slate-700 hover:border-turf-500'
+                                                ? 'bg-turf-600 text-white'
+                                                : 'bg-slate-900 text-slate-400 border border-slate-700 hover:border-turf-500'
                                                 }`}
                                         >
                                             {region}
