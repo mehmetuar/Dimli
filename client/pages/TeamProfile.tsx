@@ -583,14 +583,30 @@ export const TeamProfile: React.FC = () => {
 
                   {/* Manager Actions - Mobile-Friendly Button */}
                   {/* Show menu if captain OR vice captain, but not for self */}
-                  {(isCaptain || isViceCaptain) && player.id !== currentUser.id && (
-                    <button
-                      onClick={() => setPlayerActionsModal({ isOpen: true, player })}
-                      className="p-3 text-slate-400 hover:text-white rounded-xl hover:bg-slate-700 transition-colors active:bg-slate-600 min-w-[44px] min-h-[44px] flex items-center justify-center"
-                    >
-                      <MoreVertical className="w-6 h-6" />
-                    </button>
-                  )}
+                  {/* Vice captains cannot manage captain or other vice captains */}
+                  {(() => {
+                    // Don't show menu for self
+                    if (player.id === currentUser.id) return false;
+
+                    // Captain can manage everyone
+                    if (isCaptain) return true;
+
+                    // Vice captain can only manage regular players (not captain or other vice captains)
+                    if (isViceCaptain) {
+                      const isPlayerCaptain = player.id === myTeam.captainId;
+                      const isPlayerViceCaptain = myTeam.viceCaptainIds?.includes(player.id);
+                      return !isPlayerCaptain && !isPlayerViceCaptain;
+                    }
+
+                    return false;
+                  })() && (
+                      <button
+                        onClick={() => setPlayerActionsModal({ isOpen: true, player })}
+                        className="p-3 text-slate-400 hover:text-white rounded-xl hover:bg-slate-700 transition-colors active:bg-slate-600 min-w-[44px] min-h-[44px] flex items-center justify-center"
+                      >
+                        <MoreVertical className="w-6 h-6" />
+                      </button>
+                    )}
                 </div>
               ))}
             </div>
