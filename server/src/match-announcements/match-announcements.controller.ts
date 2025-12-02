@@ -9,7 +9,9 @@ export class MatchAnnouncementsController {
     @UseGuards(JwtAuthGuard)
     @Post()
     create(@Body() createDto: any, @Request() req) {
-        return this.matchAnnouncementsService.create(createDto, req.user.userId);
+        console.log('🎯 Controller - req.user:', req.user);
+        console.log('🎯 Controller - userId:', req.user?.userId || req.user?.id);
+        return this.matchAnnouncementsService.create(createDto, req.user.userId || req.user.id);
     }
 
     @Get()
