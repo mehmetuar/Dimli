@@ -127,7 +127,9 @@ export const JoinTeamModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 </div>
                 <div className="bg-slate-800 p-2 rounded-lg">
                   <div className="text-[10px] text-slate-500 uppercase font-bold">Kaptan</div>
-                  <div className="text-white font-bold truncate px-1">Can K.</div>
+                  <div className="text-white font-bold truncate px-1">
+                    {foundTeam.captain?.full_name || foundTeam.captain?.username || 'Bilinmiyor'}
+                  </div>
                 </div>
                 <div className="bg-slate-800 p-2 rounded-lg">
                   <div className="text-[10px] text-slate-500 uppercase font-bold">FP Puanı</div>
