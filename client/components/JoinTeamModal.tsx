@@ -18,19 +18,22 @@ export const JoinTeamModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const [error, setError] = useState('');
   const [isSent, setIsSent] = useState(false);
 
-  const handleSearch = () => {
+  const handleSearch = async () => {
     setError('');
     setFoundTeam(null);
     setIsSent(false);
 
     if (!searchTerm.trim()) return;
 
-    // Case-insensitive search
-    const team = MOCK_TEAMS.find(t => t.name.toLowerCase() === searchTerm.trim().toLowerCase());
-
-    if (team) {
-      setFoundTeam(team);
-    } else {
+    try {
+      const response = await api.get(`/teams/search/${encodeURIComponent(searchTerm.trim())}`);
+      if (response.data) {
+        setFoundTeam(response.data);
+      } else {
+        setError('Bu isimde bir takım bulunamadı.');
+      }
+    } catch (error) {
+      console.error('Team search failed:', error);
       setError('Bu isimde bir takım bulunamadı.');
     }
   };

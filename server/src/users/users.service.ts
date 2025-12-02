@@ -12,15 +12,27 @@ export class UsersService {
     ) { }
 
     async create(userData: Partial<User>): Promise<User> {
-        if (!userData.password) {
-            throw new Error('Password is required');
+        try {
+            if (!userData.password) {
+                throw new Error('Password is required');
+            }
+
+            // Check if username already exists
+            const existing = await this.usersRepository.findOne({ where: { username: userData.username } });
+            if (existing) {
+                throw new Error('Username already exists');
+            }
+
+            const hashedPassword = await bcrypt.hash(userData.password, 10);
+            const newUser = this.usersRepository.create({
+                ...userData,
+                password: hashedPassword,
+            });
+            return await this.usersRepository.save(newUser);
+        } catch (error) {
+            console.error('Error creating user:', error);
+            throw error;
         }
-        const hashedPassword = await bcrypt.hash(userData.password, 10);
-        const newUser = this.usersRepository.create({
-            ...userData,
-            password: hashedPassword,
-        });
-        return this.usersRepository.save(newUser);
     }
 
     async findOne(username: string): Promise<User | null> {

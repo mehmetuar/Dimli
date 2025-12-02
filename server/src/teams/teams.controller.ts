@@ -22,6 +22,11 @@ export class TeamsController {
         return this.teamsService.findOne(id);
     }
 
+    @Get('search/:name')
+    searchByName(@Param('name') name: string) {
+        return this.teamsService.searchByName(name);
+    }
+
     @UseGuards(JwtAuthGuard)
     @Post(':id/players')
     addPlayer(@Param('id') id: string, @Body('userId') userId: string) {

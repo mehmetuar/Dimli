@@ -18,6 +18,18 @@ export class AuthController {
 
     @Post('register')
     async register(@Body() createUserDto: any) {
-        return this.usersService.create(createUserDto);
+        try {
+            const user = await this.usersService.create(createUserDto);
+            // Remove password from response
+            const { password, ...result } = user;
+            return result;
+        } catch (error: any) {
+            console.error('Registration error:', error.message);
+            return {
+                statusCode: 400,
+                message: error.message || 'Registration failed',
+                error: 'Bad Request'
+            };
+        }
     }
 }

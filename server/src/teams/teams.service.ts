@@ -37,6 +37,25 @@ export class TeamsService {
         return teams;
     }
 
+    async searchByName(name: string): Promise<Team | null> {
+        const team = await this.teamsRepository
+            .createQueryBuilder('team')
+            .leftJoinAndSelect('team.captain', 'captain')
+            .where('LOWER(team.name) = LOWER(:name)', { name })
+            .getOne();
+
+        if (!team) return null;
+
+        // Load players
+        team.players = await this.usersService['usersRepository']
+            .createQueryBuilder('user')
+            .leftJoinAndSelect('user.team', 'userTeam')
+            .where('userTeam.id = :teamId', { teamId: team.id })
+            .getMany();
+
+        return team;
+    }
+
     async findOne(id: string): Promise<Team | null> {
         const team = await this.teamsRepository.findOne({
             where: { id },
