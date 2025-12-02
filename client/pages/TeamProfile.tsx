@@ -6,7 +6,7 @@ import { MOCK_TEAMS, MOCK_PITCHES, MOCK_JOKERS, MOCK_MATCH_HISTORY } from '../co
 import { generateTeamBio } from '../services/geminiService';
 import { FairPlayScore } from '../components/FairPlayScore';
 import { LevelBadge } from '../components/LevelBadge';
-import { MapPin, Shield, Sparkles, Edit2, Plus, X, UserPlus, LogOut, Crown, MoreVertical, Trash2, Save, History } from 'lucide-react';
+import { MapPin, Shield, Sparkles, Edit2, Plus, X, UserPlus, LogOut, Crown, MoreVertical, Trash2, Save, History, ShieldX } from 'lucide-react';
 import { Team, Player, Position } from '../types';
 import { CreateTeamModal } from '../components/CreateTeamModal';
 import { JoinTeamModal } from '../components/JoinTeamModal';
@@ -46,6 +46,12 @@ export const TeamProfile: React.FC = () => {
     onConfirm: () => void;
     isDangerous?: boolean;
   }>({ isOpen: false, title: '', message: '', onConfirm: () => { } });
+
+  // Player actions modal state
+  const [playerActionsModal, setPlayerActionsModal] = useState<{
+    isOpen: boolean;
+    player: Partial<Player> | null;
+  }>({ isOpen: false, player: null });
 
   // Fetch User Data on Mount
   useEffect(() => {
@@ -529,34 +535,14 @@ export const TeamProfile: React.FC = () => {
 
                   <div className="text-white font-sport font-bold text-lg mr-2">{player.rating}</div>
 
-                  {/* Manager Actions - Visible only if I am captain AND target is not me */}
+                  {/* Manager Actions - Mobile-Friendly Button */}
                   {isCaptain && player.id !== currentUser.id && (
-                    <div className="relative group/menu">
-                      <button className="p-1.5 text-slate-500 hover:text-white rounded hover:bg-slate-700 transition-colors">
-                        <MoreVertical className="w-4 h-4" />
-                      </button>
-                      <div className="absolute right-0 top-8 w-40 bg-slate-800 border border-slate-600 rounded-lg shadow-xl z-20 hidden group-hover/menu:block">
-                        <button
-                          onClick={() => handlePromotePlayer(player.id!, 'CAPTAIN')}
-                          className="w-full text-left px-3 py-2 text-[10px] font-bold text-slate-300 hover:bg-slate-700 hover:text-white flex items-center gap-2"
-                        >
-                          <Crown className="w-3 h-3 text-yellow-500" /> Kaptan Yap
-                        </button>
-                        <button
-                          onClick={() => handlePromotePlayer(player.id!, 'VICE')}
-                          className="w-full text-left px-3 py-2 text-[10px] font-bold text-slate-300 hover:bg-slate-700 hover:text-white flex items-center gap-2"
-                        >
-                          <Shield className="w-3 h-3 text-slate-400" /> Yrd. Kaptan Yap
-                        </button>
-                        <div className="h-px bg-slate-700 my-0.5"></div>
-                        <button
-                          onClick={() => handleKickPlayer(player.id!)}
-                          className="w-full text-left px-3 py-2 text-[10px] font-bold text-red-400 hover:bg-red-900/30 flex items-center gap-2"
-                        >
-                          <Trash2 className="w-3 h-3" /> Takımdan At
-                        </button>
-                      </div>
-                    </div>
+                    <button
+                      onClick={() => setPlayerActionsModal({ isOpen: true, player })}
+                      className="p-3 text-slate-400 hover:text-white rounded-xl hover:bg-slate-700 transition-colors active:bg-slate-600 min-w-[44px] min-h-[44px] flex items-center justify-center"
+                    >
+                      <MoreVertical className="w-6 h-6" />
+                    </button>
                   )}
                 </div>
               ))}
