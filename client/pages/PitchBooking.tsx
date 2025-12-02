@@ -23,8 +23,25 @@ export const PitchBooking: React.FC = () => {
 
    const navigate = useNavigate();
 
+   // Current user for own announcement detection
+   const [currentUser, setCurrentUser] = useState<any>(null);
+
    // Announcements for the currently expanded pitch
    const [pitchAnnouncements, setPitchAnnouncements] = useState<any[]>([]);
+
+   // Fetch current user on mount
+   useEffect(() => {
+      const fetchUser = async () => {
+         try {
+            const response = await api.get('/users/me');
+            console.log('👤 Current user in PitchBooking:', response.data);
+            setCurrentUser(response.data);
+         } catch (error) {
+            console.error('Failed to fetch user:', error);
+         }
+      };
+      fetchUser();
+   }, []);
 
    // Fetch announcements when a pitch is expanded
    useEffect(() => {
@@ -305,20 +322,28 @@ export const PitchBooking: React.FC = () => {
                               </div>
                               <div className="grid grid-cols-3 gap-2">
                                  {pitch.schedule?.map((slot) => {
+                                    // Check if there's an announcement for this hour
+                                    const hasAnnouncement = pitchAnnouncements.some(announcement => {
+                                       const announcementHour = parseInt(announcement.time?.split(':')[0] || '0');
+                                       return announcementHour === slot.hour;
+                                    });
+
                                     let slotClass = '';
                                     let label = '';
                                     let action = null;
 
-                                    if (slot.status === 'AVAILABLE') {
+                                    // Dynamic status based on announcements
+                                    if (hasAnnouncement) {
+                                       slotClass = 'bg-orange-900/20 border-orange-500/50 text-orange-400 animate-pulse';
+                                       label = 'RAKİP ARANIYOR';
+                                    } else if (slot.status === 'BOOKED') {
+                                       // Future: Admin panel will set this
+                                       slotClass = 'bg-red-900/20 border-red-900/50 text-red-700 opacity-70 cursor-not-allowed';
+                                       label = 'DOLU';
+                                    } else {
                                        slotClass = 'bg-slate-800 border-slate-700 text-slate-300 hover:border-turf-500 hover:text-white cursor-pointer';
                                        label = 'BOŞ';
                                        action = () => handleCreateAd(pitch.id, slot.hour);
-                                    } else if (slot.status === 'BOOKED') {
-                                       slotClass = 'bg-red-900/20 border-red-900/50 text-red-700 opacity-70 cursor-not-allowed';
-                                       label = 'DOLU';
-                                    } else { // LOOKING_FOR_OPPONENT
-                                       slotClass = 'bg-orange-900/20 border-orange-500/50 text-orange-400 animate-pulse';
-                                       label = 'RAKİP ARANIYOR';
                                     }
 
                                     return (
@@ -383,9 +408,25 @@ export const PitchBooking: React.FC = () => {
                                              {groupedMatches[date].map(announcement => {
                                                 // announcement.team comes from API response
                                                 const team = announcement.team;
+
+                                                // Check if this announcement belongs to user's team
+                                                const isOwnTeam = announcement.teamId === currentUser?.team?.id;
+
                                                 return (
-                                                   <div key={announcement.id} className="bg-slate-800 p-4 rounded-2xl border border-slate-700 flex flex-col gap-3 group hover:border-turf-500/50 transition-colors relative overflow-hidden">
-                                                      <div className="absolute -right-6 -top-6 bg-turf-500/10 w-24 h-24 rounded-full blur-xl"></div>
+                                                   <div key={announcement.id} className={`p-4 rounded-2xl border flex flex-col gap-3 group transition-colors relative overflow-hidden ${isOwnTeam
+                                                      ? 'bg-turf-900/20 border-turf-500/50'
+                                                      : 'bg-slate-800 border-slate-700 hover:border-turf-500/50'
+                                                      }`}>
+                                                      <div className={`absolute -right-6 -top-6 w-24 h-24 rounded-full blur-xl ${isOwnTeam ? 'bg-turf-600/20' : 'bg-turf-500/10'
+                                                         }`}></div>
+
+                                                      {/* Own Team Banner */}
+                                                      {isOwnTeam && (
+                                                         <div className="bg-turf-600/20 border border-turf-500/50 rounded-xl px-3 py-2 flex items-center gap-2 relative z-10">
+                                                            <Shield className="w-4 h-4 text-turf-400" />
+                                                            <span className="text-turf-300 text-xs font-bold uppercase">Sizin İlanınız</span>
+                                                         </div>
+                                                      )}
 
                                                       <div className="flex items-center justify-between relative z-10">
                                                          <div className="flex items-center gap-3">
@@ -414,12 +455,19 @@ export const PitchBooking: React.FC = () => {
                                                             <Shield className="w-4 h-4" /> Rakibi Görüntüle
                                                          </button>
 
-                                                         <button
-                                                            onClick={() => setOfferMode({ matchId: announcement.id, teamName: team?.name || '' })}
-                                                            className="bg-turf-600 text-white hover:bg-turf-500 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-colors shadow-lg shadow-turf-600/20"
-                                                         >
-                                                            <Trophy className="w-4 h-4" /> Maç Teklifi Et
-                                                         </button>
+                                                         {isOwnTeam ? (
+                                                            <div className="bg-turf-900/30 border border-turf-500/30 text-turf-400 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2">
+                                                               <Shield className="w-4 h-4" />
+                                                               İlanınız Aktif
+                                                            </div>
+                                                         ) : (
+                                                            <button
+                                                               onClick={() => setOfferMode({ matchId: announcement.id, teamName: team?.name || '' })}
+                                                               className="bg-turf-600 text-white hover:bg-turf-500 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-colors shadow-lg shadow-turf-600/20"
+                                                            >
+                                                               <Trophy className="w-4 h-4" /> Maç Teklifi Et
+                                                            </button>
+                                                         )}
                                                       </div>
                                                    </div>
                                                 );
