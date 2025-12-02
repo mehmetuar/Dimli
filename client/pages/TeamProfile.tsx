@@ -646,6 +646,91 @@ export const TeamProfile: React.FC = () => {
       </div>
 
       {activeTab === 'PLAYER' ? <PlayerCard /> : <TeamDashboard />}
+
+      {/* Player Actions Modal - Mobile Friendly */}
+      {playerActionsModal.isOpen && playerActionsModal.player && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-4">
+          <div className="bg-slate-800 rounded-t-3xl sm:rounded-3xl w-full sm:max-w-md border border-slate-600 shadow-2xl animate-slide-up">
+            {/* Header */}
+            <div className="p-6 border-b border-slate-700">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-slate-700 overflow-hidden">
+                  <img src={playerActionsModal.player.avatarUrl} alt="Player" className="w-full h-full object-cover" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-white font-bold text-lg">{playerActionsModal.player.name}</h3>
+                  <p className="text-slate-400 text-sm">{playerActionsModal.player.position}</p>
+                </div>
+                <button
+                  onClick={() => setPlayerActionsModal({ isOpen: false, player: null })}
+                  className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-700 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="p-4">
+              <button
+                onClick={() => {
+                  handlePromotePlayer(playerActionsModal.player!.id!, 'CAPTAIN');
+                  setPlayerActionsModal({ isOpen: false, player: null });
+                }}
+                className="w-full text-left px-5 py-4 text-base font-bold text-slate-300 hover:bg-slate-700/50 hover:text-white flex items-center gap-4 transition-colors rounded-xl mb-2"
+              >
+                <Crown className="w-5 h-5 text-yellow-500" /> Kaptan Yap
+              </button>
+
+              {/* Show 'Yrd. Kaptan Yap' ONLY if NOT already vice captain */}
+              {!myTeam.viceCaptainIds?.includes(playerActionsModal.player.id) && (
+                <button
+                  onClick={() => {
+                    handlePromotePlayer(playerActionsModal.player!.id!, 'VICE');
+                    setPlayerActionsModal({ isOpen: false, player: null });
+                  }}
+                  className="w-full text-left px-5 py-4 text-base font-bold text-slate-300 hover:bg-slate-700/50 hover:text-white flex items-center gap-4 transition-colors rounded-xl mb-2"
+                >
+                  <Shield className="w-5 h-5 text-slate-400" /> Yrd. Kaptan Yap
+                </button>
+              )}
+
+              {/* Show 'Görevi Geri Al' ONLY if IS vice captain */}
+              {myTeam.viceCaptainIds?.includes(playerActionsModal.player.id) && (
+                <button
+                  onClick={() => {
+                    handleSetViceCaptain(playerActionsModal.player!.id!);
+                    setPlayerActionsModal({ isOpen: false, player: null });
+                  }}
+                  className="w-full text-left px-5 py-4 text-base font-bold text-orange-400 hover:bg-orange-900/30 flex items-center gap-4 transition-colors rounded-xl mb-2"
+                >
+                  <ShieldX className="w-5 h-5" /> Görevi Geri Al
+                </button>
+              )}
+
+              <div className="h-px bg-slate-700 my-2"></div>
+
+              <button
+                onClick={() => {
+                  handleKickPlayer(playerActionsModal.player!.id!);
+                  setPlayerActionsModal({ isOpen: false, player: null });
+                }}
+                className="w-full text-left px-5 py-4 text-base font-bold text-red-400 hover:bg-red-900/30 flex items-center gap-4 transition-colors rounded-xl"
+              >
+                <Trash2 className="w-5 h-5" /> Takımdan At
+              </button>
+            </div>
+
+            {/* Cancel Button */}
+            <div className="p-4 border-t border-slate-700">
+              <button
+                onClick={() => setPlayerActionsModal({ isOpen: false, player: null })}
+                className="w-full py-3 text-center text-slate-400 hover:text-white font-bold transition-colors"
+              >
+                İptal
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
-  );
-};
