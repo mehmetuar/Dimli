@@ -53,6 +53,21 @@ export const TeamProfile: React.FC = () => {
     player: Partial<Player> | null;
   }>({ isOpen: false, player: null });
 
+  // Success/Error messages
+  const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+
+  // Auto-hide success/error messages after 3 seconds
+  useEffect(() => {
+    if (successMessage || errorMessage) {
+      const timer = setTimeout(() => {
+        setSuccessMessage('');
+        setErrorMessage('');
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [successMessage, errorMessage]);
+
   // Fetch User Data on Mount
   useEffect(() => {
     const fetchUser = async () => {
@@ -194,10 +209,25 @@ export const TeamProfile: React.FC = () => {
       // Update local state with response
       setMyTeam(response.data);
 
-      alert('Kaptan yardımcısı başarıyla atandı!');
+      setSuccessMessage('Kaptan yardımcısı başarıyla atandı!');
     } catch (error) {
       console.error('Failed to set vice-captain:', error);
-      alert('Kaptan yardımcısı atama başarısız oldu.');
+      setErrorMessage('Kaptan yardımcısı atama başarısız oldu.');
+    }
+  };
+
+  // Handle removing vice-captain
+  const handleRemoveViceCaptain = async (userId: string) => {
+    if (!myTeam) return;
+    try {
+      const response = await api.patch(`/teams/${myTeam.id}/vice-captains`, {
+        remove: userId
+      });
+      setMyTeam(response.data);
+      setSuccessMessage('Kaptan yardımcısı görevi geri alındı.');
+    } catch (error) {
+      console.error('Failed to remove vice-captain:', error);
+      setErrorMessage('Kaptan yardımcısı kaldırılamadı.');
     }
   };
 
@@ -592,6 +622,21 @@ export const TeamProfile: React.FC = () => {
 
   return (
     <div className="pb-28 pt-20 px-4 max-w-3xl mx-auto min-h-screen bg-pitch">
+      {/* Success Message */}
+      {successMessage && (
+        <div className="fixed top-24 left-1/2 transform -translate-x-1/2 z-50 bg-green-500/10 border border-green-500/50 text-green-400 px-6 py-3 rounded-xl flex items-center gap-3 animate-fade-in shadow-lg backdrop-blur-sm">
+          <Check className="w-5 h-5" />
+          <p className="font-bold text-sm">{successMessage}</p>
+        </div>
+      )}
+
+      {/* Error Message */}
+      {errorMessage && (
+        <div className="fixed top-24 left-1/2 transform -translate-x-1/2 z-50 bg-red-500/10 border border-red-500/50 text-red-400 px-6 py-3 rounded-xl flex items-center gap-3 animate-fade-in shadow-lg backdrop-blur-sm">
+          <X className="w-5 h-5" />
+          <p className="font-bold text-sm">{errorMessage}</p>
+        </div>
+      )}
       {/* Confirm Modal */}
       <ConfirmModal
         isOpen={confirmModal.isOpen}
@@ -699,7 +744,7 @@ export const TeamProfile: React.FC = () => {
               {myTeam.viceCaptainIds?.includes(playerActionsModal.player.id) && (
                 <button
                   onClick={() => {
-                    handleSetViceCaptain(playerActionsModal.player!.id!);
+                    handleRemoveViceCaptain(playerActionsModal.player!.id!);
                     setPlayerActionsModal({ isOpen: false, player: null });
                   }}
                   className="w-full text-left px-5 py-4 text-base font-bold text-orange-400 hover:bg-orange-900/30 flex items-center gap-4 transition-colors rounded-xl mb-2"
@@ -733,5 +778,5 @@ export const TeamProfile: React.FC = () => {
           </div>
         </div>
       )}
-    </div>  );
+    </div>);
 };
