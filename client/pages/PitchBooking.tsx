@@ -164,15 +164,21 @@ export const PitchBooking: React.FC = () => {
                         <Users className="w-4 h-4 text-turf-500" /> MUHTEMEL KADRO
                      </h4>
                      <div className="bg-slate-900 rounded-xl p-2 space-y-1 border border-slate-700">
-                        {[1, 2, 3, 4, 5, 6, 7].map(i => (
-                           <div key={i} className="flex items-center gap-3 p-2 hover:bg-slate-800 rounded-lg transition-colors">
-                              <div className="w-6 h-6 bg-slate-700 rounded-full flex items-center justify-center text-[10px] font-bold text-white">
-                                 {i}
+                        {viewingTeam.players && viewingTeam.players.length > 0 ? (
+                           viewingTeam.players.map((player: any, i: number) => (
+                              <div key={player.id} className="flex items-center gap-3 p-2 hover:bg-slate-800 rounded-lg transition-colors">
+                                 <div className="w-6 h-6 bg-slate-700 rounded-full flex items-center justify-center text-[10px] font-bold text-white">
+                                    {i + 1}
+                                 </div>
+                                 <div className="flex-1 text-sm text-slate-300">{player.full_name || player.username}</div>
+                                 <div className="text-[10px] font-bold text-slate-500 uppercase">{player.position || 'MEV'}</div>
                               </div>
-                              <div className="flex-1 text-sm text-slate-300">Oyuncu Adı Soyadı</div>
-                              <div className="text-[10px] font-bold text-slate-500 uppercase">MEV</div>
+                           ))
+                        ) : (
+                           <div className="text-center py-4 text-slate-500 text-sm">
+                              Oyuncu bilgisi bulunamadı
                            </div>
-                        ))}
+                        )}
                      </div>
                   </div>
 

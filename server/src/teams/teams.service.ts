@@ -59,12 +59,14 @@ export class TeamsService {
     async findOne(id: string): Promise<Team | null> {
         const team = await this.teamsRepository.findOne({
             where: { id },
-            relations: ['captain']
+            relations: ['captain', 'players']
         });
 
         if (!team) return null;
 
         // Manually load players using query builder to find all users with this team
+        // This part is now redundant if 'players' is in relations, but keeping it as per instruction to only add to relations.
+        // If the intention was to remove manual loading, that would be a separate instruction.
         const players = await this.usersService['usersRepository']
             .createQueryBuilder('user')
             .leftJoinAndSelect('user.team', 'team')
