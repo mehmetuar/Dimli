@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MOCK_PITCHES, MOCK_MATCHES, MOCK_TEAMS } from '../constants';
 import { MapPin, Star, Phone, ChevronRight, Users, Trophy, ChevronDown, MessageCircle, Shield, UserCheck, Clock, AlertCircle, X, CheckCircle, Wallet, Calendar } from 'lucide-react';
@@ -7,6 +7,7 @@ import { LevelBadge } from '../components/LevelBadge';
 import { FairPlayScore } from '../components/FairPlayScore';
 import { Team, MatchListing } from '../types';
 import { CreateMatchModal } from '../components/CreateMatchModal';
+import api from '../services/api';
 
 export const PitchBooking: React.FC = () => {
    const [expandedPitchId, setExpandedPitchId] = useState<string | null>(null);
@@ -22,10 +23,33 @@ export const PitchBooking: React.FC = () => {
 
    const navigate = useNavigate();
 
-   // Filter matches based on pitch ID
+   // Announcements for the currently expanded pitch
+   const [pitchAnnouncements, setPitchAnnouncements] = useState<any[]>([]);
+
+   // Fetch announcements when a pitch is expanded
+   useEffect(() => {
+      if (expandedPitchId) {
+         const fetchAnnouncements = async () => {
+            try {
+               const response = await api.get(`/match-announcements/pitch/${expandedPitchId}`);
+               console.log(`📍 Announcements for pitch ${expandedPitchId}:`, response.data);
+               setPitchAnnouncements(response.data);
+            } catch (error) {
+               console.error('Failed to fetch pitch announcements:', error);
+               setPitchAnnouncements([]);
+            }
+         };
+         fetchAnnouncements();
+      } else {
+         setPitchAnnouncements([]);
+      }
+   }, [expandedPitchId]);
+
+   // Filter matches based on pitch ID - NOW USES REAL API DATA
    const getMatchesForPitch = (pitchId: string) => {
-      // Sort matches by date: today first, then future
-      return MOCK_MATCHES.filter(m => m.pitchId === pitchId).sort((a, b) => {
+      // Return announcements for the currently expanded pitch
+      // pitchAnnouncements is fetched via useEffect when expandedPitchId changes
+      return pitchAnnouncements.sort((a, b) => {
          return new Date(a.date).getTime() - new Date(b.date).getTime();
       });
    };
@@ -356,28 +380,29 @@ export const PitchBooking: React.FC = () => {
                                           </div>
 
                                           <div className="space-y-3">
-                                             {groupedMatches[date].map(match => {
-                                                const team = MOCK_TEAMS.find(t => t.id === match.teamId);
+                                             {groupedMatches[date].map(announcement => {
+                                                // announcement.team comes from API response
+                                                const team = announcement.team;
                                                 return (
-                                                   <div key={match.id} className="bg-slate-800 p-4 rounded-2xl border border-slate-700 flex flex-col gap-3 group hover:border-turf-500/50 transition-colors relative overflow-hidden">
+                                                   <div key={announcement.id} className="bg-slate-800 p-4 rounded-2xl border border-slate-700 flex flex-col gap-3 group hover:border-turf-500/50 transition-colors relative overflow-hidden">
                                                       <div className="absolute -right-6 -top-6 bg-turf-500/10 w-24 h-24 rounded-full blur-xl"></div>
 
                                                       <div className="flex items-center justify-between relative z-10">
                                                          <div className="flex items-center gap-3">
-                                                            <img src={match.teamLogo} className="w-14 h-14 rounded-full border-2 border-slate-600 object-cover bg-slate-900 shadow-md" alt={match.teamName} />
+                                                            <img src={team?.logoUrl || '/default-team-logo.png'} className="w-14 h-14 rounded-full border-2 border-slate-600 object-cover bg-slate-900 shadow-md" alt={team?.name} />
                                                             <div>
-                                                               <div className="text-white font-bold text-lg font-sport tracking-wide italic">{match.teamName}</div>
+                                                               <div className="text-white font-bold text-lg font-sport tracking-wide italic">{team?.name}</div>
                                                                <div className="flex items-center gap-2 mt-1">
-                                                                  <LevelBadge level={match.requiredLevel} />
+                                                                  <LevelBadge level={team?.level || 'INTERMEDIATE'} />
                                                                   <span className="text-xs text-white font-bold bg-slate-700 px-2 py-0.5 rounded flex items-center gap-1">
-                                                                     <Clock className="w-3 h-3" /> {match.time}
+                                                                     <Clock className="w-3 h-3" /> {announcement.time}
                                                                   </span>
                                                                </div>
                                                             </div>
                                                          </div>
 
                                                          {/* Display Fair Play Score here for quick view */}
-                                                         {team && <FairPlayScore score={team.fairPlayScore} />}
+                                                         {team && <FairPlayScore score={team.fairPlayScore || 0} />}
                                                       </div>
 
                                                       {/* Action Buttons */}
@@ -390,7 +415,7 @@ export const PitchBooking: React.FC = () => {
                                                          </button>
 
                                                          <button
-                                                            onClick={() => setOfferMode({ matchId: match.id, teamName: match.teamName })}
+                                                            onClick={() => setOfferMode({ matchId: announcement.id, teamName: team?.name || '' })}
                                                             className="bg-turf-600 text-white hover:bg-turf-500 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-colors shadow-lg shadow-turf-600/20"
                                                          >
                                                             <Trophy className="w-4 h-4" /> Maç Teklifi Et
