@@ -53,10 +53,12 @@ export const Marketplace: React.FC = () => {
       try {
         // Get current user
         const userResponse = await api.get('/users/me');
+        console.log('👤 Current User:', userResponse.data);
         setCurrentUser(userResponse.data);
 
         // Get match announcements
         const announcementsResponse = await api.get('/match-announcements');
+        console.log('📢 Announcements from API:', announcementsResponse.data);
         setMatches(announcementsResponse.data);
       } catch (error) {
         console.error('Failed to fetch data:', error);

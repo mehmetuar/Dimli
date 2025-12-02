@@ -1,7 +1,7 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, MapPin, Calendar, Clock, Shield, ChevronRight, CheckCircle, Trophy, Filter } from 'lucide-react';
-import { MOCK_PITCHES, MOCK_TEAMS, CURRENT_USER } from '../constants';
+import { MOCK_PITCHES } from '../constants';
 import { SkillLevel } from '../types';
 import api from '../services/api';
 
@@ -35,8 +35,29 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
     const [playerCount, setPlayerCount] = useState(10); // Default to 10 players
     const [successMessage, setSuccessMessage] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
+    const [currentUser, setCurrentUser] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
 
-    const myTeam = MOCK_TEAMS.find(t => t.id === CURRENT_USER.teamId);
+    // Fetch current user on mount
+    useEffect(() => {
+        const fetchUser = async () => {
+            try {
+                const response = await api.get('/users/me');
+                console.log('📝 CreateMatchModal - Current User:', response.data);
+                setCurrentUser(response.data);
+            } catch (error) {
+                console.error('Failed to fetch user:', error);
+                setErrorMessage('Kullanıcı bilgileri alınamadı.');
+            } finally {
+                setLoading(false);
+            }
+        };
+        if (isOpen) {
+            fetchUser();
+        }
+    }, [isOpen]);
+
+    const myTeam = currentUser?.team;
 
     const handleSubmit = async () => {
         setSuccessMessage('');
