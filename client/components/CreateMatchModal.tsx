@@ -33,24 +33,31 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
     const [note, setNote] = useState('');
     const [level, setLevel] = useState<SkillLevel>(SkillLevel.INTERMEDIATE);
     const [playerCount, setPlayerCount] = useState(10); // Default to 10 players
+    const [successMessage, setSuccessMessage] = useState('');
+    const [errorMessage, setErrorMessage] = useState('');
 
     const myTeam = MOCK_TEAMS.find(t => t.id === CURRENT_USER.teamId);
 
     const handleSubmit = async () => {
+        setSuccessMessage('');
+        setErrorMessage('');
+
         try {
             await api.post('/match-announcements', {
                 pitchId: selectedPitchId,
                 date,
                 time,
-                playerCount: parseInt(playerCount as any), // Cast to any to satisfy parseInt type, as it expects string
+                playerCount: parseInt(playerCount as any),
                 description: note
             });
 
-            alert('Maç ilanı başarıyla yayınlandı!');
-            onClose();
-        } catch (error) {
+            setSuccessMessage('Maç ilanı başarıyla yayınlandı!');
+            setTimeout(() => {
+                onClose();
+            }, 1500);
+        } catch (error: any) {
             console.error('Failed to create match announcement:', error);
-            alert('İlan oluşturulamıyor. Lütfen tekrar deneyin.');
+            setErrorMessage(error.response?.data?.message || 'İlan oluşturulamadı. Lütfen tekrar deneyin.');
         }
     };
     const selectedPitch = MOCK_PITCHES.find(p => p.id === selectedPitchId);
@@ -77,6 +84,22 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
                         <X className="w-5 h-5" />
                     </button>
                 </div>
+
+                {/* Success Message */}
+                {successMessage && (
+                    <div className="mx-6 mt-4 bg-green-500/10 border border-green-500/50 text-green-400 px-4 py-3 rounded-xl flex items-center gap-3 animate-fade-in">
+                        <CheckCircle className="w-5 h-5" />
+                        <p className="font-bold text-sm">{successMessage}</p>
+                    </div>
+                )}
+
+                {/* Error Message */}
+                {errorMessage && (
+                    <div className="mx-6 mt-4 bg-red-500/10 border border-red-500/50 text-red-400 px-4 py-3 rounded-xl flex items-center gap-3 animate-fade-in">
+                        <X className="w-5 h-5" />
+                        <p className="font-bold text-sm">{errorMessage}</p>
+                    </div>
+                )}
 
                 {/* Content Scrollable */}
                 <div className="p-6 overflow-y-auto flex-1">
