@@ -254,6 +254,10 @@ export const TeamProfile: React.FC = () => {
 
   const selectedHomePitch = MOCK_PITCHES.find(p => p.id === myTeam?.homePitchId);
 
+  // Check if current user is captain or vice captain (for permissions throughout component)
+  const isCaptain = myTeam ? ((myTeam.captain && (myTeam.captain as any).id === currentUser?.id) || myTeam.captainId === currentUser?.id) : false;
+  const isViceCaptain = myTeam?.viceCaptainIds?.includes(currentUser?.id) || false;
+
   // Resolve Guest Players
   const guestPlayers: Player[] = [];
   if (myTeam?.guestPlayerIds) {
@@ -376,9 +380,6 @@ export const TeamProfile: React.FC = () => {
         </div>
       );
     }
-
-    // Check if current user is captain (handling both object and id reference for safety)
-    const isCaptain = (myTeam.captain && (myTeam.captain as any).id === currentUser.id) || myTeam.captainId === currentUser.id;
 
     return (
       <div className="animate-fade-in space-y-6">
@@ -581,7 +582,8 @@ export const TeamProfile: React.FC = () => {
                   <div className="text-white font-sport font-bold text-lg mr-2">{player.rating}</div>
 
                   {/* Manager Actions - Mobile-Friendly Button */}
-                  {isCaptain && player.id !== currentUser.id && (
+                  {/* Show menu if captain OR vice captain, but not for self */}
+                  {(isCaptain || isViceCaptain) && player.id !== currentUser.id && (
                     <button
                       onClick={() => setPlayerActionsModal({ isOpen: true, player })}
                       className="p-3 text-slate-400 hover:text-white rounded-xl hover:bg-slate-700 transition-colors active:bg-slate-600 min-w-[44px] min-h-[44px] flex items-center justify-center"
@@ -739,53 +741,68 @@ export const TeamProfile: React.FC = () => {
 
             {/* Actions */}
             <div className="p-4">
-              <button
-                onClick={() => {
-                  handlePromotePlayer(playerActionsModal.player!.id!, 'CAPTAIN');
-                  setPlayerActionsModal({ isOpen: false, player: null });
-                }}
-                className="w-full text-left px-5 py-4 text-base font-bold text-slate-300 hover:bg-slate-700/50 hover:text-white flex items-center gap-4 transition-colors rounded-xl mb-2"
-              >
-                <Crown className="w-5 h-5 text-yellow-500" /> Kaptan Yap
-              </button>
+              {/* Only captains can promote players */}
+              {isCaptain && (
+                <>
+                  <button
+                    onClick={() => {
+                      handlePromotePlayer(playerActionsModal.player!.id!, 'CAPTAIN');
+                      setPlayerActionsModal({ isOpen: false, player: null });
+                    }}
+                    className="w-full text-left px-5 py-4 text-base font-bold text-slate-300 hover:bg-slate-700/50 hover:text-white flex items-center gap-4 transition-colors rounded-xl mb-2"
+                  >
+                    <Crown className="w-5 h-5 text-yellow-500" /> Kaptan Yap
+                  </button>
 
-              {/* Show 'Yrd. Kaptan Yap' ONLY if NOT already vice captain */}
-              {!myTeam.viceCaptainIds?.includes(playerActionsModal.player.id) && (
-                <button
-                  onClick={() => {
-                    handlePromotePlayer(playerActionsModal.player!.id!, 'VICE');
-                    setPlayerActionsModal({ isOpen: false, player: null });
-                  }}
-                  className="w-full text-left px-5 py-4 text-base font-bold text-slate-300 hover:bg-slate-700/50 hover:text-white flex items-center gap-4 transition-colors rounded-xl mb-2"
-                >
-                  <Shield className="w-5 h-5 text-slate-400" /> Yrd. Kaptan Yap
-                </button>
-              )}
+                  {/* Show 'Yrd. Kaptan Yap' ONLY if NOT already vice captain AND user is captain */}
+                  {isCaptain && !myTeam.viceCaptainIds?.includes(playerActionsModal.player.id) && (
+                    <button
+                      onClick={() => {
+                        handlePromotePlayer(playerActionsModal.player!.id!, 'VICE');
+                        setPlayerActionsModal({ isOpen: false, player: null });
+                      }}
+                      className="w-full text-left px-5 py-4 text-base font-bold text-slate-300 hover:bg-slate-700/50 hover:text-white flex items-center gap-4 transition-colors rounded-xl mb-2"
+                    >
+                      <Shield className="w-5 h-5 text-slate-400" /> Yrd. Kaptan Yap
+                    </button>
+                  )}
 
-              {/* Show 'Görevi Geri Al' ONLY if IS vice captain */}
-              {myTeam.viceCaptainIds?.includes(playerActionsModal.player.id) && (
-                <button
-                  onClick={() => {
-                    handleRemoveViceCaptain(playerActionsModal.player!.id!);
-                    setPlayerActionsModal({ isOpen: false, player: null });
-                  }}
-                  className="w-full text-left px-5 py-4 text-base font-bold text-orange-400 hover:bg-orange-900/30 flex items-center gap-4 transition-colors rounded-xl mb-2"
-                >
-                  <ShieldX className="w-5 h-5" /> Görevi Geri Al
-                </button>
+                  {/* Show 'Görevi Geri Al' ONLY if IS vice captain AND user is captain */}
+                  {isCaptain && myTeam.viceCaptainIds?.includes(playerActionsModal.player.id) && (
+                    <button
+                      onClick={() => {
+                        handleSetViceCaptain(playerActionsModal.player!.id!);
+                        setPlayerActionsModal({ isOpen: false, player: null });
+                      }}
+                      className="w-full text-left px-5 py-4 text-base font-bold text-orange-400 hover:bg-orange-900/30 flex items-center gap-4 transition-colors rounded-xl mb-2"
+                    >
+                      <ShieldX className="w-5 h-5" /> Görevi Geri Al
+                    </button>
+                  )}
+                </>
               )}
 
               <div className="h-px bg-slate-700 my-2"></div>
 
-              <button
-                onClick={() => {
-                  handleKickPlayer(playerActionsModal.player!.id!);
-                  setPlayerActionsModal({ isOpen: false, player: null });
-                }}
-                className="w-full text-left px-5 py-4 text-base font-bold text-red-400 hover:bg-red-900/30 flex items-center gap-4 transition-colors rounded-xl"
-              >
-                <Trash2 className="w-5 h-5" /> Takımdan At
-              </button>
+              {/* Kick Player - Both captain and vice captain can kick, but with restrictions */}
+              {/* Vice captains cannot kick captain or other vice captains */}
+              {(() => {
+                const isPlayerCaptain = playerActionsModal.player.id === myTeam.captainId;
+                const isPlayerViceCaptain = myTeam.viceCaptainIds?.includes(playerActionsModal.player.id);
+                const canKick = isCaptain || (isViceCaptain && !isPlayerCaptain && !isPlayerViceCaptain);
+
+                return canKick ? (
+                  <button
+                    onClick={() => {
+                      handleKickPlayer(playerActionsModal.player!.id!);
+                      setPlayerActionsModal({ isOpen: false, player: null });
+                    }}
+                    className="w-full text-left px-5 py-4 text-base font-bold text-red-400 hover:bg-red-900/30 flex items-center gap-4 transition-colors rounded-xl"
+                  >
+                    <Trash2 className="w-5 h-5" /> Takımdan At
+                  </button>
+                ) : null;
+              })()}
             </div>
 
             {/* Cancel Button */}
