@@ -20,16 +20,26 @@ export class MatchAnnouncementsService {
             relations: ['team']
         });
 
+        console.log('🔍 Creating announcement - User ID:', userId);
+        console.log('👤 User found:', { id: user?.id, username: user?.username });
+        console.log('🏆 User team:', { id: user?.team?.id, name: user?.team?.name });
+
         if (!user || !user.team) {
             throw new Error('User must be in a team to create match announcements');
         }
+
+        console.log('✅ Using teamId:', user.team.id);
 
         const announcement = this.matchAnnouncementsRepository.create({
             ...data,
             teamId: user.team.id,
             status: 'PENDING'
         });
-        return this.matchAnnouncementsRepository.save(announcement);
+
+        const saved = await this.matchAnnouncementsRepository.save(announcement);
+        console.log('💾 Saved announcement:', { id: saved.id, teamId: saved.teamId });
+
+        return saved;
     }
 
     async findAll(filters?: { date?: string; pitchId?: string }): Promise<MatchAnnouncement[]> {
