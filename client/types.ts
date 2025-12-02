@@ -90,6 +90,7 @@ export interface MatchListing {
   priceShare: number; // Cost per team
   message?: string;
   incomingOffers?: MatchOffer[];
+  team?: Team; // Team object from API (for announcements)
 }
 
 export interface PitchSlot {
