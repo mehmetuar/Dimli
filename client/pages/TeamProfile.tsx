@@ -733,4 +733,5 @@ export const TeamProfile: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+    </div>  );
+};
