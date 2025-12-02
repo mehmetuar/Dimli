@@ -105,7 +105,20 @@ export const Marketplace: React.FC = () => {
 
       {/* Match List - Card Design */}
       <div className="space-y-5">
-        {matches.map((announcement) => {
+        {matches.length === 0 && (
+          <div className="text-center py-12 text-slate-400">
+            Henüz aktif ilan yok. İlk ilanı sen oluştur!
+          </div>
+        )}
+
+        {matches.map((announcement, index) => {
+          console.log(`🔍 Rendering announcement #${index}:`, {
+            id: announcement.id,
+            teamName: announcement.team?.name,
+            teamId: announcement.teamId,
+            isOwnTeam: announcement.teamId === myTeam?.id
+          });
+
           const isOwnTeam = announcement.teamId === myTeam?.id;
           const pitch = MOCK_PITCHES.find(p => p.id === announcement.pitchId);
 
