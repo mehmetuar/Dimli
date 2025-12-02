@@ -70,7 +70,7 @@ export const Notifications: React.FC = () => {
          // Fetch join requests for each team
          const allJoinRequests: JoinRequest[] = [];
          for (const team of myTeams) {
-            const reqResponse = await api.get(`/ join - requests / team / ${team.id} `);
+            const reqResponse = await api.get(`/join-requests/team/${team.id}`);
             allJoinRequests.push(...reqResponse.data);
          }
          setJoinRequests(allJoinRequests);
@@ -95,7 +95,7 @@ export const Notifications: React.FC = () => {
 
    const handleAcceptJoinRequest = async (requestId: string) => {
       try {
-         await api.patch(`/ join - requests / ${requestId}/accept`);
+         await api.patch(`/join-requests/${requestId}/accept`);
          // Refresh data
          await fetchData();
          setSuccessMessage('Katılma isteği kabul edildi! Oyuncu takıma eklendi.');
