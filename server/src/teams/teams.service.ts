@@ -163,4 +163,12 @@ export class TeamsService {
 
         return this.teamsRepository.save(team);
     }
+
+    async updateHomePitch(teamId: string, homePitchId: string): Promise<Team> {
+        const team = await this.findOne(teamId);
+        if (!team) throw new Error('Team not found');
+
+        team.homePitchId = homePitchId;
+        return this.teamsRepository.save(team);
+    }
 }

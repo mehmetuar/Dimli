@@ -57,4 +57,13 @@ export class TeamsController {
     ) {
         return this.teamsService.updateViceCaptains(id, dto.add, dto.remove);
     }
+
+    @UseGuards(JwtAuthGuard)
+    @Patch(':id/home-pitch')
+    updateHomePitch(
+        @Param('id') id: string,
+        @Body('homePitchId') homePitchId: string
+    ) {
+        return this.teamsService.updateHomePitch(id, homePitchId);
+    }
 }

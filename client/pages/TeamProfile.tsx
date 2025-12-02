@@ -13,6 +13,7 @@ import { JoinTeamModal } from '../components/JoinTeamModal';
 import { AddPlayerModal } from '../components/AddPlayerModal';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { MatchHistoryModal } from '../components/MatchHistoryModal';
+import { CreateMatchModal } from '../components/CreateMatchModal';
 import api from '../services/api';
 
 export const TeamProfile: React.FC = () => {
@@ -37,6 +38,7 @@ export const TeamProfile: React.FC = () => {
   const [isJoinTeamModalOpen, setIsJoinTeamModalOpen] = useState(false);
   const [isAddPlayerModalOpen, setIsAddPlayerModalOpen] = useState(false);
   const [isMatchHistoryOpen, setIsMatchHistoryOpen] = useState(false);
+  const [isCreateMatchModalOpen, setIsCreateMatchModalOpen] = useState(false);
 
   // Confirmation modal states
   const [confirmModal, setConfirmModal] = useState<{
@@ -125,11 +127,18 @@ export const TeamProfile: React.FC = () => {
     setIsEditingBio(false);
   }
 
-  const handleSetHomePitch = (pitchId: string) => {
-    if (myTeam) {
-      const updatedTeam = { ...myTeam, homePitchId: pitchId };
-      setMyTeam(updatedTeam);
+  const handleSetHomePitch = async (pitchId: string) => {
+    if (!myTeam) return;
+    try {
+      const response = await api.patch(`/teams/${myTeam.id}/home-pitch`, {
+        homePitchId: pitchId
+      });
+      setMyTeam(response.data);
       setIsEditingPitch(false);
+      setSuccessMessage('Ev sahibi saha başarıyla ayarlandı!');
+    } catch (error) {
+      console.error('Failed to set home pitch:', error);
+      setErrorMessage('Ev sahibi saha ayarlanamadı.');
     }
   };
 
@@ -502,8 +511,14 @@ export const TeamProfile: React.FC = () => {
                   <div className="text-white font-bold text-lg">{selectedHomePitch.name}</div>
                   <div className="text-slate-300 text-xs">{selectedHomePitch.location}</div>
                 </div>
-                {isCaptain && (
-                  <button className="absolute top-3 right-3 bg-turf-600 hover:bg-turf-500 text-white text-xs font-bold px-4 py-2 rounded-full shadow-lg flex items-center gap-1">
+                {isCaptain && myTeam.homePitchId && (
+                  <button
+                    onClick={() => {
+                      // Open CreateMatchModal with pre-selected pitch
+                      setIsCreateMatchModalOpen(true);
+                    }}
+                    className="absolute top-3 right-3 bg-turf-600 hover:bg-turf-500 text-white text-xs font-bold px-4 py-2 rounded-full shadow-lg flex items-center gap-1"
+                  >
                     <Plus className="w-3 h-3" /> İlan Oluştur
                   </button>
                 )}
@@ -654,6 +669,13 @@ export const TeamProfile: React.FC = () => {
         isOpen={isMatchHistoryOpen}
         onClose={() => setIsMatchHistoryOpen(false)}
         matches={MOCK_MATCH_HISTORY}
+      />
+
+      {/* CreateMatch Modal - Pre-select home pitch and today's date */}
+      <CreateMatchModal
+        isOpen={isCreateMatchModalOpen}
+        onClose={() => setIsCreateMatchModalOpen(false)}
+        preSelectedPitchId={myTeam?.homePitchId}
       />
 
       <CreateTeamModal
