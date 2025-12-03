@@ -51,6 +51,7 @@ export interface Team {
   wins: number;
   losses: number;
   guestPlayerIds?: string[]; // IDs of jokers playing temporarily
+  players?: any[]; // Team roster from API
 }
 
 export interface MatchOffer {
