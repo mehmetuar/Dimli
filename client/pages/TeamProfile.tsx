@@ -349,12 +349,12 @@ export const TeamProfile: React.FC = () => {
   return (
     <div className="pb-28 pt-20 px-4 max-w-3xl mx-auto min-h-screen bg-pitch relative">
       {/* Profile Settings Menu Button */}
-      <div className="absolute top-4 left-4 z-50">
+      <div className="absolute top-4 right-4 z-50">
         <button
           onClick={() => setIsMenuOpen(!isMenuOpen)}
-          className="p-2 bg-slate-800/80 backdrop-blur-sm text-white rounded-full border border-slate-700 shadow-lg hover:bg-slate-700 transition-colors"
+          className="relative p-2 rounded-full hover:bg-slate-700 transition-colors group"
         >
-          <Menu className="w-6 h-6" />
+          <Menu className="w-5 h-5 text-slate-300 group-hover:text-white transition-colors" />
         </button>
 
         {/* Dropdown Menu */}
@@ -366,7 +366,7 @@ export const TeamProfile: React.FC = () => {
               onClick={() => setIsMenuOpen(false)}
             ></div>
 
-            <div className="absolute left-0 top-12 w-56 bg-slate-800 rounded-xl border border-slate-700 shadow-2xl z-50 overflow-hidden animate-fade-in origin-top-left">
+            <div className="absolute right-0 top-12 w-56 bg-slate-800 rounded-xl border border-slate-700 shadow-2xl z-50 overflow-hidden animate-fade-in origin-top-right">
               <div className="p-3 border-b border-slate-700">
                 <p className="text-xs text-slate-400 font-bold uppercase">Hesap Ayarları</p>
               </div>

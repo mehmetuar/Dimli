@@ -3,6 +3,8 @@ import { AuthService } from './auth.service';
 import { LocalAuthGuard } from './local-auth.guard';
 import { UsersService } from '../users/users.service';
 
+import { CreateUserDto } from '../users/dto/create-user.dto';
+
 @Controller('auth')
 export class AuthController {
     constructor(
@@ -17,7 +19,7 @@ export class AuthController {
     }
 
     @Post('register')
-    async register(@Body() createUserDto: any) {
+    async register(@Body() createUserDto: CreateUserDto) {
         try {
             const user = await this.usersService.create(createUserDto);
             // Remove password from response

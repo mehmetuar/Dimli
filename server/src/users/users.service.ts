@@ -4,6 +4,8 @@ import { Repository } from 'typeorm';
 import { User } from './user.entity';
 import * as bcrypt from 'bcrypt';
 
+import { CreateUserDto } from './dto/create-user.dto';
+
 @Injectable()
 export class UsersService {
     constructor(
@@ -11,7 +13,7 @@ export class UsersService {
         private usersRepository: Repository<User>,
     ) { }
 
-    async create(userData: Partial<User>): Promise<User> {
+    async create(userData: CreateUserDto): Promise<User> {
         try {
             if (!userData.password) {
                 throw new Error('Password is required');
