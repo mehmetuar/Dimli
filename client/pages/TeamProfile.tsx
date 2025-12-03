@@ -6,7 +6,7 @@ import { MOCK_TEAMS, MOCK_PITCHES, MOCK_JOKERS, MOCK_MATCH_HISTORY } from '../co
 import { generateTeamBio } from '../services/geminiService';
 import { FairPlayScore } from '../components/FairPlayScore';
 import { LevelBadge } from '../components/LevelBadge';
-import { MapPin, Shield, Sparkles, Edit2, Plus, X, UserPlus, LogOut, Crown, MoreVertical, Trash2, Save, History, ShieldX, Check } from 'lucide-react';
+import { MapPin, Shield, Sparkles, Edit2, Plus, X, UserPlus, LogOut, Crown, MoreVertical, Trash2, Save, History, ShieldX, Check, Menu, Settings, User } from 'lucide-react';
 import { Team, Player, Position } from '../types';
 import { CreateTeamModal } from '../components/CreateTeamModal';
 import { JoinTeamModal } from '../components/JoinTeamModal';
@@ -39,6 +39,7 @@ export const TeamProfile: React.FC = () => {
   const [isAddPlayerModalOpen, setIsAddPlayerModalOpen] = useState(false);
   const [isMatchHistoryOpen, setIsMatchHistoryOpen] = useState(false);
   const [isCreateMatchModalOpen, setIsCreateMatchModalOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   // Confirmation modal states
   const [confirmModal, setConfirmModal] = useState<{
@@ -364,7 +365,81 @@ export const TeamProfile: React.FC = () => {
 
 
   return (
-    <div className="pb-28 pt-20 px-4 max-w-3xl mx-auto min-h-screen bg-pitch">
+    <div className="pb-28 pt-20 px-4 max-w-3xl mx-auto min-h-screen bg-pitch relative">
+      {/* Profile Settings Menu Button */}
+      <div className="absolute top-4 right-4 z-50">
+        <button
+          onClick={() => setIsMenuOpen(!isMenuOpen)}
+          className="p-2 bg-slate-800/80 backdrop-blur-sm text-white rounded-full border border-slate-700 shadow-lg hover:bg-slate-700 transition-colors"
+        >
+          <Menu className="w-6 h-6" />
+        </button>
+
+        {/* Dropdown Menu */}
+        {isMenuOpen && (
+          <>
+            {/* Backdrop to close menu when clicking outside */}
+            <div
+              className="fixed inset-0 z-40"
+              onClick={() => setIsMenuOpen(false)}
+            ></div>
+
+            <div className="absolute right-0 top-12 w-56 bg-slate-800 rounded-xl border border-slate-700 shadow-2xl z-50 overflow-hidden animate-fade-in origin-top-right">
+              <div className="p-3 border-b border-slate-700">
+                <p className="text-xs text-slate-400 font-bold uppercase">Hesap Ayarları</p>
+              </div>
+              <div className="p-1">
+                <button
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    // TODO: Open edit profile modal
+                    setErrorMessage('Profil düzenleme henüz aktif değil.');
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-3 text-sm text-white hover:bg-slate-700 rounded-lg transition-colors text-left"
+                >
+                  <User className="w-4 h-4 text-turf-500" />
+                  Profil Düzenle
+                </button>
+                <button
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    // TODO: Navigate to team settings
+                    setErrorMessage('Takım ayarları henüz aktif değil.');
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-3 text-sm text-white hover:bg-slate-700 rounded-lg transition-colors text-left"
+                >
+                  <Shield className="w-4 h-4 text-blue-500" />
+                  Takım Ayarları
+                </button>
+                <button
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    // TODO: Change password
+                    setErrorMessage('Şifre değiştirme henüz aktif değil.');
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-3 text-sm text-white hover:bg-slate-700 rounded-lg transition-colors text-left"
+                >
+                  <Settings className="w-4 h-4 text-purple-500" />
+                  Şifre Değiştir
+                </button>
+                <div className="h-px bg-slate-700 my-1"></div>
+                <button
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    // Logout logic
+                    localStorage.removeItem('token');
+                    window.location.href = '/login';
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-3 text-sm text-red-400 hover:bg-red-500/10 rounded-lg transition-colors text-left"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Çıkış Yap
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
       {/* Success Message */}
       {successMessage && (
         <div className="fixed top-24 left-1/2 transform -translate-x-1/2 z-50 bg-green-500/10 border border-green-500/50 text-green-400 px-6 py-3 rounded-xl flex items-center gap-3 animate-fade-in shadow-lg backdrop-blur-sm">
