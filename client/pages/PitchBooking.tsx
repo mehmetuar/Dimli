@@ -340,8 +340,10 @@ export const PitchBooking: React.FC = () => {
 
                                     // Dynamic status based on announcements
                                     if (hasAnnouncement) {
-                                       slotClass = 'bg-orange-900/20 border-orange-500/50 text-orange-400 animate-pulse';
+                                       // Allow clicking to create announcement - backend will prevent duplicates
+                                       slotClass = 'bg-orange-900/20 border-orange-500/50 text-orange-400 animate-pulse cursor-pointer hover:border-turf-500';
                                        label = 'RAKİP ARANIYOR';
+                                       action = () => handleCreateAd(pitch.id, slot.hour);
                                     } else if (slot.status === 'BOOKED') {
                                        // Future: Admin panel will set this
                                        slotClass = 'bg-red-900/20 border-red-900/50 text-red-700 opacity-70 cursor-not-allowed';
