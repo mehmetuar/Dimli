@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { MatchAnnouncement } from './match-announcement.entity';
@@ -29,6 +29,24 @@ export class MatchAnnouncementsService {
         }
 
         console.log('✅ Using teamId:', user.team.id);
+
+        // Check for duplicate announcement (same team, pitch, time, date)
+        const existingAnnouncement = await this.matchAnnouncementsRepository.findOne({
+            where: {
+                teamId: user.team.id,
+                pitchId: data.pitchId,
+                time: data.time,
+                date: data.date,
+                status: 'PENDING'
+            }
+        });
+
+        if (existingAnnouncement) {
+            throw new HttpException(
+                'Bu saat için zaten aktif bir ilanınız var',
+                HttpStatus.CONFLICT
+            );
+        }
 
         const announcement = this.matchAnnouncementsRepository.create({
             ...data,

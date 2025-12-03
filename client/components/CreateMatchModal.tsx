@@ -60,25 +60,41 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
     const myTeam = currentUser?.team;
 
     const handleSubmit = async () => {
-        setSuccessMessage('');
+        if (!myTeam || !selectedPitchId || !time || !date) {
+            setErrorMessage('Lütfen tüm alanları doldurun');
+            return;
+        }
+
+        setLoading(true);
         setErrorMessage('');
 
         try {
-            await api.post('/match-announcements', {
+            const response = await api.post('/match-announcements', {
                 pitchId: selectedPitchId,
                 date,
                 time,
-                playerCount: parseInt(playerCount as any),
-                description: note
+                requiredLevel: level
             });
 
-            setSuccessMessage('Maç ilanı başarıyla yayınlandı!');
+            console.log('✅ Announcement created:', response.data);
+            setSuccessMessage('İlan başarıyla oluşturuldu!');
+
             setTimeout(() => {
                 onClose();
+                // Refresh page to show new announcement
+                window.location.reload();
             }, 1500);
         } catch (error: any) {
-            console.error('Failed to create match announcement:', error);
-            setErrorMessage(error.response?.data?.message || 'İlan oluşturulamadı. Lütfen tekrar deneyin.');
+            console.error('❌ Failed to create announcement:', error);
+
+            // Handle 409 Conflict (duplicate announcement)
+            if (error.response?.status === 409) {
+                setErrorMessage(error.response.data.message || 'Bu saat için zaten aktif bir ilanınız var');
+            } else {
+                setErrorMessage('İlan oluşturulurken bir hata oluştu');
+            }
+        } finally {
+            setLoading(false);
         }
     };
     const selectedPitch = MOCK_PITCHES.find(p => p.id === selectedPitchId);
