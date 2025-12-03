@@ -455,7 +455,17 @@ export const PitchBooking: React.FC = () => {
                                                       {/* Action Buttons */}
                                                       <div className="grid grid-cols-2 gap-2 mt-2 pt-3 border-t border-slate-700/50 relative z-10">
                                                          <button
-                                                            onClick={() => team && setViewingTeam(team)}
+                                                            onClick={() => {
+                                                               console.log('📊 Team data for modal:', {
+                                                                  team: team,
+                                                                  name: team?.name,
+                                                                  wins: team?.wins,
+                                                                  losses: team?.losses,
+                                                                  players: team?.players,
+                                                                  playerCount: team?.players?.length
+                                                               });
+                                                               if (team) setViewingTeam(team);
+                                                            }}
                                                             className="bg-slate-700 text-slate-300 hover:bg-slate-600 hover:text-white py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-colors"
                                                          >
                                                             <Shield className="w-4 h-4" /> Rakibi Görüntüle

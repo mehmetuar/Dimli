@@ -65,6 +65,7 @@ export class MatchAnnouncementsService {
             .createQueryBuilder('announcement')
             .leftJoinAndSelect('announcement.team', 'team')
             .leftJoinAndSelect('team.captain', 'captain')
+            .leftJoinAndSelect('team.players', 'players') // Added to load all players
             .where('announcement.status = :status', { status: 'PENDING' });
 
         if (filters?.date) {
@@ -75,7 +76,15 @@ export class MatchAnnouncementsService {
             query.andWhere('announcement.pitchId = :pitchId', { pitchId: filters.pitchId });
         }
 
-        return query.orderBy('announcement.date', 'ASC').addOrderBy('announcement.time', 'ASC').getMany();
+        const announcements = await query.orderBy('announcement.date', 'ASC').addOrderBy('announcement.time', 'ASC').getMany();
+        console.log(`📢 Found ${announcements.length} announcements`);
+        if (announcements.length > 0) {
+            console.log('First announcement team:', {
+                name: announcements[0].team?.name,
+                playersCount: announcements[0].team?.players?.length
+            });
+        }
+        return announcements;
     }
 
     async findByPitch(pitchId: string): Promise<MatchAnnouncement[]> {
