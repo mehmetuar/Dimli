@@ -32,15 +32,6 @@ export class User {
     @Column({ nullable: true })
     secondaryPosition: string;
 
-    @Column({ nullable: true })
-    dominantFoot: string;
-
-    @Column('float', { nullable: true })
-    height: number;
-
-    @Column('float', { nullable: true })
-    weight: number;
-
     @Column('float', { default: 0 })
     rating: number;
 

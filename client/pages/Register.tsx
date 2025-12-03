@@ -19,10 +19,7 @@ export const Register: React.FC = () => {
         email: '',
         birthDate: '',
         position: 'Orta Saha',
-        secondaryPosition: '',
-        dominantFoot: 'Sağ',
-        height: '',
-        weight: ''
+        secondaryPosition: ''
     });
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -72,11 +69,7 @@ export const Register: React.FC = () => {
 
         try {
             // Register
-            await api.post('/auth/register', {
-                ...formData,
-                height: formData.height ? parseFloat(formData.height) : undefined,
-                weight: formData.weight ? parseFloat(formData.weight) : undefined,
-            });
+            await api.post('/auth/register', formData);
 
             // Auto Login
             const loginResponse = await api.post('/auth/login', {
@@ -259,54 +252,6 @@ export const Register: React.FC = () => {
                             <option value="Orta Saha">Orta Saha</option>
                             <option value="Forvet">Forvet</option>
                         </select>
-                    </div>
-                </div>
-            </div>
-            <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Kullandığı Ayak</label>
-                <div className="flex gap-4">
-                    {['Sağ', 'Sol', 'Her İkisi'].map((foot) => (
-                        <button
-                            key={foot}
-                            type="button"
-                            onClick={() => setFormData({ ...formData, dominantFoot: foot })}
-                            className={`flex-1 py-3 rounded-xl font-bold transition-all ${formData.dominantFoot === foot
-                                ? 'bg-turf-600 text-white shadow-lg shadow-turf-600/20'
-                                : 'bg-slate-900 text-slate-400 border border-slate-700 hover:border-slate-500'
-                                }`}
-                        >
-                            {foot}
-                        </button>
-                    ))}
-                </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-                <div>
-                    <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Boy (cm)</label>
-                    <div className="relative">
-                        <Activity className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-500 w-5 h-5" />
-                        <input
-                            type="number"
-                            name="height"
-                            value={formData.height}
-                            onChange={handleChange}
-                            className="w-full bg-slate-900 text-white pl-12 pr-4 py-4 rounded-xl border border-slate-700 focus:border-turf-500 focus:outline-none font-bold"
-                            placeholder="180"
-                        />
-                    </div>
-                </div>
-                <div>
-                    <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Kilo (kg)</label>
-                    <div className="relative">
-                        <Activity className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-500 w-5 h-5" />
-                        <input
-                            type="number"
-                            name="weight"
-                            value={formData.weight}
-                            onChange={handleChange}
-                            className="w-full bg-slate-900 text-white pl-12 pr-4 py-4 rounded-xl border border-slate-700 focus:border-turf-500 focus:outline-none font-bold"
-                            placeholder="75"
-                        />
                     </div>
                 </div>
             </div>
