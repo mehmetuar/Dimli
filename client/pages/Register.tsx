@@ -1,12 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
-import { Trophy } from 'lucide-react';
-
-import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import api from '../services/api';
-import { Trophy, ChevronRight, ChevronLeft, Check, User, Phone, Mail, Calendar, Shield, Activity, Lock } from 'lucide-react';
+import { Trophy, ChevronRight, ChevronLeft, Check, User, Phone, Mail, Calendar, Shield, Lock } from 'lucide-react';
 
 export const Register: React.FC = () => {
     const [step, setStep] = useState(1);
