@@ -88,10 +88,26 @@ export class MatchAnnouncementsService {
     }
 
     async findByPitch(pitchId: string): Promise<MatchAnnouncement[]> {
-        return this.matchAnnouncementsRepository.find({
-            where: { pitchId, status: 'PENDING' },
-            relations: ['team', 'team.captain'],
-            order: { date: 'ASC', time: 'ASC' }
-        });
+        const announcements = await this.matchAnnouncementsRepository
+            .createQueryBuilder('announcement')
+            .leftJoinAndSelect('announcement.team', 'team')
+            .leftJoinAndSelect('team.captain', 'captain')
+            .leftJoinAndSelect('team.players', 'players')  // Load all players for team modal
+            .where('announcement.pitchId = :pitchId', { pitchId })
+            .andWhere('announcement.status = :status', { status: 'PENDING' })
+            .orderBy('announcement.date', 'ASC')
+            .addOrderBy('announcement.time', 'ASC')
+            .getMany();
+
+        console.log(`📍 Found ${announcements.length} announcements for pitch ${pitchId}`);
+        if (announcements.length > 0 && announcements[0].team) {
+            console.log('First team:', {
+                name: announcements[0].team.name,
+                playersCount: announcements[0].team.players?.length,
+                playerNames: announcements[0].team.players?.map(p => p.username)
+            });
+        }
+
+        return announcements;
     }
 }
