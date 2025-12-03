@@ -60,6 +60,11 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
                 const response = await api.get('/users/me');
                 console.log('📝 CreateMatchModal - Current User:', response.data);
                 setCurrentUser(response.data);
+
+                // Pre-select team level if available
+                if (response.data.team?.level) {
+                    setLevel(response.data.team.level);
+                }
             } catch (error) {
                 console.error('Failed to fetch user:', error);
                 setErrorMessage('Kullanıcı bilgileri alınamadı.');
