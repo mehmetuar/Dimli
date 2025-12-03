@@ -173,4 +173,12 @@ export class TeamsService {
         team.homePitchId = homePitchId;
         return this.teamsRepository.save(team);
     }
+
+    async updateDescription(teamId: string, description: string): Promise<Team> {
+        const team = await this.findOne(teamId);
+        if (!team) throw new Error('Team not found');
+
+        team.description = description;
+        return this.teamsRepository.save(team);
+    }
 }

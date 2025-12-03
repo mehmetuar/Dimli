@@ -66,4 +66,13 @@ export class TeamsController {
     ) {
         return this.teamsService.updateHomePitch(id, homePitchId);
     }
+
+    @UseGuards(JwtAuthGuard)
+    @Patch(':id/description')
+    updateDescription(
+        @Param('id') id: string,
+        @Body('description') description: string
+    ) {
+        return this.teamsService.updateDescription(id, description);
+    }
 }

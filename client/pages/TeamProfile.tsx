@@ -119,13 +119,20 @@ export const TeamProfile: React.FC = () => {
     setIsGenerating(false);
   };
 
-  const handleSaveBio = () => {
-    if (myTeam) {
-      const updatedTeam = { ...myTeam, description: bio };
-      setMyTeam(updatedTeam);
+  const handleSaveBio = async () => {
+    if (!myTeam) return;
+    try {
+      const response = await api.patch(`/teams/${myTeam.id}/description`, {
+        description: bio
+      });
+      setMyTeam(response.data);
+      setIsEditingBio(false);
+      console.log('✅ Team description saved:', bio);
+    } catch (error) {
+      console.error('❌ Failed to save description:', error);
+      setErrorMessage('Takım ruhu kaydedilemedi.');
     }
-    setIsEditingBio(false);
-  }
+  };
 
   const handleSetHomePitch = async (pitchId: string) => {
     if (!myTeam) return;
