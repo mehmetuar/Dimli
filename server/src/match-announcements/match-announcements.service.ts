@@ -61,6 +61,9 @@ export class MatchAnnouncementsService {
     }
 
     async findAll(filters?: { date?: string; pitchId?: string }): Promise<MatchAnnouncement[]> {
+        // Clean up expired announcements first
+        await this.deleteExpired();
+
         const query = this.matchAnnouncementsRepository
             .createQueryBuilder('announcement')
             .leftJoinAndSelect('announcement.team', 'team')
@@ -85,6 +88,26 @@ export class MatchAnnouncementsService {
             });
         }
         return announcements;
+    }
+
+    private async deleteExpired(): Promise<void> {
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        const todayStr = `${year}-${month}-${day}`;
+
+        // Delete announcements where date is less than today
+        // Note: We keep today's announcements even if time has passed, or we could check time too.
+        // For now, let's just delete strictly past dates.
+        await this.matchAnnouncementsRepository
+            .createQueryBuilder()
+            .delete()
+            .from(MatchAnnouncement)
+            .where('date < :today', { today: todayStr })
+            .execute();
+
+        console.log('🧹 Cleaned up expired announcements before', todayStr);
     }
 
     async findByPitch(pitchId: string): Promise<MatchAnnouncement[]> {

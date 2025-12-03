@@ -28,7 +28,7 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
         return `${year}-${month}-${day}`;
     };
 
-    const [date, setDate] = useState('');
+    const [date, setDate] = useState(getTodayDate());
     const [time, setTime] = useState('');
     const [level, setLevel] = useState(SkillLevel.INTERMEDIATE);
     const [note, setNote] = useState('');
