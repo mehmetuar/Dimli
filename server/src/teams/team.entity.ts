@@ -29,6 +29,10 @@ export class Team {
 
     @Column('int', { default: 0 })
     wins: number;
+
+    @Column('int', { default: 0 })
+    losses: number;
+
     // Captain ID for easy access
     @Column({ nullable: true })
     captainId: string;
