@@ -297,25 +297,7 @@ export const TeamProfile: React.FC = () => {
   const PlayerCard = () => (
     <div className="animate-fade-in">
       {/* Logout Button - Top Right */}
-      <div className="flex justify-end mb-4">
-        <button
-          onClick={() => {
-            setConfirmModal({
-              isOpen: true,
-              title: 'Çıkış Yap',
-              message: 'Çıkış yapmak istediğinize emin misiniz?',
-              onConfirm: () => {
-                localStorage.removeItem('token');
-                window.location.href = '#/login';
-              },
-              isDangerous: true
-            });
-          }}
-          className="text-red-400 hover:text-red-300 font-bold text-sm flex items-center gap-2 transition-colors px-4 py-2 bg-slate-800/50 rounded-xl border border-slate-700 hover:border-red-500/50"
-        >
-          <LogOut className="w-4 h-4" /> Çıkış Yap
-        </button>
-      </div>
+
 
       <div className="relative bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl overflow-hidden border border-slate-700 shadow-2xl">
         <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]"></div>
@@ -367,7 +349,7 @@ export const TeamProfile: React.FC = () => {
   return (
     <div className="pb-28 pt-20 px-4 max-w-3xl mx-auto min-h-screen bg-pitch relative">
       {/* Profile Settings Menu Button */}
-      <div className="absolute top-4 right-4 z-50">
+      <div className="absolute top-4 left-4 z-50">
         <button
           onClick={() => setIsMenuOpen(!isMenuOpen)}
           className="p-2 bg-slate-800/80 backdrop-blur-sm text-white rounded-full border border-slate-700 shadow-lg hover:bg-slate-700 transition-colors"
@@ -384,7 +366,7 @@ export const TeamProfile: React.FC = () => {
               onClick={() => setIsMenuOpen(false)}
             ></div>
 
-            <div className="absolute right-0 top-12 w-56 bg-slate-800 rounded-xl border border-slate-700 shadow-2xl z-50 overflow-hidden animate-fade-in origin-top-right">
+            <div className="absolute left-0 top-12 w-56 bg-slate-800 rounded-xl border border-slate-700 shadow-2xl z-50 overflow-hidden animate-fade-in origin-top-left">
               <div className="p-3 border-b border-slate-700">
                 <p className="text-xs text-slate-400 font-bold uppercase">Hesap Ayarları</p>
               </div>
