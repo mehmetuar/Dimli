@@ -29,7 +29,7 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
     };
 
     const [date, setDate] = useState(getTodayDate());
-    const [time, setTime] = useState('');
+    const [time, setTime] = useState(preSelectedHour ? `${preSelectedHour}:00` : '');
     const [level, setLevel] = useState(SkillLevel.INTERMEDIATE);
     const [note, setNote] = useState('');
     const [playerCount, setPlayerCount] = useState(7);
