@@ -44,7 +44,7 @@ export const Navbar: React.FC = () => {
 
       {/* Notification Bell (Top Right - Visible Mobile & Desktop) - Conditioned */}
       {showBell && isLoggedIn && location.pathname !== '/chat' && location.pathname !== '/team' && (
-        <div className="fixed top-6 right-6 z-50">
+        <div className="fixed top-6 top-safe-top right-6 z-50 pt-2">
           <button
             onClick={handleNotificationClick}
             className={`relative p-2 rounded-full border transition-all group ${location.pathname === '/notifications'
@@ -61,7 +61,7 @@ export const Navbar: React.FC = () => {
       )}
 
       {/* Bottom Navigation Bar */}
-      <nav className="fixed bottom-4 left-4 right-4 h-16 bg-pitch-surface/90 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl shadow-black/50 z-50 md:max-w-md md:mx-auto md:bottom-8">
+      <nav className="fixed bottom-2 bottom-safe-bottom left-4 right-4 h-16 bg-pitch-surface/90 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl shadow-black/50 z-50 md:max-w-md md:mx-auto md:bottom-8 pb-safe-bottom box-content">
         <div className="flex justify-around items-center h-full px-2">
 
           <NavLink to="/" className={navClass}>

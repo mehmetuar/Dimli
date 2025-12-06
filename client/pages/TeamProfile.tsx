@@ -56,6 +56,16 @@ export const TeamProfile: React.FC = () => {
     player: Partial<Player> | null;
   }>({ isOpen: false, player: null });
 
+  // Toggle modal-open class on body
+  useEffect(() => {
+    if (playerActionsModal.isOpen) {
+      document.body.classList.add('modal-open');
+    } else {
+      document.body.classList.remove('modal-open');
+    }
+    return () => document.body.classList.remove('modal-open');
+  }, [playerActionsModal.isOpen]);
+
   // Success/Error messages
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
@@ -792,7 +802,7 @@ export const TeamProfile: React.FC = () => {
 
       {/* Player Actions Modal - Mobile Friendly */}
       {playerActionsModal.isOpen && playerActionsModal.player && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center z-[60] p-4">
           <div className="bg-slate-800 rounded-t-3xl sm:rounded-3xl w-full sm:max-w-md border border-slate-600 shadow-2xl animate-slide-up">
             {/* Header */}
             <div className="p-6 border-b border-slate-700">

@@ -120,7 +120,7 @@ export const Notifications: React.FC = () => {
    const filteredJoinRequests = joinRequests.filter(r => r.status === 'PENDING');
 
    return (
-      <div className="pb-28 pt-20 px-4 max-w-3xl mx-auto min-h-screen bg-pitch">
+      <div className="pb-28 pt-20 pt-safe-top px-4 max-w-3xl mx-auto min-h-screen bg-pitch">
          <header className="mb-6">
             <h1 className="font-sport font-black text-4xl text-white uppercase italic tracking-tighter">
                BİLDİRİMLER

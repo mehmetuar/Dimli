@@ -123,7 +123,7 @@ export const Chat: React.FC = () => {
       />
 
       {/* Custom Header */}
-      <div className="bg-slate-900/90 backdrop-blur pt-safe-top p-4 border-b border-slate-800 flex flex-col gap-3 sticky top-0 z-50 shadow-lg">
+      <div className="bg-slate-900/90 backdrop-blur pt-safe-top top-safe-top p-4 border-b border-slate-800 flex flex-col gap-3 sticky top-0 z-50 shadow-lg">
         <div className="flex items-center gap-3">
           <button
             onClick={() => setSelectedChannelId(null)}
@@ -180,7 +180,7 @@ export const Chat: React.FC = () => {
               </div>
             </div>
 
-            {opponentTeam.viceCaptainId && (
+            {opponentTeam.viceCaptainIds && opponentTeam.viceCaptainIds.length > 0 && (
               <div className="flex items-center gap-2 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700 min-w-fit opacity-75 hover:opacity-100">
                 <div className="w-6 h-6 rounded-full bg-slate-600 flex items-center justify-center border border-slate-500">
                   <span className="font-black text-[10px] text-white">2.K</span>

@@ -50,4 +50,9 @@ export class UsersService {
             .where('user.username ILIKE :query OR user.full_name ILIKE :query', { query: `%${query}%` })
             .getMany();
     }
+
+    async update(id: string, updateUserDto: any): Promise<User | null> {
+        await this.usersRepository.update(id, updateUserDto);
+        return this.usersRepository.findOne({ where: { id } });
+    }
 }
