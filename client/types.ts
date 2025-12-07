@@ -153,7 +153,6 @@ export interface MatchHistory {
   opponentLogo: string;
   date: string;
   result: 'WIN' | 'LOSS' | 'DRAW';
-  score: string; // e.g. "3-2"
   fairPlayScore: number; // 1-5  
   location: string;
 }

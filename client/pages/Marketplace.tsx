@@ -250,7 +250,7 @@ export const Marketplace: React.FC = () => {
       {/* Floating Action Button */}
       <button
         onClick={() => setIsCreateModalOpen(true)}
-        className="fixed bottom-32 right-6 bg-turf-600 text-white p-4 rounded-2xl shadow-xl shadow-turf-600/40 hover:scale-110 transition-transform z-40 border-2 border-white/20 rotate-3 hover:rotate-0"
+        className="fixed bottom-36 right-6 bg-turf-600 text-white p-4 rounded-2xl shadow-xl shadow-turf-600/40 hover:scale-110 transition-transform z-40 border-2 border-white/20 rotate-3 hover:rotate-0"
       >
         <span className="font-black text-2xl leading-none">+</span>
       </button>

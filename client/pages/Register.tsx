@@ -18,6 +18,8 @@ export const Register: React.FC = () => {
     });
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    // Prevent accidental double-clicks on "Next" triggering "Submit"
+    const [isSubmitReady, setIsSubmitReady] = useState(false);
     const navigate = useNavigate();
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -48,6 +50,9 @@ export const Register: React.FC = () => {
                 setError('Lütfen zorunlu alanları doldurun.');
                 return;
             }
+            // Moving to Step 3: Add delay to submit button
+            setIsSubmitReady(false);
+            setTimeout(() => setIsSubmitReady(true), 1000);
         }
         setStep(step + 1);
     };
@@ -59,6 +64,10 @@ export const Register: React.FC = () => {
 
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        // Critical: Prevent submission if not on the final step
+        if (step !== 3) return;
+
         setLoading(true);
         setError('');
 
@@ -304,7 +313,7 @@ export const Register: React.FC = () => {
                         ) : (
                             <button
                                 type="submit"
-                                disabled={loading}
+                                disabled={loading || !isSubmitReady}
                                 className="flex-1 bg-turf-600 text-white py-4 rounded-xl font-bold hover:bg-turf-500 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-turf-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {loading ? 'Kaydediliyor...' : 'Kaydı Tamamla'} <Check className="w-5 h-5" />

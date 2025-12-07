@@ -6,7 +6,7 @@ import { MOCK_TEAMS, MOCK_PITCHES, MOCK_JOKERS, MOCK_MATCH_HISTORY } from '../co
 import { generateTeamBio } from '../services/geminiService';
 import { FairPlayScore } from '../components/FairPlayScore';
 import { LevelBadge } from '../components/LevelBadge';
-import { MapPin, Shield, Sparkles, Edit2, Plus, X, UserPlus, LogOut, Crown, MoreVertical, Trash2, Save, History, ShieldX, Check, Menu, Settings, User } from 'lucide-react';
+import { MapPin, Shield, Sparkles, Edit2, Plus, X, UserPlus, LogOut, Crown, MoreVertical, Trash2, Save, History, ShieldX, Check, Menu, Settings, User, ChevronRight } from 'lucide-react';
 import { Team, Player, Position } from '../types';
 import { CreateTeamModal } from '../components/CreateTeamModal';
 import { JoinTeamModal } from '../components/JoinTeamModal';
@@ -40,6 +40,7 @@ export const TeamProfile: React.FC = () => {
   const [isMatchHistoryOpen, setIsMatchHistoryOpen] = useState(false);
   const [isCreateMatchModalOpen, setIsCreateMatchModalOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isTeamMenuOpen, setIsTeamMenuOpen] = useState(false);
 
   // Confirmation modal states
   const [confirmModal, setConfirmModal] = useState<{
@@ -68,6 +69,7 @@ export const TeamProfile: React.FC = () => {
 
   // Success/Error messages
   const [successMessage, setSuccessMessage] = useState('');
+  const [successType, setSuccessType] = useState<'TEAM_CREATED' | 'CAPTAIN' | 'VICE' | 'ROLE_REMOVED' | 'KICK' | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
 
   // Auto-hide success/error messages after 3 seconds
@@ -76,6 +78,7 @@ export const TeamProfile: React.FC = () => {
       const timer = setTimeout(() => {
         setSuccessMessage('');
         setErrorMessage('');
+        setSuccessType(null); // Clear successType as well
       }, 3000);
       return () => clearTimeout(timer);
     }
@@ -172,13 +175,13 @@ export const TeamProfile: React.FC = () => {
       // Close modal
       setIsCreateTeamModalOpen(false);
 
-      alert('Takım başarıyla oluşturuldu!');
+      // Trigger Custom Success Modal
+      setSuccessMessage('Takım başarıyla oluşturuldu!');
 
-      // Refresh page to load team data
-      window.location.reload();
+      // Note: Page reload is handled by the modal's "OK" button now
     } catch (error: any) {
       console.error('Failed to create team:', error);
-      alert(error.response?.data?.message || 'Takım oluşturulamadı.');
+      setErrorMessage(error.response?.data?.message || 'Takım oluşturulamadı.');
     }
   };
 
@@ -217,44 +220,32 @@ export const TeamProfile: React.FC = () => {
       try {
         await api.delete(`/teams/${myTeam.id}/players/${playerId}`);
         setRoster(prev => prev.filter(p => p.id !== playerId));
-      } catch (error) {
+        setSuccessMessage('Oyuncu takımdan atıldı.');
+        setSuccessType('KICK');
+      } catch (error: any) {
         console.error("Failed to kick player", error);
-        alert("Oyuncu çıkarılamadı.");
+        setErrorMessage(error.response?.data?.message || "Oyuncu çıkarılamadı.");
       }
     }
   };
 
-  // Handle setting vice-captain (add)
-  const handleSetViceCaptain = async (userId: string) => {
-    if (!myTeam) return;
+  // Handle removing vice-captain (Revoke)
+  const handleRevokeViceCaptain = async (playerId: string) => {
+    console.log('Revoking vice captain role for:', playerId);
     try {
-      // Call API to add vice-captain
+      if (!myTeam?.id) return;
+
       const response = await api.patch(`/teams/${myTeam.id}/vice-captains`, {
-        add: userId
+        remove: playerId
       });
 
-      // Update local state with response
+      console.log('Revoke response:', response.data);
       setMyTeam(response.data);
-
-      setSuccessMessage('Kaptan yardımcısı başarıyla atandı!');
-    } catch (error) {
-      console.error('Failed to set vice-captain:', error);
-      setErrorMessage('Kaptan yardımcısı atama başarısız oldu.');
-    }
-  };
-
-  // Handle removing vice-captain
-  const handleRemoveViceCaptain = async (userId: string) => {
-    if (!myTeam) return;
-    try {
-      const response = await api.patch(`/teams/${myTeam.id}/vice-captains`, {
-        remove: userId
-      });
-      setMyTeam(response.data);
-      setSuccessMessage('Kaptan yardımcısı görevi geri alındı.');
-    } catch (error) {
+      setSuccessMessage('Oyuncunun yetkileri alındı.');
+      setSuccessType('ROLE_REMOVED');
+    } catch (error: any) {
       console.error('Failed to remove vice-captain:', error);
-      setErrorMessage('Kaptan yardımcısı kaldırılamadı.');
+      setErrorMessage(error.response?.data?.message || 'İşlem başarısız.');
     }
   };
 
@@ -263,10 +254,17 @@ export const TeamProfile: React.FC = () => {
     try {
       const response = await api.patch(`/teams/${myTeam.id}/players/${playerId}/role`, { role });
       setMyTeam(response.data); // Update state instead of reload
-      alert("Oyuncu rolü güncellendi!");
-    } catch (error) {
+
+      if (role === 'CAPTAIN') {
+        setSuccessMessage('Kaptanlık başarıyla devredildi.');
+        setSuccessType('CAPTAIN');
+      } else {
+        setSuccessMessage('Oyuncu yardımcı kaptan yapıldı.');
+        setSuccessType('VICE');
+      }
+    } catch (error: any) {
       console.error("Failed to promote player", error);
-      alert("Rol güncellenemedi.");
+      setErrorMessage(error.response?.data?.message || "Rol güncellenemedi.");
     }
   };
 
@@ -313,12 +311,18 @@ export const TeamProfile: React.FC = () => {
         <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]"></div>
 
         <div className="relative z-10 p-6 flex flex-col items-center">
-          <div className="w-32 h-32 rounded-full p-1 bg-gradient-to-r from-turf-500 to-blue-500 mb-4">
+          <div className="w-32 h-32 rounded-full p-1 bg-gradient-to-r from-turf-500 to-blue-500 mb-4 relative group-avatar">
             <img
               src={'https://picsum.photos/100/100?random=1'}
               alt="Profile"
               className="w-full h-full rounded-full object-cover border-4 border-slate-900"
             />
+            <button
+              onClick={() => setIsMenuOpen(true)}
+              className="absolute -right-2 -bottom-2 bg-slate-800 text-white p-2.5 rounded-full border border-slate-600 shadow-lg hover:bg-slate-700 hover:scale-110 transition-all z-20"
+            >
+              <Settings className="w-5 h-5" />
+            </button>
           </div>
 
           <h2 className="font-sport font-bold text-4xl text-white uppercase italic tracking-wide mb-1">
@@ -358,82 +362,174 @@ export const TeamProfile: React.FC = () => {
 
   return (
     <div className="pb-28 pt-20 px-4 max-w-3xl mx-auto min-h-screen bg-pitch relative">
-      {/* Profile Settings Menu Button */}
-      <div className="absolute top-4 right-4 z-50">
-        <button
-          onClick={() => setIsMenuOpen(!isMenuOpen)}
-          className="relative p-2 rounded-full hover:bg-slate-700 transition-colors group"
-        >
-          <Menu className="w-5 h-5 text-slate-300 group-hover:text-white transition-colors" />
-        </button>
+      {/* Profile Settings Menu (Bottom Sheet) */}
+      {isMenuOpen && (
+        <div className="fixed inset-0 z-[60] flex items-end justify-center">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            onClick={() => setIsMenuOpen(false)}
+          ></div>
 
-        {/* Dropdown Menu */}
-        {isMenuOpen && (
-          <>
-            {/* Backdrop to close menu when clicking outside */}
-            <div
-              className="fixed inset-0 z-40"
-              onClick={() => setIsMenuOpen(false)}
-            ></div>
-
-            <div className="absolute right-0 top-12 w-56 bg-slate-800 rounded-xl border border-slate-700 shadow-2xl z-50 overflow-hidden animate-fade-in origin-top-right">
-              <div className="p-3 border-b border-slate-700">
-                <p className="text-xs text-slate-400 font-bold uppercase">Hesap Ayarları</p>
-              </div>
-              <div className="p-1">
-                <button
-                  onClick={() => {
-                    setIsMenuOpen(false);
-                    // TODO: Open edit profile modal
-                    setErrorMessage('Profil düzenleme henüz aktif değil.');
-                  }}
-                  className="w-full flex items-center gap-3 px-3 py-3 text-sm text-white hover:bg-slate-700 rounded-lg transition-colors text-left"
-                >
-                  <User className="w-4 h-4 text-turf-500" />
-                  Profil Düzenle
-                </button>
-                <button
-                  onClick={() => {
-                    setIsMenuOpen(false);
-                    // TODO: Navigate to team settings
-                    setErrorMessage('Takım ayarları henüz aktif değil.');
-                  }}
-                  className="w-full flex items-center gap-3 px-3 py-3 text-sm text-white hover:bg-slate-700 rounded-lg transition-colors text-left"
-                >
-                  <Shield className="w-4 h-4 text-blue-500" />
-                  Takım Ayarları
-                </button>
-                <button
-                  onClick={() => {
-                    setIsMenuOpen(false);
-                    // TODO: Change password
-                    setErrorMessage('Şifre değiştirme henüz aktif değil.');
-                  }}
-                  className="w-full flex items-center gap-3 px-3 py-3 text-sm text-white hover:bg-slate-700 rounded-lg transition-colors text-left"
-                >
-                  <Settings className="w-4 h-4 text-purple-500" />
-                  Şifre Değiştir
-                </button>
-                <div className="h-px bg-slate-700 my-1"></div>
-                <button
-                  onClick={() => {
-                    setIsMenuOpen(false);
-                    // Logout logic
-                    localStorage.removeItem('token');
-                    window.location.href = '/login';
-                  }}
-                  className="w-full flex items-center gap-3 px-3 py-3 text-sm text-red-400 hover:bg-red-500/10 rounded-lg transition-colors text-left"
-                >
-                  <LogOut className="w-4 h-4" />
-                  Çıkış Yap
-                </button>
-              </div>
+          {/* Sheet */}
+          <div className="bg-slate-800 w-full max-w-md rounded-t-3xl border-t border-slate-700 shadow-2xl z-[70] animate-slide-up pb-safe-bottom">
+            {/* Handle */}
+            <div className="w-full flex justify-center pt-3 pb-1" onClick={() => setIsMenuOpen(false)}>
+              <div className="w-12 h-1.5 bg-slate-600 rounded-full"></div>
             </div>
-          </>
-        )}
-      </div>
-      {/* Success Message */}
-      {successMessage && (
+
+            <div className="p-6 border-b border-slate-700">
+              <h3 className="text-white font-bold text-xl flex items-center gap-2">
+                <User className="w-6 h-6 text-turf-500" />
+                Profil Ayarları
+              </h3>
+              <p className="text-slate-400 text-sm mt-1">Hesabını ve tercihlerini yönet</p>
+            </div>
+
+            <div className="p-4 space-y-2">
+              <button
+                onClick={() => { setIsMenuOpen(false); window.location.href = '/settings/profile'; }}
+                className="w-full flex items-center gap-4 p-4 rounded-2xl bg-slate-700/50 hover:bg-slate-700 text-white transition-all active:scale-95"
+              >
+                <div className="bg-blue-500/20 p-2 rounded-full text-blue-400">
+                  <Settings className="w-6 h-6" />
+                </div>
+                <div className="text-left flex-1">
+                  <div className="font-bold text-base">Profil Ayarları</div>
+                  <div className="text-xs text-slate-400">Bilgilerini güncelle</div>
+                </div>
+                <ChevronRight className="w-5 h-5 text-slate-500" />
+              </button>
+
+              <button
+                onClick={() => { localStorage.removeItem('token'); window.location.href = '/login'; }}
+                className="w-full flex items-center gap-4 p-4 rounded-2xl bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-all active:scale-95 mt-4"
+              >
+                <div className="bg-red-500/20 p-2 rounded-full text-red-400">
+                  <LogOut className="w-6 h-6" />
+                </div>
+                <div className="text-left flex-1">
+                  <div className="font-bold text-base">Çıkış Yap</div>
+                  <div className="text-xs text-red-400/70">Oturumu sonlandır</div>
+                </div>
+              </button>
+            </div>
+
+            {/* Cancel Button */}
+            <div className="p-4 pt-0">
+              <button
+                onClick={() => setIsMenuOpen(false)}
+                className="w-full py-4 text-center text-slate-500 font-bold hover:text-white transition-colors"
+              >
+                Vazgeç
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Team Settings Menu (Bottom Sheet) */}
+      {isTeamMenuOpen && (
+        <div className="fixed inset-0 z-[60] flex items-end justify-center">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            onClick={() => setIsTeamMenuOpen(false)}
+          ></div>
+
+          {/* Sheet */}
+          <div className="bg-slate-800 w-full max-w-md rounded-t-3xl border-t border-slate-700 shadow-2xl z-[70] animate-slide-up pb-safe-bottom">
+            {/* Handle */}
+            <div className="w-full flex justify-center pt-3 pb-1" onClick={() => setIsTeamMenuOpen(false)}>
+              <div className="w-12 h-1.5 bg-slate-600 rounded-full"></div>
+            </div>
+
+            <div className="p-6 border-b border-slate-700">
+              <h3 className="text-white font-bold text-xl flex items-center gap-2">
+                <Shield className="w-6 h-6 text-blue-500" />
+                Takım Ayarları
+              </h3>
+              <p className="text-slate-400 text-sm mt-1">{myTeam?.name} takımını yönet</p>
+            </div>
+
+            <div className="p-4 space-y-2">
+              <button
+                onClick={() => { setIsTeamMenuOpen(false); window.location.href = '/settings/team'; }}
+                className="w-full flex items-center gap-4 p-4 rounded-2xl bg-slate-700/50 hover:bg-slate-700 text-white transition-all active:scale-95"
+              >
+                <div className="bg-blue-500/20 p-2 rounded-full text-blue-400">
+                  <Settings className="w-6 h-6" />
+                </div>
+                <div className="text-left flex-1">
+                  <div className="font-bold text-base">Takım Ayarları</div>
+                  <div className="text-xs text-slate-400">Takım bilgilerini güncelle</div>
+                </div>
+                <ChevronRight className="w-5 h-5 text-slate-500" />
+              </button>
+            </div>
+
+            {/* Cancel Button */}
+            <div className="p-4 pt-0">
+              <button
+                onClick={() => setIsTeamMenuOpen(false)}
+                className="w-full py-4 text-center text-slate-500 font-bold hover:text-white transition-colors"
+              >
+                Vazgeç
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Custom Success Modal */}
+      {successMessage && successType && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[60] p-4 animate-fade-in">
+          <div className="bg-slate-800 rounded-3xl border border-slate-700 p-8 max-w-sm w-full text-center relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-turf-500 to-blue-500"></div>
+
+            <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 animate-bounce-slow ${successType === 'CAPTAIN' ? 'bg-yellow-500/20' :
+              successType === 'VICE' ? 'bg-blue-500/20' :
+                successType === 'ROLE_REMOVED' ? 'bg-orange-500/20' :
+                  successType === 'KICK' ? 'bg-red-500/20' :
+                    'bg-turf-500/20'
+              }`}>
+              {successType === 'CAPTAIN' ? <Crown className="w-10 h-10 text-yellow-500" /> :
+                successType === 'VICE' ? <Shield className="w-10 h-10 text-blue-500" /> :
+                  successType === 'ROLE_REMOVED' ? <ShieldX className="w-10 h-10 text-orange-500" /> :
+                    successType === 'KICK' ? <Trash2 className="w-10 h-10 text-red-500" /> :
+                      <Shield className="w-10 h-10 text-turf-500" />
+              }
+            </div>
+
+            <h3 className="text-2xl font-sport font-black text-white italic uppercase mb-2">
+              {successType === 'CAPTAIN' ? 'YENİ KAPTAN!' :
+                successType === 'VICE' ? 'YENİ YARDIMCI!' :
+                  successType === 'ROLE_REMOVED' ? 'YETKİ ALINDI' :
+                    successType === 'KICK' ? 'OYUNCU ATILDI' :
+                      'TEBRİKLER KAPTAN!'}
+            </h3>
+
+            <p className="text-slate-400 mb-8">{successMessage}</p>
+
+            <button
+              onClick={() => {
+                setSuccessMessage('');
+                setSuccessType(null);
+                if (successType === 'TEAM_CREATED') window.location.reload();
+              }}
+              className={`w-full text-white font-bold py-4 rounded-xl transition-colors shadow-lg ${successType === 'CAPTAIN' ? 'bg-yellow-600 hover:bg-yellow-500 shadow-yellow-600/20' :
+                successType === 'VICE' ? 'bg-blue-600 hover:bg-blue-500 shadow-blue-600/20' :
+                  successType === 'ROLE_REMOVED' ? 'bg-orange-600 hover:bg-orange-500 shadow-orange-600/20' :
+                    successType === 'KICK' ? 'bg-red-600 hover:bg-red-500 shadow-red-600/20' :
+                      'bg-turf-600 hover:bg-turf-500 shadow-turf-600/20'
+                }`}
+            >
+              {successType === 'TEAM_CREATED' ? 'KADROYU YÖNET' : 'TAMAM'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Success Message Toast (for other actions like simple updates) */}
+      {successMessage && !successType && (
         <div className="fixed top-24 left-1/2 transform -translate-x-1/2 z-50 bg-green-500/10 border border-green-500/50 text-green-400 px-6 py-3 rounded-xl flex items-center gap-3 animate-fade-in shadow-lg backdrop-blur-sm">
           <Check className="w-5 h-5" />
           <p className="font-bold text-sm">{successMessage}</p>
@@ -546,13 +642,25 @@ export const TeamProfile: React.FC = () => {
                   </div>
                 </div>
                 {/* Leave Team Button - Always visible for non-captains, or captains who want to try (and get error) */}
-                <button
-                  onClick={handleLeaveTeam}
-                  className="p-2 bg-slate-900/50 hover:bg-red-500/20 text-slate-400 hover:text-red-500 rounded-lg transition-colors border border-slate-700/50"
-                  title="Takımdan Ayrıl"
-                >
-                  <LogOut className="w-5 h-5" />
-                </button>
+                {/* Team Actions: Settings & Leave */}
+                <div className="flex items-center gap-2">
+                  {/* Team Settings Menu Button */}
+                  <button
+                    onClick={() => setIsTeamMenuOpen(true)}
+                    className="p-2 bg-slate-900/50 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg transition-colors border border-slate-700/50"
+                  >
+                    <Settings className="w-5 h-5" />
+                  </button>
+
+                  {/* Leave Team Button */}
+                  <button
+                    onClick={handleLeaveTeam}
+                    className="p-2 bg-slate-900/50 hover:bg-red-500/20 text-slate-400 hover:text-red-500 rounded-lg transition-colors border border-slate-700/50"
+                    title="Takımdan Ayrıl"
+                  >
+                    <LogOut className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
 
               {/* Bio Section with Manual Edit */}
@@ -604,8 +712,12 @@ export const TeamProfile: React.FC = () => {
                 <div className="text-white font-sport text-3xl font-bold text-red-400">{myTeam.losses}</div>
               </div>
               <div className="bg-slate-800 p-4 rounded-xl border border-slate-700 text-center">
-                <div className="text-slate-400 text-xs font-bold uppercase mb-1">Kondisyon</div>
-                <div className="text-turf-500 font-sport text-3xl font-bold">94%</div>
+                <div className="text-slate-400 text-xs font-bold uppercase mb-1">Kazanma Oranı</div>
+                <div className="text-turf-500 font-sport text-3xl font-bold">
+                  {myTeam.wins + myTeam.losses > 0
+                    ? `%${Math.round((myTeam.wins / (myTeam.wins + myTeam.losses)) * 100)}`
+                    : '%0'}
+                </div>
               </div>
             </div>
 
@@ -800,31 +912,35 @@ export const TeamProfile: React.FC = () => {
         )
       )}
 
-      {/* Player Actions Modal - Mobile Friendly */}
+      {/* Player Actions Modal - Bottom Sheet Style */}
       {playerActionsModal.isOpen && playerActionsModal.player && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center z-[60] p-4">
-          <div className="bg-slate-800 rounded-t-3xl sm:rounded-3xl w-full sm:max-w-md border border-slate-600 shadow-2xl animate-slide-up">
+        <div className="fixed inset-0 z-[60] flex items-end justify-center">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            onClick={() => setPlayerActionsModal({ isOpen: false, player: null })}
+          ></div>
+
+          {/* Sheet */}
+          <div className="bg-slate-800 w-full max-w-md rounded-t-3xl border-t border-slate-700 shadow-2xl z-[70] animate-slide-up pb-safe-bottom">
+            {/* Handle */}
+            <div className="w-full flex justify-center pt-3 pb-1" onClick={() => setPlayerActionsModal({ isOpen: false, player: null })}>
+              <div className="w-12 h-1.5 bg-slate-600 rounded-full"></div>
+            </div>
+
             {/* Header */}
-            <div className="p-6 border-b border-slate-700">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-slate-700 overflow-hidden">
-                  <img src={playerActionsModal.player.avatarUrl} alt="Player" className="w-full h-full object-cover" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-white font-bold text-lg">{playerActionsModal.player.name}</h3>
-                  <p className="text-slate-400 text-sm">{playerActionsModal.player.position}</p>
-                </div>
-                <button
-                  onClick={() => setPlayerActionsModal({ isOpen: false, player: null })}
-                  className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-700 transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+            <div className="p-6 border-b border-slate-700 flex items-center gap-4">
+              <div className="w-14 h-14 rounded-full bg-slate-700 overflow-hidden border-2 border-slate-600">
+                <img src={playerActionsModal.player.avatarUrl} alt="Player" className="w-full h-full object-cover" />
+              </div>
+              <div>
+                <h3 className="text-white font-bold text-xl">{playerActionsModal.player.name}</h3>
+                <p className="text-slate-400 text-sm uppercase font-bold tracking-wide">{playerActionsModal.player.position}</p>
               </div>
             </div>
 
             {/* Actions */}
-            <div className="p-4">
+            <div className="p-4 space-y-2">
               {/* Only captains can promote players */}
               {isCaptain && (
                 <>
@@ -833,9 +949,16 @@ export const TeamProfile: React.FC = () => {
                       handlePromotePlayer(playerActionsModal.player!.id!, 'CAPTAIN');
                       setPlayerActionsModal({ isOpen: false, player: null });
                     }}
-                    className="w-full text-left px-5 py-4 text-base font-bold text-slate-300 hover:bg-slate-700/50 hover:text-white flex items-center gap-4 transition-colors rounded-xl mb-2"
+                    className="w-full flex items-center gap-4 p-4 rounded-2xl bg-slate-700/50 hover:bg-slate-700 text-white transition-all active:scale-95"
                   >
-                    <Crown className="w-5 h-5 text-yellow-500" /> Kaptan Yap
+                    <div className="bg-yellow-500/20 p-2 rounded-full text-yellow-500">
+                      <Crown className="w-6 h-6" />
+                    </div>
+                    <div className="text-left flex-1">
+                      <div className="font-bold text-base">Kaptan Yap</div>
+                      <div className="text-xs text-slate-400">Takım liderliğini devret</div>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-slate-500" />
                   </button>
 
                   {/* Show 'Yrd. Kaptan Yap' ONLY if NOT already vice captain AND user is captain */}
@@ -845,9 +968,16 @@ export const TeamProfile: React.FC = () => {
                         handlePromotePlayer(playerActionsModal.player!.id!, 'VICE');
                         setPlayerActionsModal({ isOpen: false, player: null });
                       }}
-                      className="w-full text-left px-5 py-4 text-base font-bold text-slate-300 hover:bg-slate-700/50 hover:text-white flex items-center gap-4 transition-colors rounded-xl mb-2"
+                      className="w-full flex items-center gap-4 p-4 rounded-2xl bg-slate-700/50 hover:bg-slate-700 text-white transition-all active:scale-95"
                     >
-                      <Shield className="w-5 h-5 text-slate-400" /> Yrd. Kaptan Yap
+                      <div className="bg-blue-500/20 p-2 rounded-full text-blue-400">
+                        <Shield className="w-6 h-6" />
+                      </div>
+                      <div className="text-left flex-1">
+                        <div className="font-bold text-base">Yrd. Kaptan Yap</div>
+                        <div className="text-xs text-slate-400">Yetkilendir</div>
+                      </div>
+                      <ChevronRight className="w-5 h-5 text-slate-500" />
                     </button>
                   )}
 
@@ -855,21 +985,25 @@ export const TeamProfile: React.FC = () => {
                   {isCaptain && myTeam.viceCaptainIds?.includes(playerActionsModal.player.id) && (
                     <button
                       onClick={() => {
-                        handleSetViceCaptain(playerActionsModal.player!.id!);
+                        handleRevokeViceCaptain(playerActionsModal.player!.id!);
                         setPlayerActionsModal({ isOpen: false, player: null });
                       }}
-                      className="w-full text-left px-5 py-4 text-base font-bold text-orange-400 hover:bg-orange-900/30 flex items-center gap-4 transition-colors rounded-xl mb-2"
+                      className="w-full flex items-center gap-4 p-4 rounded-2xl bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 transition-all active:scale-95"
                     >
-                      <ShieldX className="w-5 h-5" /> Görevi Geri Al
+                      <div className="bg-orange-500/20 p-2 rounded-full text-orange-400">
+                        <ShieldX className="w-6 h-6" />
+                      </div>
+                      <div className="text-left flex-1">
+                        <div className="font-bold text-base">Görevi Geri Al</div>
+                        <div className="text-xs text-orange-400/70">Yetkisini kaldır</div>
+                      </div>
+                      <ChevronRight className="w-5 h-5 text-slate-500" />
                     </button>
                   )}
                 </>
               )}
 
-              <div className="h-px bg-slate-700 my-2"></div>
-
-              {/* Kick Player - Both captain and vice captain can kick, but with restrictions */}
-              {/* Vice captains cannot kick captain or other vice captains */}
+              {/* Kick Player */}
               {(() => {
                 const isPlayerCaptain = playerActionsModal.player.id === myTeam.captainId;
                 const isPlayerViceCaptain = myTeam.viceCaptainIds?.includes(playerActionsModal.player.id);
@@ -881,21 +1015,27 @@ export const TeamProfile: React.FC = () => {
                       handleKickPlayer(playerActionsModal.player!.id!);
                       setPlayerActionsModal({ isOpen: false, player: null });
                     }}
-                    className="w-full text-left px-5 py-4 text-base font-bold text-red-400 hover:bg-red-900/30 flex items-center gap-4 transition-colors rounded-xl"
+                    className="w-full flex items-center gap-4 p-4 rounded-2xl bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-all active:scale-95 mt-2"
                   >
-                    <Trash2 className="w-5 h-5" /> Takımdan At
+                    <div className="bg-red-500/20 p-2 rounded-full text-red-400">
+                      <Trash2 className="w-6 h-6" />
+                    </div>
+                    <div className="text-left flex-1">
+                      <div className="font-bold text-base">Takımdan At</div>
+                      <div className="text-xs text-red-400/70">Kadrodan çıkar</div>
+                    </div>
                   </button>
                 ) : null;
               })()}
             </div>
 
             {/* Cancel Button */}
-            <div className="p-4 border-t border-slate-700">
+            <div className="p-4 pt-0">
               <button
                 onClick={() => setPlayerActionsModal({ isOpen: false, player: null })}
-                className="w-full py-3 text-center text-slate-400 hover:text-white font-bold transition-colors"
+                className="w-full py-4 text-center text-slate-500 font-bold hover:text-white transition-colors"
               >
-                İptal
+                Vazgeç
               </button>
             </div>
           </div>

@@ -82,8 +82,8 @@ export const MatchHistoryModal: React.FC<MatchHistoryModalProps> = ({
                         <div
                             key={match.id}
                             className={`bg-slate-900/50 border rounded-2xl p-4 hover:bg-slate-900 transition-colors ${match.result === 'WIN' ? 'border-green-500/20' :
-                                    match.result === 'LOSS' ? 'border-red-500/20' :
-                                        'border-slate-700'
+                                match.result === 'LOSS' ? 'border-red-500/20' :
+                                    'border-slate-700'
                                 }`}
                         >
                             {/* Top Row: Logo, Name, Result Badge */}
@@ -108,14 +108,15 @@ export const MatchHistoryModal: React.FC<MatchHistoryModalProps> = ({
 
                             {/* Bottom Row: Score and Fair Play */}
                             <div className="flex items-center justify-between">
-                                {/* Score */}
+                                {/* Result Text */}
                                 <div className="flex-1">
-                                    <div className="text-xs text-slate-500 font-bold uppercase mb-1">Skor</div>
-                                    <div className={`font-sport font-bold text-3xl ${match.result === 'WIN' ? 'text-green-400' :
-                                            match.result === 'LOSS' ? 'text-red-400' :
-                                                'text-slate-400'
+                                    <div className="text-xs text-slate-500 font-bold uppercase mb-1">Sonuç</div>
+                                    <div className={`font-sport font-bold text-2xl ${match.result === 'WIN' ? 'text-green-400' :
+                                        match.result === 'LOSS' ? 'text-red-400' :
+                                            'text-slate-400'
                                         }`}>
-                                        {match.score}
+                                        {match.result === 'WIN' ? 'KAZANDI' :
+                                            match.result === 'LOSS' ? 'KAYBETTİ' : 'BERABERE'}
                                     </div>
                                 </div>
 

@@ -419,7 +419,6 @@ export const MOCK_MATCH_HISTORY = [
     opponentLogo: 'https://picsum.photos/200/200?random=2',
     date: '15 Kas 2024',
     result: 'WIN' as const,
-    score: '4-2',
     fairPlayScore: 4.5,
     location: 'Mega Halı Saha'
   },
@@ -430,7 +429,6 @@ export const MOCK_MATCH_HISTORY = [
     opponentLogo: 'https://picsum.photos/200/200?random=3',
     date: '08 Kas 2024',
     result: 'WIN' as const,
-    score: '5-1',
     fairPlayScore: 5.0,
     location: 'Arena Spor'
   },
@@ -441,7 +439,6 @@ export const MOCK_MATCH_HISTORY = [
     opponentLogo: 'https://picsum.photos/200/200?random=2',
     date: '01 Kas 2024',
     result: 'LOSS' as const,
-    score: '1-3',
     fairPlayScore: 3.8,
     location: 'Yıldız Park'
   },
@@ -452,7 +449,6 @@ export const MOCK_MATCH_HISTORY = [
     opponentLogo: 'https://picsum.photos/200/200?random=4',
     date: '25 Eki 2024',
     result: 'DRAW' as const,
-    score: '2-2',
     fairPlayScore: 4.2,
     location: 'Mega Halı Saha'
   },
@@ -463,7 +459,6 @@ export const MOCK_MATCH_HISTORY = [
     opponentLogo: 'https://picsum.photos/200/200?random=5',
     date: '18 Eki 2024',
     result: 'LOSS' as const,
-    score: '0-2',
     fairPlayScore: 4.7,
     location: 'Arena Spor'
   }

@@ -61,7 +61,7 @@ export const Navbar: React.FC = () => {
       )}
 
       {/* Bottom Navigation Bar */}
-      <nav className="fixed bottom-2 bottom-safe-bottom left-4 right-4 h-16 bg-pitch-surface/90 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl shadow-black/50 z-50 md:max-w-md md:mx-auto md:bottom-8 pb-safe-bottom box-content">
+      <nav className="fixed bottom-0 left-0 right-0 h-20 bg-pitch-surface/95 backdrop-blur-xl border-t border-white/10 rounded-t-3xl shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.5)] z-50 pb-safe-bottom box-content">
         <div className="flex justify-around items-center h-full px-2">
 
           <NavLink to="/" className={navClass}>
