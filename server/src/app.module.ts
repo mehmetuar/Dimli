@@ -9,6 +9,7 @@ import { ChallengesModule } from './challenges/challenges.module';
 import { JoinRequestsModule } from './join-requests/join-requests.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { MatchAnnouncementsModule } from './match-announcements/match-announcements.module';
+import { ChatModule } from './chat/chat.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { MatchAnnouncementsModule } from './match-announcements/match-announceme
     JoinRequestsModule,
     NotificationsModule,
     MatchAnnouncementsModule,
+    ChatModule,
   ],
   controllers: [AppController],
   providers: [AppService],

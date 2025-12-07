@@ -28,6 +28,11 @@ export class NotificationsService {
         return this.notificationsRepository.save(notification);
     }
 
+    async create(data: Partial<Notification>): Promise<Notification> {
+        const notification = this.notificationsRepository.create(data);
+        return this.notificationsRepository.save(notification);
+    }
+
     async findByUser(userId: string): Promise<Notification[]> {
         return this.notificationsRepository.find({
             where: { userId },

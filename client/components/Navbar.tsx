@@ -2,7 +2,7 @@
 import React from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { Trophy, Users, Search, Zap, MessageSquare, User, Bell } from 'lucide-react';
-import { MOCK_NOTIFICATIONS } from '../constants';
+import api from '../services/api';
 
 export const Navbar: React.FC = () => {
   const navigate = useNavigate();
@@ -10,7 +10,29 @@ export const Navbar: React.FC = () => {
   const isAuthPage = ['/login', '/register'].includes(location.pathname);
   const isLoggedIn = !!localStorage.getItem('token');
   const showBell = true;
-  const unreadCount = MOCK_NOTIFICATIONS.filter(n => !n.read).length;
+  const [unreadCount, setUnreadCount] = React.useState(0);
+  const [unreadChatCount, setUnreadChatCount] = React.useState(0);
+
+  React.useEffect(() => {
+    if (!isLoggedIn) return;
+
+    const fetchCounts = async () => {
+      try {
+        const [notifRes, chatRes] = await Promise.all([
+          api.get('/notifications/unread-count'),
+          api.get('/chat/unread-count')
+        ]);
+        setUnreadCount(notifRes.data.count);
+        setUnreadChatCount(chatRes.data);
+      } catch (error) {
+        console.error('Failed to fetch counts', error);
+      }
+    };
+
+    fetchCounts();
+    const interval = setInterval(fetchCounts, 5000);
+    return () => clearInterval(interval);
+  }, [isLoggedIn]);
 
   if (isAuthPage) {
     return null;
@@ -54,7 +76,9 @@ export const Navbar: React.FC = () => {
           >
             <Bell className="w-6 h-6" />
             {unreadCount > 0 && location.pathname !== '/notifications' && (
-              <span className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full border-2 border-slate-900 animate-pulse"></span>
+              <div className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center border-2 border-slate-900 animate-pulse">
+                {unreadCount}
+              </div>
             )}
           </button>
         </div>
@@ -91,10 +115,15 @@ export const Navbar: React.FC = () => {
 
           <NavLink to="/chat" className={navClass}>
             {({ isActive }) => (
-              <>
+              <div className="relative">
                 <MessageSquare className={`w-6 h-6 mb-0.5 ${isActive ? 'stroke-[3px]' : ''}`} />
-                {isActive && <span className="absolute -bottom-2 w-1 h-1 bg-turf-500 rounded-full shadow-neon"></span>}
-              </>
+                {unreadChatCount > 0 && (
+                  <div className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center border-2 border-pitch-surface">
+                    {unreadChatCount}
+                  </div>
+                )}
+                {isActive && <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-1 h-1 bg-turf-500 rounded-full shadow-neon"></span>}
+              </div>
             )}
           </NavLink>
 

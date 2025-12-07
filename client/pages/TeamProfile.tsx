@@ -14,6 +14,7 @@ import { AddPlayerModal } from '../components/AddPlayerModal';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { MatchHistoryModal } from '../components/MatchHistoryModal';
 import { CreateMatchModal } from '../components/CreateMatchModal';
+import { SuccessModal, SuccessType } from '../components/SuccessModal';
 import api from '../services/api';
 
 export const TeamProfile: React.FC = () => {
@@ -69,7 +70,7 @@ export const TeamProfile: React.FC = () => {
 
   // Success/Error messages
   const [successMessage, setSuccessMessage] = useState('');
-  const [successType, setSuccessType] = useState<'TEAM_CREATED' | 'CAPTAIN' | 'VICE' | 'ROLE_REMOVED' | 'KICK' | null>(null);
+  const [successType, setSuccessType] = useState<SuccessType | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
 
   // Auto-hide success/error messages after 3 seconds
@@ -177,6 +178,7 @@ export const TeamProfile: React.FC = () => {
 
       // Trigger Custom Success Modal
       setSuccessMessage('Takım başarıyla oluşturuldu!');
+      setSuccessType('TEAM_CREATED');
 
       // Note: Page reload is handled by the modal's "OK" button now
     } catch (error: any) {
@@ -480,53 +482,22 @@ export const TeamProfile: React.FC = () => {
         </div>
       )}
       {/* Custom Success Modal */}
-      {successMessage && successType && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[60] p-4 animate-fade-in">
-          <div className="bg-slate-800 rounded-3xl border border-slate-700 p-8 max-w-sm w-full text-center relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-turf-500 to-blue-500"></div>
-
-            <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 animate-bounce-slow ${successType === 'CAPTAIN' ? 'bg-yellow-500/20' :
-              successType === 'VICE' ? 'bg-blue-500/20' :
-                successType === 'ROLE_REMOVED' ? 'bg-orange-500/20' :
-                  successType === 'KICK' ? 'bg-red-500/20' :
-                    'bg-turf-500/20'
-              }`}>
-              {successType === 'CAPTAIN' ? <Crown className="w-10 h-10 text-yellow-500" /> :
-                successType === 'VICE' ? <Shield className="w-10 h-10 text-blue-500" /> :
-                  successType === 'ROLE_REMOVED' ? <ShieldX className="w-10 h-10 text-orange-500" /> :
-                    successType === 'KICK' ? <Trash2 className="w-10 h-10 text-red-500" /> :
-                      <Shield className="w-10 h-10 text-turf-500" />
-              }
-            </div>
-
-            <h3 className="text-2xl font-sport font-black text-white italic uppercase mb-2">
-              {successType === 'CAPTAIN' ? 'YENİ KAPTAN!' :
-                successType === 'VICE' ? 'YENİ YARDIMCI!' :
-                  successType === 'ROLE_REMOVED' ? 'YETKİ ALINDI' :
-                    successType === 'KICK' ? 'OYUNCU ATILDI' :
-                      'TEBRİKLER KAPTAN!'}
-            </h3>
-
-            <p className="text-slate-400 mb-8">{successMessage}</p>
-
-            <button
-              onClick={() => {
-                setSuccessMessage('');
-                setSuccessType(null);
-                if (successType === 'TEAM_CREATED') window.location.reload();
-              }}
-              className={`w-full text-white font-bold py-4 rounded-xl transition-colors shadow-lg ${successType === 'CAPTAIN' ? 'bg-yellow-600 hover:bg-yellow-500 shadow-yellow-600/20' :
-                successType === 'VICE' ? 'bg-blue-600 hover:bg-blue-500 shadow-blue-600/20' :
-                  successType === 'ROLE_REMOVED' ? 'bg-orange-600 hover:bg-orange-500 shadow-orange-600/20' :
-                    successType === 'KICK' ? 'bg-red-600 hover:bg-red-500 shadow-red-600/20' :
-                      'bg-turf-600 hover:bg-turf-500 shadow-turf-600/20'
-                }`}
-            >
-              {successType === 'TEAM_CREATED' ? 'KADROYU YÖNET' : 'TAMAM'}
-            </button>
-          </div>
-        </div>
-      )}
+      <SuccessModal
+        isOpen={!!(successMessage && successType)}
+        onClose={() => {
+          setSuccessMessage('');
+          setSuccessType(null);
+          if (successType === 'TEAM_CREATED') window.location.reload();
+        }}
+        message={successMessage}
+        type={successType || 'DEFAULT'}
+        confirmText={successType === 'TEAM_CREATED' ? 'KADROYU YÖNET' : 'TAMAM'}
+        onConfirm={() => {
+          setSuccessMessage('');
+          setSuccessType(null);
+          if (successType === 'TEAM_CREATED') window.location.reload();
+        }}
+      />
 
       {/* Success Message Toast (for other actions like simple updates) */}
       {successMessage && !successType && (

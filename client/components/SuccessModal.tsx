@@ -1,0 +1,108 @@
+import React from 'react';
+import { Crown, Shield, ShieldX, Trash2, Check, CheckCircle } from 'lucide-react';
+
+export type SuccessType = 'TEAM_CREATED' | 'CAPTAIN' | 'VICE' | 'ROLE_REMOVED' | 'KICK' | 'CHALLENGE_SENT' | 'CHALLENGE_ACCEPTED' | 'CHALLENGE_REJECTED' | 'DEFAULT';
+
+interface SuccessModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    message: string;
+    type?: SuccessType;
+    onConfirm?: () => void;
+    confirmText?: string;
+}
+
+export const SuccessModal: React.FC<SuccessModalProps> = ({
+    isOpen,
+    onClose,
+    message,
+    type = 'DEFAULT',
+    onConfirm,
+    confirmText = 'TAMAM'
+}) => {
+    if (!isOpen) return null;
+
+    const handleConfirm = () => {
+        if (onConfirm) {
+            onConfirm();
+        } else {
+            onClose();
+        }
+    };
+
+    const getIcon = () => {
+        switch (type) {
+            case 'CAPTAIN': return <Crown className="w-10 h-10 text-yellow-500" />;
+            case 'VICE': return <Shield className="w-10 h-10 text-blue-500" />;
+            case 'ROLE_REMOVED': return <ShieldX className="w-10 h-10 text-orange-500" />;
+            case 'KICK': return <Trash2 className="w-10 h-10 text-red-500" />;
+            case 'CHALLENGE_SENT': return <Shield className="w-10 h-10 text-turf-500" />;
+            case 'CHALLENGE_ACCEPTED': return <CheckCircle className="w-10 h-10 text-green-500" />;
+            case 'CHALLENGE_REJECTED': return <ShieldX className="w-10 h-10 text-red-500" />;
+            default: return <Shield className="w-10 h-10 text-turf-500" />;
+        }
+    };
+
+    const getBgColor = () => {
+        switch (type) {
+            case 'CAPTAIN': return 'bg-yellow-500/20';
+            case 'VICE': return 'bg-blue-500/20';
+            case 'ROLE_REMOVED': return 'bg-orange-500/20';
+            case 'KICK': return 'bg-red-500/20';
+            case 'CHALLENGE_REJECTED': return 'bg-red-500/20';
+            case 'CHALLENGE_ACCEPTED': return 'bg-green-500/20';
+            default: return 'bg-turf-500/20';
+        }
+    };
+
+    const getButtonClass = () => {
+        switch (type) {
+            case 'CAPTAIN': return 'bg-yellow-600 hover:bg-yellow-500 shadow-yellow-600/20';
+            case 'VICE': return 'bg-blue-600 hover:bg-blue-500 shadow-blue-600/20';
+            case 'ROLE_REMOVED': return 'bg-orange-600 hover:bg-orange-500 shadow-orange-600/20';
+            case 'KICK': return 'bg-red-600 hover:bg-red-500 shadow-red-600/20';
+            case 'CHALLENGE_REJECTED': return 'bg-red-600 hover:bg-red-500 shadow-red-600/20';
+            case 'CHALLENGE_ACCEPTED': return 'bg-green-600 hover:bg-green-500 shadow-green-600/20';
+            default: return 'bg-turf-600 hover:bg-turf-500 shadow-turf-600/20';
+        }
+    };
+
+    const getTitle = () => {
+        switch (type) {
+            case 'CAPTAIN': return 'YENİ KAPTAN!';
+            case 'VICE': return 'YENİ YARDIMCI!';
+            case 'ROLE_REMOVED': return 'YETKİ ALINDI';
+            case 'KICK': return 'OYUNCU ATILDI';
+            case 'TEAM_CREATED': return 'TEBRİKLER KAPTAN!';
+            case 'CHALLENGE_SENT': return 'MEYDAN OKUMA!';
+            case 'CHALLENGE_ACCEPTED': return 'KABUL EDİLDİ!';
+            case 'CHALLENGE_REJECTED': return 'REDDEDİLDİ';
+            default: return 'BAŞARILI!';
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[60] p-4 animate-fade-in">
+            <div className="bg-slate-800 rounded-3xl border border-slate-700 p-8 max-w-sm w-full text-center relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-turf-500 to-blue-500"></div>
+
+                <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 animate-bounce-slow ${getBgColor()}`}>
+                    {getIcon()}
+                </div>
+
+                <h3 className="text-2xl font-sport font-black text-white italic uppercase mb-2">
+                    {getTitle()}
+                </h3>
+
+                <p className="text-slate-400 mb-8">{message}</p>
+
+                <button
+                    onClick={handleConfirm}
+                    className={`w-full text-white font-bold py-4 rounded-xl transition-colors shadow-lg ${getButtonClass()}`}
+                >
+                    {confirmText}
+                </button>
+            </div>
+        </div>
+    );
+};

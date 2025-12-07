@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Bell, Check, X, Calendar, Shield, Info, ChevronRight, UserPlus, CheckCircle, AlertCircle } from 'lucide-react';
+import { Bell, Check, X, Calendar, Shield, Info, ChevronRight, UserPlus, CheckCircle, AlertCircle, MessageSquare } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 
@@ -25,6 +25,8 @@ interface Notification {
    metadata: any;
    read: boolean;
    createdAt: string;
+   title?: string;
+   message?: string;
 }
 
 export const Notifications: React.FC = () => {
@@ -57,7 +59,20 @@ export const Notifications: React.FC = () => {
 
          // Fetch notifications
          const notifResponse = await api.get('/notifications');
-         setNotifications(notifResponse.data);
+         const fetchedNotifications = notifResponse.data;
+         setNotifications(fetchedNotifications);
+
+         // Mark unread notifications as read
+         const unreadIds = fetchedNotifications.filter((n: any) => !n.read).map((n: any) => n.id);
+         if (unreadIds.length > 0) {
+            // We can iterate or add a bulk endpoint. For now, iterate (simpler for quick fix)
+            // Or better, just mark them as read in the UI and let user click individually? 
+            // User request: "bildirim kutusuna tıklanana kadar yeni bildirimler kaç adetse sayısı yazmalı"
+            // This implies once they click the box (visit page), it should clear? 
+            // Usually visiting the page clears the "unread count" badge.
+            // Let's mark them as read in backend.
+            await Promise.all(unreadIds.map((id: string) => api.patch(`/notifications/${id}/read`)));
+         }
 
          // Fetch join requests for user's teams (assuming user is captain)
          // We'll need to get user's teams first
@@ -113,6 +128,38 @@ export const Notifications: React.FC = () => {
          setSuccessMessage('Katılma isteği reddedildi.');
       } catch (error: any) {
          console.error('Failed to reject join request:', error);
+         setErrorMessage(error.response?.data?.message || 'Reddedilemedi.');
+      }
+   };
+
+   const handleAcceptChallenge = async (challengeId: string) => {
+      try {
+         const response = await api.patch(`/challenges/${challengeId}/accept`);
+         // If response contains channelId (from backend logic), navigate to chat
+         // Note: Backend might not return channelId directly in the challenge object, 
+         // but we know a notification with 'isChatRedirect' metadata will be created for the challenger.
+         // For the acceptor (host), we should also probably redirect or just show success.
+         // Let's check if the backend returns the updated challenge.
+
+         await fetchData();
+         setSuccessMessage('Meydan okuma kabul edildi! Sohbet kanalı oluşturuluyor...');
+
+         // Optional: Redirect to chat immediately if we can get the channel ID
+         // For now, let's just refresh. The user will see the new chat in the Chat tab.
+         setTimeout(() => navigate('/chat'), 1500);
+      } catch (error: any) {
+         console.error('Failed to accept challenge:', error);
+         setErrorMessage(error.response?.data?.message || 'Kabul edilemedi.');
+      }
+   };
+
+   const handleRejectChallenge = async (challengeId: string) => {
+      try {
+         await api.patch(`/challenges/${challengeId}/reject`);
+         await fetchData();
+         setSuccessMessage('Meydan okuma reddedildi.');
+      } catch (error: any) {
+         console.error('Failed to reject challenge:', error);
          setErrorMessage(error.response?.data?.message || 'Reddedilemedi.');
       }
    };
@@ -278,8 +325,40 @@ export const Notifications: React.FC = () => {
                                  </div>
 
                                  <p className="text-sm text-slate-300 mb-3 leading-relaxed">
-                                    Bildirim detayları
+                                    {/* Use title/message if available, fallback to generic */}
+                                    {(notif as any).title && <span className="block font-bold text-white mb-1">{(notif as any).title}</span>}
+                                    {(notif as any).message || 'Bildirim detayları'}
                                  </p>
+
+                                 {/* Challenge Actions */}
+                                 {notif.type === 'CHALLENGE' && (notif.metadata?.challengeId || notif.relatedId) && !notif.metadata?.isChatRedirect && (
+                                    <div className="flex gap-2 mt-3">
+                                       <button
+                                          onClick={() => handleRejectChallenge(notif.metadata?.challengeId || notif.relatedId)}
+                                          className="flex-1 py-2 bg-slate-700 text-slate-300 rounded-lg text-xs font-bold flex items-center justify-center gap-1 hover:bg-red-900/50 hover:text-red-400 transition-colors"
+                                       >
+                                          <X className="w-3 h-3" /> Reddet
+                                       </button>
+                                       <button
+                                          onClick={() => handleAcceptChallenge(notif.metadata?.challengeId || notif.relatedId)}
+                                          className="flex-1 py-2 bg-turf-600 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1 hover:bg-turf-500 transition-colors shadow-lg shadow-turf-600/20"
+                                       >
+                                          <Check className="w-3 h-3" /> Kabul Et
+                                       </button>
+                                    </div>
+                                 )}
+
+                                 {/* Chat Redirect Action */}
+                                 {notif.metadata?.isChatRedirect && (
+                                    <div className="mt-3">
+                                       <button
+                                          onClick={() => navigate('/chat', { state: { channelId: notif.metadata.channelId } })}
+                                          className="w-full py-2 bg-blue-600 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1 hover:bg-blue-500 transition-colors shadow-lg shadow-blue-600/20"
+                                       >
+                                          <MessageSquare className="w-3 h-3" /> Sohbete Git
+                                       </button>
+                                    </div>
+                                 )}
                               </div>
                            </div>
                         ))

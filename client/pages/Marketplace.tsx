@@ -6,6 +6,7 @@ import { LevelBadge } from '../components/LevelBadge';
 import { FairPlayScore } from '../components/FairPlayScore';
 import { CreateMatchModal } from '../components/CreateMatchModal';
 import { ChallengeModal } from '../components/ChallengeModal';
+import { SuccessModal } from '../components/SuccessModal';
 import api from '../services/api';
 
 export const Marketplace: React.FC = () => {
@@ -15,6 +16,12 @@ export const Marketplace: React.FC = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isChallengeModalOpen, setIsChallengeModalOpen] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState<any>(null);
+
+  const [successModal, setSuccessModal] = useState<{
+    isOpen: boolean;
+    message: string;
+    type: 'CHALLENGE_SENT' | 'DEFAULT';
+  }>({ isOpen: false, message: '', type: 'DEFAULT' });
 
   // Find user's team from currentUser
   const myTeam = currentUser?.team;
@@ -40,10 +47,24 @@ export const Marketplace: React.FC = () => {
         toMatchId: selectedMatch.id,
         note
       });
-      alert('Meydan okuma gönderildi!');
-    } catch (error) {
+      setSuccessModal({
+        isOpen: true,
+        message: 'Meydan okuma başarıyla gönderildi! Rakip takım kaptanına bildirim iletildi.',
+        type: 'CHALLENGE_SENT'
+      });
+      setIsChallengeModalOpen(false);
+    } catch (error: any) {
       console.error('Failed to send challenge:', error);
-      alert('Meydan okuma gönderilemedi.');
+      if (error.response?.data?.message === 'Bu maça zaten meydan okudunuz. Cevap bekleniyor.') {
+        setSuccessModal({
+          isOpen: true,
+          message: 'Bu maça zaten meydan okudunuz. Rakip takımın cevabı bekleniyor.',
+          type: 'DEFAULT'
+        });
+        setIsChallengeModalOpen(false);
+      } else {
+        alert('Meydan okuma gönderilemedi.');
+      }
     }
   };
 
@@ -82,6 +103,13 @@ export const Marketplace: React.FC = () => {
       <CreateMatchModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
+      />
+
+      <SuccessModal
+        isOpen={successModal.isOpen}
+        onClose={() => setSuccessModal({ ...successModal, isOpen: false })}
+        message={successModal.message}
+        type={successModal.type}
       />
 
       <header className="mb-8">

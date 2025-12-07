@@ -11,6 +11,12 @@ export class Notification {
     @Column()
     type: 'JOIN_REQUEST' | 'CHALLENGE' | 'MATCH_RESULT';
 
+    @Column({ nullable: true })
+    title: string;
+
+    @Column({ nullable: true })
+    message: string;
+
     @Column()
     relatedId: string;
 

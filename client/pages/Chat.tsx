@@ -7,16 +7,50 @@ import { SkillLevel, ChatChannel, Team } from '../types';
 import { MOCK_CHANNELS, MOCK_MESSAGES, MOCK_TEAMS, CURRENT_USER, MOCK_JOKERS } from '../constants';
 import { useLocation } from 'react-router-dom';
 import { InviteJokerModal } from '../components/InviteJokerModal';
+import api from '../services/api';
 
 export const Chat: React.FC = () => {
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
+  const [channels, setChannels] = useState<any[]>([]);
+  const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState('');
   const [showTactic, setShowTactic] = useState(false);
   const [tactic, setTactic] = useState('');
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
   const endRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
+
+  // Fetch Current User
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const response = await api.get('/users/me');
+        setCurrentUser(response.data);
+      } catch (error) {
+        console.error('Failed to fetch user:', error);
+      }
+    };
+    fetchUser();
+  }, []);
+
+  // Fetch Channels
+  useEffect(() => {
+    const fetchChannels = async () => {
+      try {
+        const response = await api.get('/chat/channels');
+        setChannels(response.data);
+      } catch (error) {
+        console.error('Failed to fetch channels:', error);
+      }
+    };
+    fetchChannels();
+
+    // Poll for new channels every 10 seconds
+    const interval = setInterval(fetchChannels, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Auto-open channel from navigation state
   useEffect(() => {
@@ -25,26 +59,83 @@ export const Chat: React.FC = () => {
       // Clear state so it doesn't stick if we navigate back
       window.history.replaceState({}, document.title);
     }
-  }, [location]);
+  }, [location, channels]); // Add channels dependency to ensure we can find it
 
-  // Get current active channel and its messages
-  const activeChannel = MOCK_CHANNELS.find(c => c.id === selectedChannelId) ||
-    (selectedChannelId ? { id: selectedChannelId, type: 'DM', name: 'Sohbet', lastMessage: '', timestamp: '', unreadCount: 0 } as ChatChannel : null);
+  // Fetch Messages for Selected Channel
+  useEffect(() => {
+    if (!selectedChannelId) return;
 
-  const messages = selectedChannelId ? (MOCK_MESSAGES[selectedChannelId] || []) : [];
+    const fetchMessages = async () => {
+      try {
+        const response = await api.get(`/chat/channels/${selectedChannelId}/messages`);
+        // Map backend messages to frontend format
+        const mappedMessages = response.data.map((msg: any) => ({
+          id: msg.id,
+          senderId: msg.senderId,
+          senderName: msg.sender?.full_name || msg.sender?.username || 'Unknown',
+          text: msg.content,
+          timestamp: new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          isMe: msg.senderId === currentUser?.id,
+          isSystem: msg.isSystemMessage
+        }));
+        setMessages(mappedMessages);
+      } catch (error) {
+        console.error('Failed to fetch messages:', error);
+      }
+    };
 
-  // Identify Opponents (Team or Joker)
-  const opponentTeam = activeChannel?.type === 'DM' && activeChannel.opponentTeamId
-    ? MOCK_TEAMS.find(t => t.id === activeChannel.opponentTeamId)
-    : null;
+    fetchMessages();
 
-  const opponentJoker = activeChannel?.type === 'DM' && activeChannel.participantId
-    ? MOCK_JOKERS.find(j => j.id === activeChannel.participantId)
-    : null;
+    // Mark as read immediately when entering channel
+    const markRead = async () => {
+      try {
+        await api.post(`/chat/channels/${selectedChannelId}/read`);
+        // Refresh channels to update unread counts in the list
+        const response = await api.get('/chat/channels');
+        setChannels(response.data);
+      } catch (error) {
+        console.error('Failed to mark as read:', error);
+      }
+    };
+    markRead();
 
-  const handleSend = () => {
-    if (!input.trim()) return;
-    setInput('');
+    // Poll for new messages every 3 seconds
+    const interval = setInterval(fetchMessages, 3000);
+    return () => clearInterval(interval);
+  }, [selectedChannelId, currentUser]);
+
+  // Get current active channel object
+  const activeChannel = channels.find(c => c.id === selectedChannelId);
+
+  // Identify Opponents (Team or Joker) - Simplified for now
+  const opponentTeam = null; // To be implemented if needed for specific UI logic
+  const opponentJoker = null;
+
+  const handleSend = async () => {
+    if (!input.trim() || !selectedChannelId) return;
+
+    try {
+      await api.post(`/chat/channels/${selectedChannelId}/messages`, { content: input });
+      setInput('');
+      // Optimistic update or wait for poll
+      // For now, let's just re-fetch immediately
+      const response = await api.get(`/chat/channels/${selectedChannelId}/messages`);
+      const mappedMessages = response.data.map((msg: any) => ({
+        id: msg.id,
+        senderId: msg.senderId,
+        senderName: msg.sender?.full_name || msg.sender?.username || 'Unknown',
+        text: msg.content,
+        timestamp: new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        isMe: msg.senderId === currentUser?.id,
+        isSystem: msg.isSystemMessage
+      }));
+      setMessages(mappedMessages);
+
+      // Mark as read
+      await api.post(`/chat/channels/${selectedChannelId}/read`);
+    } catch (error) {
+      console.error('Failed to send message:', error);
+    }
   };
 
   const handleGetTactics = async () => {
@@ -77,37 +168,46 @@ export const Chat: React.FC = () => {
         <div className="space-y-4">
           <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Aktif Sohbetler</h3>
 
-          {MOCK_CHANNELS.map(channel => (
-            <div
-              key={channel.id}
-              onClick={() => setSelectedChannelId(channel.id)}
-              className="bg-slate-800 p-4 rounded-2xl border border-slate-700 flex gap-4 items-center hover:bg-slate-750 active:scale-95 transition-all cursor-pointer"
-            >
-              <div className="relative">
-                <img src={channel.avatarUrl} alt={channel.name} className={`w-14 h-14 object-cover ${channel.type === 'MATCH_GROUP' ? 'rounded-2xl' : 'rounded-full'}`} />
-                {channel.unreadCount > 0 && (
-                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full border-2 border-slate-800">
-                    {channel.unreadCount}
-                  </span>
-                )}
-                {channel.type === 'MATCH_GROUP' && (
-                  <div className="absolute -bottom-1 -right-1 bg-turf-600 p-1 rounded-lg border border-slate-800">
-                    <Users className="w-3 h-3 text-white" />
-                  </div>
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex justify-between items-start">
-                  <h4 className="text-white font-bold truncate pr-2">{channel.name}</h4>
-                  <span className="text-[10px] text-slate-500 whitespace-nowrap">{channel.timestamp}</span>
-                </div>
-                <p className={`text-sm truncate mt-0.5 ${channel.unreadCount > 0 ? 'text-slate-200 font-medium' : 'text-slate-400'}`}>
-                  {channel.type === 'MATCH_GROUP' && <span className="text-turf-500 font-bold mr-1">Takım:</span>}
-                  {channel.lastMessage}
-                </p>
-              </div>
+          {channels.length === 0 ? (
+            <div className="text-center py-12 text-slate-400">
+              Henüz aktif sohbet yok.
             </div>
-          ))}
+          ) : (
+            channels.map(channel => (
+              <div
+                key={channel.id}
+                onClick={() => setSelectedChannelId(channel.id)}
+                className="bg-slate-800 p-4 rounded-2xl border border-slate-700 flex gap-4 items-center hover:bg-slate-750 active:scale-95 transition-all cursor-pointer"
+              >
+                <div className="relative">
+                  <img src={channel.avatarUrl || 'https://picsum.photos/200'} alt={channel.name} className={`w-14 h-14 object-cover ${channel.type === 'MATCH_GROUP' ? 'rounded-2xl' : 'rounded-full'}`} />
+                  {/* Unread count badge */}
+                  {channel.unreadCount > 0 && (
+                    <div className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center border-2 border-slate-800 animate-pulse">
+                      {channel.unreadCount}
+                    </div>
+                  )}
+                  {channel.type === 'MATCH_GROUP' && (
+                    <div className="absolute -bottom-1 -right-1 bg-turf-600 p-1 rounded-lg border border-slate-800">
+                      <Users className="w-3 h-3 text-white" />
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between items-start">
+                    <h4 className="text-white font-bold truncate pr-2">{channel.name}</h4>
+                    <span className="text-[10px] text-slate-500 whitespace-nowrap">
+                      {new Date(channel.lastActivityAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                  <p className="text-sm truncate mt-0.5 text-slate-400">
+                    {channel.type === 'MATCH_GROUP' && <span className="text-turf-500 font-bold mr-1">Takım:</span>}
+                    {channel.lastMessage?.content || 'Sohbete gitmek için tıkla'}
+                  </p>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
     );
@@ -137,7 +237,7 @@ export const Chat: React.FC = () => {
             <h2 className="text-white font-bold leading-tight">{activeChannel?.name}</h2>
             <div className="flex items-center gap-2 text-xs text-slate-400">
               {activeChannel?.type === 'MATCH_GROUP' ? (
-                <span className="flex items-center gap-1 text-turf-500"><Users className="w-3 h-3" /> 14 Oyuncu Aktif</span>
+                <span className="flex items-center gap-1 text-turf-500"><Users className="w-3 h-3" /> {activeChannel.participants?.length || 14} Oyuncu Aktif</span>
               ) : (
                 <span className="flex items-center gap-1 text-green-500"><span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span> Çevrimiçi</span>
               )}
@@ -199,7 +299,7 @@ export const Chat: React.FC = () => {
       <div className="flex-1 overflow-y-auto p-4 space-y-6 bg-pitch">
         {/* System Welcome Message */}
         <div className="flex justify-center">
-          <span className="bg-slate-800 text-slate-400 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wide">
+          <span className="bg-slate-800 text-slate-400 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wide mt-6">
             {activeChannel?.type === 'MATCH_GROUP' ? 'Maç Grubu Oluşturuldu' : 'Sohbet Başlatıldı'}
           </span>
         </div>
@@ -218,11 +318,13 @@ export const Chat: React.FC = () => {
               {!msg.isMe && activeChannel?.type === 'MATCH_GROUP' && (
                 <span className="text-[10px] text-slate-400 ml-1 block">{msg.senderName}</span>
               )}
-              <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed shadow-sm ${msg.isMe
+              <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed shadow-sm relative ${msg.isMe
                 ? 'bg-turf-600 text-white rounded-tr-none'
                 : 'bg-slate-800 text-slate-200 border border-slate-700 rounded-tl-none'
                 }`}>
                 {msg.text}
+                {/* Message Tail */}
+                <div className={`absolute top-0 w-3 h-3 ${msg.isMe ? '-right-1.5 bg-turf-600 [clip-path:polygon(0_0,100%_0,0_100%)]' : '-left-1.5 bg-slate-800 [clip-path:polygon(0_0,100%_0,100%_100%)] border-t border-l border-slate-700'}`}></div>
               </div>
               <span className={`text-[10px] block ${msg.isMe ? 'text-right text-slate-500' : 'text-left text-slate-500'}`}>
                 {msg.timestamp}
@@ -256,9 +358,7 @@ export const Chat: React.FC = () => {
       {/* Input Area */}
       <div className="p-3 bg-slate-900 border-t border-slate-800 pb-safe-bottom">
         <div className="flex gap-2 items-end">
-          <button className="p-3 rounded-xl bg-slate-800 text-slate-400 hover:text-turf-500 transition-colors">
-            <Phone className="w-5 h-5" />
-          </button>
+          {/* Phone button removed */}
           <div className="flex-1 bg-slate-800 rounded-xl flex items-center border border-slate-700 focus-within:border-turf-500 transition-colors">
             <input
               type="text"
