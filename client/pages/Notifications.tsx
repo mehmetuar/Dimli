@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Bell, Check, X, Calendar, Shield, Info, ChevronRight, UserPlus, CheckCircle, AlertCircle, MessageSquare } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import { LoadingSpinner } from '../components/LoadingSpinner';
 
 interface JoinRequest {
    id: string;
@@ -216,10 +217,7 @@ export const Notifications: React.FC = () => {
          </div>
 
          {loading ? (
-            <div className="text-center py-12">
-               <div className="animate-spin w-8 h-8 border-4 border-turf-500 border-t-transparent rounded-full mx-auto"></div>
-               <p className="text-slate-400 text-sm mt-3">Yükleniyor...</p>
-            </div>
+            <LoadingSpinner fullScreen text="Bildirimler Yükleniyor..." />
          ) : (
             <div className="space-y-4">
                {/* JOIN REQUESTS TAB */}

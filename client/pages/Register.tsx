@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
 import { Trophy, ChevronRight, ChevronLeft, Check, User, Phone, Mail, Calendar, Shield, Lock } from 'lucide-react';
+import { LoadingSpinner } from '../components/LoadingSpinner';
 
 export const Register: React.FC = () => {
     const [step, setStep] = useState(1);
@@ -14,7 +15,8 @@ export const Register: React.FC = () => {
         email: '',
         birthDate: '',
         position: 'Orta Saha',
-        secondaryPosition: ''
+        secondaryPosition: '',
+        foot: 'Sağ'
     });
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -258,6 +260,23 @@ export const Register: React.FC = () => {
                         </select>
                     </div>
                 </div>
+
+                <div className="mt-4 col-span-2">
+                    <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Kullandığı Ayak</label>
+                    <div className="relative">
+                        <Shield className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-500 w-5 h-5" />
+                        <select
+                            name="foot"
+                            value={formData.foot}
+                            onChange={handleChange}
+                            className="w-full bg-slate-900 text-white pl-12 pr-4 py-4 rounded-xl border border-slate-700 focus:border-turf-500 focus:outline-none font-bold appearance-none"
+                        >
+                            <option value="Sağ">Sağ</option>
+                            <option value="Sol">Sol</option>
+                            <option value="Her İkisi">Her İkisi</option>
+                        </select>
+                    </div>
+                </div>
             </div>
         </div>
     );
@@ -316,7 +335,7 @@ export const Register: React.FC = () => {
                                 disabled={loading || !isSubmitReady}
                                 className="flex-1 bg-turf-600 text-white py-4 rounded-xl font-bold hover:bg-turf-500 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-turf-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                                {loading ? 'Kaydediliyor...' : 'Kaydı Tamamla'} <Check className="w-5 h-5" />
+                                {loading ? <LoadingSpinner size="sm" text="" /> : 'Kaydı Tamamla'} <Check className="w-5 h-5" />
                             </button>
                         )}
                     </div>

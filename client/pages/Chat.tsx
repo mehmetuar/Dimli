@@ -181,12 +181,6 @@ export const Chat: React.FC = () => {
               >
                 <div className="relative">
                   <img src={channel.avatarUrl || 'https://picsum.photos/200'} alt={channel.name} className={`w-14 h-14 object-cover ${channel.type === 'MATCH_GROUP' ? 'rounded-2xl' : 'rounded-full'}`} />
-                  {/* Unread count badge */}
-                  {channel.unreadCount > 0 && (
-                    <div className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center border-2 border-slate-800 animate-pulse">
-                      {channel.unreadCount}
-                    </div>
-                  )}
                   {channel.type === 'MATCH_GROUP' && (
                     <div className="absolute -bottom-1 -right-1 bg-turf-600 p-1 rounded-lg border border-slate-800">
                       <Users className="w-3 h-3 text-white" />
@@ -196,9 +190,16 @@ export const Chat: React.FC = () => {
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-start">
                     <h4 className="text-white font-bold truncate pr-2">{channel.name}</h4>
-                    <span className="text-[10px] text-slate-500 whitespace-nowrap">
-                      {new Date(channel.lastActivityAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
+                    <div className="flex flex-col items-end gap-1">
+                      <span className={`text-[10px] whitespace-nowrap ${channel.unreadCount > 0 ? 'text-blue-500 font-bold' : 'text-slate-500'}`}>
+                        {new Date(channel.lastActivityAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                      {channel.unreadCount > 0 && (
+                        <div className="bg-blue-500 text-white text-[10px] font-bold min-w-[1.25rem] h-5 px-1.5 rounded-full flex items-center justify-center">
+                          {channel.unreadCount}
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <p className="text-sm truncate mt-0.5 text-slate-400">
                     {channel.type === 'MATCH_GROUP' && <span className="text-turf-500 font-bold mr-1">Takım:</span>}

@@ -45,5 +45,7 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>SahaPro needs your location to find nearby pitches and players.</string>
 </dict>
 </plist>

@@ -1,4 +1,4 @@
-import { Controller, Get, Request, UseGuards } from '@nestjs/common';
+import { Controller, Get, Request, UseGuards, Post } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
@@ -24,5 +24,10 @@ export class UsersController {
         const query = req.query.q;
         if (!query) return [];
         return this.usersService.search(query);
+    }
+
+    @Post('seed-feet')
+    async seedFeet() {
+        return this.usersService.seedFeet();
     }
 }

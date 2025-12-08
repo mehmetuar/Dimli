@@ -91,7 +91,7 @@ export const JokerPool: React.FC = () => {
             {/* Close Button */}
             <button
                onClick={() => setSelectedJoker(null)}
-               className="fixed top-4 right-4 bg-white/10 p-3 rounded-full text-white hover:bg-red-600 transition-colors z-50 backdrop-blur"
+               className="fixed top-12 right-4 bg-white/10 p-3 rounded-full text-white hover:bg-red-600 transition-colors z-50 backdrop-blur"
             >
                <X className="w-6 h-6" />
             </button>
@@ -106,8 +106,7 @@ export const JokerPool: React.FC = () => {
 
                   {/* Card Header */}
                   <div className="relative z-10 pt-6 px-6 pb-0 flex justify-between items-start">
-                     <div className="flex flex-col">
-                        <span className="text-5xl font-sport font-black text-yellow-400 drop-shadow-lg italic">{selectedJoker.rating || 85}</span>
+                     <div className="flex flex-col pt-4">
                         <span className="text-xl font-bold text-slate-300 uppercase tracking-widest">{selectedJoker.position}</span>
                         <div className="mt-2 flex items-center gap-1">
                            <img src="https://flagcdn.com/w40/tr.png" className="w-6 h-4 rounded shadow" alt="TR" />
@@ -123,7 +122,7 @@ export const JokerPool: React.FC = () => {
                   </div>
 
                   {/* Name */}
-                  <div className="relative z-10 text-center -mt-2 mb-4">
+                  <div className="relative z-10 text-center mt-6 mb-4">
                      <h2 className="font-sport font-black text-4xl text-white uppercase italic tracking-tighter drop-shadow-md">
                         {selectedJoker.name}
                      </h2>
@@ -132,32 +131,30 @@ export const JokerPool: React.FC = () => {
                      </div>
                   </div>
 
-                  {/* Stats Matrix */}
-                  <div className="relative z-10 px-4 pb-6">
-                     <div className="grid grid-cols-2 gap-x-6 gap-y-3 mb-6 px-2">
-                        <div className="flex items-center justify-between border-b border-white/10 pb-1">
-                           <span className="text-slate-400 font-bold text-sm">HIZ</span>
-                           <span className={`font-sport text-xl font-black ${selectedJoker.stats?.pace! > 85 ? 'text-turf-400' : 'text-white'}`}>{selectedJoker.stats?.pace}</span>
+                  {/* Info Grid */}
+                  <div className="relative z-10 px-6 pb-6">
+                     <div className="grid grid-cols-2 gap-4 mb-6">
+                        {/* Age */}
+                        <div className="bg-white/5 rounded-xl p-3 border border-white/10 flex flex-col items-center justify-center">
+                           <span className="text-[10px] text-slate-400 font-bold uppercase mb-1">YAŞ</span>
+                           <span className="font-sport text-2xl font-black text-white">
+                              {selectedJoker.birthDate ? new Date().getFullYear() - new Date(selectedJoker.birthDate).getFullYear() : '-'}
+                           </span>
                         </div>
-                        <div className="flex items-center justify-between border-b border-white/10 pb-1">
-                           <span className="text-slate-400 font-bold text-sm">DRİ</span>
-                           <span className={`font-sport text-xl font-black ${selectedJoker.stats?.dribbling! > 85 ? 'text-turf-400' : 'text-white'}`}>{selectedJoker.stats?.dribbling || 75}</span>
+                        {/* Foot */}
+                        <div className="bg-white/5 rounded-xl p-3 border border-white/10 flex flex-col items-center justify-center">
+                           <span className="text-[10px] text-slate-400 font-bold uppercase mb-1">AYAK</span>
+                           <span className="font-sport text-xl font-black text-white uppercase">{selectedJoker.foot || '-'}</span>
                         </div>
-                        <div className="flex items-center justify-between border-b border-white/10 pb-1">
-                           <span className="text-slate-400 font-bold text-sm">ŞUT</span>
-                           <span className={`font-sport text-xl font-black ${selectedJoker.stats?.shooting! > 85 ? 'text-turf-400' : 'text-white'}`}>{selectedJoker.stats?.shooting}</span>
+                        {/* Position */}
+                        <div className="bg-white/5 rounded-xl p-3 border border-white/10 flex flex-col items-center justify-center">
+                           <span className="text-[10px] text-slate-400 font-bold uppercase mb-1">MEVKİ</span>
+                           <span className="font-sport text-lg font-black text-white uppercase">{selectedJoker.position}</span>
                         </div>
-                        <div className="flex items-center justify-between border-b border-white/10 pb-1">
-                           <span className="text-slate-400 font-bold text-sm">DEF</span>
-                           <span className={`font-sport text-xl font-black ${selectedJoker.stats?.defense! > 85 ? 'text-turf-400' : 'text-white'}`}>{selectedJoker.stats?.defense}</span>
-                        </div>
-                        <div className="flex items-center justify-between border-b border-white/10 pb-1">
-                           <span className="text-slate-400 font-bold text-sm">PAS</span>
-                           <span className={`font-sport text-xl font-black ${selectedJoker.stats?.passing! > 85 ? 'text-turf-400' : 'text-white'}`}>{selectedJoker.stats?.passing}</span>
-                        </div>
-                        <div className="flex items-center justify-between border-b border-white/10 pb-1">
-                           <span className="text-slate-400 font-bold text-sm">FİZ</span>
-                           <span className={`font-sport text-xl font-black ${selectedJoker.stats?.physical! > 85 ? 'text-turf-400' : 'text-white'}`}>{selectedJoker.stats?.physical || 70}</span>
+                        {/* Secondary Position */}
+                        <div className="bg-white/5 rounded-xl p-3 border border-white/10 flex flex-col items-center justify-center">
+                           <span className="text-[10px] text-slate-400 font-bold uppercase mb-1">YAN MEVKİ</span>
+                           <span className="font-sport text-lg font-black text-slate-300 uppercase">{selectedJoker.secondaryPosition || '-'}</span>
                         </div>
                      </div>
 
@@ -168,7 +165,7 @@ export const JokerPool: React.FC = () => {
                            <div className="flex gap-1">
                               {selectedJoker.form?.map((result, i) => (
                                  <span key={i} className={`w-4 h-4 rounded flex items-center justify-center text-[8px] font-black ${result === 'W' ? 'bg-green-500 text-black' :
-                                       result === 'L' ? 'bg-red-500 text-white' : 'bg-gray-500 text-white'
+                                    result === 'L' ? 'bg-red-500 text-white' : 'bg-gray-500 text-white'
                                     }`}>
                                     {result}
                                  </span>
@@ -275,9 +272,6 @@ export const JokerPool: React.FC = () => {
 
                   <div className="relative">
                      <img src={player.avatarUrl} alt={player.name} className="w-16 h-16 rounded-full object-cover border-2 border-slate-600 group-hover:border-turf-500 transition-colors" />
-                     <span className="absolute -bottom-1 -right-1 bg-turf-600 text-white text-[10px] font-black px-1.5 py-0.5 rounded border border-slate-800">
-                        {player.rating || 80}
-                     </span>
                   </div>
                   <div className="flex-1 min-w-0 relative z-10">
                      <h3 className="font-bold text-white text-lg truncate group-hover:text-turf-400 transition-colors">

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { X } from 'lucide-react';
+import { X, MapPin, Calendar, Clock, Shield } from 'lucide-react';
+import { LoadingSpinner } from './LoadingSpinner';
 
 interface ChallengeModalProps {
     isOpen: boolean;
@@ -10,7 +11,8 @@ interface ChallengeModalProps {
         teamLogo: string;
         date: string;
         time: string;
-        location: string;
+        pitchName: string;
+        pitchLocation: string;
     };
     onSubmit: (note: string) => void;
 }
@@ -33,62 +35,103 @@ export const ChallengeModal: React.FC<ChallengeModalProps> = ({ isOpen, onClose,
         <div className="fixed inset-0 z-[70] flex items-center justify-center px-4 bg-black/80 backdrop-blur-sm animate-fade-in">
             <div className="bg-slate-800 w-full max-w-md rounded-3xl border border-slate-700 overflow-hidden relative shadow-2xl shadow-turf-500/20">
                 {/* Header */}
-                <div className="bg-gradient-to-r from-turf-600 to-turf-700 p-5">
+                <div className="bg-gradient-to-r from-turf-600 to-turf-700 p-5 relative overflow-hidden">
+                    <div className="absolute -right-6 -top-6 w-24 h-24 bg-white/10 rounded-full blur-xl"></div>
+
                     <button
                         onClick={onClose}
-                        className="absolute top-4 right-4 bg-slate-900/50 p-2 rounded-full text-white hover:bg-red-500 transition-colors z-20"
+                        className="absolute top-4 right-4 bg-black/20 hover:bg-black/40 p-2 rounded-full text-white transition-colors z-20"
                     >
                         <X className="w-5 h-5" />
                     </button>
-                    <h2 className="font-sport font-black text-2xl text-white uppercase italic">
+
+                    <h2 className="font-sport font-black text-2xl text-white uppercase italic tracking-wide relative z-10">
                         Meydan Oku
                     </h2>
-                    <p className="text-turf-100 text-sm mt-1">Rakip takıma mesaj gönder</p>
+                    <p className="text-turf-100 text-sm mt-1 relative z-10 font-medium">Rakip takıma maç teklifi gönder</p>
                 </div>
 
                 {/* Body */}
-                <div className="p-6 space-y-5">
-                    {/* Match Info */}
-                    <div className="bg-slate-900/50 p-4 rounded-xl border border-slate-700">
-                        <div className="flex items-center gap-3 mb-3">
-                            <img src={match.teamLogo} alt={match.teamName} className="w-12 h-12 rounded-full border-2 border-slate-600" />
+                <div className="p-6 space-y-6">
+                    {/* Match Info Card */}
+                    <div className="bg-slate-900/50 rounded-2xl border border-slate-700/50 overflow-hidden">
+                        {/* Team Header */}
+                        <div className="p-4 flex items-center gap-4 border-b border-slate-700/50 bg-slate-800/30">
+                            <img src={match.teamLogo || 'https://via.placeholder.com/50'} alt={match.teamName} className="w-12 h-12 rounded-full border-2 border-slate-600 object-cover" />
                             <div>
-                                <h3 className="font-bold text-white">{match.teamName}</h3>
-                                <p className="text-slate-400 text-xs">{match.date} • {match.time}</p>
+                                <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">Rakip Takım</div>
+                                <h3 className="font-sport font-bold text-xl text-white uppercase italic">{match.teamName}</h3>
                             </div>
                         </div>
-                        <p className="text-slate-500 text-xs"><span className="text-turf-500">📍</span> {match.location}</p>
+
+                        {/* Details Grid */}
+                        <div className="p-4 grid grid-cols-2 gap-4">
+                            <div className="space-y-1">
+                                <div className="flex items-center gap-1.5 text-slate-400 text-[10px] font-bold uppercase">
+                                    <Calendar className="w-3 h-3" /> Tarih
+                                </div>
+                                <div className="text-white font-bold text-sm">{match.date}</div>
+                            </div>
+                            <div className="space-y-1">
+                                <div className="flex items-center gap-1.5 text-slate-400 text-[10px] font-bold uppercase">
+                                    <Clock className="w-3 h-3" /> Saat
+                                </div>
+                                <div className="text-white font-bold text-sm">{match.time}</div>
+                            </div>
+                            <div className="col-span-2 space-y-1 pt-2 border-t border-slate-700/30">
+                                <div className="flex items-center gap-1.5 text-slate-400 text-[10px] font-bold uppercase">
+                                    <Shield className="w-3 h-3" /> Saha
+                                </div>
+                                <div className="text-white font-bold text-sm">{match.pitchName}</div>
+                            </div>
+                            <div className="col-span-2 space-y-1">
+                                <div className="flex items-center gap-1.5 text-slate-400 text-[10px] font-bold uppercase">
+                                    <MapPin className="w-3 h-3" /> Konum
+                                </div>
+                                <div className="text-slate-300 text-sm">{match.pitchLocation}</div>
+                            </div>
+                        </div>
                     </div>
 
                     {/* Note Input */}
                     <div>
-                        <label className="block text-xs font-bold text-slate-400 uppercase mb-2">
-                            Mesajın (Opsiyonel)
+                        <label className="block text-xs font-bold text-slate-400 uppercase mb-2 ml-1">
+                            Kaptan Mesajı (Opsiyonel)
                         </label>
-                        <textarea
-                            value={note}
-                            onChange={(e) => setNote(e.target.value)}
-                            placeholder="Örn: Merhaba, bu akşam sahanız uygun mu? Bir maç yapalım!"
-                            className="w-full bg-slate-900 text-white p-4 rounded-xl border border-slate-700 focus:border-turf-500 focus:outline-none resize-none h-32 text-sm"
-                            maxLength={200}
-                        />
-                        <p className="text-slate-600 text-xs mt-1 text-right">{note.length}/200</p>
+                        <div className="relative">
+                            <textarea
+                                value={note}
+                                onChange={(e) => setNote(e.target.value)}
+                                placeholder="Örn: Merhaba, takımımız hazır. Maçı onaylarsanız detayları konuşalım."
+                                className="w-full bg-slate-900 text-white p-4 rounded-xl border border-slate-700 focus:border-turf-500 focus:outline-none resize-none h-28 text-sm placeholder:text-slate-600"
+                                maxLength={200}
+                            />
+                            <div className="absolute bottom-3 right-3 text-[10px] font-bold text-slate-600 bg-slate-800 px-2 py-0.5 rounded-md">
+                                {note.length}/200
+                            </div>
+                        </div>
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="flex gap-3">
+                    <div className="flex gap-3 pt-2">
                         <button
                             onClick={onClose}
-                            className="flex-1 bg-slate-700 text-white py-3 rounded-xl font-bold text-sm uppercase tracking-wider hover:bg-slate-600 transition-colors"
+                            className="flex-1 bg-slate-800 text-slate-300 py-3.5 rounded-xl font-bold text-sm uppercase tracking-wider hover:bg-slate-700 hover:text-white transition-colors border border-slate-700"
                         >
-                            İptal
+                            Vazgeç
                         </button>
                         <button
                             onClick={handleSubmit}
                             disabled={isLoading}
-                            className="flex-1 bg-turf-600 text-white py-3 rounded-xl font-bold text-sm uppercase tracking-wider hover:bg-turf-500 transition-colors shadow-lg shadow-turf-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="flex-[2] bg-turf-600 text-white py-3.5 rounded-xl font-bold text-sm uppercase tracking-wider hover:bg-turf-500 transition-colors shadow-lg shadow-turf-600/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         >
-                            {isLoading ? 'Gönderiliyor...' : 'Meydan Oku'}
+                            {isLoading ? (
+                                <LoadingSpinner size="sm" text="" />
+                            ) : (
+                                <>
+                                    Meydan Oku <Shield className="w-4 h-4 fill-current" />
+                                </>
+                            )}
                         </button>
                     </div>
                 </div>

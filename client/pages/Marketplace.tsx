@@ -1,7 +1,7 @@
-
 import React, { useState, useEffect } from 'react';
 import { MOCK_PITCHES, CURRENT_USER } from '../constants';
-import { MapPin, Calendar, Clock, ChevronRight, Filter, Shield, Lock } from 'lucide-react';
+import { Filter, Search, Plus, Calendar, MapPin, Clock, ChevronRight, Shield, Users, Star, Lock } from 'lucide-react';
+import { LoadingSpinner } from '../components/LoadingSpinner';
 import { LevelBadge } from '../components/LevelBadge';
 import { FairPlayScore } from '../components/FairPlayScore';
 import { CreateMatchModal } from '../components/CreateMatchModal';
@@ -11,7 +11,7 @@ import api from '../services/api';
 
 export const Marketplace: React.FC = () => {
   const [matches, setMatches] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isChallengeModalOpen, setIsChallengeModalOpen] = useState(false);
@@ -84,18 +84,14 @@ export const Marketplace: React.FC = () => {
       } catch (error) {
         console.error('Failed to fetch data:', error);
       } finally {
-        setLoading(false);
+        setIsLoading(false);
       }
     };
     fetchData();
   }, []);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-pitch flex items-center justify-center">
-        <div className="text-white text-xl">Yükleniyor...</div>
-      </div>
-    );
+  if (isLoading) {
+    return <LoadingSpinner fullScreen text="Maçlar Yükleniyor..." />;
   }
 
   return (
@@ -265,11 +261,12 @@ export const Marketplace: React.FC = () => {
           onClose={() => setIsChallengeModalOpen(false)}
           match={{
             id: selectedMatch.id,
-            teamName: selectedMatch.teamName,
-            teamLogo: selectedMatch.teamLogo,
+            teamName: selectedMatch.team?.name,
+            teamLogo: selectedMatch.team?.logoUrl,
             date: selectedMatch.date,
             time: selectedMatch.time,
-            location: selectedMatch.location
+            pitchName: MOCK_PITCHES.find(p => p.id === selectedMatch.pitchId)?.name || 'Bilinmeyen Saha',
+            pitchLocation: MOCK_PITCHES.find(p => p.id === selectedMatch.pitchId)?.location || 'Konum Yok'
           }}
           onSubmit={handleSubmitChallenge}
         />

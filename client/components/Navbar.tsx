@@ -118,7 +118,7 @@ export const Navbar: React.FC = () => {
               <div className="relative">
                 <MessageSquare className={`w-6 h-6 mb-0.5 ${isActive ? 'stroke-[3px]' : ''}`} />
                 {unreadChatCount > 0 && (
-                  <div className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center border-2 border-pitch-surface">
+                  <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center border-2 border-pitch-surface">
                     {unreadChatCount}
                   </div>
                 )}

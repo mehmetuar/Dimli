@@ -18,7 +18,10 @@ export interface Player {
   id: string;
   name: string;
   position: Position;
+  secondaryPosition?: string; // New field
   location: string;
+  birthDate?: string; // New field: YYYY-MM-DD
+  foot?: string; // New field: 'Sağ', 'Sol', 'Her İkisi'
   isJoker: boolean; // Acts as Active/Passive toggle
   sharesFee?: boolean; // New: Willing to pay their share
   avatarUrl: string;

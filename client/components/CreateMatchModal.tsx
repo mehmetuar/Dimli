@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { X, MapPin, Calendar, Clock, Shield, ChevronRight, CheckCircle, Trophy, Filter } from 'lucide-react';
+import { LoadingSpinner } from '../components/LoadingSpinner';
 import { MOCK_PITCHES } from '../constants';
 import { SkillLevel } from '../types';
 import api from '../services/api';
@@ -33,25 +34,10 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
     const [level, setLevel] = useState(SkillLevel.INTERMEDIATE);
     const [note, setNote] = useState('');
     const [playerCount, setPlayerCount] = useState(7);
-    const [loading, setLoading] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
     const [successMessage, setSuccessMessage] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
     const [currentUser, setCurrentUser] = useState<any>(null);
-    // The original `loading` state was initialized to `true` and then set to `false` in the provided snippet.
-    // To avoid duplicate declarations and ensure correct initial state, we'll keep one `loading` state.
-    // Based on the context (fetching user on mount), `true` seems more appropriate initially.
-    // However, the instruction explicitly includes `const [loading, setLoading] = useState(false);`
-    // and then `const [loading, setLoading] = useState(true);`.
-    // Assuming the intent was to replace the existing `loading` with the new sequence,
-    // and that the final `[loading, setLoading] = useState(true)` is the desired initial state for the user fetch.
-    // To resolve the conflict and follow the instruction as literally as possible while maintaining valid JS,
-    // I will assume the user wants to replace the existing block of state declarations with the provided one,
-    // and that the duplicate `loading` was an error in the instruction, or intended to override.
-    // Given the instruction "Add playerCount state initialized to 7" and the provided block,
-    // I will replace the entire block of state declarations with the provided one,
-    // and remove the duplicate `loading` declaration, keeping the last one provided in the snippet.
-    // This means `date` and `time` will be initialized to empty strings, `playerCount` to 7,
-    // and `loading` will be initialized to `true` (from the last declaration in the snippet).
 
     // Fetch current user on mount
     useEffect(() => {
@@ -69,7 +55,7 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
                 console.error('Failed to fetch user:', error);
                 setErrorMessage('Kullanıcı bilgileri alınamadı.');
             } finally {
-                setLoading(false);
+                setIsLoading(false);
             }
         };
         if (isOpen) {
@@ -85,7 +71,7 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
             return;
         }
 
-        setLoading(true);
+        setIsLoading(true);
         setErrorMessage('');
 
         try {
@@ -116,7 +102,7 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
                 setErrorMessage('İlan oluşturulurken bir hata oluştu');
             }
         } finally {
-            setLoading(false);
+            setIsLoading(false);
         }
     };
     const selectedPitch = MOCK_PITCHES.find(p => p.id === selectedPitchId);

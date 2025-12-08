@@ -55,4 +55,17 @@ export class UsersService {
         await this.usersRepository.update(id, updateUserDto);
         return this.usersRepository.findOne({ where: { id } });
     }
+
+    async seedFeet(): Promise<string> {
+        const users = await this.usersRepository.find();
+        let updatedCount = 0;
+        for (const user of users) {
+            if (!user.foot) {
+                const randomFoot = Math.random() < 0.5 ? 'Sağ' : 'Sol';
+                await this.usersRepository.update(user.id, { foot: randomFoot });
+                updatedCount++;
+            }
+        }
+        return `${updatedCount} users updated with random foot data.`;
+    }
 }

@@ -32,5 +32,11 @@ export class CreateUserDto {
 
     @IsString()
     @IsOptional()
+    @IsString()
+    @IsOptional()
     secondaryPosition?: string;
+
+    @IsString()
+    @IsOptional()
+    foot?: string;
 }
