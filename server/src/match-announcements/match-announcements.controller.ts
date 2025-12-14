@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
 import { MatchAnnouncementsService } from './match-announcements.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
@@ -22,5 +22,11 @@ export class MatchAnnouncementsController {
     @Get('pitch/:pitchId')
     findByPitch(@Param('pitchId') pitchId: string) {
         return this.matchAnnouncementsService.findByPitch(pitchId);
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Delete(':id')
+    delete(@Param('id') id: string, @Request() req) {
+        return this.matchAnnouncementsService.delete(id, req.user.userId || req.user.id);
     }
 }

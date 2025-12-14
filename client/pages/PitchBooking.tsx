@@ -7,14 +7,19 @@ import { LevelBadge } from '../components/LevelBadge';
 import { FairPlayScore } from '../components/FairPlayScore';
 import { Team, MatchListing } from '../types';
 import { CreateMatchModal } from '../components/CreateMatchModal';
+import { OfferModal } from '../components/OfferModal';
+import { ConfirmModal } from '../components/ConfirmModal';
 import api from '../services/api';
 
 export const PitchBooking: React.FC = () => {
    const [expandedPitchId, setExpandedPitchId] = useState<string | null>(null);
    const [viewingTeam, setViewingTeam] = useState<Team | null>(null);
    const [offerMode, setOfferMode] = useState<{ matchId: string, teamName: string } | null>(null);
-   const [offerNote, setOfferNote] = useState('');
-   const [isOfferSent, setIsOfferSent] = useState(false);
+
+   // Challenge State
+   const [myChallenges, setMyChallenges] = useState<any[]>([]);
+   const [confirmCancelModal, setConfirmCancelModal] = useState<{ isOpen: boolean; challengeId: string | null }>({ isOpen: false, challengeId: null });
+   const [confirmDeleteAdModal, setConfirmDeleteAdModal] = useState<{ isOpen: boolean; adId: string | null }>({ isOpen: false, adId: null });
 
    // Create Modal State
    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -31,16 +36,21 @@ export const PitchBooking: React.FC = () => {
 
    // Fetch current user on mount
    useEffect(() => {
-      const fetchUser = async () => {
+      const fetchData = async () => {
          try {
-            const response = await api.get('/users/me');
-            console.log('👤 Current user in PitchBooking:', response.data);
-            setCurrentUser(response.data);
+            const userRes = await api.get('/users/me');
+            console.log('👤 Current user in PitchBooking:', userRes.data);
+            setCurrentUser(userRes.data);
+
+            if (userRes.data?.team) {
+               const challengesRes = await api.get(`/challenges/team/${userRes.data.team.id}`);
+               setMyChallenges(challengesRes.data);
+            }
          } catch (error) {
-            console.error('Failed to fetch user:', error);
+            console.error('Failed to fetch data:', error);
          }
       };
-      fetchUser();
+      fetchData();
    }, []);
 
    // Fetch announcements when a pitch is expanded
@@ -71,14 +81,51 @@ export const PitchBooking: React.FC = () => {
       });
    };
 
-   const handleSendOffer = () => {
-      // Simulation
-      setIsOfferSent(true);
-      setTimeout(() => {
-         setIsOfferSent(false);
-         setOfferMode(null);
-         setOfferNote('');
-      }, 2000);
+   const handleSendOffer = async (note: string) => {
+      if (!currentUser?.team || !offerMode) return;
+
+      const response = await api.post('/challenges', {
+         fromTeamId: currentUser.team.id,
+         toMatchId: offerMode.matchId,
+         note
+      });
+
+      setMyChallenges(prev => [...prev, response.data]);
+      // OfferModal handles closing/success state internally via onSend promise resolution
+   };
+
+   const handleCancelClick = (challengeId: string) => {
+      setConfirmCancelModal({ isOpen: true, challengeId });
+   };
+
+   const handleConfirmCancel = async () => {
+      if (!confirmCancelModal.challengeId) return;
+      try {
+         await api.delete(`/challenges/${confirmCancelModal.challengeId}`);
+         setMyChallenges(prev => prev.filter(c => c.id !== confirmCancelModal.challengeId));
+      } catch (error) {
+         console.error('Failed to cancel challenge:', error);
+         alert('İptal edilemedi.');
+      } finally {
+         setConfirmCancelModal({ isOpen: false, challengeId: null });
+      }
+   };
+
+   const handleDeleteAdClick = (adId: string) => {
+      setConfirmDeleteAdModal({ isOpen: true, adId });
+   };
+
+   const handleConfirmDeleteAd = async () => {
+      if (!confirmDeleteAdModal.adId) return;
+      try {
+         await api.delete(`/match-announcements/${confirmDeleteAdModal.adId}`);
+         setPitchAnnouncements(prev => prev.filter(p => p.id !== confirmDeleteAdModal.adId));
+      } catch (error) {
+         console.error('Failed to delete ad:', error);
+         alert('İlan silinemedi.');
+      } finally {
+         setConfirmDeleteAdModal({ isOpen: false, adId: null });
+      }
    };
 
    const handleCreateAd = (pitchId: string, hour?: number) => {
@@ -196,63 +243,42 @@ export const PitchBooking: React.FC = () => {
       );
    };
 
-   // --- SUB-COMPONENT: OFFER MODAL ---
-   const OfferModal = () => {
-      if (!offerMode) return null;
-      return (
-         <div className="fixed inset-0 z-[60] flex items-center justify-center px-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-            <div className="bg-slate-800 w-full max-w-md rounded-3xl border border-slate-700 p-6 relative">
-               {isOfferSent ? (
-                  <div className="text-center py-8">
-                     <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
-                        <CheckCircle className="w-8 h-8 text-white" />
-                     </div>
-                     <h3 className="text-2xl font-bold text-white mb-2">Teklif Gönderildi!</h3>
-                     <p className="text-slate-400">Rakip kaptan teklifini inceleyip dönüş yapacak.</p>
-                  </div>
-               ) : (
-                  <>
-                     <h3 className="text-xl font-bold text-white mb-1">Maç Teklifi Yap</h3>
-                     <p className="text-sm text-slate-400 mb-4">
-                        <span className="text-turf-500 font-bold">{offerMode.teamName}</span> takımına meydan okuyorsun.
-                     </p>
 
-                     <div className="mb-4">
-                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Rakip Kaptana Notun (Opsiyonel)</label>
-                        <textarea
-                           className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-white text-sm focus:border-turf-500 focus:outline-none transition-colors"
-                           rows={3}
-                           placeholder="Örn: Kadromuz tam, maça hazırız. Forma rengimiz kırmızı..."
-                           value={offerNote}
-                           onChange={(e) => setOfferNote(e.target.value)}
-                        />
-                     </div>
-
-                     <div className="flex gap-3">
-                        <button
-                           onClick={() => setOfferMode(null)}
-                           className="flex-1 bg-slate-700 text-white font-bold py-3 rounded-xl hover:bg-slate-600 transition-colors"
-                        >
-                           Vazgeç
-                        </button>
-                        <button
-                           onClick={handleSendOffer}
-                           className="flex-1 bg-turf-600 text-white font-bold py-3 rounded-xl hover:bg-turf-500 transition-colors shadow-lg shadow-turf-600/20"
-                        >
-                           Teklifi Gönder
-                        </button>
-                     </div>
-                  </>
-               )}
-            </div>
-         </div>
-      );
-   };
 
    return (
       <div className="pb-28 pt-20 px-4 max-w-3xl mx-auto min-h-screen bg-pitch">
          <TeamDetailModal />
-         <OfferModal />
+         <TeamDetailModal />
+
+         <OfferModal
+            isOpen={!!offerMode}
+            onClose={() => setOfferMode(null)}
+            teamName={offerMode?.teamName || ''}
+            onSend={handleSendOffer}
+         />
+
+         <ConfirmModal
+            isOpen={confirmCancelModal.isOpen}
+            onClose={() => setConfirmCancelModal({ isOpen: false, challengeId: null })}
+            onConfirm={handleConfirmCancel}
+            title="İsteği İptal Et"
+            message="Meydan okuma isteğini iptal etmek istiyor musun? Bu işlem geri alınamaz."
+            confirmText="Evet, İptal Et"
+            cancelText="Vazgeç"
+            isDangerous={true}
+         />
+
+         <ConfirmModal
+            isOpen={confirmDeleteAdModal.isOpen}
+            onClose={() => setConfirmDeleteAdModal({ isOpen: false, adId: null })}
+            onConfirm={handleConfirmDeleteAd}
+            title="İlanı Kaldır"
+            message="Bu ilanı kaldırmak istediğinize emin misiniz? Bu işlem geri alınamaz."
+            confirmText="Evet, Kaldır"
+            cancelText="Vazgeç"
+            isDangerous={true}
+         />
+
          <CreateMatchModal
             isOpen={isCreateModalOpen}
             onClose={() => setIsCreateModalOpen(false)}
@@ -419,6 +445,7 @@ export const PitchBooking: React.FC = () => {
 
                                                 // Check if this announcement belongs to user's team
                                                 const isOwnTeam = announcement.teamId === currentUser?.team?.id;
+                                                const existingChallenge = myChallenges.find(c => c.toMatchId === announcement.id && c.status === 'PENDING');
 
                                                 return (
                                                    <div key={announcement.id} className={`p-4 rounded-2xl border flex flex-col gap-3 group transition-colors relative overflow-hidden ${isOwnTeam
@@ -474,10 +501,21 @@ export const PitchBooking: React.FC = () => {
                                                          </button>
 
                                                          {isOwnTeam ? (
-                                                            <div className="bg-turf-900/30 border border-turf-500/30 text-turf-400 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2">
-                                                               <Shield className="w-4 h-4" />
-                                                               İlanınız Aktif
-                                                            </div>
+                                                            <button
+                                                               onClick={() => handleDeleteAdClick(announcement.id)}
+                                                               className="bg-turf-900/30 border border-turf-500/30 text-turf-400 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-red-900/30 hover:text-red-400 hover:border-red-900/50 transition-all group"
+                                                            >
+                                                               <span className="group-hover:hidden flex items-center gap-2"><Shield className="w-4 h-4" /> İlanınız Aktif</span>
+                                                               <span className="hidden group-hover:flex items-center gap-2"><X className="w-4 h-4" /> İlanı Kaldır</span>
+                                                            </button>
+                                                         ) : existingChallenge ? (
+                                                            <button
+                                                               onClick={() => handleCancelClick(existingChallenge.id)}
+                                                               className="bg-slate-700/50 border border-slate-600/50 text-slate-400 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-red-900/30 hover:text-red-400 hover:border-red-900/50 transition-all group"
+                                                            >
+                                                               <span className="group-hover:hidden flex items-center gap-2"><Clock className="w-4 h-4" /> İstek Gönderildi</span>
+                                                               <span className="hidden group-hover:flex items-center gap-2"><X className="w-4 h-4" /> İsteği İptal Et</span>
+                                                            </button>
                                                          ) : (
                                                             <button
                                                                onClick={() => setOfferMode({ matchId: announcement.id, teamName: team?.name || '' })}

@@ -133,4 +133,27 @@ export class MatchAnnouncementsService {
 
         return announcements;
     }
+
+    async delete(id: string, userId: string): Promise<void> {
+        const announcement = await this.matchAnnouncementsRepository.findOne({
+            where: { id },
+            relations: ['team']
+        });
+
+        if (!announcement) {
+            throw new HttpException('İlan bulunamadı', HttpStatus.NOT_FOUND);
+        }
+
+        // Verify ownership (user must be in the team that created the announcement)
+        const user = await this.usersRepository.findOne({
+            where: { id: userId },
+            relations: ['team']
+        });
+
+        if (!user?.team || user.team.id !== announcement.teamId) {
+            throw new HttpException('Bu ilanı silme yetkiniz yok', HttpStatus.FORBIDDEN);
+        }
+
+        await this.matchAnnouncementsRepository.remove(announcement);
+    }
 }

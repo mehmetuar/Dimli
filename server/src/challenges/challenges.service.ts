@@ -78,6 +78,32 @@ export class ChallengesService {
         });
     }
 
+    async findByTeamId(teamId: string): Promise<Challenge[]> {
+        return this.challengesRepository.find({
+            where: { fromTeamId: teamId },
+            order: { createdAt: 'DESC' }
+        });
+    }
+
+    async delete(id: string): Promise<void> {
+        const challenge = await this.challengesRepository.findOne({ where: { id } });
+        if (!challenge) throw new Error('Challenge not found');
+
+        // Delete related notification
+        const notification = await this.notificationsService['notificationsRepository'].findOne({
+            where: {
+                type: 'CHALLENGE',
+                relatedId: id
+            }
+        });
+
+        if (notification) {
+            await this.notificationsService.delete(notification.id);
+        }
+
+        await this.challengesRepository.delete(id);
+    }
+
     async updateStatus(id: string, status: 'ACCEPTED' | 'REJECTED'): Promise<Challenge> {
         await this.challengesRepository.update(id, { status });
         const challenge = await this.challengesRepository.findOne({ where: { id } });
@@ -143,7 +169,7 @@ export class ChallengesService {
             await this.chatService.sendMessage(
                 channel.id,
                 hostTeam.captain.id, // System message sender (can be anyone or specific system user)
-                `Maç onaylandı! ${match.date} ${match.time} - ${match.description || 'İyi maçlar!'}`,
+                `Eşleşme Onaylandı!\n${match.date} ${match.time}\n\nMaçı kesinleştirmek için Sahayı arayın ve saatinizi rezerve edin.\nAcele et! Yerinizi kapabilirler.`,
                 true
             );
         }

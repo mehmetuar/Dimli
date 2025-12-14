@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { MOCK_PITCHES, CURRENT_USER } from '../constants';
-import { Filter, Search, Plus, Calendar, MapPin, Clock, ChevronRight, Shield, Users, Star, Lock } from 'lucide-react';
+import { Filter, Search, Plus, Calendar, MapPin, Clock, ChevronRight, Shield, Users, Star, Lock, X } from 'lucide-react';
 import { LoadingSpinner } from '../components/LoadingSpinner';
+import { useNavigate } from 'react-router-dom';
 import { LevelBadge } from '../components/LevelBadge';
 import { FairPlayScore } from '../components/FairPlayScore';
 import { CreateMatchModal } from '../components/CreateMatchModal';
 import { ChallengeModal } from '../components/ChallengeModal';
+
 import { SuccessModal } from '../components/SuccessModal';
+import { ConfirmModal } from '../components/ConfirmModal';
 import api from '../services/api';
 
 export const Marketplace: React.FC = () => {
@@ -16,12 +19,17 @@ export const Marketplace: React.FC = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isChallengeModalOpen, setIsChallengeModalOpen] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState<any>(null);
+  const [myChallenges, setMyChallenges] = useState<any[]>([]);
+  const [confirmCancelModal, setConfirmCancelModal] = useState<{ isOpen: boolean; challengeId: string | null }>({ isOpen: false, challengeId: null });
+  const [confirmDeleteAdModal, setConfirmDeleteAdModal] = useState<{ isOpen: boolean; adId: string | null }>({ isOpen: false, adId: null });
 
   const [successModal, setSuccessModal] = useState<{
     isOpen: boolean;
     message: string;
-    type: 'CHALLENGE_SENT' | 'DEFAULT';
+    type: 'CHALLENGE_SENT' | 'DEFAULT' | 'CREATE_AD' | 'CHALLENGE_ACCEPTED'; // Added types
   }>({ isOpen: false, message: '', type: 'DEFAULT' });
+
+  const navigate = useNavigate();
 
   // Find user's team from currentUser
   const myTeam = currentUser?.team;
@@ -42,11 +50,12 @@ export const Marketplace: React.FC = () => {
   const handleSubmitChallenge = async (note: string) => {
     if (!myTeam || !selectedMatch) return;
     try {
-      await api.post('/challenges', {
+      const response = await api.post('/challenges', {
         fromTeamId: myTeam.id,
         toMatchId: selectedMatch.id,
         note
       });
+      setMyChallenges(prev => [...prev, response.data]);
       setSuccessModal({
         isOpen: true,
         message: 'Meydan okuma başarıyla gönderildi! Rakip takım kaptanına bildirim iletildi.',
@@ -68,6 +77,54 @@ export const Marketplace: React.FC = () => {
     }
   };
 
+  const handleCancelClick = (challengeId: string) => {
+    setConfirmCancelModal({ isOpen: true, challengeId });
+  };
+
+  const handleConfirmCancel = async () => {
+    if (!confirmCancelModal.challengeId) return;
+    try {
+      await api.delete(`/challenges/${confirmCancelModal.challengeId}`);
+      setMyChallenges(prev => prev.filter(c => c.id !== confirmCancelModal.challengeId));
+      setSuccessModal({
+        isOpen: true,
+        message: 'Meydan okuma isteği iptal edildi.',
+        type: 'DEFAULT'
+      });
+    } catch (error) {
+      console.error('Failed to cancel challenge:', error);
+      alert('İptal edilemedi.');
+    } finally {
+      setConfirmCancelModal({ isOpen: false, challengeId: null });
+    }
+  };
+
+  const handleDeleteAdClick = (adId: string) => {
+    setConfirmDeleteAdModal({ isOpen: true, adId });
+  };
+
+  const handleConfirmDeleteAd = async () => {
+    if (!confirmDeleteAdModal.adId) return;
+    try {
+      await api.delete(`/match-announcements/${confirmDeleteAdModal.adId}`);
+      // Remove the deleted ad from the list
+      setMatches(prev => prev.filter(m => m.id !== confirmDeleteAdModal.adId));
+      if (selectedMatch?.id === confirmDeleteAdModal.adId) {
+        setSelectedMatch(null);
+      }
+      setSuccessModal({
+        isOpen: true,
+        message: 'İlan başarıyla kaldırıldı.',
+        type: 'DEFAULT'
+      });
+    } catch (error) {
+      console.error('Failed to delete ad:', error);
+      alert('İlan silinemedi.');
+    } finally {
+      setConfirmDeleteAdModal({ isOpen: false, adId: null });
+    }
+  };
+
   // Fetch current user and match announcements
   useEffect(() => {
     const fetchData = async () => {
@@ -81,6 +138,16 @@ export const Marketplace: React.FC = () => {
         const announcementsResponse = await api.get('/match-announcements');
         console.log('📢 Announcements from API:', announcementsResponse.data);
         setMatches(announcementsResponse.data);
+
+        // Get my team's challenges if user has a team
+        if (userResponse.data?.team) {
+          try {
+            const challengesRes = await api.get(`/challenges/team/${userResponse.data.team.id}`);
+            setMyChallenges(challengesRes.data);
+          } catch (err) {
+            console.error('Failed to fetch my challenges', err);
+          }
+        }
       } catch (error) {
         console.error('Failed to fetch data:', error);
       } finally {
@@ -106,6 +173,28 @@ export const Marketplace: React.FC = () => {
         onClose={() => setSuccessModal({ ...successModal, isOpen: false })}
         message={successModal.message}
         type={successModal.type}
+      />
+
+      <ConfirmModal
+        isOpen={confirmCancelModal.isOpen}
+        onClose={() => setConfirmCancelModal({ isOpen: false, challengeId: null })}
+        onConfirm={handleConfirmCancel}
+        title="İsteği İptal Et"
+        message="Meydan okuma isteğini iptal etmek istiyor musun? Bu işlem geri alınamaz."
+        confirmText="Evet, İptal Et"
+        cancelText="Vazgeç"
+        isDangerous={true}
+      />
+
+      <ConfirmModal
+        isOpen={confirmDeleteAdModal.isOpen}
+        onClose={() => setConfirmDeleteAdModal({ isOpen: false, adId: null })}
+        onConfirm={handleConfirmDeleteAd}
+        title="İlanı Kaldır"
+        message="Bu ilanı kaldırmak istediğinize emin misiniz? Bu işlem geri alınamaz."
+        confirmText="Evet, Kaldır"
+        cancelText="Vazgeç"
+        isDangerous={true}
       />
 
       <header className="mb-8">
@@ -161,10 +250,20 @@ export const Marketplace: React.FC = () => {
               <div className="p-5 relative z-10">
                 {/* Own Team Banner */}
                 {isOwnTeam && (
-                  <div className="mb-4 bg-turf-600/20 border border-turf-500/50 rounded-xl px-4 py-2 flex items-center gap-2">
-                    <Shield className="w-4 h-4 text-turf-400" />
-                    <span className="text-turf-300 text-xs font-bold uppercase">Sizin İlanınız</span>
-                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteAdClick(announcement.id);
+                    }}
+                    className="w-full mb-4 bg-turf-900/30 border border-turf-500/30 text-turf-400 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-red-900/30 hover:text-red-400 hover:border-red-900/50 transition-all group"
+                  >
+                    <span className="group-hover:hidden flex items-center gap-2">
+                      <Shield className="w-4 h-4" /> Sizin İlanınız (Aktif)
+                    </span>
+                    <span className="hidden group-hover:flex items-center gap-2">
+                      <X className="w-4 h-4" /> İlanı Kaldır
+                    </span>
+                  </button>
                 )}
 
                 {/* Header: Team & Level */}
@@ -235,6 +334,14 @@ export const Marketplace: React.FC = () => {
                     <Shield className="w-4 h-4" />
                     İlanınız Aktif
                   </div>
+                ) : myChallenges.find(c => c.toMatchId === announcement.id && c.status === 'PENDING') ? (
+                  <button
+                    onClick={() => handleCancelClick(myChallenges.find(c => c.toMatchId === announcement.id && c.status === 'PENDING').id)}
+                    className="w-full bg-slate-700/50 border border-slate-600/50 text-slate-400 py-3.5 rounded-xl font-bold text-sm uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-red-900/30 hover:text-red-400 hover:border-red-900/50 transition-all group"
+                  >
+                    <span className="group-hover:hidden flex items-center gap-2"><Clock className="w-4 h-4" /> İstek Gönderildi</span>
+                    <span className="hidden group-hover:flex items-center gap-2"><X className="w-4 h-4" /> İsteği İptal Et</span>
+                  </button>
                 ) : canChallenge ? (
                   <button
                     onClick={() => handleOpenChallengeModal(announcement)}

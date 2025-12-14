@@ -106,7 +106,7 @@ export const UserProfile: React.FC = () => {
             <div className="min-h-screen bg-pitch flex flex-col items-center justify-center text-white gap-4">
                 <p>Kullanıcı bulunamadı. Lütfen giriş yapın.</p>
                 <button
-                    onClick={() => window.location.href = '/login'}
+                    onClick={() => navigate('/login')}
                     className="px-6 py-3 bg-turf-600 text-white font-bold rounded-xl hover:bg-turf-500 transition-colors"
                 >
                     Giriş Yap
@@ -134,7 +134,7 @@ export const UserProfile: React.FC = () => {
                         </div>
                         <div className="p-4 space-y-2">
                             <button
-                                onClick={() => { setIsMenuOpen(false); window.location.href = '/settings/profile'; }}
+                                onClick={() => { setIsMenuOpen(false); navigate('/settings/profile'); }}
                                 className="w-full flex items-center gap-4 p-4 rounded-2xl bg-slate-700/50 hover:bg-slate-700 text-white transition-all active:scale-95"
                             >
                                 <div className="bg-blue-500/20 p-2 rounded-full text-blue-400">
@@ -147,7 +147,7 @@ export const UserProfile: React.FC = () => {
                                 <ChevronRight className="w-5 h-5 text-slate-500" />
                             </button>
                             <button
-                                onClick={() => { localStorage.removeItem('token'); window.location.href = '/login'; }}
+                                onClick={() => { localStorage.removeItem('token'); navigate('/login'); }}
                                 className="w-full flex items-center gap-4 p-4 rounded-2xl bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-all active:scale-95 mt-4"
                             >
                                 <div className="bg-red-500/20 p-2 rounded-full text-red-400">

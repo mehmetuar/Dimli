@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Patch, Body, Param } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Delete, Body, Param } from '@nestjs/common';
 import { ChallengesService } from './challenges.service';
 
 @Controller('challenges')
@@ -23,5 +23,15 @@ export class ChallengesController {
     @Patch(':id/reject')
     async reject(@Param('id') id: string) {
         return this.challengesService.updateStatus(id, 'REJECTED');
+    }
+
+    @Get('team/:teamId')
+    async getByTeam(@Param('teamId') teamId: string) {
+        return this.challengesService.findByTeamId(teamId);
+    }
+
+    @Delete(':id')
+    async delete(@Param('id') id: string) {
+        return this.challengesService.delete(id);
     }
 }
