@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Param, UseGuards, Request } from '@nestjs/common';
 import { ChatService } from './chat.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
@@ -34,5 +34,10 @@ export class ChatController {
     @Get('unread-count')
     getUnreadCount(@Request() req) {
         return this.chatService.getUnreadCount(req.user.id);
+    }
+
+    @Delete('channels/:id')
+    deleteChannel(@Param('id') id: string, @Request() req) {
+        return this.chatService.deleteChannel(id, req.user.id);
     }
 }

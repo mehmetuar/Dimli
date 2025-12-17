@@ -2,6 +2,9 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Notification } from './notification.entity';
+import { Challenge } from '../challenges/challenge.entity';
+import { ChatChannel } from '../chat/chat-channel.entity';
+import { MatchAnnouncement } from '../match-announcements/match-announcement.entity';
 import { TeamsService } from '../teams/teams.service';
 
 @Injectable()
@@ -9,6 +12,12 @@ export class NotificationsService {
     constructor(
         @InjectRepository(Notification)
         private notificationsRepository: Repository<Notification>,
+        @InjectRepository(Challenge)
+        private challengesRepository: Repository<Challenge>,
+        @InjectRepository(ChatChannel)
+        private chatChannelsRepository: Repository<ChatChannel>,
+        @InjectRepository(MatchAnnouncement)
+        private matchAnnouncementsRepository: Repository<MatchAnnouncement>,
         private teamsService: TeamsService,
     ) { }
 
@@ -34,10 +43,73 @@ export class NotificationsService {
     }
 
     async findByUser(userId: string): Promise<Notification[]> {
-        return this.notificationsRepository.find({
+        const notifications = await this.notificationsRepository.find({
             where: { userId },
             order: { createdAt: 'DESC' },
         });
+
+        // Enrich notifications with missing metadata (Self-Repairing Logic)
+        const enrichedNotifications = await Promise.all(notifications.map(async (notification) => {
+            // Only process CHALLENGE notifications that are missing date/time
+            if (notification.type === 'CHALLENGE' && (!notification.metadata?.matchDate || !notification.metadata?.matchTime)) {
+                try {
+                    let matchId: string | null = null;
+
+                    if (notification.relatedId) {
+                        // Case 1: Notification is linked to a Challenge (Offer)
+                        const challenge = await this.challengesRepository.findOne({
+                            where: { id: notification.relatedId }
+                        });
+                        if (challenge) {
+                            matchId = challenge.toMatchId;
+                        } else {
+                            // Case 2: Notification is linked to a ChatChannel (Accepted)
+                            const channel = await this.chatChannelsRepository.findOne({
+                                where: { id: notification.relatedId }
+                            });
+                            if (channel) {
+                                matchId = channel.relatedMatchId;
+                            }
+                        }
+                    } else if (notification.metadata?.challengeId) {
+                        // Fallback: Check metadata for challengeId
+                        const challenge = await this.challengesRepository.findOne({
+                            where: { id: notification.metadata.challengeId }
+                        });
+                        if (challenge) matchId = challenge.toMatchId;
+                    }
+
+                    if (matchId) {
+                        const match = await this.matchAnnouncementsRepository.findOne({ where: { id: matchId } });
+                        if (match) {
+                            // Enriched! Update the notification
+                            notification.metadata = {
+                                ...notification.metadata,
+                                matchDate: match.date,
+                                matchTime: match.time
+                            };
+                            await this.notificationsRepository.save(notification);
+                            console.log(`🔧 Repaired notification ${notification.id} with match date: ${match.date}`);
+                        } else {
+                            // Match not found (likely deleted because it expired or was removed)
+                            // Mark as expired using a past date to ensure consistency
+                            notification.metadata = {
+                                ...notification.metadata,
+                                matchDate: '2000-01-01', // Legacy date to force expiry
+                                matchTime: '00:00'
+                            };
+                            await this.notificationsRepository.save(notification);
+                            console.log(`🔧 Repaired notification ${notification.id} as EXPIRED (Match not found)`);
+                        }
+                    }
+                } catch (error) {
+                    console.error(`Failed to repair notification ${notification.id}`, error);
+                }
+            }
+            return notification;
+        }));
+
+        return enrichedNotifications;
     }
 
     async markAsRead(id: string): Promise<Notification> {

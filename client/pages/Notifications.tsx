@@ -330,32 +330,84 @@ export const Notifications: React.FC = () => {
 
                                  {/* Challenge Actions */}
                                  {notif.type === 'CHALLENGE' && (notif.metadata?.challengeId || notif.relatedId) && !notif.metadata?.isChatRedirect && (
-                                    <div className="flex gap-2 mt-3">
-                                       <button
-                                          onClick={() => handleRejectChallenge(notif.metadata?.challengeId || notif.relatedId)}
-                                          className="flex-1 py-2 bg-slate-700 text-slate-300 rounded-lg text-xs font-bold flex items-center justify-center gap-1 hover:bg-red-900/50 hover:text-red-400 transition-colors"
-                                       >
-                                          <X className="w-3 h-3" /> Reddet
-                                       </button>
-                                       <button
-                                          onClick={() => handleAcceptChallenge(notif.metadata?.challengeId || notif.relatedId)}
-                                          className="flex-1 py-2 bg-turf-600 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1 hover:bg-turf-500 transition-colors shadow-lg shadow-turf-600/20"
-                                       >
-                                          <Check className="w-3 h-3" /> Kabul Et
-                                       </button>
-                                    </div>
+                                    (() => {
+                                       const date = notif.metadata?.matchDate;
+                                       const time = notif.metadata?.matchTime;
+                                       let isExpired = false;
+
+                                       if (date && time) {
+                                          // Handle Date object or string from backend
+                                          const dateStr = typeof date === 'string' ? date : new Date(date).toISOString().split('T')[0];
+                                          const matchDate = new Date(`${dateStr}T${time}`);
+                                          if (!isNaN(matchDate.getTime())) {
+                                             isExpired = new Date() > matchDate;
+                                          }
+                                       }
+
+                                       if (isExpired) {
+                                          return (
+                                             <div className="mt-2 bg-slate-900/50 p-2 rounded-lg border border-slate-700/50">
+                                                <p className="text-xs text-slate-500 italic">
+                                                   Bu maç teklifinin süresi doldu. (Maç saati geçti)
+                                                </p>
+                                             </div>
+                                          );
+                                       }
+
+                                       return (
+                                          <div className="flex gap-2 mt-3">
+                                             <button
+                                                onClick={() => handleRejectChallenge(notif.metadata?.challengeId || notif.relatedId)}
+                                                className="flex-1 py-2 bg-slate-700 text-slate-300 rounded-lg text-xs font-bold flex items-center justify-center gap-1 hover:bg-red-900/50 hover:text-red-400 transition-colors"
+                                             >
+                                                <X className="w-3 h-3" /> Reddet
+                                             </button>
+                                             <button
+                                                onClick={() => handleAcceptChallenge(notif.metadata?.challengeId || notif.relatedId)}
+                                                className="flex-1 py-2 bg-turf-600 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1 hover:bg-turf-500 transition-colors shadow-lg shadow-turf-600/20"
+                                             >
+                                                <Check className="w-3 h-3" /> Kabul Et
+                                             </button>
+                                          </div>
+                                       );
+                                    })()
                                  )}
 
                                  {/* Chat Redirect Action */}
                                  {notif.metadata?.isChatRedirect && (
-                                    <div className="mt-3">
-                                       <button
-                                          onClick={() => navigate('/chat', { state: { channelId: notif.metadata.channelId } })}
-                                          className="w-full py-2 bg-blue-600 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1 hover:bg-blue-500 transition-colors shadow-lg shadow-blue-600/20"
-                                       >
-                                          <MessageSquare className="w-3 h-3" /> Sohbete Git
-                                       </button>
-                                    </div>
+                                    (() => {
+                                       const date = notif.metadata?.matchDate;
+                                       const time = notif.metadata?.matchTime;
+                                       let isExpired = false;
+
+                                       if (date && time) {
+                                          // Handle Date object or string from backend
+                                          const dateStr = typeof date === 'string' ? date : new Date(date).toISOString().split('T')[0];
+                                          const matchDate = new Date(`${dateStr}T${time}`);
+
+                                          // Add 1 hour (plus allowance) for "Match End"
+                                          const matchEndDate = new Date(matchDate.getTime() + 65 * 60 * 1000);
+
+                                          if (!isNaN(matchDate.getTime())) {
+                                             isExpired = new Date() > matchEndDate;
+                                          }
+                                       }
+
+                                       return (
+                                          <div className="mt-3">
+                                             <button
+                                                onClick={() => !isExpired && navigate('/chat', { state: { channelId: notif.metadata.channelId } })}
+                                                disabled={isExpired}
+                                                className={`w-full py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-colors shadow-lg ${isExpired
+                                                      ? 'bg-slate-700 text-slate-500 cursor-not-allowed shadow-none'
+                                                      : 'bg-blue-600 text-white hover:bg-blue-500 shadow-blue-600/20'
+                                                   }`}
+                                             >
+                                                <MessageSquare className="w-3 h-3" /> {isExpired ? 'Maç Sona Erdi' : 'Sohbete Git'}
+                                             </button>
+                                          </div>
+                                       );
+                                    })()
                                  )}
                               </div>
                            </div>

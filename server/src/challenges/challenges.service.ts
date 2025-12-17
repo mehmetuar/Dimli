@@ -161,7 +161,9 @@ export class ChallengesService {
                 relatedId: channel.id,
                 metadata: {
                     channelId: channel.id,
-                    isChatRedirect: true
+                    isChatRedirect: true,
+                    matchDate: match.date,
+                    matchTime: match.time
                 }
             });
 

@@ -105,6 +105,7 @@ export class MatchAnnouncementsService {
             .delete()
             .from(MatchAnnouncement)
             .where('date < :today', { today: todayStr })
+            .andWhere('status = :status', { status: 'PENDING' })
             .execute();
 
         console.log('🧹 Cleaned up expired announcements before', todayStr);

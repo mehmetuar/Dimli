@@ -8,6 +8,62 @@ import { MOCK_CHANNELS, MOCK_MESSAGES, MOCK_TEAMS, CURRENT_USER, MOCK_JOKERS } f
 import { useLocation } from 'react-router-dom';
 import { InviteJokerModal } from '../components/InviteJokerModal';
 import api from '../services/api';
+import { useNavigate } from 'react-router-dom';
+
+// Utility Hook for Long Press
+const useLongPress = (callback: () => void, ms = 500) => {
+  const [startLongPress, setStartLongPress] = useState(false);
+  const timerRef = useRef<NodeJS.Timeout>();
+
+  useEffect(() => {
+    if (startLongPress) {
+      timerRef.current = setTimeout(callback, ms);
+    } else {
+      clearTimeout(timerRef.current);
+    }
+
+    return () => {
+      clearTimeout(timerRef.current);
+    };
+  }, [startLongPress, callback, ms]);
+
+  return {
+    onMouseDown: () => setStartLongPress(true),
+    onMouseUp: () => setStartLongPress(false),
+    onMouseLeave: () => setStartLongPress(false),
+    onTouchStart: () => setStartLongPress(true),
+    onTouchEnd: () => setStartLongPress(false),
+  };
+};
+
+// Date Formatting Helper (WhatsApp Style)
+const formatMessageDate = (dateString: string | Date) => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  const now = new Date();
+  const diff = now.getTime() - date.getTime();
+  const oneDay = 24 * 60 * 60 * 1000;
+
+  // Check if today
+  if (date.toDateString() === now.toDateString()) {
+    return date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  // Check if yesterday
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (date.toDateString() === yesterday.toDateString()) {
+    return 'Dün';
+  }
+
+  // Check if within last week
+  if (diff < 7 * oneDay) {
+    return date.toLocaleDateString('tr-TR', { weekday: 'long' });
+  }
+
+  // Older
+  return date.toLocaleDateString('tr-TR', { year: 'numeric', month: '2-digit', day: '2-digit' });
+};
 
 export const Chat: React.FC = () => {
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
@@ -17,10 +73,16 @@ export const Chat: React.FC = () => {
   const [showTactic, setShowTactic] = useState(false);
   const [tactic, setTactic] = useState('');
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+
   const [currentUser, setCurrentUser] = useState<any>(null);
+
+  // Chat Options Modal State
+  const [optionsModalChannel, setOptionsModalChannel] = useState<any | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const endRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
+  const navigate = useNavigate();
 
   // Fetch Current User
   useEffect(() => {
@@ -74,7 +136,8 @@ export const Chat: React.FC = () => {
           senderId: msg.senderId,
           senderName: msg.sender?.full_name || msg.sender?.username || 'Unknown',
           text: msg.content,
-          timestamp: new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          timestamp: formatMessageDate(msg.createdAt), // Use format helper
+          originalCreatedAt: msg.createdAt, // Keep original for reference if needed
           isMe: msg.senderId === currentUser?.id,
           isSystem: msg.isSystemMessage
         }));
@@ -125,7 +188,7 @@ export const Chat: React.FC = () => {
         senderId: msg.senderId,
         senderName: msg.sender?.full_name || msg.sender?.username || 'Unknown',
         text: msg.content,
-        timestamp: new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        timestamp: formatMessageDate(msg.createdAt), // Use format helper
         isMe: msg.senderId === currentUser?.id,
         isSystem: msg.isSystemMessage
       }));
@@ -148,6 +211,25 @@ export const Chat: React.FC = () => {
     const contextLevel = activeChannel.type === 'MATCH_GROUP' ? SkillLevel.ADVANCED : SkillLevel.INTERMEDIATE;
     const advice = await getTacticalAdvice(contextLevel, SkillLevel.INTERMEDIATE);
     setTactic(advice);
+  };
+
+  const handleDeleteChannel = async () => {
+    if (!optionsModalChannel) return;
+
+    setIsDeleting(true);
+    try {
+      await api.delete(`/chat/channels/${optionsModalChannel.id}`);
+      // Remove from list locally
+      setChannels(prev => prev.filter(c => c.id !== optionsModalChannel.id));
+      setOptionsModalChannel(null); // Close modal
+    } catch (error: any) {
+      console.error('Failed to delete channel:', error);
+      // Extract message from error response if available
+      const message = error.response?.data?.message || 'Sohbet silinemedi. Maç saati geçmemiş olabilir.';
+      alert(message);
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   useEffect(() => {
@@ -173,43 +255,72 @@ export const Chat: React.FC = () => {
               Henüz aktif sohbet yok.
             </div>
           ) : (
-            channels.map(channel => (
-              <div
-                key={channel.id}
-                onClick={() => setSelectedChannelId(channel.id)}
-                className="bg-slate-800 p-4 rounded-2xl border border-slate-700 flex gap-4 items-center hover:bg-slate-750 active:scale-95 transition-all cursor-pointer"
-              >
-                <div className="relative">
-                  <img src={channel.avatarUrl || 'https://picsum.photos/200'} alt={channel.name} className={`w-14 h-14 object-cover ${channel.type === 'MATCH_GROUP' ? 'rounded-2xl' : 'rounded-full'}`} />
-                  {channel.type === 'MATCH_GROUP' && (
-                    <div className="absolute -bottom-1 -right-1 bg-turf-600 p-1 rounded-lg border border-slate-800">
-                      <Users className="w-3 h-3 text-white" />
-                    </div>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-start">
-                    <h4 className="text-white font-bold truncate pr-2">{channel.name}</h4>
-                    <div className="flex flex-col items-end gap-1">
-                      <span className={`text-[10px] whitespace-nowrap ${channel.unreadCount > 0 ? 'text-blue-500 font-bold' : 'text-slate-500'}`}>
-                        {new Date(channel.lastActivityAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                      {channel.unreadCount > 0 && (
-                        <div className="bg-blue-500 text-white text-[10px] font-bold min-w-[1.25rem] h-5 px-1.5 rounded-full flex items-center justify-center">
-                          {channel.unreadCount}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <p className="text-sm truncate mt-0.5 text-slate-400">
-                    {channel.type === 'MATCH_GROUP' && <span className="text-turf-500 font-bold mr-1">Takım:</span>}
-                    {channel.lastMessage?.content || 'Sohbete gitmek için tıkla'}
-                  </p>
-                </div>
-              </div>
-            ))
+            channels.map(channel => {
+              // We need a way to pass the channel to the long press callback
+              // Wrapper component or inline logic? Inline logic with closure is tricky for hook.
+              // Let's implement the handlers directly on the div without the generic hook for simplicity in map loop
+              // actually, we can't call hooks inside callback.
+
+              // Better approach: Create a sub-component for ChannelItem? 
+              // Or just use simple native events.
+
+              return (
+                <ChannelItem
+                  key={channel.id}
+                  channel={channel}
+                  onClick={() => setSelectedChannelId(channel.id)}
+                  onLongPress={() => setOptionsModalChannel(channel)}
+                />
+              );
+            })
           )}
         </div>
+
+        {/* --- CHAT OPTIONS MODAL --- */}
+        {optionsModalChannel && (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center px-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+            <div className="bg-slate-800 w-full max-w-sm rounded-3xl border border-slate-700 p-6 relative">
+              <button
+                onClick={() => setOptionsModalChannel(null)}
+                className="absolute top-4 right-4 text-slate-500 hover:text-white"
+              >
+                <ChevronLeft className="w-6 h-6 rotate-180" /> {/* Or X icon */}
+              </button>
+
+              <h3 className="text-xl font-bold text-white mb-2 text-center">{optionsModalChannel.name}</h3>
+              <p className="text-slate-400 text-sm text-center mb-6">Bu sohbet için ne yapmak istersin?</p>
+
+              <div className="space-y-3">
+                <button
+                  onClick={() => {
+                    // setSelectedChannelId(optionsModalChannel.id); // No "Go to chat" button needed inside options if normal click works
+                    // But maybe keep it? The user asked for "options".
+                    // Request: "Sohbete tıkladığım zaman direk gir. Eğer basılı tutarsam sohbeti sil modalını aç"
+                    // So the modal is predominantly for deleting.
+                    setOptionsModalChannel(null); // Close modal
+                  }}
+                  className="w-full bg-slate-700 text-white font-bold py-3 rounded-xl hover:bg-slate-600 transition-colors flex items-center justify-center gap-2"
+                >
+                  Vazgeç
+                </button>
+
+                <button
+                  onClick={handleDeleteChannel}
+                  disabled={isDeleting}
+                  className="w-full bg-slate-900 border border-slate-700 text-slate-400 hover:text-red-400 hover:border-red-900/50 font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2"
+                >
+                  {isDeleting ? 'Siliniyor...' : (
+                    <><Shield className="w-5 h-5" /> Sohbeti Sil (Temizle)</>
+                  )}
+                </button>
+              </div>
+
+              <p className="text-[10px] text-slate-600 text-center mt-4">
+                Not: Maç saati geçmeyen sohbetler silinemez.
+              </p>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -258,13 +369,21 @@ export const Chat: React.FC = () => {
               </button>
             )}
 
-            <button
+            {/* <button
               onClick={handleGetTactics}
               className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-lg shadow-purple-500/20"
             >
               <Bot className="w-4 h-4" />
               <span className="text-xs font-bold hidden sm:inline">Koç'a Sor</span>
-            </button>
+            </button> */}
+
+            <a
+              href="tel:05555555555"
+              className="bg-turf-600 hover:bg-turf-500 text-white px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-lg shadow-turf-600/20 transition-colors"
+            >
+              <Phone className="w-4 h-4" />
+              <span className="text-xs font-bold hidden sm:inline">Sahayı Ara</span>
+            </a>
           </div>
         </div>
 
@@ -377,6 +496,94 @@ export const Chat: React.FC = () => {
             <Send className="w-5 h-5" />
           </button>
         </div>
+      </div>
+    </div>
+  );
+};
+
+// Extracted Component to handle hooks per item
+interface ChannelItemProps {
+  channel: any;
+  onClick: () => void;
+  onLongPress: () => void;
+}
+
+const ChannelItem: React.FC<ChannelItemProps> = ({ channel, onClick, onLongPress }) => {
+  const [startLongPress, setStartLongPress] = useState(false);
+  const [isLongPressTriggered, setIsLongPressTriggered] = useState(false);
+  const timerRef = useRef<any>();
+
+  useEffect(() => {
+    if (startLongPress) {
+      timerRef.current = setTimeout(() => {
+        onLongPress();
+        setIsLongPressTriggered(true);
+      }, 500);
+    } else {
+      clearTimeout(timerRef.current);
+    }
+
+    return () => clearTimeout(timerRef.current);
+  }, [startLongPress, onLongPress]);
+
+  const handleMouseDown = () => {
+    setStartLongPress(true);
+    setIsLongPressTriggered(false);
+  };
+
+  const handleMouseUp = () => {
+    setStartLongPress(false);
+  };
+
+  const handleMouseLeave = () => {
+    setStartLongPress(false);
+  };
+
+  const handleClick = (e: React.MouseEvent) => {
+    if (isLongPressTriggered) {
+      // Prevent click if long press triggered
+      e.stopPropagation();
+      return;
+    }
+    onClick();
+  };
+
+  return (
+    <div
+      onMouseDown={handleMouseDown}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseLeave}
+      onTouchStart={handleMouseDown}
+      onTouchEnd={handleMouseUp}
+      onClick={handleClick}
+      className="bg-slate-800 p-4 rounded-2xl border border-slate-700 flex gap-4 items-center hover:bg-slate-750 active:scale-95 transition-all cursor-pointer select-none"
+    >
+      <div className="relative">
+        <img src={channel.avatarUrl || 'https://picsum.photos/200'} alt={channel.name} className={`w-14 h-14 object-cover ${channel.type === 'MATCH_GROUP' ? 'rounded-2xl' : 'rounded-full'}`} />
+        {channel.type === 'MATCH_GROUP' && (
+          <div className="absolute -bottom-1 -right-1 bg-turf-600 p-1 rounded-lg border border-slate-800">
+            <Users className="w-3 h-3 text-white" />
+          </div>
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex justify-between items-start">
+          <h4 className="text-white font-bold truncate pr-2">{channel.name}</h4>
+          <div className="flex flex-col items-end gap-1">
+            <span className={`text-[10px] whitespace-nowrap ${channel.unreadCount > 0 ? 'text-blue-500 font-bold' : 'text-slate-500'}`}>
+              {formatMessageDate(channel.lastActivityAt)}
+            </span>
+            {channel.unreadCount > 0 && (
+              <div className="bg-blue-500 text-white text-[10px] font-bold min-w-[1.25rem] h-5 px-1.5 rounded-full flex items-center justify-center">
+                {channel.unreadCount}
+              </div>
+            )}
+          </div>
+        </div>
+        <p className="text-sm truncate mt-0.5 text-slate-400">
+          {channel.type === 'MATCH_GROUP' && <span className="text-turf-500 font-bold mr-1">Takım:</span>}
+          {channel.lastMessage?.content || 'Sohbete gitmek için tıkla'}
+        </p>
       </div>
     </div>
   );

@@ -10,7 +10,7 @@ export class ChatParticipant {
     @Column()
     channelId: string;
 
-    @ManyToOne(() => ChatChannel, channel => channel.participants)
+    @ManyToOne(() => ChatChannel, channel => channel.participants, { onDelete: 'CASCADE' })
     @JoinColumn({ name: 'channelId' })
     channel: ChatChannel;
 

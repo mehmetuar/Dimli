@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException, ForbiddenException, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ChatChannel } from './chat-channel.entity';
@@ -119,5 +119,87 @@ export class ChatService {
             totalUnread += count;
         }
         return totalUnread;
+    }
+
+    async deleteChannel(channelId: string, userId: string): Promise<void> {
+        const logger = new Logger('ChatService');
+        logger.log(`Attempting to delete channel ${channelId} by user ${userId}`);
+
+        const channel = await this.chatChannelRepository.findOne({ where: { id: channelId } });
+        if (!channel) throw new NotFoundException('Channel not found');
+
+        logger.debug(`Channel found: ${channel.id}, Type: ${channel.type}, RelatedMatchId: ${channel.relatedMatchId}`);
+
+        if (channel.type === 'MATCH_GROUP' && channel.relatedMatchId) {
+            try {
+                // If relatedMatchId is a UUID, assume it's a match announcement
+                logger.debug(`Querying match announcement for ID: ${channel.relatedMatchId}`);
+
+                const matches = await this.chatChannelRepository.manager.query(
+                    `SELECT id, date, time FROM match_announcements WHERE id = $1`,
+                    [channel.relatedMatchId]
+                );
+
+                logger.debug(`Match query result: ${JSON.stringify(matches)}`);
+
+                if (matches && matches.length > 0) {
+                    const match = matches[0];
+
+                    // Robust Date Parsing
+                    // 'date' column might return as Date object or string 'YYYY-MM-DD'
+                    let dateStr = '';
+                    if (match.date instanceof Date) {
+                        // Extract YYYY-MM-DD from Date object
+                        dateStr = match.date.toISOString().split('T')[0];
+                    } else {
+                        dateStr = match.date; // Assume formatted string or raw string
+                    }
+
+                    // Combine with time 'HH:MM'
+                    const matchDateTimeStr = `${dateStr}T${match.time}`;
+                    let matchDate = new Date(matchDateTimeStr);
+
+                    // Check if date parse was valid
+                    if (isNaN(matchDate.getTime())) {
+                        logger.error(`Invalid date parsing. Raw Date: ${match.date}, Raw Time: ${match.time}, Combined: ${matchDateTimeStr}`);
+                        // If parsing fails for some reason, we shouldn't block deletion indefinitely with 500.
+                        // But let's throw Bad Request for now.
+                        throw new BadRequestException('Match date data is corrupt or invalid.');
+                    }
+
+                    const matchEndDate = new Date(matchDate.getTime() + 60 * 60 * 1000); // +1 hour duration
+                    const now = new Date();
+
+                    logger.debug(`Match End Date: ${matchEndDate.toISOString()}, Current Time: ${now.toISOString()}`);
+
+                    if (now < matchEndDate) {
+                        logger.warn(`Deletion blocked: Match end time not passed yet.`);
+                        // Using ForbiddenException gives a 403 status
+                        throw new ForbiddenException('Maç saati geçmediği için sohbet silinemez.');
+                    }
+                } else {
+                    logger.warn(`No match announcement found for ID ${channel.relatedMatchId}. Deletion allowed (fallback).`);
+                }
+            } catch (error) {
+                logger.error(`Error during match verification: ${error.message}`);
+                if (error instanceof ForbiddenException || error instanceof BadRequestException) {
+                    throw error;
+                }
+                // For other DB errors, throw Internal Server Error or just rethrow
+                throw new BadRequestException('Failed to verify match status for deletion.');
+            }
+        }
+
+        // Verify participant
+        const participant = await this.chatParticipantRepository.findOne({
+            where: { channelId, userId }
+        });
+
+        if (!participant) {
+            throw new ForbiddenException('You are not a participant of this channel.');
+        }
+
+        await this.chatChannelRepository.delete(channelId);
+        logger.log(`Channel ${channelId} deleted successfully.`);
     }
 }
