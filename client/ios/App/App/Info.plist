@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-        <string>SahaPro</string>
+	<string>DIMLİ</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -45,7 +45,7 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
-    <key>NSLocationWhenInUseUsageDescription</key>
-    <string>SahaPro needs your location to find nearby pitches and players.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>DIMLİ needs your location to find nearby pitches and players.</string>
 </dict>
 </plist>

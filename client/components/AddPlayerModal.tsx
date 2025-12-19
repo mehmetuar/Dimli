@@ -58,7 +58,7 @@ export const AddPlayerModal: React.FC<Props> = ({ isOpen, onClose, currentRoster
     };
 
     const copyInviteLink = () => {
-        const link = `https://sahapro.app/invite/team/${teamId}`;
+        const link = `https://dimli.app/invite/team/${teamId}`;
         navigator.clipboard.writeText(link);
         alert("Davet linki kopyalandı! Arkadaşına gönderebilirsin.");
     };

@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.sahapro.app',
-  appName: 'SahaPro',
+  appName: 'DIMLİ',
   webDir: 'dist'
 };
 
