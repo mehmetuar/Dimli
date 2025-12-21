@@ -1,9 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
-import { Bell, Check, X, Calendar, Shield, Info, ChevronRight, UserPlus, CheckCircle, AlertCircle, MessageSquare } from 'lucide-react';
+import { Bell, Check, X, Calendar, Shield, Info, ChevronRight, UserPlus, CheckCircle, AlertCircle, MessageSquare, MapPin, Handshake } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { LoadingSpinner } from '../components/LoadingSpinner';
+import { PlayerDetailModal } from '../components/PlayerDetailModal';
+import { Position, Player } from '../types';
 
 interface JoinRequest {
    id: string;
@@ -12,6 +14,11 @@ interface JoinRequest {
       username: string;
       full_name?: string;
       position?: string;
+      birthDate?: string;
+      foot?: string;
+      secondaryPosition?: string;
+      location?: string;
+      avatarUrl?: string;
    };
    teamId: string;
    message?: string;
@@ -38,6 +45,8 @@ export const Notifications: React.FC = () => {
    const [successMessage, setSuccessMessage] = useState('');
    const [errorMessage, setErrorMessage] = useState('');
    const navigate = useNavigate();
+   const [selectedJoinRequest, setSelectedJoinRequest] = useState<JoinRequest | null>(null);
+
 
    useEffect(() => {
       fetchData();
@@ -232,54 +241,58 @@ export const Notifications: React.FC = () => {
                         filteredJoinRequests.map(request => (
                            <div
                               key={request.id}
-                              className="relative bg-slate-800 rounded-2xl border border-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.1)] overflow-hidden"
+                              className="p-4 rounded-2xl border flex gap-4 items-center transition-all cursor-pointer group relative overflow-hidden bg-slate-800 border-slate-700 hover:border-turf-500/50 hover:bg-slate-800/80"
+                              onClick={() => {
+                                 setSelectedJoinRequest(request);
+                              }}
                            >
-                              <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-blue-500"></div>
+                              {/* Highlight Effect */}
+                              <div className="absolute right-0 top-0 w-20 h-full bg-gradient-to-l from-black/20 to-transparent pointer-events-none"></div>
 
-                              <div className="p-4 pl-6">
-                                 <div className="flex justify-between items-start mb-2">
-                                    <h3 className="font-bold text-white text-lg flex items-center gap-2">
-                                       <UserPlus className="w-5 h-5 text-blue-500" />
-                                       Katılma İsteği
+                              <div className="relative">
+                                 <img
+                                    src={`https://ui-avatars.com/api/?name=${request.user.full_name || request.user.username}&background=0D8ABC&color=fff`}
+                                    alt={request.user.username}
+                                    className="w-16 h-16 rounded-full object-cover border-2 border-slate-600 group-hover:border-turf-500 transition-colors"
+                                 />
+                              </div>
+                              <div className="flex-1 min-w-0 relative z-10">
+                                 <div className="flex justify-between items-start">
+                                    <h3 className="font-bold text-white text-lg truncate group-hover:text-turf-400 transition-colors">
+                                       {request.user.full_name || request.user.username}
                                     </h3>
                                     <span className="text-[10px] font-bold text-slate-500 uppercase">
                                        {new Date(request.createdAt).toLocaleDateString('tr-TR')}
                                     </span>
                                  </div>
 
-                                 <div className="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50">
-                                    <div className="flex items-center gap-3 mb-2">
-                                       <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-white font-bold">
-                                          {request.user.full_name?.[0] || request.user.username[0]}
-                                       </div>
-                                       <div>
-                                          <div className="text-white font-bold">
-                                             {request.user.full_name || request.user.username}
-                                          </div>
-                                          <div className="text-xs text-slate-400">
-                                             {request.user.position || 'Oyuncu'}
-                                          </div>
-                                       </div>
-                                    </div>
+                                 <div className="flex items-center gap-1 text-xs text-slate-400 mt-0.5 mb-2">
+                                    <MapPin className="w-3 h-3 text-turf-600" /> İstanbul
+                                 </div>
 
-                                    {request.message && (
-                                       <p className="text-xs text-slate-300 italic mb-3">"{request.message}"</p>
-                                    )}
+                                 {request.message && (
+                                    <p className="text-xs text-slate-300 italic mb-2 line-clamp-1">"{request.message}"</p>
+                                 )}
 
-                                    <div className="flex gap-2">
-                                       <button
-                                          onClick={() => handleRejectJoinRequest(request.id)}
-                                          className="flex-1 py-2 bg-slate-700 text-slate-300 rounded-lg text-xs font-bold flex items-center justify-center gap-1 hover:bg-red-900/50 hover:text-red-400 transition-colors"
-                                       >
-                                          <X className="w-3 h-3" /> Reddet
-                                       </button>
-                                       <button
-                                          onClick={() => handleAcceptJoinRequest(request.id)}
-                                          className="flex-1 py-2 bg-turf-600 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1 hover:bg-turf-500 transition-colors shadow-lg shadow-turf-600/20"
-                                       >
-                                          <Check className="w-3 h-3" /> Kabul Et
-                                       </button>
-                                    </div>
+                                 <div className="flex gap-2 mt-2">
+                                    <button
+                                       onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleAcceptJoinRequest(request.id);
+                                       }}
+                                       className="flex-1 py-1.5 bg-turf-600 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1 hover:bg-turf-500 transition-colors shadow-lg shadow-turf-600/20"
+                                    >
+                                       <Check className="w-3 h-3" /> Kabul Et
+                                    </button>
+                                    <button
+                                       onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleRejectJoinRequest(request.id);
+                                       }}
+                                       className="flex-1 py-1.5 bg-slate-700 text-slate-300 rounded-lg text-xs font-bold flex items-center justify-center gap-1 hover:bg-red-900/50 hover:text-red-400 transition-colors"
+                                    >
+                                       <X className="w-3 h-3" /> Reddet
+                                    </button>
                                  </div>
                               </div>
                            </div>
@@ -399,8 +412,8 @@ export const Notifications: React.FC = () => {
                                                 onClick={() => !isExpired && navigate('/chat', { state: { channelId: notif.metadata.channelId } })}
                                                 disabled={isExpired}
                                                 className={`w-full py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-colors shadow-lg ${isExpired
-                                                      ? 'bg-slate-700 text-slate-500 cursor-not-allowed shadow-none'
-                                                      : 'bg-blue-600 text-white hover:bg-blue-500 shadow-blue-600/20'
+                                                   ? 'bg-slate-700 text-slate-500 cursor-not-allowed shadow-none'
+                                                   : 'bg-blue-600 text-white hover:bg-blue-500 shadow-blue-600/20'
                                                    }`}
                                              >
                                                 <MessageSquare className="w-3 h-3" /> {isExpired ? 'Maç Sona Erdi' : 'Sohbete Git'}
@@ -417,6 +430,26 @@ export const Notifications: React.FC = () => {
                )}
             </div>
          )}
+         <PlayerDetailModal
+            isOpen={!!selectedJoinRequest}
+            onClose={() => setSelectedJoinRequest(null)}
+            player={selectedJoinRequest ? {
+               id: selectedJoinRequest.user.id,
+               name: selectedJoinRequest.user.full_name || selectedJoinRequest.user.username,
+               username: selectedJoinRequest.user.username,
+               position: (selectedJoinRequest.user.position === 'Forvet' ? Position.FWD : selectedJoinRequest.user.position as Position) || Position.FWD,
+               avatarUrl: selectedJoinRequest.user.avatarUrl || `https://ui-avatars.com/api/?name=${selectedJoinRequest.user.full_name || selectedJoinRequest.user.username}&background=0D8ABC&color=fff`,
+               location: selectedJoinRequest.user.location || 'İstanbul',
+               birthDate: selectedJoinRequest.user.birthDate,
+               foot: selectedJoinRequest.user.foot,
+               secondaryPosition: selectedJoinRequest.user.secondaryPosition,
+               isJoker: true,
+               sharesFee: false,
+               form: ['W', 'D', 'W', 'W', 'L']
+            } : null}
+            onAccept={() => selectedJoinRequest && handleAcceptJoinRequest(selectedJoinRequest.id)}
+            onReject={() => selectedJoinRequest && handleRejectJoinRequest(selectedJoinRequest.id)}
+         />
       </div>
    );
 };

@@ -31,6 +31,12 @@ export const PitchBooking: React.FC = () => {
    // Current user for own announcement detection
    const [currentUser, setCurrentUser] = useState<any>(null);
 
+   // Check if user is authorized (captain or vice-captain)
+   const isAuthorized = () => {
+      if (!currentUser?.team) return false;
+      return currentUser.team.captainId === currentUser.id || currentUser.team.viceCaptainIds?.includes(currentUser.id) || false;
+   };
+
    // Announcements for the currently expanded pitch
    const [pitchAnnouncements, setPitchAnnouncements] = useState<any[]>([]);
 
@@ -375,9 +381,15 @@ export const PitchBooking: React.FC = () => {
                                        slotClass = 'bg-red-900/20 border-red-900/50 text-red-700 opacity-70 cursor-not-allowed';
                                        label = 'DOLU';
                                     } else {
-                                       slotClass = 'bg-slate-800 border-slate-700 text-slate-300 hover:border-turf-500 hover:text-white cursor-pointer';
-                                       label = 'BOŞ';
-                                       action = () => handleCreateAd(pitch.id, slot.hour);
+                                       if (isAuthorized()) {
+                                          slotClass = 'bg-slate-800 border-slate-700 text-slate-300 hover:border-turf-500 hover:text-white cursor-pointer';
+                                          label = 'BOŞ';
+                                          action = () => handleCreateAd(pitch.id, slot.hour);
+                                       } else {
+                                          slotClass = 'bg-slate-800 border-slate-700 text-slate-500 opacity-60 cursor-not-allowed';
+                                          label = 'BOŞ';
+                                          // No action for unauthorized users
+                                       }
                                     }
 
                                     return (
@@ -389,7 +401,7 @@ export const PitchBooking: React.FC = () => {
                                           <span className="text-lg font-sport font-bold">{slot.hour}:00</span>
                                           <span className="text-[10px] font-bold mt-1">{label}</span>
 
-                                          {slot.status === 'AVAILABLE' && (
+                                          {slot.status === 'AVAILABLE' && isAuthorized() && (
                                              <div className="absolute inset-0 bg-turf-600/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <span className="text-white font-bold text-xs">+ İlan Aç</span>
                                              </div>
@@ -501,13 +513,19 @@ export const PitchBooking: React.FC = () => {
                                                          </button>
 
                                                          {isOwnTeam ? (
-                                                            <button
-                                                               onClick={() => handleDeleteAdClick(announcement.id)}
-                                                               className="bg-turf-900/30 border border-turf-500/30 text-turf-400 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-red-900/30 hover:text-red-400 hover:border-red-900/50 transition-all group"
-                                                            >
-                                                               <span className="group-hover:hidden flex items-center gap-2"><Shield className="w-4 h-4" /> İlanınız Aktif</span>
-                                                               <span className="hidden group-hover:flex items-center gap-2"><X className="w-4 h-4" /> İlanı Kaldır</span>
-                                                            </button>
+                                                            isAuthorized() ? (
+                                                               <button
+                                                                  onClick={() => handleDeleteAdClick(announcement.id)}
+                                                                  className="bg-turf-900/30 border border-turf-500/30 text-turf-400 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-red-900/30 hover:text-red-400 hover:border-red-900/50 transition-all group"
+                                                               >
+                                                                  <span className="group-hover:hidden flex items-center gap-2"><Shield className="w-4 h-4" /> İlanınız Aktif</span>
+                                                                  <span className="hidden group-hover:flex items-center gap-2"><X className="w-4 h-4" /> İlanı Kaldır</span>
+                                                               </button>
+                                                            ) : (
+                                                               <div className="bg-turf-900/20 border border-turf-500/20 text-turf-500 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-not-allowed">
+                                                                  <Shield className="w-4 h-4" /> Sizin İlanınız
+                                                               </div>
+                                                            )
                                                          ) : existingChallenge ? (
                                                             <button
                                                                onClick={() => handleCancelClick(existingChallenge.id)}
@@ -535,12 +553,14 @@ export const PitchBooking: React.FC = () => {
                               ) : (
                                  <div className="text-center py-8 border-2 border-dashed border-slate-700 rounded-xl bg-slate-800/50">
                                     <p className="text-slate-500 text-sm mb-3">Bu sahada henüz aktif ilan yok.</p>
-                                    <button
-                                       onClick={() => handleCreateAd(pitch.id)}
-                                       className="text-slate-900 bg-turf-500 px-6 py-2 rounded-lg text-sm font-bold hover:scale-105 transition-transform"
-                                    >
-                                       İlk ilanı sen aç!
-                                    </button>
+                                    {isAuthorized() && (
+                                       <button
+                                          onClick={() => handleCreateAd(pitch.id)}
+                                          className="text-slate-900 bg-turf-500 px-6 py-2 rounded-lg text-sm font-bold hover:scale-105 transition-transform"
+                                       >
+                                          İlk ilanı sen aç!
+                                       </button>
+                                    )}
                                  </div>
                               )}
                            </div>

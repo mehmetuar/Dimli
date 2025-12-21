@@ -250,20 +250,26 @@ export const Marketplace: React.FC = () => {
               <div className="p-5 relative z-10">
                 {/* Own Team Banner */}
                 {isOwnTeam && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteAdClick(announcement.id);
-                    }}
-                    className="w-full mb-4 bg-turf-900/30 border border-turf-500/30 text-turf-400 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-red-900/30 hover:text-red-400 hover:border-red-900/50 transition-all group"
-                  >
-                    <span className="group-hover:hidden flex items-center gap-2">
-                      <Shield className="w-4 h-4" /> Sizin İlanınız (Aktif)
-                    </span>
-                    <span className="hidden group-hover:flex items-center gap-2">
-                      <X className="w-4 h-4" /> İlanı Kaldır
-                    </span>
-                  </button>
+                  isAuthorized() ? (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteAdClick(announcement.id);
+                      }}
+                      className="w-full mb-4 bg-turf-900/30 border border-turf-500/30 text-turf-400 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-red-900/30 hover:text-red-400 hover:border-red-900/50 transition-all group"
+                    >
+                      <span className="group-hover:hidden flex items-center gap-2">
+                        <Shield className="w-4 h-4" /> Sizin İlanınız (Aktif)
+                      </span>
+                      <span className="hidden group-hover:flex items-center gap-2">
+                        <X className="w-4 h-4" /> İlanı Kaldır
+                      </span>
+                    </button>
+                  ) : (
+                    <div className="w-full mb-4 bg-turf-900/20 border border-turf-500/20 text-turf-500 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2">
+                      <Shield className="w-4 h-4" /> Sizin İlanınız (Yönetici Değilsiniz)
+                    </div>
+                  )
                 )}
 
                 {/* Header: Team & Level */}
@@ -380,12 +386,14 @@ export const Marketplace: React.FC = () => {
       )}
 
       {/* Floating Action Button */}
-      <button
-        onClick={() => setIsCreateModalOpen(true)}
-        className="fixed bottom-36 right-6 bg-turf-600 text-white p-4 rounded-2xl shadow-xl shadow-turf-600/40 hover:scale-110 transition-transform z-40 border-2 border-white/20 rotate-3 hover:rotate-0"
-      >
-        <span className="font-black text-2xl leading-none">+</span>
-      </button>
+      {isAuthorized() && (
+        <button
+          onClick={() => setIsCreateModalOpen(true)}
+          className="fixed bottom-36 right-6 bg-turf-600 text-white p-4 rounded-2xl shadow-xl shadow-turf-600/40 hover:scale-110 transition-transform z-40 border-2 border-white/20 rotate-3 hover:rotate-0"
+        >
+          <span className="font-black text-2xl leading-none">+</span>
+        </button>
+      )}
     </div>
   );
 };
