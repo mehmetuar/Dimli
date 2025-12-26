@@ -231,6 +231,7 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
                                     <Calendar className="absolute left-3 top-3 w-4 h-4 text-slate-500" />
                                     <input
                                         type="date"
+                                        min={getTodayDate()}
                                         className="w-full bg-slate-900 border border-slate-700 rounded-xl py-2.5 pl-10 pr-3 text-white text-sm focus:border-turf-500 focus:outline-none"
                                         value={date}
                                         onChange={(e) => setDate(e.target.value)}
@@ -246,9 +247,18 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
                                         onChange={(e) => setTime(e.target.value)}
                                     >
                                         <option value="">Saat Seç</option>
-                                        {Array.from({ length: 14 }, (_, i) => i + 10).map(h => (
-                                            <option key={h} value={`${h}:00`}>{h}:00 - {h + 1}:00</option>
-                                        ))}
+                                        {Array.from({ length: 14 }, (_, i) => i + 10)
+                                            .filter(h => {
+                                                const today = getTodayDate();
+                                                if (date === today) {
+                                                    const currentHour = new Date().getHours();
+                                                    return h > currentHour;
+                                                }
+                                                return true;
+                                            })
+                                            .map(h => (
+                                                <option key={h} value={`${h}:00`}>{h}:00 - {h + 1}:00</option>
+                                            ))}
                                     </select>
                                 </div>
                             </div>

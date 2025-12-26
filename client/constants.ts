@@ -30,6 +30,7 @@ export const MOCK_PITCHES: Pitch[] = [
     imageUrl: 'https://picsum.photos/800/400?random=10',
     facilities: ['Duş', 'Kafeterya', 'Otopark', 'Video'],
     phone: '0555-111-2233',
+    coordinates: { lat: 41.0260, lng: 29.0170 }, // Üsküdar
     schedule: [
       { hour: 18, status: 'BOOKED', activeAdIds: [] },
       { hour: 19, status: 'AVAILABLE', activeAdIds: [] },
@@ -48,6 +49,7 @@ export const MOCK_PITCHES: Pitch[] = [
     imageUrl: 'https://picsum.photos/800/400?random=11',
     facilities: ['Duş', 'Krampon Kiralama', 'Video Kaydı', 'Tribün'],
     phone: '0555-444-5566',
+    coordinates: { lat: 41.0422, lng: 29.0067 }, // Beşiktaş
     schedule: [
       { hour: 19, status: 'BOOKED', activeAdIds: [] },
       { hour: 20, status: 'BOOKED', activeAdIds: [] },
@@ -65,6 +67,7 @@ export const MOCK_PITCHES: Pitch[] = [
     imageUrl: 'https://picsum.photos/800/400?random=12',
     facilities: ['Otopark', 'Büfe'],
     phone: '0532-123-4567',
+    coordinates: { lat: 41.0536, lng: 28.9774 }, // Şişli
     schedule: [
       { hour: 18, status: 'AVAILABLE', activeAdIds: [] },
       { hour: 19, status: 'AVAILABLE', activeAdIds: [] },
@@ -82,6 +85,7 @@ export const MOCK_PITCHES: Pitch[] = [
     imageUrl: 'https://picsum.photos/800/400?random=13',
     facilities: ['Deniz Manzarası', 'Duş', 'Otopark'],
     phone: '0532-999-8877',
+    coordinates: { lat: 40.9254, lng: 29.1309 }, // Maltepe
     schedule: generateMockSchedule(18, 24)
   },
   {
@@ -93,6 +97,7 @@ export const MOCK_PITCHES: Pitch[] = [
     imageUrl: 'https://picsum.photos/800/400?random=14',
     facilities: ['Kapalı Saha', 'Klima', 'Servis'],
     phone: '0532-777-6655',
+    coordinates: { lat: 40.9850, lng: 29.1240 }, // Ataşehir
     schedule: generateMockSchedule(17, 23)
   },
   {
@@ -104,6 +109,7 @@ export const MOCK_PITCHES: Pitch[] = [
     imageUrl: 'https://picsum.photos/800/400?random=15',
     facilities: ['Doğa İçinde', 'Büfe'],
     phone: '0532-555-4433',
+    coordinates: { lat: 41.1186, lng: 29.0950 }, // Beykoz
     schedule: generateMockSchedule(16, 22)
   }
 ];
@@ -118,6 +124,7 @@ export const MOCK_TEAMS: Team[] = [
     viceCaptainIds: ['u5', 'u6'], // 2 vice-captains
     level: SkillLevel.INTERMEDIATE,
     location: 'Kadıköy, İstanbul',
+    coordinates: { lat: 40.9819, lng: 29.0256 },
     homePitchId: 'p1',
     fairPlayScore: 4.8,
     description: 'Kaybetsek de güleriz, ama kolay kaybetmeyiz.',
@@ -134,6 +141,7 @@ export const MOCK_TEAMS: Team[] = [
     viceCaptainIds: ['u6', 'u7'], // 2 vice-captains
     level: SkillLevel.ADVANCED,
     location: 'Şişli, İstanbul',
+    coordinates: { lat: 41.0536, lng: 28.9774 },
     homePitchId: 'p3',
     fairPlayScore: 3.9,
     description: 'Sert oynarız, maça gelmeyen bizden değildir.',
@@ -150,6 +158,7 @@ export const MOCK_TEAMS: Team[] = [
     viceCaptainIds: [], // No vice-captains yet
     level: SkillLevel.BEGINNER,
     location: 'Göztepe, İstanbul',
+    coordinates: { lat: 40.9859, lng: 29.0553 },
     fairPlayScore: 5.0,
     description: 'Maksat spor olsun.',
     wins: 2,

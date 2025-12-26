@@ -20,6 +20,7 @@ export interface Player {
   position: Position;
   secondaryPosition?: string; // New field
   location: string;
+  coordinates?: { lat: number; lng: number }; // New field for geo-filtering
   birthDate?: string; // New field: YYYY-MM-DD
   foot?: string; // New field: 'Sağ', 'Sol', 'Her İkisi'
   isJoker: boolean; // Acts as Active/Passive toggle
@@ -48,6 +49,7 @@ export interface Team {
   viceCaptainIds?: string[]; // Array of vice-captain IDs (max 2)
   level: SkillLevel;
   location: string;
+  coordinates?: { lat: number; lng: number }; // New field
   homePitchId?: string; // The ID of their favorite pitch
   fairPlayScore: number; // 1-5
   description: string;
@@ -89,6 +91,7 @@ export interface MatchListing {
   pitchId: string; // Linked to a specific pitch
   pitchName: string;
   location: string;
+  coordinates?: { lat: number; lng: number }; // Copy from pitch/team for easier filtering
   requiredLevel: SkillLevel;
   status: 'OPEN' | 'PENDING' | 'CONFIRMED' | 'PLAYED';
   priceShare: number; // Cost per team
@@ -116,6 +119,7 @@ export interface Pitch {
   imageUrl: string;
   facilities: string[]; // e.g., "Shower", "Cafe", "Parking"
   phone: string;
+  coordinates?: { lat: number; lng: number }; // New field
   schedule?: PitchSlot[]; // Mock schedule for today
 }
 

@@ -1,8 +1,10 @@
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { Cron, CronExpression } from '@nestjs/schedule'; // Import Cron
 import { MatchAnnouncement } from './match-announcement.entity';
 import { User } from '../users/user.entity';
+import { NotificationsService } from '../notifications/notifications.service'; // Import NotificationsService
 
 @Injectable()
 export class MatchAnnouncementsService {
@@ -11,6 +13,7 @@ export class MatchAnnouncementsService {
         private matchAnnouncementsRepository: Repository<MatchAnnouncement>,
         @InjectRepository(User)
         private usersRepository: Repository<User>,
+        private notificationsService: NotificationsService, // Inject Service
     ) { }
 
     async create(data: Partial<MatchAnnouncement>, userId: string): Promise<MatchAnnouncement> {
@@ -45,6 +48,30 @@ export class MatchAnnouncementsService {
             throw new HttpException(
                 'Bu saat için zaten aktif bir ilanınız var',
                 HttpStatus.CONFLICT
+            );
+        }
+
+        // Validate date and time
+        const now = new Date();
+        const [hours, minutes] = (data.time || '00:00').split(':').map(Number);
+
+        // Construct announcement date object
+        const announcementDate = new Date(data.date);
+        announcementDate.setHours(hours, minutes, 0, 0);
+
+        // Calculate minimum allowed time (current time + 1 hour buffer roughly)
+        // Actually user said: "17:01 -> 18:00 earliest".
+        // So we strictly check if announcementDate is in the past or too close.
+        // Let's just strictly ensure it is NOT in the past.
+        // And maybe ensure it is at least the next hour.
+
+        // Create a date object for "now" but reset seconds/millis for cleaner comparison
+        const cleanNow = new Date();
+
+        if (announcementDate < cleanNow) {
+            throw new HttpException(
+                'Geçmiş tarihli ilan oluşturulamaz',
+                HttpStatus.BAD_REQUEST
             );
         }
 
@@ -90,7 +117,75 @@ export class MatchAnnouncementsService {
         return announcements;
     }
 
+    // Run every hour to check for expired announcements
+    // Using EVERY_MINUTE for testing purposes if needed, but EVERY_HOUR is safer for production unless real-time is critical.
+    @Cron(CronExpression.EVERY_HOUR)
+    async handleCron() {
+        console.log('⏰ Running cleanup cron job...');
+
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const todayStr = `${year}-${month}-${day}`;
+        const currentHour = now.getHours();
+
+        // 1. Find all PENDING announcements
+        const announcements = await this.matchAnnouncementsRepository.find({
+            where: { status: 'PENDING' },
+            relations: ['team', 'team.captain'] // Need captain to notify
+        });
+
+        for (const announcement of announcements) {
+            let isExpired = false;
+
+            // Check if date is in the past
+            if (announcement.date < todayStr) {
+                isExpired = true;
+            }
+            // Check if date is today but time has passed
+            else if (announcement.date === todayStr) {
+                const [announcementHour] = (announcement.time || '00:00').split(':').map(Number);
+                if (announcementHour < currentHour) {
+                    isExpired = true;
+                }
+            }
+
+            if (isExpired) {
+                console.log(`🗑️ Expired announcement found: ${announcement.id} (Date: ${announcement.date}, Time: ${announcement.time})`);
+
+                // Notify Captain
+                if (announcement.team?.captain) {
+                    try {
+                        // Cast captain to any to avoid type issues if captainId vs object not perfectly typed in entity
+                        const captainId = (announcement.team.captain as any).id || announcement.team.captain;
+
+                        await this.notificationsService.create({
+                            userId: captainId,
+                            type: 'SYSTEM',
+                            read: false,
+                            message: 'Maç ilanınızın tarihi geçti. Yeni bir maç oluşturmaya ne dersiniz?',
+                            metadata: {
+                                type: 'ANNOUNCEMENT_EXPIRED',
+                                announcementId: announcement.id
+                            }
+                        });
+                        console.log(`🔔 Notification sent to captain: ${captainId}`);
+                    } catch (err) {
+                        console.error('❌ Failed to send notification', err);
+                    }
+                }
+
+                // Delete or Mark Expired
+                await this.matchAnnouncementsRepository.remove(announcement);
+                // Alternatively: announcement.status = 'EXPIRED'; await repo.save(announcement);
+                console.log('✅ Announcement removed.');
+            }
+        }
+    }
+
     private async deleteExpired(): Promise<void> {
+        // Keeping this for redundancy or immediate cleanup on GET requests if cron fails
         const today = new Date();
         const year = today.getFullYear();
         const month = String(today.getMonth() + 1).padStart(2, '0');
@@ -98,8 +193,6 @@ export class MatchAnnouncementsService {
         const todayStr = `${year}-${month}-${day}`;
 
         // Delete announcements where date is less than today
-        // Note: We keep today's announcements even if time has passed, or we could check time too.
-        // For now, let's just delete strictly past dates.
         await this.matchAnnouncementsRepository
             .createQueryBuilder()
             .delete()
@@ -107,8 +200,6 @@ export class MatchAnnouncementsService {
             .where('date < :today', { today: todayStr })
             .andWhere('status = :status', { status: 'PENDING' })
             .execute();
-
-        console.log('🧹 Cleaned up expired announcements before', todayStr);
     }
 
     async findByPitch(pitchId: string): Promise<MatchAnnouncement[]> {

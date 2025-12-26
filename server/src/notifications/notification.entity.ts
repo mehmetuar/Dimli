@@ -9,7 +9,7 @@ export class Notification {
     userId: string;
 
     @Column()
-    type: 'JOIN_REQUEST' | 'CHALLENGE' | 'MATCH_RESULT';
+    type: 'JOIN_REQUEST' | 'CHALLENGE' | 'MATCH_RESULT' | 'SYSTEM';
 
     @Column({ nullable: true })
     title: string;
@@ -17,7 +17,7 @@ export class Notification {
     @Column({ nullable: true })
     message: string;
 
-    @Column()
+    @Column({ nullable: true })
     relatedId: string;
 
     @Column({ type: 'json', nullable: true })

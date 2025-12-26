@@ -8,10 +8,17 @@ import { useNavigate } from 'react-router-dom';
 import { InviteJokerModal } from '../components/InviteJokerModal';
 import { JokerProfileModal } from '../components/JokerProfileModal';
 
+import { LocationFilter, LocationFilterModal } from '../components/LocationFilterModal';
+import { calculateDistance } from '../utils/location';
+
 export const JokerPool: React.FC = () => {
    const [selectedJoker, setSelectedJoker] = useState<Player | null>(null);
    const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
    const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+
+   // Location Filter State
+   const [isLocationFilterOpen, setIsLocationFilterOpen] = useState(false);
+   const [locationFilter, setLocationFilter] = useState<LocationFilter>({ type: 'ALL' });
 
    // Local state to simulate live updates for the current user in this session
    const [currentUserData, setCurrentUserData] = useState<Player>(CURRENT_USER);
@@ -73,7 +80,27 @@ export const JokerPool: React.FC = () => {
    }
 
    // Filter: Only show Active Jokers
-   const visibleJokers = allJokers.filter(j => j.isJoker);
+   const getFilteredJokers = () => {
+      let filtered = allJokers.filter(j => j.isJoker);
+
+      if (locationFilter.type === 'DISTRICT' && locationFilter.value) {
+         filtered = filtered.filter(j => j.location.includes(locationFilter.value!));
+      } else if (locationFilter.type === 'NEARBY' && locationFilter.coords) {
+         filtered = filtered.filter(j => {
+            if (!j.coordinates) return false;
+            const dist = calculateDistance(
+               locationFilter.coords!.lat,
+               locationFilter.coords!.lng,
+               j.coordinates.lat,
+               j.coordinates.lng
+            );
+            return dist <= (locationFilter.radius || 60);
+         });
+      }
+      return filtered;
+   };
+
+   const visibleJokers = getFilteredJokers();
 
    // --- SUB-COMPONENT: JOKER DETAIL MODAL (FUT CARD STYLE) ---
    const JokerDetailModal = () => {
@@ -247,6 +274,13 @@ export const JokerPool: React.FC = () => {
             onSave={handleSaveProfile}
          />
 
+         <LocationFilterModal
+            isOpen={isLocationFilterOpen}
+            onClose={() => setIsLocationFilterOpen(false)}
+            currentFilter={locationFilter}
+            onApply={setLocationFilter}
+         />
+
          <header className="mb-6 flex justify-between items-end">
             <div>
                <h1 className="font-sport font-black text-4xl text-white uppercase italic tracking-tighter">JOKER <span className="text-turf-500">HAVUZU</span></h1>
@@ -259,6 +293,26 @@ export const JokerPool: React.FC = () => {
                {currentUserData.isJoker ? 'Profilini Düzenle' : 'Profilini Ekle'}
             </button>
          </header>
+
+         {/* Filter Button */}
+         <div className="mb-6 flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+            <button
+               onClick={() => setIsLocationFilterOpen(true)}
+               className={`flex items-center gap-2 px-4 py-3 rounded-xl font-bold text-sm transition-all border ${locationFilter.type !== 'ALL' ? 'bg-turf-600 border-turf-500 text-white shadow-lg shadow-turf-600/20' : 'bg-slate-800 border-slate-700 text-slate-300 hover:border-turf-500 hover:text-white'}`}
+            >
+               <MapPin className="w-4 h-4" />
+               {locationFilter.type === 'NEARBY' ? `Yakınımda (${locationFilter.radius}km)` : locationFilter.type === 'DISTRICT' ? locationFilter.value : 'İstanbul (Tümü)'}
+            </button>
+
+            {locationFilter.type !== 'ALL' && (
+               <button
+                  onClick={() => setLocationFilter({ type: 'ALL' })}
+                  className="flex items-center gap-2 px-4 py-3 bg-slate-800 border border-slate-700 text-slate-400 rounded-xl font-bold text-sm hover:text-white hover:bg-slate-700 transition-all"
+               >
+                  Filtreyi Temizle
+               </button>
+            )}
+         </div>
 
          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {visibleJokers.map((player) => (
@@ -296,7 +350,9 @@ export const JokerPool: React.FC = () => {
             ))}
             {visibleJokers.length === 0 && (
                <div className="col-span-2 text-center py-10 text-slate-500">
-                  Şu an aktif Joker bulunmuyor. İlk sen ol!
+                  {locationFilter.type === 'NEARBY'
+                     ? "Yakınınızda (İstanbul) Joker bulunamadı."
+                     : "Şu an aktif Joker bulunmuyor. İlk sen ol!"}
                </div>
             )}
          </div>

@@ -12,6 +12,9 @@ import { SuccessModal } from '../components/SuccessModal';
 import { ConfirmModal } from '../components/ConfirmModal';
 import api from '../services/api';
 
+import { LocationFilter, LocationFilterModal } from '../components/LocationFilterModal';
+import { calculateDistance } from '../utils/location';
+
 export const Marketplace: React.FC = () => {
   const [matches, setMatches] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -26,8 +29,12 @@ export const Marketplace: React.FC = () => {
   const [successModal, setSuccessModal] = useState<{
     isOpen: boolean;
     message: string;
-    type: 'CHALLENGE_SENT' | 'DEFAULT' | 'CREATE_AD' | 'CHALLENGE_ACCEPTED'; // Added types
+    type: 'CHALLENGE_SENT' | 'DEFAULT' | 'CREATE_AD' | 'CHALLENGE_ACCEPTED';
   }>({ isOpen: false, message: '', type: 'DEFAULT' });
+
+  // Location Filter State
+  const [isLocationFilterOpen, setIsLocationFilterOpen] = useState(false);
+  const [locationFilter, setLocationFilter] = useState<LocationFilter>({ type: 'ALL' });
 
   const navigate = useNavigate();
 
@@ -39,6 +46,41 @@ export const Marketplace: React.FC = () => {
     if (!myTeam || !currentUser) return false;
     return myTeam.captainId === currentUser.id || myTeam.viceCaptainIds?.includes(currentUser.id) || false;
   };
+
+  const getFilteredMatches = () => {
+    let filtered = [...matches];
+
+    // Filter by Location
+    if (locationFilter.type === 'DISTRICT' && locationFilter.value) {
+      filtered = filtered.filter(m => {
+        // Find pitch location or team location if pitch unavailable (fallback)
+        const pitch = MOCK_PITCHES.find(p => p.id === m.pitchId);
+        // Simple string check (contains)
+        const loc = pitch ? pitch.location : (m.team?.location || '');
+        return loc.includes(locationFilter.value || '');
+      });
+    } else if (locationFilter.type === 'NEARBY' && locationFilter.coords) {
+      filtered = filtered.filter(m => {
+        const pitch = MOCK_PITCHES.find(p => p.id === m.pitchId);
+        const targetCoords = pitch?.coordinates || m.team?.coordinates;
+
+        if (!targetCoords) return false; // If no coords, can't calculate distance
+
+        const dist = calculateDistance(
+          locationFilter.coords!.lat,
+          locationFilter.coords!.lng,
+          targetCoords.lat,
+          targetCoords.lng
+        );
+        // radius default to 60 if missing
+        return dist <= (locationFilter.radius || 60);
+      });
+    }
+
+    return filtered;
+  };
+
+  const displayMatches = getFilteredMatches();
 
   const canChallenge = !!myTeam && (myTeam.captainId === currentUser?.id || myTeam.viceCaptainIds?.includes(currentUser?.id));
 
@@ -168,6 +210,13 @@ export const Marketplace: React.FC = () => {
         onClose={() => setIsCreateModalOpen(false)}
       />
 
+      <LocationFilterModal
+        isOpen={isLocationFilterOpen}
+        onClose={() => setIsLocationFilterOpen(false)}
+        currentFilter={locationFilter}
+        onApply={setLocationFilter}
+      />
+
       <SuccessModal
         isOpen={successModal.isOpen}
         onClose={() => setSuccessModal({ ...successModal, isOpen: false })}
@@ -206,10 +255,24 @@ export const Marketplace: React.FC = () => {
 
       {/* Quick Filters - Glassmorphism */}
       <div className="flex gap-3 mb-8 overflow-x-auto pb-4 scrollbar-hide mask-linear">
-        <button className="flex items-center gap-2 px-5 py-2.5 bg-turf-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-turf-600/20 whitespace-nowrap transform hover:-translate-y-1 transition-transform skew-x-[-6deg]">
-          <span className="skew-x-[6deg] flex items-center gap-2"><Filter className="w-4 h-4" /> TÜMÜ</span>
+        <button
+          onClick={() => setLocationFilter({ type: 'ALL' })}
+          className={`flex items-center gap-2 px-5 py-2.5 text-white rounded-xl text-sm font-bold shadow-lg shadow-turf-600/20 whitespace-nowrap transform hover:-translate-y-1 transition-transform skew-x-[-6deg] ${locationFilter.type === 'ALL' ? 'bg-turf-600' : 'bg-slate-800'}`}
+        >
+          <span className="skew-x-[6deg] flex items-center gap-2"><Filter className="w-4 h-4" /> İstanbul (Tümü)</span>
         </button>
-        {['YAKINIMDA', 'BU AKŞAM', 'ORTA SEVİYE'].map((label) => (
+
+        <button
+          onClick={() => setIsLocationFilterOpen(true)}
+          className={`px-5 py-2.5 border text-slate-300 rounded-xl text-sm font-bold whitespace-nowrap hover:border-turf-500 hover:text-white transition-colors skew-x-[-6deg] ${locationFilter.type !== 'ALL' ? 'bg-turf-900/50 border-turf-500 text-white' : 'bg-slate-800 border-slate-700'}`}
+        >
+          <span className="skew-x-[6deg] flex items-center gap-2">
+            <MapPin className="w-4 h-4" />
+            {locationFilter.type === 'NEARBY' ? `Yakınımda (${locationFilter.radius}km)` : locationFilter.type === 'DISTRICT' ? locationFilter.value : 'İstanbul (Tümü)'}
+          </span>
+        </button>
+
+        {['BU AKŞAM', 'ORTA SEVİYE'].map((label) => (
           <button key={label} className="px-5 py-2.5 bg-slate-800 border border-slate-700 text-slate-300 rounded-xl text-sm font-bold whitespace-nowrap hover:border-turf-500 hover:text-white transition-colors skew-x-[-6deg]">
             <span className="skew-x-[6deg]">{label}</span>
           </button>
@@ -218,13 +281,20 @@ export const Marketplace: React.FC = () => {
 
       {/* Match List - Card Design */}
       <div className="space-y-5">
-        {matches.length === 0 && (
+        {displayMatches.length === 0 && (
           <div className="text-center py-12 text-slate-400">
-            Henüz aktif ilan yok. İlk ilanı sen oluştur!
+            {matches.length === 0
+              ? "Henüz aktif ilan yok. İlk ilanı sen oluştur!"
+              : locationFilter.type === 'NEARBY'
+                ? <div className="flex flex-col items-center gap-2">
+                  <span>Yakınınızda (60km) ilan bulunamadı.</span>
+                  <span className="text-xs text-slate-500 max-w-xs">Konumunuz İstanbul dışındaysa mock veriler görünmeyebilir. Tarayıcı konumunuzu İstanbul yaparak test edebilirsiniz.</span>
+                </div>
+                : "Seçilen kriterlere uygun ilan bulunamadı."}
           </div>
         )}
 
-        {matches.map((announcement, index) => {
+        {displayMatches.map((announcement, index) => {
           console.log(`🔍 Rendering announcement #${index}:`, {
             id: announcement.id,
             teamName: announcement.team?.name,

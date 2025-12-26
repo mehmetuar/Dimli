@@ -9,12 +9,18 @@ import { Team, MatchListing } from '../types';
 import { CreateMatchModal } from '../components/CreateMatchModal';
 import { OfferModal } from '../components/OfferModal';
 import { ConfirmModal } from '../components/ConfirmModal';
+import { LocationFilter, LocationFilterModal } from '../components/LocationFilterModal';
+import { calculateDistance } from '../utils/location';
 import api from '../services/api';
 
 export const PitchBooking: React.FC = () => {
    const [expandedPitchId, setExpandedPitchId] = useState<string | null>(null);
    const [viewingTeam, setViewingTeam] = useState<Team | null>(null);
    const [offerMode, setOfferMode] = useState<{ matchId: string, teamName: string } | null>(null);
+
+   // Location Filter State
+   const [isLocationFilterOpen, setIsLocationFilterOpen] = useState(false);
+   const [locationFilter, setLocationFilter] = useState<LocationFilter>({ type: 'ALL' });
 
    // Challenge State
    const [myChallenges, setMyChallenges] = useState<any[]>([]);
@@ -86,6 +92,28 @@ export const PitchBooking: React.FC = () => {
          return new Date(a.date).getTime() - new Date(b.date).getTime();
       });
    };
+
+   const getFilteredPitches = () => {
+      let filtered = [...MOCK_PITCHES];
+
+      if (locationFilter.type === 'DISTRICT' && locationFilter.value) {
+         filtered = filtered.filter(p => p.location.includes(locationFilter.value!));
+      } else if (locationFilter.type === 'NEARBY' && locationFilter.coords) {
+         filtered = filtered.filter(p => {
+            if (!p.coordinates) return false;
+            const dist = calculateDistance(
+               locationFilter.coords!.lat,
+               locationFilter.coords!.lng,
+               p.coordinates.lat,
+               p.coordinates.lng
+            );
+            return dist <= (locationFilter.radius || 60);
+         });
+      }
+      return filtered;
+   };
+
+   const filteredPitches = getFilteredPitches();
 
    const handleSendOffer = async (note: string) => {
       if (!currentUser?.team || !offerMode) return;
@@ -256,6 +284,13 @@ export const PitchBooking: React.FC = () => {
          <TeamDetailModal />
          <TeamDetailModal />
 
+         <LocationFilterModal
+            isOpen={isLocationFilterOpen}
+            onClose={() => setIsLocationFilterOpen(false)}
+            currentFilter={locationFilter}
+            onApply={setLocationFilter}
+         />
+
          <OfferModal
             isOpen={!!offerMode}
             onClose={() => setOfferMode(null)}
@@ -299,8 +334,42 @@ export const PitchBooking: React.FC = () => {
             <p className="text-slate-400">Favori sahanı bul, takvimi incele ve maçı ayarla.</p>
          </header>
 
+         {/* Filter Button */}
+         <div className="mb-6 flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+            <button
+               onClick={() => setIsLocationFilterOpen(true)}
+               className={`flex items-center gap-2 px-4 py-3 rounded-xl font-bold text-sm transition-all border ${locationFilter.type !== 'ALL' ? 'bg-turf-600 border-turf-500 text-white shadow-lg shadow-turf-600/20' : 'bg-slate-800 border-slate-700 text-slate-300 hover:border-turf-500 hover:text-white'}`}
+            >
+               <MapPin className="w-4 h-4" />
+               {locationFilter.type === 'NEARBY' ? `Yakınımda (${locationFilter.radius}km)` : locationFilter.type === 'DISTRICT' ? locationFilter.value : 'İstanbul (Tümü)'}
+            </button>
+
+            {locationFilter.type !== 'ALL' && (
+               <button
+                  onClick={() => setLocationFilter({ type: 'ALL' })}
+                  className="flex items-center gap-2 px-4 py-3 bg-slate-800 border border-slate-700 text-slate-400 rounded-xl font-bold text-sm hover:text-white hover:bg-slate-700 transition-all"
+               >
+                  Filtreyi Temizle
+               </button>
+            )}
+         </div>
+
          <div className="space-y-6">
-            {MOCK_PITCHES.map((pitch) => {
+            {filteredPitches.length === 0 && (
+               <div className="text-center py-12 text-slate-400 bg-slate-800/50 rounded-3xl border border-dashed border-slate-700">
+                  <MapPin className="w-8 h-8 mx-auto mb-3 text-slate-600" />
+                  {locationFilter.type === 'NEARBY' ? (
+                     <div>
+                        <p className="font-bold text-white mb-1">Yakınınızda saha bulunamadı.</p>
+                        <p className="text-xs max-w-xs mx-auto">Tarayıcı konumunuz sahalara (İstanbul) uzak olabilir.</p>
+                     </div>
+                  ) : (
+                     "Seçilen konumda saha bulunamadı."
+                  )}
+               </div>
+            )}
+
+            {filteredPitches.map((pitch) => {
                const isExpanded = expandedPitchId === pitch.id;
                const activeMatches = getMatchesForPitch(pitch.id);
                const groupedMatches = groupMatchesByDate(activeMatches);
