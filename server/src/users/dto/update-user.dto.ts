@@ -1,0 +1,36 @@
+
+import { IsString, IsOptional, IsDateString, IsEnum } from 'class-validator';
+
+export class UpdateUserDto {
+    @IsOptional()
+    @IsString()
+    full_name?: string;
+
+    @IsOptional()
+    @IsString()
+    username?: string;
+
+    @IsOptional()
+    @IsString()
+    location?: string;
+
+    @IsOptional()
+    @IsString()
+    phone?: string;
+
+    @IsOptional()
+    @IsDateString()
+    birthDate?: Date;
+
+    @IsOptional()
+    @IsString()
+    position?: string;
+
+    @IsOptional()
+    @IsString()
+    secondaryPosition?: string;
+
+    @IsOptional()
+    @IsString()
+    foot?: string;
+}

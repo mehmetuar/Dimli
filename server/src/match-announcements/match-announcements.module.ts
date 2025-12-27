@@ -5,8 +5,10 @@ import { User } from '../users/user.entity';
 import { MatchAnnouncementsService } from './match-announcements.service';
 import { MatchAnnouncementsController } from './match-announcements.controller';
 
+import { NotificationsModule } from '../notifications/notifications.module';
+
 @Module({
-    imports: [TypeOrmModule.forFeature([MatchAnnouncement, User])],
+    imports: [TypeOrmModule.forFeature([MatchAnnouncement, User]), NotificationsModule],
     controllers: [MatchAnnouncementsController],
     providers: [MatchAnnouncementsService],
     exports: [MatchAnnouncementsService],

@@ -33,4 +33,20 @@ api.interceptors.response.use(
     }
 );
 
+
+export const getProfile = async () => {
+    const response = await api.get('/users/me');
+    return response.data;
+};
+
+export const updateProfile = async (data: any) => {
+    const response = await api.patch('/users/me', data);
+    return response.data;
+};
+
+export const changePassword = async (data: any) => {
+    const response = await api.post('/users/change-password', data);
+    return response.data;
+};
+
 export default api;

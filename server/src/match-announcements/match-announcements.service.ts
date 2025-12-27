@@ -51,9 +51,14 @@ export class MatchAnnouncementsService {
             );
         }
 
+
         // Validate date and time
         const now = new Date();
         const [hours, minutes] = (data.time || '00:00').split(':').map(Number);
+
+        if (!data.date) {
+            throw new HttpException('Tarih gereklidir', HttpStatus.BAD_REQUEST);
+        }
 
         // Construct announcement date object
         const announcementDate = new Date(data.date);
