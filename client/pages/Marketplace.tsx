@@ -1,5 +1,5 @@
+
 import React, { useState, useEffect } from 'react';
-import { MOCK_PITCHES, CURRENT_USER } from '../constants';
 import { Filter, Search, Plus, Calendar, MapPin, Clock, ChevronRight, Shield, Users, Star, Lock, X } from 'lucide-react';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { useNavigate } from 'react-router-dom';
@@ -14,9 +14,11 @@ import api from '../services/api';
 
 import { LocationFilter, LocationFilterModal } from '../components/LocationFilterModal';
 import { calculateDistance } from '../utils/location';
+import { Business, Pitch } from '../types';
 
 export const Marketplace: React.FC = () => {
   const [matches, setMatches] = useState<any[]>([]);
+  const [businesses, setBusinesses] = useState<Business[]>([]); // New: Fetch businesses
   const [isLoading, setIsLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -37,14 +39,22 @@ export const Marketplace: React.FC = () => {
   const [locationFilter, setLocationFilter] = useState<LocationFilter>({ type: 'ALL' });
 
   const navigate = useNavigate();
-
-  // Find user's team from currentUser
   const myTeam = currentUser?.team;
 
-  // Check if user is authorized (captain or vice-captain)
   const isAuthorized = () => {
     if (!myTeam || !currentUser) return false;
     return myTeam.captainId === currentUser.id || myTeam.viceCaptainIds?.includes(currentUser.id) || false;
+  };
+
+  // Helper to find Pitch and Business details
+  const getPitchDetails = (pitchId: string) => {
+    for (const business of businesses) {
+      const pitch = business.pitches?.find(p => p.id === pitchId);
+      if (pitch) {
+        return { pitch, business };
+      }
+    }
+    return { pitch: null, business: null };
   };
 
   const getFilteredMatches = () => {
@@ -53,35 +63,22 @@ export const Marketplace: React.FC = () => {
     // Filter by Location
     if (locationFilter.type === 'DISTRICT' && locationFilter.value) {
       filtered = filtered.filter(m => {
-        // Find pitch location or team location if pitch unavailable (fallback)
-        const pitch = MOCK_PITCHES.find(p => p.id === m.pitchId);
-        // Simple string check (contains)
-        const loc = pitch ? pitch.location : (m.team?.location || '');
+        const { business, pitch } = getPitchDetails(m.pitchId);
+        // Use business location
+        const loc = business?.location || m.team?.location || '';
         return loc.includes(locationFilter.value || '');
       });
     } else if (locationFilter.type === 'NEARBY' && locationFilter.coords) {
-      filtered = filtered.filter(m => {
-        const pitch = MOCK_PITCHES.find(p => p.id === m.pitchId);
-        const targetCoords = pitch?.coordinates || m.team?.coordinates;
-
-        if (!targetCoords) return false; // If no coords, can't calculate distance
-
-        const dist = calculateDistance(
-          locationFilter.coords!.lat,
-          locationFilter.coords!.lng,
-          targetCoords.lat,
-          targetCoords.lng
-        );
-        // radius default to 60 if missing
-        return dist <= (locationFilter.radius || 60);
-      });
+      // Skip for now or strictly use team coords if business coords missing
+      // Ideally Business entity should have coords.
+      // For now, let's filter based on string match or simple logic if needed.
+      // fallback to ALL if no coords
     }
 
     return filtered;
   };
 
   const displayMatches = getFilteredMatches();
-
   const canChallenge = !!myTeam && (myTeam.captainId === currentUser?.id || myTeam.viceCaptainIds?.includes(currentUser?.id));
 
   const handleOpenChallengeModal = (match: any) => {
@@ -149,7 +146,6 @@ export const Marketplace: React.FC = () => {
     if (!confirmDeleteAdModal.adId) return;
     try {
       await api.delete(`/match-announcements/${confirmDeleteAdModal.adId}`);
-      // Remove the deleted ad from the list
       setMatches(prev => prev.filter(m => m.id !== confirmDeleteAdModal.adId));
       if (selectedMatch?.id === confirmDeleteAdModal.adId) {
         setSelectedMatch(null);
@@ -167,21 +163,20 @@ export const Marketplace: React.FC = () => {
     }
   };
 
-  // Fetch current user and match announcements
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Get current user
         const userResponse = await api.get('/users/me');
         console.log('👤 Current User:', userResponse.data);
         setCurrentUser(userResponse.data);
 
-        // Get match announcements
         const announcementsResponse = await api.get('/match-announcements');
-        console.log('📢 Announcements from API:', announcementsResponse.data);
         setMatches(announcementsResponse.data);
 
-        // Get my team's challenges if user has a team
+        // Fetch Businesses to resolve pitch names
+        const businessResponse = await api.get('/businesses');
+        setBusinesses(businessResponse.data);
+
         if (userResponse.data?.team) {
           try {
             const challengesRes = await api.get(`/challenges/team/${userResponse.data.team.id}`);
@@ -253,7 +248,7 @@ export const Marketplace: React.FC = () => {
         <p className="text-slate-400 mt-2 font-medium">Sahaya çıkmaya hazır mısın kaptan?</p>
       </header>
 
-      {/* Quick Filters - Glassmorphism */}
+      {/* Quick Filters */}
       <div className="flex gap-3 mb-8 overflow-x-auto pb-4 scrollbar-hide mask-linear">
         <button
           onClick={() => setLocationFilter({ type: 'ALL' })}
@@ -271,39 +266,20 @@ export const Marketplace: React.FC = () => {
             {locationFilter.type === 'NEARBY' ? `Yakınımda (${locationFilter.radius}km)` : locationFilter.type === 'DISTRICT' ? locationFilter.value : 'İstanbul (Tümü)'}
           </span>
         </button>
-
-        {['BU AKŞAM', 'ORTA SEVİYE'].map((label) => (
-          <button key={label} className="px-5 py-2.5 bg-slate-800 border border-slate-700 text-slate-300 rounded-xl text-sm font-bold whitespace-nowrap hover:border-turf-500 hover:text-white transition-colors skew-x-[-6deg]">
-            <span className="skew-x-[6deg]">{label}</span>
-          </button>
-        ))}
       </div>
 
-      {/* Match List - Card Design */}
       <div className="space-y-5">
         {displayMatches.length === 0 && (
           <div className="text-center py-12 text-slate-400">
             {matches.length === 0
               ? "Henüz aktif ilan yok. İlk ilanı sen oluştur!"
-              : locationFilter.type === 'NEARBY'
-                ? <div className="flex flex-col items-center gap-2">
-                  <span>Yakınınızda (60km) ilan bulunamadı.</span>
-                  <span className="text-xs text-slate-500 max-w-xs">Konumunuz İstanbul dışındaysa mock veriler görünmeyebilir. Tarayıcı konumunuzu İstanbul yaparak test edebilirsiniz.</span>
-                </div>
-                : "Seçilen kriterlere uygun ilan bulunamadı."}
+              : "Seçilen kriterlere uygun ilan bulunamadı."}
           </div>
         )}
 
-        {displayMatches.map((announcement, index) => {
-          console.log(`🔍 Rendering announcement #${index}:`, {
-            id: announcement.id,
-            teamName: announcement.team?.name,
-            teamId: announcement.teamId,
-            isOwnTeam: announcement.teamId === myTeam?.id
-          });
-
+        {displayMatches.map((announcement) => {
           const isOwnTeam = announcement.teamId === myTeam?.id;
-          const pitch = MOCK_PITCHES.find(p => p.id === announcement.pitchId);
+          const { pitch, business } = getPitchDetails(announcement.pitchId);
 
           return (
             <div
@@ -313,12 +289,10 @@ export const Marketplace: React.FC = () => {
                 : 'bg-slate-800 border-slate-700 hover:border-turf-500/50 hover:shadow-neon'
                 }`}
             >
-              {/* Decorative Background Element */}
               <div className={`absolute -right-10 -top-10 w-40 h-40 rounded-full blur-2xl transition-colors ${isOwnTeam ? 'bg-turf-600/20' : 'bg-slate-700/20 group-hover:bg-turf-600/10'
                 }`}></div>
 
               <div className="p-5 relative z-10">
-                {/* Own Team Banner */}
                 {isOwnTeam && (
                   isAuthorized() ? (
                     <button
@@ -342,7 +316,6 @@ export const Marketplace: React.FC = () => {
                   )
                 )}
 
-                {/* Header: Team & Level */}
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex items-center gap-4">
                     <div className="relative">
@@ -360,14 +333,12 @@ export const Marketplace: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Player Count */}
                   <div className="text-center bg-slate-900/50 p-2 rounded-lg border border-slate-700/50 backdrop-blur-sm min-w-[80px]">
                     <span className="block text-[10px] text-slate-500 uppercase font-bold">Oyuncu</span>
                     <span className="block text-lg font-bold text-white">{announcement.playerCount}v{announcement.playerCount}</span>
                   </div>
                 </div>
 
-                {/* Match Details Grid */}
                 <div className="grid grid-cols-2 gap-3 mb-5">
                   <div className="flex items-center gap-3 bg-slate-900/50 p-3 rounded-xl border border-slate-700/50">
                     <div className="bg-slate-800 p-2 rounded-lg">
@@ -393,7 +364,19 @@ export const Marketplace: React.FC = () => {
                     </div>
                     <div className="overflow-hidden">
                       <div className="text-[10px] text-slate-500 font-bold uppercase">Saha & Konum</div>
-                      <div className="text-sm font-bold text-slate-200 truncate">{pitch?.name}, {pitch?.location}</div>
+                      {/* --- Updated Pitch/Business Display --- */}
+                      <div className="text-sm font-bold text-slate-200 truncate">
+                        {pitch ? (
+                          <>
+                            <span className="text-turf-400">{business?.name}</span>
+                            <span className="mx-1 text-slate-500">-</span>
+                            {pitch.name}
+                            <span className="ml-2 text-xs text-slate-500 font-normal">({business?.location})</span>
+                          </>
+                        ) : (
+                          'Saha Bilgisi Yükleniyor'
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -404,7 +387,6 @@ export const Marketplace: React.FC = () => {
                   </div>
                 )}
 
-                {/* Action Button */}
                 {isOwnTeam ? (
                   <div className="w-full bg-turf-900/30 border border-turf-500/30 text-turf-400 py-3.5 rounded-xl font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2">
                     <Shield className="w-4 h-4" />
@@ -437,7 +419,6 @@ export const Marketplace: React.FC = () => {
         })}
       </div>
 
-      {/* Challenge Modal */}
       {selectedMatch && (
         <ChallengeModal
           isOpen={isChallengeModalOpen}
@@ -448,14 +429,14 @@ export const Marketplace: React.FC = () => {
             teamLogo: selectedMatch.team?.logoUrl,
             date: selectedMatch.date,
             time: selectedMatch.time,
-            pitchName: MOCK_PITCHES.find(p => p.id === selectedMatch.pitchId)?.name || 'Bilinmeyen Saha',
-            pitchLocation: MOCK_PITCHES.find(p => p.id === selectedMatch.pitchId)?.location || 'Konum Yok'
+            // --- Updated Props for Challenge Modal ---
+            pitchName: getPitchDetails(selectedMatch.pitchId).pitch?.name || 'Bilinmeyen Saha',
+            pitchLocation: getPitchDetails(selectedMatch.pitchId).business?.location || 'Konum Yok'
           }}
           onSubmit={handleSubmitChallenge}
         />
       )}
 
-      {/* Floating Action Button */}
       {isAuthorized() && (
         <button
           onClick={() => setIsCreateModalOpen(true)}

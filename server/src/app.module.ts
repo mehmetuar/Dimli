@@ -11,6 +11,8 @@ import { JoinRequestsModule } from './join-requests/join-requests.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { MatchAnnouncementsModule } from './match-announcements/match-announcements.module';
 import { ChatModule } from './chat/chat.module';
+import { BusinessModule } from './business/business.module';
+import { PitchesModule } from './pitches/pitches.module';
 
 @Module({
   imports: [
@@ -34,6 +36,8 @@ import { ChatModule } from './chat/chat.module';
     NotificationsModule,
     MatchAnnouncementsModule,
     ChatModule,
+    BusinessModule,
+    PitchesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

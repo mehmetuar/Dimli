@@ -1,5 +1,6 @@
 import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, JoinColumn, CreateDateColumn } from 'typeorm';
 import { Team } from '../teams/team.entity';
+import { Pitch } from '../pitches/entities/pitch.entity';
 
 @Entity('match_announcements')
 export class MatchAnnouncement {
@@ -13,8 +14,12 @@ export class MatchAnnouncement {
     @JoinColumn({ name: 'team_id' })
     team: Team;
 
-    @Column({ name: 'pitch_id' })
+    @Column({ name: 'pitch_id', nullable: true })
     pitchId: string;
+
+    @ManyToOne(() => Pitch)
+    @JoinColumn({ name: 'pitch_id' })
+    pitch: Pitch;
 
     @Column()
     date: string; // YYYY-MM-DD

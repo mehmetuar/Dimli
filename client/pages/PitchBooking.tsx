@@ -1,11 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MOCK_PITCHES, MOCK_MATCHES, MOCK_TEAMS } from '../constants';
+import { MOCK_MATCHES } from '../constants';
 import { MapPin, Star, Phone, ChevronRight, Users, Trophy, ChevronDown, MessageCircle, Shield, UserCheck, Clock, AlertCircle, X, CheckCircle, Wallet, Calendar } from 'lucide-react';
 import { LevelBadge } from '../components/LevelBadge';
 import { FairPlayScore } from '../components/FairPlayScore';
-import { Team, MatchListing } from '../types';
+import { Team, MatchListing, Business, Pitch } from '../types';
 import { CreateMatchModal } from '../components/CreateMatchModal';
 import { OfferModal } from '../components/OfferModal';
 import { ConfirmModal } from '../components/ConfirmModal';
@@ -14,7 +14,11 @@ import { calculateDistance } from '../utils/location';
 import api from '../services/api';
 
 export const PitchBooking: React.FC = () => {
-   const [expandedPitchId, setExpandedPitchId] = useState<string | null>(null);
+   // New state for Businesses
+   const [businesses, setBusinesses] = useState<Business[]>([]);
+   const [expandedBusinessId, setExpandedBusinessId] = useState<string | null>(null);
+   const [selectedPitchIdInBusiness, setSelectedPitchIdInBusiness] = useState<Record<string, string>>({}); // Store selected pitch ID per business
+
    const [viewingTeam, setViewingTeam] = useState<Team | null>(null);
    const [offerMode, setOfferMode] = useState<{ matchId: string, teamName: string } | null>(null);
 
@@ -43,21 +47,29 @@ export const PitchBooking: React.FC = () => {
       return currentUser.team.captainId === currentUser.id || currentUser.team.viceCaptainIds?.includes(currentUser.id) || false;
    };
 
-   // Announcements for the currently expanded pitch
+   // Announcements for the currently selected pitch
    const [pitchAnnouncements, setPitchAnnouncements] = useState<any[]>([]);
 
-   // Fetch current user on mount
+   // Fetch initial data
    useEffect(() => {
       const fetchData = async () => {
          try {
+            // Fetch User
             const userRes = await api.get('/users/me');
-            console.log('👤 Current user in PitchBooking:', userRes.data);
+            console.log('👤 Current user:', userRes.data);
             setCurrentUser(userRes.data);
 
             if (userRes.data?.team) {
                const challengesRes = await api.get(`/challenges/team/${userRes.data.team.id}`);
                setMyChallenges(challengesRes.data);
             }
+
+            // Fetch Businesses (with Pitches included hopefully)
+            // Or create a dedicated endpoint. Assuming /businesses includes pitches based on my backend implementation.
+            const businessRes = await api.get('/businesses');
+            setBusinesses(businessRes.data);
+            console.log('🏢 Businesses fetched:', businessRes.data);
+
          } catch (error) {
             console.error('Failed to fetch data:', error);
          }
@@ -65,13 +77,14 @@ export const PitchBooking: React.FC = () => {
       fetchData();
    }, []);
 
-   // Fetch announcements when a pitch is expanded
+   // Fetch announcements when a specific PITCH is selected (inside an expanded business)
    useEffect(() => {
-      if (expandedPitchId) {
+      if (expandedBusinessId && selectedPitchIdInBusiness[expandedBusinessId]) {
+         const pitchId = selectedPitchIdInBusiness[expandedBusinessId];
          const fetchAnnouncements = async () => {
             try {
-               const response = await api.get(`/match-announcements/pitch/${expandedPitchId}`);
-               console.log(`📍 Announcements for pitch ${expandedPitchId}:`, response.data);
+               const response = await api.get(`/match-announcements/pitch/${pitchId}`);
+               console.log(`📍 Announcements for pitch ${pitchId}:`, response.data);
                setPitchAnnouncements(response.data);
             } catch (error) {
                console.error('Failed to fetch pitch announcements:', error);
@@ -82,38 +95,36 @@ export const PitchBooking: React.FC = () => {
       } else {
          setPitchAnnouncements([]);
       }
-   }, [expandedPitchId]);
+   }, [expandedBusinessId, selectedPitchIdInBusiness]);
 
-   // Filter matches based on pitch ID - NOW USES REAL API DATA
-   const getMatchesForPitch = (pitchId: string) => {
-      // Return announcements for the currently expanded pitch
-      // pitchAnnouncements is fetched via useEffect when expandedPitchId changes
-      return pitchAnnouncements.sort((a, b) => {
-         return new Date(a.date).getTime() - new Date(b.date).getTime();
-      });
-   };
+   // Helper: Select first pitch when expanding business if none selected
+   useEffect(() => {
+      if (expandedBusinessId) {
+         const business = businesses.find(b => b.id === expandedBusinessId);
+         if (business?.pitches?.length && !selectedPitchIdInBusiness[expandedBusinessId]) {
+            setSelectedPitchIdInBusiness(prev => ({
+               ...prev,
+               [expandedBusinessId]: business.pitches![0].id
+            }));
+         }
+      }
+   }, [expandedBusinessId, businesses]);
 
-   const getFilteredPitches = () => {
-      let filtered = [...MOCK_PITCHES];
+
+   // Filter logic adapted for Businesses (filtering by business location)
+   const getFilteredBusinesses = () => {
+      let filtered = [...businesses];
 
       if (locationFilter.type === 'DISTRICT' && locationFilter.value) {
-         filtered = filtered.filter(p => p.location.includes(locationFilter.value!));
-      } else if (locationFilter.type === 'NEARBY' && locationFilter.coords) {
-         filtered = filtered.filter(p => {
-            if (!p.coordinates) return false;
-            const dist = calculateDistance(
-               locationFilter.coords!.lat,
-               locationFilter.coords!.lng,
-               p.coordinates.lat,
-               p.coordinates.lng
-            );
-            return dist <= (locationFilter.radius || 60);
-         });
+         filtered = filtered.filter(b => b.location.includes(locationFilter.value!));
       }
+      // Note: Coordinates logic needs update as Business doesn't have coords yet in frontend, maybe assuming hardcoded for now or skipping
+      // If we need distance, we should add coordinates to business entity or just skip nearby for now.
+
       return filtered;
    };
 
-   const filteredPitches = getFilteredPitches();
+   const filteredBusinesses = getFilteredBusinesses();
 
    const handleSendOffer = async (note: string) => {
       if (!currentUser?.team || !offerMode) return;
@@ -125,7 +136,6 @@ export const PitchBooking: React.FC = () => {
       });
 
       setMyChallenges(prev => [...prev, response.data]);
-      // OfferModal handles closing/success state internally via onSend promise resolution
    };
 
    const handleCancelClick = (challengeId: string) => {
@@ -163,6 +173,7 @@ export const PitchBooking: React.FC = () => {
    };
 
    const handleCreateAd = (pitchId: string, hour?: number) => {
+      // Logic same as before
       setCreateModalPitchId(pitchId);
       setCreateModalHour(hour);
       setIsCreateModalOpen(true);
@@ -192,6 +203,7 @@ export const PitchBooking: React.FC = () => {
    };
 
    // --- SUB-COMPONENT: TEAM DETAIL MODAL ---
+   // (Kept same as original)
    const TeamDetailModal = () => {
       if (!viewingTeam) return null;
       return (
@@ -263,6 +275,7 @@ export const PitchBooking: React.FC = () => {
                      </div>
                   </div>
 
+                  {/* Kapat Button */}
                   <button
                      onClick={() => {
                         setViewingTeam(null);
@@ -278,10 +291,8 @@ export const PitchBooking: React.FC = () => {
    };
 
 
-
    return (
       <div className="pb-28 pt-20 px-4 max-w-3xl mx-auto min-h-screen bg-pitch">
-         <TeamDetailModal />
          <TeamDetailModal />
 
          <LocationFilterModal
@@ -355,51 +366,57 @@ export const PitchBooking: React.FC = () => {
          </div>
 
          <div className="space-y-6">
-            {filteredPitches.length === 0 && (
+            {filteredBusinesses.length === 0 && (
                <div className="text-center py-12 text-slate-400 bg-slate-800/50 rounded-3xl border border-dashed border-slate-700">
                   <MapPin className="w-8 h-8 mx-auto mb-3 text-slate-600" />
-                  {locationFilter.type === 'NEARBY' ? (
-                     <div>
-                        <p className="font-bold text-white mb-1">Yakınınızda saha bulunamadı.</p>
-                        <p className="text-xs max-w-xs mx-auto">Tarayıcı konumunuz sahalara (İstanbul) uzak olabilir.</p>
-                     </div>
-                  ) : (
-                     "Seçilen konumda saha bulunamadı."
-                  )}
+                  Seçilen konumda halı saha işletmesi bulunamadı.
                </div>
             )}
 
-            {filteredPitches.map((pitch) => {
-               const isExpanded = expandedPitchId === pitch.id;
-               const activeMatches = getMatchesForPitch(pitch.id);
+            {filteredBusinesses.map((business) => {
+               const isExpanded = expandedBusinessId === business.id;
+               // Determine selected pitch for this business
+               const selectedPitchId = selectedPitchIdInBusiness[business.id];
+               const selectedPitch = business.pitches?.find(p => p.id === selectedPitchId);
+
+               // Use selected pitch for image/details if available, else first pitch or placeholder
+               const displayPitch = selectedPitch || (business.pitches && business.pitches[0]);
+
+               // If no pitches, handle gracefully?
+               if (!business.pitches || business.pitches.length === 0) return null;
+
+               const activeMatches = pitchAnnouncements.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
                const groupedMatches = groupMatchesByDate(activeMatches);
 
                return (
-                  <div key={pitch.id} className={`bg-slate-800 rounded-3xl overflow-hidden border transition-all duration-300 ${isExpanded ? 'border-turf-500 shadow-neon' : 'border-slate-700 shadow-lg'}`}>
-                     {/* Pitch Image Header */}
+                  <div key={business.id} className={`bg-slate-800 rounded-3xl overflow-hidden border transition-all duration-300 ${isExpanded ? 'border-turf-500 shadow-neon' : 'border-slate-700 shadow-lg'}`}>
+                     {/* Business Card Header */}
                      <div
                         className="h-44 relative cursor-pointer group"
-                        onClick={() => setExpandedPitchId(isExpanded ? null : pitch.id)}
+                        onClick={() => setExpandedBusinessId(isExpanded ? null : business.id)}
                      >
-                        <img src={pitch.imageUrl} alt={pitch.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                        {/* Use image of the first pitch or a generic business image if we had one */}
+                        <img src={displayPitch?.imageUrl || "https://images.unsplash.com/photo-1529900748604-07564a03e7a6?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80"} alt={business.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                         <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/20 to-transparent"></div>
 
-                        {/* Price Tag - Top Left */}
-                        <div className="absolute top-4 left-4 bg-slate-900/80 backdrop-blur px-3 py-1.5 rounded-lg border border-slate-700/50 shadow-lg">
-                           <span className="text-turf-400 font-sport font-bold text-xl tracking-wide">₺{pitch.pricePerHour}</span>
-                           <span className="text-slate-400 text-xs font-bold ml-1">/ Saat</span>
-                        </div>
+                        {/* Price Tag (of selected/first pitch) */}
+                        {displayPitch && (
+                           <div className="absolute top-4 left-4 bg-slate-900/80 backdrop-blur px-3 py-1.5 rounded-lg border border-slate-700/50 shadow-lg">
+                              <span className="text-turf-400 font-sport font-bold text-xl tracking-wide">₺{displayPitch.pricePerHour}</span>
+                              <span className="text-slate-400 text-xs font-bold ml-1">/ Saat</span>
+                           </div>
+                        )}
 
                         <div className="absolute bottom-4 left-4">
-                           <h2 className="text-3xl font-sport font-black text-white italic uppercase drop-shadow-md">{pitch.name}</h2>
+                           <h2 className="text-3xl font-sport font-black text-white italic uppercase drop-shadow-md">{business.name}</h2>
                            <div className="flex items-center gap-1 text-slate-200 text-sm font-medium">
-                              <MapPin className="w-4 h-4 text-turf-500" /> {pitch.location}
+                              <MapPin className="w-4 h-4 text-turf-500" /> {business.location}
                            </div>
                         </div>
 
                         <div className="absolute top-4 right-4 bg-slate-900/80 backdrop-blur px-3 py-1 rounded-lg flex items-center gap-1 border border-slate-700">
                            <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                           <span className="font-bold text-white">{pitch.rating}</span>
+                           <span className="font-bold text-white">{business.rating}</span>
                         </div>
 
                         <div className={`absolute bottom-4 right-4 bg-white/10 p-2 rounded-full backdrop-blur transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}>
@@ -411,233 +428,242 @@ export const PitchBooking: React.FC = () => {
                      {isExpanded && (
                         <div className="p-5 animate-fade-in bg-slate-900/50">
 
-                           {/* --- SCHEDULE GRID (AVAILABILITY) --- */}
-                           <div className="mb-8">
-                              {/* Header with Reservation Button */}
-                              <div className="flex items-center justify-between mb-3">
-                                 <h4 className="text-white font-bold text-sm flex items-center gap-2">
-                                    <Clock className="w-4 h-4 text-turf-500" /> BUGÜNÜN AKIŞI
-                                 </h4>
-                                 <a
-                                    href={`tel:${pitch.phone}`}
-                                    className="bg-turf-600 hover:bg-turf-500 text-white px-3 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all shadow-lg shadow-turf-600/20"
-                                 >
-                                    <Phone className="w-4 h-4" />
-                                    <span className="hidden sm:inline">Rezervasyon Yap</span>
-                                    <span className="sm:hidden">Ara</span>
-                                 </a>
-                              </div>
-                              <div className="grid grid-cols-3 gap-2">
-                                 {pitch.schedule?.map((slot) => {
-                                    // Check if there's an announcement for this hour
-                                    const hasAnnouncement = pitchAnnouncements.some(announcement => {
-                                       const announcementHour = parseInt(announcement.time?.split(':')[0] || '0');
-                                       return announcementHour === slot.hour;
-                                    });
-
-                                    let slotClass = '';
-                                    let label = '';
-                                    let action = null;
-
-                                    // Dynamic status based on announcements
-                                    if (hasAnnouncement) {
-                                       if (isAuthorized()) {
-                                          slotClass = 'bg-orange-900/20 border-orange-500/50 text-orange-400 animate-pulse cursor-pointer hover:border-turf-500';
-                                          label = 'RAKİP ARANIYOR';
-                                          action = () => handleCreateAd(pitch.id, slot.hour);
-                                       } else {
-                                          slotClass = 'bg-orange-900/20 border-orange-500/50 text-orange-400 opacity-80 cursor-not-allowed';
-                                          label = 'RAKİP ARANIYOR';
-                                          // No action for unauthorized
-                                       }
-                                    } else if (slot.status === 'BOOKED') {
-                                       // Future: Admin panel will set this
-                                       slotClass = 'bg-red-900/20 border-red-900/50 text-red-700 opacity-70 cursor-not-allowed';
-                                       label = 'DOLU';
-                                    } else {
-                                       if (isAuthorized()) {
-                                          slotClass = 'bg-slate-800 border-slate-700 text-slate-300 hover:border-turf-500 hover:text-white cursor-pointer';
-                                          label = 'BOŞ';
-                                          action = () => handleCreateAd(pitch.id, slot.hour);
-                                       } else {
-                                          slotClass = 'bg-slate-800 border-slate-700 text-slate-500 opacity-60 cursor-not-allowed';
-                                          label = 'BOŞ';
-                                          // No action for unauthorized users
-                                       }
-                                    }
-
-                                    return (
-                                       <div
-                                          key={slot.hour}
-                                          onClick={action || undefined}
-                                          className={`p-3 rounded-xl border text-center transition-all flex flex-col items-center justify-center relative overflow-hidden group ${slotClass}`}
-                                       >
-                                          <span className="text-lg font-sport font-bold">{slot.hour}:00</span>
-                                          <span className="text-[10px] font-bold mt-1">{label}</span>
-
-                                          {slot.status === 'AVAILABLE' && isAuthorized() && (
-                                             <div className="absolute inset-0 bg-turf-600/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <span className="text-white font-bold text-xs">+ İlan Aç</span>
-                                             </div>
-                                          )}
-                                       </div>
-                                    )
-                                 })}
-                              </div>
-                              <p className="text-[10px] text-slate-500 mt-2 flex items-center gap-1">
-                                 <AlertCircle className="w-3 h-3" /> Dolu saatlere ilan açılamaz. Boş saat seçip takımını kur.
-                              </p>
-                           </div>
-
-                           {/* --- FACILITIES --- */}
-                           <div className="mb-6">
-                              <h4 className="text-white font-bold text-sm mb-3 flex items-center gap-2">
-                                 <Trophy className="w-4 h-4 text-yellow-500" /> İMKANLAR
-                              </h4>
-                              <div className="flex flex-wrap gap-2">
-                                 {pitch.facilities.map((fac, i) => (
-                                    <span key={i} className="px-3 py-1 rounded-md bg-slate-700 text-slate-300 text-xs font-medium border border-slate-600">
-                                       {fac}
-                                    </span>
+                           {/* PITCH TABS */}
+                           {business.pitches && business.pitches.length > 1 && (
+                              <div className="flex gap-2 overflow-x-auto mb-6 pb-2 scrollbar-hide border-b border-slate-700">
+                                 {business.pitches.map(pitch => (
+                                    <button
+                                       key={pitch.id}
+                                       onClick={() => setSelectedPitchIdInBusiness(prev => ({ ...prev, [business.id]: pitch.id }))}
+                                       className={`px-4 py-2 rounded-t-xl font-bold text-sm transition-all whitespace-nowrap ${selectedPitch && selectedPitch.id === pitch.id
+                                          ? 'bg-turf-600 text-white border-b-2 border-turf-400'
+                                          : 'bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700'}`}
+                                    >
+                                       {pitch.name}
+                                    </button>
                                  ))}
                               </div>
-                           </div>
+                           )}
 
-                           {/* --- ACTIVE MATCHES SECTION --- */}
-                           {/* Added pb-24 to ensure last elements aren't hidden behind navbar on mobile */}
-                           <div className="pb-20">
-                              <h4 className="text-white font-bold text-sm mb-3 flex items-center gap-2">
-                                 <Users className="w-4 h-4 text-blue-500" />
-                                 BURADA RAKİP ARAYANLAR ({activeMatches.length})
-                              </h4>
+                           {selectedPitch ? (
+                              <>
+                                 {/* --- SCHEDULE GRID (AVAILABILITY) --- */}
+                                 <div className="mb-8">
+                                    {/* Header with Reservation Button */}
+                                    <div className="flex items-center justify-between mb-3">
+                                       <h4 className="text-white font-bold text-sm flex items-center gap-2">
+                                          <Clock className="w-4 h-4 text-turf-500" /> {selectedPitch.name.toUpperCase()} AKIŞI
+                                       </h4>
+                                       <a
+                                          href={`tel:${business.phone}`} // Use business phone
+                                          className="bg-turf-600 hover:bg-turf-500 text-white px-3 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all shadow-lg shadow-turf-600/20"
+                                       >
+                                          <Phone className="w-4 h-4" />
+                                          <span className="hidden sm:inline">Rezervasyon Yap</span>
+                                          <span className="sm:hidden">Ara</span>
+                                       </a>
+                                    </div>
 
-                              {activeMatches.length > 0 ? (
-                                 <div className="space-y-6">
-                                    {Object.keys(groupedMatches).map(date => (
-                                       <div key={date}>
-                                          {/* Date Divider */}
-                                          <div className="flex items-center gap-2 mb-3">
-                                             <Calendar className="w-4 h-4 text-turf-500" />
-                                             <span className="text-sm font-bold text-turf-400 uppercase tracking-wide">
-                                                {getRelativeDateLabel(date)}
-                                             </span>
-                                             <div className="flex-1 h-px bg-slate-700"></div>
-                                          </div>
+                                    {/* Reuse schedule logic - using business pitches generic schedule if needed, but assuming pitch.schedule exists or we use generic mock */}
+                                    <div className="grid grid-cols-3 gap-2">
+                                       {(selectedPitch.schedule || [{ hour: 18, status: 'AVAILABLE' }, { hour: 19, status: 'AVAILABLE' }, { hour: 20, status: 'BOOKED' }, { hour: 21, status: 'AVAILABLE' }, { hour: 22, status: 'AVAILABLE' }, { hour: 23, status: 'AVAILABLE' } as any]).map((slot: any) => {
+                                          // Check if there's an announcement for this hour
+                                          // Note: using pitchAnnouncements which are fetched for SELECTED pitch
+                                          const hasAnnouncement = pitchAnnouncements.some((announcement: any) => {
+                                             const announcementHour = parseInt(announcement.time?.split(':')[0] || '0');
+                                             return announcementHour === slot.hour;
+                                          });
 
-                                          <div className="space-y-3">
-                                             {groupedMatches[date].map(announcement => {
-                                                // announcement.team comes from API response
-                                                const team = announcement.team;
+                                          let slotClass = '';
+                                          let label = '';
+                                          let action = null;
 
-                                                // Check if this announcement belongs to user's team
-                                                const isOwnTeam = announcement.teamId === currentUser?.team?.id;
-                                                const existingChallenge = myChallenges.find(c => c.toMatchId === announcement.id && c.status === 'PENDING');
+                                          // Dynamic status based on announcements
+                                          if (hasAnnouncement) {
+                                             if (isAuthorized()) {
+                                                slotClass = 'bg-orange-900/20 border-orange-500/50 text-orange-400 animate-pulse cursor-pointer hover:border-turf-500';
+                                                label = 'RAKİP ARANIYOR';
+                                                action = () => handleCreateAd(selectedPitch.id, slot.hour);
+                                             } else {
+                                                slotClass = 'bg-orange-900/20 border-orange-500/50 text-orange-400 opacity-80 cursor-not-allowed';
+                                                label = 'RAKİP ARANIYOR';
+                                                // No action for unauthorized
+                                             }
+                                          } else if (slot.status === 'BOOKED') {
+                                             // Future: Admin panel will set this
+                                             slotClass = 'bg-red-900/20 border-red-900/50 text-red-700 opacity-70 cursor-not-allowed';
+                                             label = 'DOLU';
+                                          } else {
+                                             if (isAuthorized()) {
+                                                slotClass = 'bg-slate-800 border-slate-700 text-slate-300 hover:border-turf-500 hover:text-white cursor-pointer';
+                                                label = 'BOŞ';
+                                                action = () => handleCreateAd(selectedPitch.id, slot.hour);
+                                             } else {
+                                                slotClass = 'bg-slate-800 border-slate-700 text-slate-500 opacity-60 cursor-not-allowed';
+                                                label = 'BOŞ';
+                                                // No action for unauthorized users
+                                             }
+                                          }
 
-                                                return (
-                                                   <div key={announcement.id} className={`p-4 rounded-2xl border flex flex-col gap-3 group transition-colors relative overflow-hidden ${isOwnTeam
-                                                      ? 'bg-turf-900/20 border-turf-500/50'
-                                                      : 'bg-slate-800 border-slate-700 hover:border-turf-500/50'
-                                                      }`}>
-                                                      <div className={`absolute -right-6 -top-6 w-24 h-24 rounded-full blur-xl ${isOwnTeam ? 'bg-turf-600/20' : 'bg-turf-500/10'
-                                                         }`}></div>
+                                          return (
+                                             <div
+                                                key={slot.hour}
+                                                onClick={action || undefined}
+                                                className={`p-3 rounded-xl border text-center transition-all flex flex-col items-center justify-center relative overflow-hidden group ${slotClass}`}
+                                             >
+                                                <span className="text-lg font-sport font-bold">{slot.hour}:00</span>
+                                                <span className="text-[10px] font-bold mt-1">{label}</span>
 
-                                                      {/* Own Team Banner */}
-                                                      {isOwnTeam && (
-                                                         <div className="bg-turf-600/20 border border-turf-500/50 rounded-xl px-3 py-2 flex items-center gap-2 relative z-10">
-                                                            <Shield className="w-4 h-4 text-turf-400" />
-                                                            <span className="text-turf-300 text-xs font-bold uppercase">Sizin İlanınız</span>
-                                                         </div>
-                                                      )}
+                                                {slot.status === 'AVAILABLE' && isAuthorized() && (
+                                                   <div className="absolute inset-0 bg-turf-600/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                      <span className="text-white font-bold text-xs">+ İlan Aç</span>
+                                                   </div>
+                                                )}
+                                             </div>
+                                          )
+                                       })}
+                                    </div>
+                                    <p className="text-[10px] text-slate-500 mt-2 flex items-center gap-1">
+                                       <AlertCircle className="w-3 h-3" /> Dolu saatlere ilan açılamaz. Boş saat seçip takımını kur.
+                                    </p>
+                                 </div>
 
-                                                      <div className="flex items-center justify-between relative z-10">
-                                                         <div className="flex items-center gap-3">
-                                                            <img src={team?.logoUrl || '/default-team-logo.png'} className="w-14 h-14 rounded-full border-2 border-slate-600 object-cover bg-slate-900 shadow-md" alt={team?.name} />
-                                                            <div>
-                                                               <div className="text-white font-bold text-lg font-sport tracking-wide italic">{team?.name}</div>
-                                                               <div className="flex items-center gap-2 mt-1">
-                                                                  <LevelBadge level={team?.level || 'INTERMEDIATE'} />
-                                                                  <span className="text-xs text-white font-bold bg-slate-700 px-2 py-0.5 rounded flex items-center gap-1">
-                                                                     <Clock className="w-3 h-3" /> {announcement.time}
-                                                                  </span>
+                                 {/* --- FACILITIES --- */}
+                                 <div className="mb-6">
+                                    <h4 className="text-white font-bold text-sm mb-3 flex items-center gap-2">
+                                       <Trophy className="w-4 h-4 text-yellow-500" /> İMKANLAR
+                                    </h4>
+                                    <div className="flex flex-wrap gap-2">
+                                       {selectedPitch.facilities?.map((fac, i) => (
+                                          <span key={i} className="px-3 py-1 rounded-md bg-slate-700 text-slate-300 text-xs font-medium border border-slate-600">
+                                             {fac}
+                                          </span>
+                                       ))}
+                                    </div>
+                                 </div>
+
+                                 {/* --- ACTIVE MATCHES SECTION --- */}
+                                 <div className="pb-20">
+                                    <h4 className="text-white font-bold text-sm mb-3 flex items-center gap-2">
+                                       <Users className="w-4 h-4 text-blue-500" />
+                                       BURADA RAKİP ARAYANLAR ({activeMatches.length})
+                                    </h4>
+
+                                    {activeMatches.length > 0 ? (
+                                       <div className="space-y-6">
+                                          {Object.keys(groupedMatches).map(date => (
+                                             <div key={date}>
+                                                {/* Date Divider */}
+                                                <div className="flex items-center gap-2 mb-3">
+                                                   <Calendar className="w-4 h-4 text-turf-500" />
+                                                   <span className="text-sm font-bold text-turf-400 uppercase tracking-wide">
+                                                      {getRelativeDateLabel(date)}
+                                                   </span>
+                                                   <div className="flex-1 h-px bg-slate-700"></div>
+                                                </div>
+
+                                                <div className="space-y-3">
+                                                   {groupedMatches[date].map((announcement: any) => {
+                                                      const team = announcement.team;
+                                                      const isOwnTeam = announcement.teamId === currentUser?.team?.id;
+                                                      const existingChallenge = myChallenges.find(c => c.toMatchId === announcement.id && c.status === 'PENDING');
+
+                                                      return (
+                                                         <div key={announcement.id} className={`p-4 rounded-2xl border flex flex-col gap-3 group transition-colors relative overflow-hidden ${isOwnTeam
+                                                            ? 'bg-turf-900/20 border-turf-500/50'
+                                                            : 'bg-slate-800 border-slate-700 hover:border-turf-500/50'
+                                                            }`}>
+                                                            <div className={`absolute -right-6 -top-6 w-24 h-24 rounded-full blur-xl ${isOwnTeam ? 'bg-turf-600/20' : 'bg-turf-500/10'}`}></div>
+
+                                                            {isOwnTeam && (
+                                                               <div className="bg-turf-600/20 border border-turf-500/50 rounded-xl px-3 py-2 flex items-center gap-2 relative z-10">
+                                                                  <Shield className="w-4 h-4 text-turf-400" />
+                                                                  <span className="text-turf-300 text-xs font-bold uppercase">Sizin İlanınız</span>
                                                                </div>
+                                                            )}
+
+                                                            <div className="flex items-center justify-between relative z-10">
+                                                               <div className="flex items-center gap-3">
+                                                                  <img src={team?.logoUrl || '/default-team-logo.png'} className="w-14 h-14 rounded-full border-2 border-slate-600 object-cover bg-slate-900 shadow-md" alt={team?.name} />
+                                                                  <div>
+                                                                     <div className="text-white font-bold text-lg font-sport tracking-wide italic">{team?.name}</div>
+                                                                     <div className="flex items-center gap-2 mt-1">
+                                                                        <LevelBadge level={team?.level || 'INTERMEDIATE'} />
+                                                                        <span className="text-xs text-white font-bold bg-slate-700 px-2 py-0.5 rounded flex items-center gap-1">
+                                                                           <Clock className="w-3 h-3" /> {announcement.time}
+                                                                        </span>
+                                                                     </div>
+                                                                  </div>
+                                                               </div>
+                                                               {team && <FairPlayScore score={team.fairPlayScore || 0} />}
+                                                            </div>
+
+                                                            <div className="grid grid-cols-2 gap-2 mt-2 pt-3 border-t border-slate-700/50 relative z-10">
+                                                               <button
+                                                                  onClick={() => {
+                                                                     if (team) setViewingTeam(team);
+                                                                  }}
+                                                                  className="bg-slate-700 text-slate-300 hover:bg-slate-600 hover:text-white py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-colors"
+                                                               >
+                                                                  <Shield className="w-4 h-4" /> Rakibi Görüntüle
+                                                               </button>
+
+                                                               {isOwnTeam ? (
+                                                                  isAuthorized() ? (
+                                                                     <button
+                                                                        onClick={() => handleDeleteAdClick(announcement.id)}
+                                                                        className="bg-turf-900/30 border border-turf-500/30 text-turf-400 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-red-900/30 hover:text-red-400 hover:border-red-900/50 transition-all group"
+                                                                     >
+                                                                        <span className="group-hover:hidden flex items-center gap-2"><Shield className="w-4 h-4" /> İlanınız Aktif</span>
+                                                                        <span className="hidden group-hover:flex items-center gap-2"><X className="w-4 h-4" /> İlanı Kaldır</span>
+                                                                     </button>
+                                                                  ) : (
+                                                                     <div className="bg-turf-900/20 border border-turf-500/20 text-turf-500 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-not-allowed">
+                                                                        <Shield className="w-4 h-4" /> Sizin İlanınız
+                                                                     </div>
+                                                                  )
+                                                               ) : existingChallenge ? (
+                                                                  <button
+                                                                     onClick={() => handleCancelClick(existingChallenge.id)}
+                                                                     className="bg-slate-700/50 border border-slate-600/50 text-slate-400 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-red-900/30 hover:text-red-400 hover:border-red-900/50 transition-all group"
+                                                                  >
+                                                                     <span className="group-hover:hidden flex items-center gap-2"><Clock className="w-4 h-4" /> İstek Gönderildi</span>
+                                                                     <span className="hidden group-hover:flex items-center gap-2"><X className="w-4 h-4" /> İsteği İptal Et</span>
+                                                                  </button>
+                                                               ) : (
+                                                                  <button
+                                                                     onClick={() => setOfferMode({ matchId: announcement.id, teamName: team?.name || '' })}
+                                                                     className="bg-turf-600 text-white hover:bg-turf-500 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-colors shadow-lg shadow-turf-600/20"
+                                                                  >
+                                                                     <Trophy className="w-4 h-4" /> Maç Teklifi Et
+                                                                  </button>
+                                                               )}
                                                             </div>
                                                          </div>
-
-                                                         {/* Display Fair Play Score here for quick view */}
-                                                         {team && <FairPlayScore score={team.fairPlayScore || 0} />}
-                                                      </div>
-
-                                                      {/* Action Buttons */}
-                                                      <div className="grid grid-cols-2 gap-2 mt-2 pt-3 border-t border-slate-700/50 relative z-10">
-                                                         <button
-                                                            onClick={() => {
-                                                               console.log('📊 Team data for modal:', {
-                                                                  team: team,
-                                                                  name: team?.name,
-                                                                  wins: team?.wins,
-                                                                  losses: team?.losses,
-                                                                  players: team?.players,
-                                                                  playerCount: team?.players?.length
-                                                               });
-                                                               if (team) setViewingTeam(team);
-                                                            }}
-                                                            className="bg-slate-700 text-slate-300 hover:bg-slate-600 hover:text-white py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-colors"
-                                                         >
-                                                            <Shield className="w-4 h-4" /> Rakibi Görüntüle
-                                                         </button>
-
-                                                         {isOwnTeam ? (
-                                                            isAuthorized() ? (
-                                                               <button
-                                                                  onClick={() => handleDeleteAdClick(announcement.id)}
-                                                                  className="bg-turf-900/30 border border-turf-500/30 text-turf-400 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-red-900/30 hover:text-red-400 hover:border-red-900/50 transition-all group"
-                                                               >
-                                                                  <span className="group-hover:hidden flex items-center gap-2"><Shield className="w-4 h-4" /> İlanınız Aktif</span>
-                                                                  <span className="hidden group-hover:flex items-center gap-2"><X className="w-4 h-4" /> İlanı Kaldır</span>
-                                                               </button>
-                                                            ) : (
-                                                               <div className="bg-turf-900/20 border border-turf-500/20 text-turf-500 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-not-allowed">
-                                                                  <Shield className="w-4 h-4" /> Sizin İlanınız
-                                                               </div>
-                                                            )
-                                                         ) : existingChallenge ? (
-                                                            <button
-                                                               onClick={() => handleCancelClick(existingChallenge.id)}
-                                                               className="bg-slate-700/50 border border-slate-600/50 text-slate-400 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-red-900/30 hover:text-red-400 hover:border-red-900/50 transition-all group"
-                                                            >
-                                                               <span className="group-hover:hidden flex items-center gap-2"><Clock className="w-4 h-4" /> İstek Gönderildi</span>
-                                                               <span className="hidden group-hover:flex items-center gap-2"><X className="w-4 h-4" /> İsteği İptal Et</span>
-                                                            </button>
-                                                         ) : (
-                                                            <button
-                                                               onClick={() => setOfferMode({ matchId: announcement.id, teamName: team?.name || '' })}
-                                                               className="bg-turf-600 text-white hover:bg-turf-500 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-colors shadow-lg shadow-turf-600/20"
-                                                            >
-                                                               <Trophy className="w-4 h-4" /> Maç Teklifi Et
-                                                            </button>
-                                                         )}
-                                                      </div>
-                                                   </div>
-                                                );
-                                             })}
-                                          </div>
+                                                      );
+                                                   })}
+                                                </div>
+                                             </div>
+                                          ))}
                                        </div>
-                                    ))}
-                                 </div>
-                              ) : (
-                                 <div className="text-center py-8 border-2 border-dashed border-slate-700 rounded-xl bg-slate-800/50">
-                                    <p className="text-slate-500 text-sm mb-3">Bu sahada henüz aktif ilan yok.</p>
-                                    {isAuthorized() && (
-                                       <button
-                                          onClick={() => handleCreateAd(pitch.id)}
-                                          className="text-slate-900 bg-turf-500 px-6 py-2 rounded-lg text-sm font-bold hover:scale-105 transition-transform"
-                                       >
-                                          İlk ilanı sen aç!
-                                       </button>
+                                    ) : (
+                                       <div className="text-center py-8 border-2 border-dashed border-slate-700 rounded-xl bg-slate-800/50">
+                                          <p className="text-slate-500 text-sm mb-3">Bu sahada henüz aktif ilan yok.</p>
+                                          {isAuthorized() && (
+                                             <button
+                                                onClick={() => handleCreateAd(selectedPitch.id)}
+                                                className="text-slate-900 bg-turf-500 px-6 py-2 rounded-lg text-sm font-bold hover:scale-105 transition-transform"
+                                             >
+                                                İlk ilanı sen aç!
+                                             </button>
+                                          )}
+                                       </div>
                                     )}
                                  </div>
-                              )}
-                           </div>
+                              </>
+                           ) : (
+                              <div className="text-center text-slate-500 p-4">Lütfen bir saha seçin.</div>
+                           )}
                         </div>
                      )}
                   </div>

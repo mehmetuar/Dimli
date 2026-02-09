@@ -110,13 +110,24 @@ export interface PitchSlot {
   };
 }
 
-export interface Pitch {
+export interface Business {
   id: string;
   name: string;
   location: string;
   rating: number;
+  phone: string;
+  pitches?: Pitch[];
+}
+
+export interface Pitch {
+  id: string;
+  name: string;
+  businessId?: string; // Link to Business
+  type?: string; // INDOOR / OUTDOOR
+  location: string;
+  rating: number;
   pricePerHour: number;
-  imageUrl: string;
+  imageUrl?: string;
   facilities: string[]; // e.g., "Shower", "Cafe", "Parking"
   phone: string;
   coordinates?: { lat: number; lng: number }; // New field
