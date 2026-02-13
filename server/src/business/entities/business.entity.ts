@@ -10,10 +10,36 @@ export class Business {
     name: string;
 
     @Column({ nullable: true })
-    location: string;
+    city: string;
+
+    @Column({ nullable: true })
+    district: string;
+
+    @Column({ type: 'text', nullable: true })
+    address: string;
+
+    @Column('float', { nullable: true })
+    latitude: number;
+
+    @Column('float', { nullable: true })
+    longitude: number;
+
+    @Column({ nullable: true })
+    coverImageUrl: string;
+
+    @Column({ nullable: true })
+    logoUrl: string;
 
     @Column({ nullable: true })
     phone: string;
+
+
+
+    @Column({ nullable: true })
+    openTime: string;
+
+    @Column({ nullable: true })
+    closeTime: string;
 
     @Column('float', { default: 0 })
     rating: number;

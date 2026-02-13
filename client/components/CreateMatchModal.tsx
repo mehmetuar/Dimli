@@ -144,10 +144,10 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
     const selectedPitch = getSelectedPitch();
 
     // Filter Logic for Businesses
-    const regions = ['TÜMÜ', ...new Set(businesses.map(b => b.location))];
+    const regions = ['TÜMÜ', ...new Set(businesses.map(b => b.district || b.city || ''))].filter(Boolean);
     const filteredBusinesses = selectedRegion === 'TÜMÜ'
         ? businesses
-        : businesses.filter(b => b.location === selectedRegion);
+        : businesses.filter(b => (b.district === selectedRegion || b.city === selectedRegion));
 
     return (
         <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-black/90 backdrop-blur-sm animate-fade-in">
@@ -240,7 +240,7 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
                                                         <Store className={`w-5 h-5 ${selectedBusinessId === business.id ? 'text-turf-500' : 'text-slate-500'}`} />
                                                         <div className="flex-1">
                                                             <div className="font-bold text-white text-sm">{business.name}</div>
-                                                            <div className="text-xs text-slate-500">{business.location}</div>
+                                                            <div className="text-xs text-slate-500">{business.district}, {business.city}</div>
                                                         </div>
                                                         <ChevronRight className={`w-4 h-4 text-slate-600 transition-transform ${selectedBusinessId === business.id ? 'rotate-90' : ''}`} />
                                                     </div>
@@ -283,6 +283,11 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
                                             <input
                                                 type="date"
                                                 min={getTodayDate()}
+                                                max={(() => {
+                                                    const maxDate = new Date();
+                                                    maxDate.setDate(maxDate.getDate() + 30);
+                                                    return maxDate.toISOString().split('T')[0];
+                                                })()}
                                                 className="w-full bg-slate-900 border border-slate-700 rounded-xl py-2.5 pl-10 pr-3 text-white text-sm focus:border-turf-500 focus:outline-none"
                                                 value={date}
                                                 onChange={(e) => setDate(e.target.value)}

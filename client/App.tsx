@@ -11,6 +11,10 @@ import { Notifications } from './pages/Notifications';
 
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
+import { BusinessLogin } from './pages/business/BusinessLogin';
+import { BusinessRegister } from './pages/business/BusinessRegister';
+import { BusinessDashboard } from './pages/business/BusinessDashboard';
+import { BusinessSettings } from './pages/business/BusinessSettings';
 
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { ProfileSettings } from './pages/ProfileSettings';
@@ -18,7 +22,7 @@ import { TeamSettings } from './pages/TeamSettings';
 
 function AppContent() {
   const location = useLocation();
-  const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
+  const isAuthPage = location.pathname === '/login' || location.pathname === '/register' || location.pathname.startsWith('/business');
 
   return (
     <div className="flex flex-col h-screen bg-pitch text-white overflow-hidden">
@@ -26,6 +30,10 @@ function AppContent() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/business/login" element={<BusinessLogin />} />
+          <Route path="/business/register" element={<BusinessRegister />} />
+          <Route path="/business/dashboard" element={<BusinessDashboard />} />
+          <Route path="/business/settings" element={<BusinessSettings />} />
           <Route element={<ProtectedRoute />}>
             <Route path="/" element={<Marketplace />} />
             <Route path="/pitches" element={<PitchBooking />} />

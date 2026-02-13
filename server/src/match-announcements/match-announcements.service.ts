@@ -52,33 +52,47 @@ export class MatchAnnouncementsService {
         }
 
 
-        // Validate date and time
-        const now = new Date();
-        const [hours, minutes] = (data.time || '00:00').split(':').map(Number);
 
-        if (!data.date) {
-            throw new HttpException('Tarih gereklidir', HttpStatus.BAD_REQUEST);
+        // Validate date and time - 🆕 IMPROVED: Reject past times strictly
+        if (!data.date || !data.time) {
+            throw new HttpException('Tarih ve saat gereklidir', HttpStatus.BAD_REQUEST);
         }
+
+        const now = new Date();
+        const [hours, minutes] = data.time.split(':').map(Number);
 
         // Construct announcement date object
         const announcementDate = new Date(data.date);
         announcementDate.setHours(hours, minutes, 0, 0);
 
-        // Calculate minimum allowed time (current time + 1 hour buffer roughly)
-        // Actually user said: "17:01 -> 18:00 earliest".
-        // So we strictly check if announcementDate is in the past or too close.
-        // Let's just strictly ensure it is NOT in the past.
-        // And maybe ensure it is at least the next hour.
-
-        // Create a date object for "now" but reset seconds/millis for cleaner comparison
-        const cleanNow = new Date();
-
-        if (announcementDate < cleanNow) {
+        // 🆕 Strictly check if the slot time is in the past
+        if (announcementDate < now) {
             throw new HttpException(
-                'Geçmiş tarihli ilan oluşturulamaz',
+                'Geçmiş bir saat için ilan oluşturamazsınız. Lütfen gelecek bir tarih ve saat seçin.',
                 HttpStatus.BAD_REQUEST
             );
         }
+
+        // 🆕 Check maximum date - 30 days in the future
+        const maxAllowedDate = new Date(now);
+        maxAllowedDate.setDate(maxAllowedDate.getDate() + 30);
+
+        if (announcementDate > maxAllowedDate) {
+            throw new HttpException(
+                'En fazla 30 gün ilerisi için ilan oluşturabilirsiniz.',
+                HttpStatus.BAD_REQUEST
+            );
+        }
+
+
+        // Optional: Also ensure a minimum buffer (e.g., at least 15 minutes from now)
+        // const minAllowedTime = new Date(now.getTime() + 15 * 60 * 1000); // 15 min buffer
+        // if (announcementDate < minAllowedTime) {
+        //     throw new HttpException(
+        //         'İlan en az 15 dakika sonrası için oluşturulmalıdır',
+        //         HttpStatus.BAD_REQUEST
+        //     );
+        // }
 
         const announcement = this.matchAnnouncementsRepository.create({
             ...data,
@@ -90,6 +104,7 @@ export class MatchAnnouncementsService {
         console.log('💾 Saved announcement:', { id: saved.id, teamId: saved.teamId });
 
         return saved;
+
     }
 
     async findAll(filters?: { date?: string; pitchId?: string }): Promise<MatchAnnouncement[]> {

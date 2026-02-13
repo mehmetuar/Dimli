@@ -29,4 +29,10 @@ export class BusinessService {
         }
         return business;
     }
+
+    async update(id: string, updateDto: any) {
+        const business = await this.findOne(id); // Will throw if not found
+        Object.assign(business, updateDto);
+        return await this.businessRepository.save(business);
+    }
 }

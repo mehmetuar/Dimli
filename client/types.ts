@@ -113,9 +113,19 @@ export interface PitchSlot {
 export interface Business {
   id: string;
   name: string;
-  location: string;
+  city?: string;
+  district?: string;
+  address?: string;
+  location: string; // Keep for backward compat or derived
+  latitude?: number;
+  longitude?: number;
   rating: number;
   phone: string;
+  coverImageUrl?: string;
+  logoUrl?: string;
+  // facilities moved to Pitch
+  openTime?: string;
+  closeTime?: string;
   pitches?: Pitch[];
 }
 
@@ -124,13 +134,10 @@ export interface Pitch {
   name: string;
   businessId?: string; // Link to Business
   type?: string; // INDOOR / OUTDOOR
-  location: string;
-  rating: number;
   pricePerHour: number;
   imageUrl?: string;
-  facilities: string[]; // e.g., "Shower", "Cafe", "Parking"
-  phone: string;
-  coordinates?: { lat: number; lng: number }; // New field
+  facilities?: string[]; // Moved from Business
+  business?: Business;
   schedule?: PitchSlot[]; // Mock schedule for today
 }
 

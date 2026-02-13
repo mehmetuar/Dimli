@@ -34,4 +34,23 @@ export class AuthController {
             };
         }
     }
+    @Post('business/login')
+    async loginBusiness(@Body() body) {
+        // Manual validation for now as we don't have a BusinessAuthGuard yet
+        const owner = await this.authService.validateBusinessOwner(body.email, body.password);
+        if (!owner) {
+            return {
+                statusCode: 401,
+                message: 'Invalid credentials',
+                error: 'Unauthorized'
+            };
+        }
+        return this.authService.loginBusinessOwner(owner);
+    }
+
+    @Post('business/register')
+    async registerBusiness(@Body() body) {
+        // Should delegate to AuthService or BusinessOwnerService
+        return this.authService.registerBusinessOwner(body);
+    }
 }

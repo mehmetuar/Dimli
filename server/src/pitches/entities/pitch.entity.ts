@@ -34,4 +34,5 @@ export class Pitch {
 
     @Column('simple-array', { nullable: true })
     facilities: string[];
+
 }

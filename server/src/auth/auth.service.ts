@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
+import { BusinessOwnerService } from '../business-owner/business-owner.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 
@@ -7,6 +8,7 @@ import * as bcrypt from 'bcrypt';
 export class AuthService {
     constructor(
         private usersService: UsersService,
+        private businessOwnerService: BusinessOwnerService,
         private jwtService: JwtService,
     ) { }
 
@@ -19,10 +21,44 @@ export class AuthService {
         return null;
     }
 
+    async validateBusinessOwner(email: string, pass: string): Promise<any> {
+        const owner = await this.businessOwnerService.findByEmail(email);
+        if (owner && (await bcrypt.compare(pass, owner.password))) {
+            const { password, ...result } = owner;
+            return result;
+        }
+        return null;
+    }
+
     async login(user: any) {
-        const payload = { username: user.username, sub: user.id };
+        const payload = { username: user.username, sub: user.id, role: 'user' };
         return {
             access_token: this.jwtService.sign(payload),
+            role: 'user'
         };
+    }
+
+    async loginBusinessOwner(owner: any) {
+        const payload = { email: owner.email, sub: owner.id, role: 'business_owner', businessId: owner.business?.id };
+        return {
+            access_token: this.jwtService.sign(payload),
+            role: 'business_owner',
+            ownerId: owner.id,
+            businessId: owner.business?.id
+        };
+    }
+
+    async registerBusinessOwner(data: any) {
+        // Hash password
+        const salt = await bcrypt.genSalt();
+        const hashedPassword = await bcrypt.hash(data.password, salt);
+
+        const newOwner = await this.businessOwnerService.create({
+            ...data,
+            password: hashedPassword
+        });
+
+        const { password, ...result } = newOwner;
+        return result;
     }
 }

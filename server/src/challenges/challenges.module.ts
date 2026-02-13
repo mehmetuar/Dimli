@@ -7,6 +7,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { MatchAnnouncementsModule } from '../match-announcements/match-announcements.module';
 import { TeamsModule } from '../teams/teams.module';
 import { ChatModule } from '../chat/chat.module';
+import { ReservationsModule } from '../reservations/reservations.module';
 
 @Module({
     imports: [
@@ -14,7 +15,8 @@ import { ChatModule } from '../chat/chat.module';
         NotificationsModule,
         MatchAnnouncementsModule,
         TeamsModule,
-        ChatModule
+        ChatModule,
+        ReservationsModule
     ],
     controllers: [ChallengesController],
     providers: [ChallengesService],

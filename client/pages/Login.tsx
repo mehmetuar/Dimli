@@ -74,12 +74,19 @@ export const Login: React.FC = () => {
                 </form>
 
                 <div className="mt-6 text-center">
-                    <p className="text-slate-400 text-sm">
+                    <p className="text-slate-400 text-sm mb-4">
                         Hesabın yok mu?{' '}
                         <Link to="/register" className="text-turf-500 font-bold hover:underline">
                             Kayıt Ol
                         </Link>
                     </p>
+
+                    <Link
+                        to="/business/login"
+                        className="inline-block px-6 py-2 bg-orange-500/10 text-orange-500 border border-orange-500/20 rounded-lg text-sm font-bold hover:bg-orange-500/20 transition-colors"
+                    >
+                        İşletme Hesabına Geçiş Yap
+                    </Link>
                 </div>
             </div>
         </div>

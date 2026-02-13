@@ -6,6 +6,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { MatchAnnouncementsService } from '../match-announcements/match-announcements.service';
 import { TeamsService } from '../teams/teams.service';
 import { ChatService } from '../chat/chat.service';
+import { ReservationsService } from '../reservations/reservations.service';
 
 @Injectable()
 export class ChallengesService {
@@ -16,6 +17,7 @@ export class ChallengesService {
         private matchAnnouncementsService: MatchAnnouncementsService,
         private teamsService: TeamsService,
         private chatService: ChatService,
+        private reservationsService: ReservationsService,
     ) { }
 
     async create(fromTeamId: string, toMatchId: string, note?: string): Promise<Challenge> {
@@ -122,11 +124,16 @@ export class ChallengesService {
             await this.notificationsService.delete(notification.id);
         }
 
+        console.log('🔵 Challenge status updated to:', status, 'Challenge ID:', id);
+
         if (status === 'ACCEPTED') {
+            console.log('✅ Challenge ACCEPTED! Starting match confirmation flow...');
+
             // 1. Update Match Status to CONFIRMED
             await this.matchAnnouncementsService['matchAnnouncementsRepository'].update(challenge.toMatchId, {
                 status: 'CONFIRMED'
             });
+            console.log('📝 Match status updated to CONFIRMED for match:', challenge.toMatchId);
 
             // 2. Create Chat Channel
             const match = await this.matchAnnouncementsService['matchAnnouncementsRepository'].findOne({
@@ -174,6 +181,34 @@ export class ChallengesService {
                 `Eşleşme Onaylandı!\n${match.date} ${match.time}\n\nMaçı kesinleştirmek için Sahayı arayın ve saatinizi rezerve edin.\nAcele et! Yerinizi kapabilirler.`,
                 true
             );
+
+            // 5. 🆕 CREATE AUTOMATIC PENDING RESERVATION
+            console.log('🎫 Creating auto-reservation...', { pitchId: match.pitchId, date: match.date, time: match.time });
+            try {
+                // Parse date and time
+                const [hours, minutes] = match.time.split(':').map(Number);
+                const slotDateTime = new Date(match.date);
+                slotDateTime.setHours(hours, minutes, 0, 0);
+                console.log('📅 Slot DateTime:', slotDateTime.toISOString());
+
+                const reservationData = {
+                    pitchId: match.pitchId,
+                    teamId: match.teamId, // Host team
+                    opponentTeamId: challenge.fromTeamId, // Challenger team
+                    slotTime: slotDateTime,
+                    type: 'MATCH',
+                    matchAnnouncementId: match.id
+                };
+                console.log('📦 Reservation data to create:', JSON.stringify(reservationData, null, 2));
+
+                const createdReservation = await this.reservationsService.create(reservationData);
+                console.log('✅ Reservation created successfully!', createdReservation);
+
+                console.log('✅ Auto-reservation created for match:', match.id);
+            } catch (err) {
+                console.error('❌ Failed to create auto-reservation:', err);
+                // Don't throw - match is still confirmed even if reservation fails
+            }
         }
 
         return challenge;

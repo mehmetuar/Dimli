@@ -13,6 +13,8 @@ import { MatchAnnouncementsModule } from './match-announcements/match-announceme
 import { ChatModule } from './chat/chat.module';
 import { BusinessModule } from './business/business.module';
 import { PitchesModule } from './pitches/pitches.module';
+import { BusinessOwnerModule } from './business-owner/business-owner.module';
+import { ReservationsModule } from './reservations/reservations.module';
 
 @Module({
   imports: [
@@ -38,6 +40,8 @@ import { PitchesModule } from './pitches/pitches.module';
     ChatModule,
     BusinessModule,
     PitchesModule,
+    BusinessOwnerModule,
+    ReservationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -65,7 +65,7 @@ export const Marketplace: React.FC = () => {
       filtered = filtered.filter(m => {
         const { business, pitch } = getPitchDetails(m.pitchId);
         // Use business location
-        const loc = business?.location || m.team?.location || '';
+        const loc = business ? `${business.district}, ${business.city}` : m.team?.location || '';
         return loc.includes(locationFilter.value || '');
       });
     } else if (locationFilter.type === 'NEARBY' && locationFilter.coords) {
@@ -371,7 +371,7 @@ export const Marketplace: React.FC = () => {
                             <span className="text-turf-400">{business?.name}</span>
                             <span className="mx-1 text-slate-500">-</span>
                             {pitch.name}
-                            <span className="ml-2 text-xs text-slate-500 font-normal">({business?.location})</span>
+                            <span className="ml-2 text-xs text-slate-500 font-normal">({business?.district}, {business?.city})</span>
                           </>
                         ) : (
                           'Saha Bilgisi Yükleniyor'
@@ -431,7 +431,10 @@ export const Marketplace: React.FC = () => {
             time: selectedMatch.time,
             // --- Updated Props for Challenge Modal ---
             pitchName: getPitchDetails(selectedMatch.pitchId).pitch?.name || 'Bilinmeyen Saha',
-            pitchLocation: getPitchDetails(selectedMatch.pitchId).business?.location || 'Konum Yok'
+            pitchLocation: (() => {
+              const { business } = getPitchDetails(selectedMatch.pitchId);
+              return business ? `${business.district}, ${business.city}` : 'Konum Yok';
+            })()
           }}
           onSubmit={handleSubmitChallenge}
         />
