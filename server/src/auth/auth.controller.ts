@@ -1,9 +1,10 @@
-import { Controller, Request, Post, UseGuards, Body } from '@nestjs/common';
+import { Controller, Request, Post, UseGuards, Body, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LocalAuthGuard } from './local-auth.guard';
 import { UsersService } from '../users/users.service';
 
 import { CreateUserDto } from '../users/dto/create-user.dto';
+import { RegisterBusinessDto } from './dto/register-business.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -39,18 +40,13 @@ export class AuthController {
         // Manual validation for now as we don't have a BusinessAuthGuard yet
         const owner = await this.authService.validateBusinessOwner(body.email, body.password);
         if (!owner) {
-            return {
-                statusCode: 401,
-                message: 'Invalid credentials',
-                error: 'Unauthorized'
-            };
+            throw new UnauthorizedException('Invalid credentials');
         }
         return this.authService.loginBusinessOwner(owner);
     }
 
     @Post('business/register')
-    async registerBusiness(@Body() body) {
-        // Should delegate to AuthService or BusinessOwnerService
-        return this.authService.registerBusinessOwner(body);
+    async registerBusiness(@Body() body: RegisterBusinessDto) {
+        return this.authService.registerBusinessFull(body);
     }
 }

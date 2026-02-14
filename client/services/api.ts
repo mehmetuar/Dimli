@@ -25,7 +25,8 @@ api.interceptors.response.use(
             // Clear invalid token
             localStorage.removeItem('token');
             // Redirect to login only if not already there
-            if (window.location.hash !== '#/login' && window.location.hash !== '#/register') {
+            const hash = window.location.hash;
+            if (hash !== '#/login' && hash !== '#/register' && !hash.startsWith('#/business/login') && !hash.startsWith('#/business/register')) {
                 window.location.hash = '#/login';
             }
         }

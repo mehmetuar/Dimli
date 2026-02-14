@@ -1,0 +1,100 @@
+import { IsString, IsEmail, IsNotEmpty, IsOptional, IsNumber, IsArray, ValidateNested, IsPhoneNumber } from 'class-validator';
+import { Type } from 'class-transformer';
+
+class RegisterBusinessOwnerDto {
+    @IsEmail()
+    @IsNotEmpty()
+    email: string;
+
+    @IsString()
+    @IsNotEmpty()
+    password: string;
+
+    @IsString()
+    @IsNotEmpty()
+    fullName: string;
+
+    @IsString()
+    @IsOptional()
+    phone?: string;
+}
+
+class RegisterBusinessDetailsDto {
+    @IsString()
+    @IsNotEmpty()
+    name: string;
+
+    @IsString()
+    @IsNotEmpty()
+    city: string;
+
+    @IsString()
+    @IsNotEmpty()
+    district: string;
+
+    @IsString()
+    @IsNotEmpty()
+    address: string;
+
+    @IsNumber()
+    @IsNotEmpty()
+    latitude: number;
+
+    @IsNumber()
+    @IsNotEmpty()
+    longitude: number;
+
+    @IsString()
+    @IsOptional()
+    phone?: string;
+
+    @IsString()
+    @IsOptional()
+    openTime?: string;
+
+    @IsString()
+    @IsOptional()
+    closeTime?: string;
+}
+
+class RegisterPitchDto {
+    @IsString()
+    @IsNotEmpty()
+    name: string;
+
+    @IsString()
+    @IsOptional()
+    type: string;
+
+    @IsNumber()
+    @IsNotEmpty()
+    pricePerHour: number;
+
+    @IsString()
+    @IsOptional()
+    openTime?: string;
+
+    @IsString()
+    @IsOptional()
+    closeTime?: string;
+
+    @IsArray()
+    @IsString({ each: true })
+    @IsOptional()
+    facilities?: string[];
+}
+
+export class RegisterBusinessDto {
+    @ValidateNested()
+    @Type(() => RegisterBusinessOwnerDto)
+    owner: RegisterBusinessOwnerDto;
+
+    @ValidateNested()
+    @Type(() => RegisterBusinessDetailsDto)
+    business: RegisterBusinessDetailsDto;
+
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => RegisterPitchDto)
+    pitches: RegisterPitchDto[];
+}
