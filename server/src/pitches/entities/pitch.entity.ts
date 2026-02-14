@@ -32,6 +32,12 @@ export class Pitch {
     @Column({ nullable: true })
     imageUrl: string;
 
+    @Column({ nullable: true })
+    openTime: string;
+
+    @Column({ nullable: true })
+    closeTime: string;
+
     @Column('simple-array', { nullable: true })
     facilities: string[];
 

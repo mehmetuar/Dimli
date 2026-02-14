@@ -692,7 +692,7 @@ export const PitchBooking: React.FC = () => {
 
                                     {/* Reuse schedule logic - using business pitches generic schedule if needed, but assuming pitch.schedule exists or we use generic mock */}
                                     <div className="grid grid-cols-3 gap-2">
-                                       {generateSlots(business.openTime, business.closeTime).map((slot: any) => {
+                                       {generateSlots(selectedPitch.openTime || business.openTime, selectedPitch.closeTime || business.closeTime).map((slot: any) => {
                                           // 🆕 Check if slot is in the past
                                           const isPast = isPastSlot(slot.hour, selectedDate);
 

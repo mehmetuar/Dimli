@@ -41,22 +41,30 @@ export class BusinessOwnerService {
         const startOfDay = new Date(selectedDate);
         startOfDay.setHours(0, 0, 0, 0);
 
-        // Generate slots based on openTime/closeTime
-        const startHour = parseInt(business.openTime?.split(':')[0] || '9');
-        const endHour = parseInt(business.closeTime?.split(':')[0] || '2');
-
-        // Handle next day hours (e.g. closing at 02:00)
-        let hours: number[] = [];
-        if (endHour < startHour) {
-            // 9, 10 ... 23, 0, 1, 2
-            for (let i = startHour; i <= 23; i++) hours.push(i);
-            for (let i = 0; i < endHour; i++) hours.push(i);
-        } else {
-            for (let i = startHour; i < endHour; i++) hours.push(i);
-        }
-
         for (const pitch of pitches) {
             const pitchSlots: any[] = [];
+
+            // Determine start/end hours for THIS specific pitch
+            // Fallback to business hours, then defaults
+            const openTime = pitch.openTime || business.openTime || '09:00';
+            const closeTime = pitch.closeTime || business.closeTime || '23:00'; // Defaulting to 23:00 if nothing set
+
+            const startHour = parseInt(openTime.split(':')[0]);
+            const endHour = parseInt(closeTime.split(':')[0]);
+
+            const hours: number[] = [];
+            // Handle next day hours (e.g. closing at 02:00)
+            if (endHour < startHour) {
+                // Example: 09:00 - 02:00
+                // 9, 10 ... 23
+                for (let i = startHour; i <= 23; i++) hours.push(i);
+                // 0, 1
+                for (let i = 0; i < endHour; i++) hours.push(i);
+            } else {
+                // Example: 09:00 - 23:00
+                for (let i = startHour; i < endHour; i++) hours.push(i);
+            }
+
             for (const hour of hours) {
                 const slotTime = new Date(startOfDay);
                 slotTime.setHours(hour);

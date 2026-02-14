@@ -14,7 +14,11 @@ import { Register } from './pages/Register';
 import { BusinessLogin } from './pages/business/BusinessLogin';
 import { BusinessRegister } from './pages/business/BusinessRegister';
 import { BusinessDashboard } from './pages/business/BusinessDashboard';
-import { BusinessSettings } from './pages/business/BusinessSettings';
+import { BusinessSettingsHub } from './pages/business/BusinessSettingsHub';
+import { BusinessInfoSettings } from './pages/business/BusinessInfoSettings';
+import { BusinessPitchList } from './pages/business/BusinessPitchList';
+import { BusinessPitchSettings } from './pages/business/BusinessPitchSettings';
+import { BusinessPasswordSettings } from './pages/business/BusinessPasswordSettings';
 
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { ProfileSettings } from './pages/ProfileSettings';
@@ -33,7 +37,11 @@ function AppContent() {
           <Route path="/business/login" element={<BusinessLogin />} />
           <Route path="/business/register" element={<BusinessRegister />} />
           <Route path="/business/dashboard" element={<BusinessDashboard />} />
-          <Route path="/business/settings" element={<BusinessSettings />} />
+          <Route path="/business/settings" element={<BusinessSettingsHub />} />
+          <Route path="/business/settings/info" element={<BusinessInfoSettings />} />
+          <Route path="/business/settings/pitches" element={<BusinessPitchList />} />
+          <Route path="/business/settings/pitches/:pitchId" element={<BusinessPitchSettings />} />
+          <Route path="/business/settings/password" element={<BusinessPasswordSettings />} />
           <Route element={<ProtectedRoute />}>
             <Route path="/" element={<Marketplace />} />
             <Route path="/pitches" element={<PitchBooking />} />

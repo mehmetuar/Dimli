@@ -3,12 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import { Calendar, Check, X, Clock, Users, LogOut, Phone } from 'lucide-react';
 import { BusinessNavbar } from '../../components/BusinessNavbar';
+import { ConfirmModal } from '../../components/ConfirmModal';
 
 export const BusinessDashboard: React.FC = () => {
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
     const [dashboardData, setDashboardData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [selectedSlot, setSelectedSlot] = useState<any>(null); // For modal
+    const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -71,7 +73,7 @@ export const BusinessDashboard: React.FC = () => {
                         <div className="text-xs text-slate-400">Yönetim Paneli</div>
                     </div>
                     <button
-                        onClick={handleLogout}
+                        onClick={() => setShowLogoutConfirm(true)}
                         className="p-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
                         title="Çıkış Yap"
                     >
@@ -243,6 +245,18 @@ export const BusinessDashboard: React.FC = () => {
                     </div>
                 </div>
             )}
+
+            {/* Logout Confirmation Modal */}
+            <ConfirmModal
+                isOpen={showLogoutConfirm}
+                onClose={() => setShowLogoutConfirm(false)}
+                onConfirm={handleLogout}
+                title="Çıkış Yap"
+                message="Hesabınızdan çıkış yapmak istediğinize emin misiniz?"
+                confirmText="Çıkış Yap"
+                cancelText="İptal"
+                isDangerous={false}
+            />
 
             {/* Business Navbar */}
             <BusinessNavbar />
