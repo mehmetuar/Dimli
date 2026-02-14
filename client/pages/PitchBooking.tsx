@@ -13,6 +13,7 @@ import { ReservationModal } from '../components/ReservationModal';
 import { LocationFilter, LocationFilterModal } from '../components/LocationFilterModal';
 import { calculateDistance } from '../utils/location';
 import api from '../services/api';
+import { SlotDetailModal } from '../components/SlotDetailModal';
 
 export const PitchBooking: React.FC = () => {
    // New state for Businesses
@@ -44,6 +45,31 @@ export const PitchBooking: React.FC = () => {
    const [reservationHour, setReservationHour] = useState<number | undefined>(undefined);
    const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]); // YYYY-MM-DD
    const [reservations, setReservations] = useState<any[]>([]); // Pitch reservations for selected date
+
+   // Slot Detail Modal State
+   const [slotDetailModal, setSlotDetailModal] = useState<{
+      isOpen: boolean;
+      hour: number | null;
+      reservations: any[];
+      announcements: any[];
+      approvedReservation?: any;
+   }>({
+      isOpen: false,
+      hour: null,
+      reservations: [],
+      announcements: [],
+      approvedReservation: undefined
+   });
+
+   const openSlotDetail = (hour: number, reservations: any[], announcements: any[], approvedReservation?: any) => {
+      setSlotDetailModal({
+         isOpen: true,
+         hour,
+         reservations,
+         announcements,
+         approvedReservation
+      });
+   };
 
    const navigate = useNavigate();
 
@@ -487,6 +513,25 @@ export const PitchBooking: React.FC = () => {
             cancelText="Vazgeç"
             isDangerous={true}
          />
+         {/* Slot Detail Modal */}
+         <SlotDetailModal
+            isOpen={slotDetailModal.isOpen}
+            onClose={() => setSlotDetailModal({ ...slotDetailModal, isOpen: false })}
+            slotTime={slotDetailModal.hour ? `${slotDetailModal.hour}:00` : ''}
+            reservations={slotDetailModal.reservations}
+            announcements={slotDetailModal.announcements}
+            approvedReservation={slotDetailModal.approvedReservation}
+            isAuthorized={isAuthorized()}
+            currentTeamId={currentUser?.team?.id}
+            onChallenge={(matchId, teamName) => {
+               setOfferMode({ matchId, teamName });
+            }}
+            onCreateAd={() => {
+               if (slotDetailModal.hour && expandedBusinessId && selectedPitchIdInBusiness[expandedBusinessId]) {
+                  handleCreateAd(selectedPitchIdInBusiness[expandedBusinessId], slotDetailModal.hour);
+               }
+            }}
+         />
 
          <CreateMatchModal
             isOpen={isCreateModalOpen}
@@ -666,44 +711,51 @@ export const PitchBooking: React.FC = () => {
 
                                           // Check if there's an announcement for this hour
                                           // Note: using pitchAnnouncements which are fetched for SELECTED pitch
-                                          const hasAnnouncement = pitchAnnouncements.some((announcement: any) => {
+                                          const announcements = pitchAnnouncements.filter((announcement: any) => {
                                              const announcementHour = parseInt(announcement.time?.split(':')[0] || '0');
                                              return announcementHour === slot.hour;
                                           });
+                                          const hasAnnouncement = announcements.length > 0;
 
                                           // Check if there's a reservation for this hour
-                                          const slotDate = new Date(selectedDate);
-                                          slotDate.setHours(slot.hour, 0, 0, 0);
-
-                                          const reservation = reservations.find((res: any) => {
+                                          const slotReservations = reservations.filter((res: any) => {
                                              const resTime = new Date(res.slotTime);
                                              return resTime.getHours() === slot.hour;
                                           });
 
+                                          const approvedReservation = slotReservations.find((r: any) => r.status === 'APPROVED');
+                                          const pendingReservations = slotReservations.filter((r: any) => r.status === 'PENDING');
+                                          const hasPending = pendingReservations.length > 0;
 
+                                          // Determine State
                                           let slotClass = '';
                                           let label = '';
+                                          let subLabel = ''; // For combined state
                                           let action = null;
 
-                                          // Priority: APPROVED > PENDING > ANNOUNCEMENT > EMPTY
-                                          if (reservation?.status === 'APPROVED') {
-                                             // 🔴 APPROVED reservation = DOLU
-                                             slotClass = 'bg-red-900/20 border-red-900/50 text-red-700 opacity-70 cursor-not-allowed';
-                                             label = 'DOLU';
-                                          } else if (reservation?.status === 'PENDING') {
-                                             // 🟠 PENDING reservation = ONAY BEKLİYOR
-                                             slotClass = 'bg-orange-900/20 border-orange-500/50 text-orange-400 cursor-not-allowed';
+                                          // Combined State: Pending AND Looking
+                                          if (hasPending && hasAnnouncement && !approvedReservation) {
+                                             slotClass = 'bg-slate-800 border-orange-500/50 text-orange-400 cursor-pointer hover:border-turf-500';
                                              label = 'ONAY BEKLİYOR';
+                                             subLabel = 'RAKİP ARANIYOR';
+                                             action = () => openSlotDetail(slot.hour, pendingReservations, announcements);
+                                          }
+                                          // Priority: APPROVED > PENDING > ANNOUNCEMENT > EMPTY
+                                          else if (approvedReservation) {
+                                             // 🔴 APPROVED reservation = DOLU
+                                             slotClass = 'bg-red-900/20 border-red-900/50 text-red-700 cursor-pointer hover:opacity-80';
+                                             label = 'DOLU';
+                                             action = () => openSlotDetail(slot.hour, [], [], approvedReservation);
+                                          } else if (hasPending) {
+                                             // 🟠 PENDING reservation = ONAY BEKLİYOR
+                                             slotClass = 'bg-orange-900/20 border-orange-500/50 text-orange-400 cursor-pointer hover:border-turf-500';
+                                             label = 'ONAY BEKLİYOR';
+                                             action = () => openSlotDetail(slot.hour, pendingReservations, announcements);
                                           } else if (hasAnnouncement) {
                                              // 🟠 Announcement without reservation = RAKİP ARANIYOR
-                                             if (isAuthorized()) {
-                                                slotClass = 'bg-orange-900/20 border-orange-500/50 text-orange-400 animate-pulse cursor-pointer hover:border-turf-500';
-                                                label = 'RAKİP ARANIYOR';
-                                                action = () => handleCreateAd(selectedPitch.id, slot.hour);
-                                             } else {
-                                                slotClass = 'bg-orange-900/20 border-orange-500/50 text-orange-400 opacity-80 cursor-not-allowed';
-                                                label = 'RAKİP ARANIYOR';
-                                             }
+                                             slotClass = 'bg-orange-900/20 border-orange-500/50 text-orange-400 animate-pulse cursor-pointer hover:border-turf-500';
+                                             label = 'RAKİP ARANIYOR';
+                                             action = () => openSlotDetail(slot.hour, pendingReservations, announcements);
                                           } else {
                                              // ⚪ Empty slot = BOŞ
                                              if (isAuthorized()) {
@@ -719,13 +771,24 @@ export const PitchBooking: React.FC = () => {
                                           return (
                                              <div
                                                 key={slot.hour}
-                                                onClick={action || undefined}
-                                                className={`p-3 rounded-xl border text-center transition-all flex flex-col items-center justify-center relative overflow-hidden group ${slotClass}`}
+                                                onClick={(e) => {
+                                                   e.stopPropagation(); // Make sure click doesn't propagate weirdly
+                                                   if (action) action();
+                                                }}
+                                                className={`p-3 rounded-xl border text-center transition-all flex flex-col items-center justify-center relative overflow-hidden group min-h-[80px] ${slotClass}`}
                                              >
                                                 <span className="text-lg font-sport font-bold">{slot.hour}:00</span>
-                                                <span className="text-[10px] font-bold mt-1">{label}</span>
 
-                                                {slot.status === 'AVAILABLE' && isAuthorized() && (
+                                                {subLabel ? (
+                                                   <div className="flex flex-col items-center gap-0.5 mt-1">
+                                                      <span className="text-[9px] font-bold bg-orange-500/20 px-1 rounded text-orange-400">{label}</span>
+                                                      <span className="text-[9px] font-bold text-turf-400">{subLabel}</span>
+                                                   </div>
+                                                ) : (
+                                                   <span className="text-[10px] font-bold mt-1">{label}</span>
+                                                )}
+
+                                                {slot.status === 'AVAILABLE' && isAuthorized() && !approvedReservation && !hasPending && !hasAnnouncement && (
                                                    <div className="absolute inset-0 bg-turf-600/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                                       <span className="text-white font-bold text-xs">+ İlan Aç</span>
                                                    </div>
@@ -735,7 +798,7 @@ export const PitchBooking: React.FC = () => {
                                        })}
                                     </div>
                                     <p className="text-[10px] text-slate-500 mt-2 flex items-center gap-1">
-                                       <AlertCircle className="w-3 h-3" /> Dolu saatlere ilan açılamaz. Boş saat seçip takımını kur.
+                                       <AlertCircle className="w-3 h-3" /> Boş saatlere tıklayarak ilan açabilirsiniz. Dolu/Bekleyen saatlere tıklayarak detayları görebilirsiniz.
                                     </p>
                                  </div>
 
