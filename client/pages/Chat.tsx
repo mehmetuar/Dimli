@@ -137,9 +137,9 @@ export const Chat: React.FC = () => {
           senderName: msg.sender?.full_name || msg.sender?.username || 'Unknown',
           text: msg.content,
           timestamp: formatMessageDate(msg.createdAt), // Use format helper
-          originalCreatedAt: msg.createdAt, // Keep original for reference if needed
           isMe: msg.senderId === currentUser?.id,
-          isSystem: msg.isSystemMessage
+          isSystem: msg.isSystemMessage,
+          metadata: msg.metadata // Map metadata
         }));
         setMessages(mappedMessages);
       } catch (error) {
@@ -325,6 +325,20 @@ export const Chat: React.FC = () => {
     );
   }
 
+  // --- ACTION HANDLERS ---
+  const handleAcceptProposal = async (reservationId: string) => {
+    if (!window.confirm('Bu saat önerisini kabul etmek istediğinize emin misiniz?')) return;
+
+    try {
+      await api.post(`/reservations/${reservationId}/accept-proposal`, { userId: currentUser?.id });
+      alert('Teklif kabul edildi! Maç saati güncellendi.');
+      // Polling will update the messages
+    } catch (error: any) {
+      console.error('Failed to accept proposal:', error);
+      alert(error.response?.data?.message || 'İşlem başarısız.');
+    }
+  };
+
   // --- COMPONENT: ACTIVE CHAT VIEW ---
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-pitch-surface">
@@ -425,32 +439,51 @@ export const Chat: React.FC = () => {
         </div>
 
         {messages.map((msg) => (
-          <div key={msg.id} className={`flex gap-3 ${msg.isMe ? 'justify-end' : 'justify-start'}`}>
-            {!msg.isMe && (
-              <div className="flex flex-col items-center gap-1">
-                <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-white overflow-hidden">
-                  {msg.senderName.charAt(0)}
-                </div>
-              </div>
-            )}
-
-            <div className={`max-w-[75%] space-y-1`}>
-              {!msg.isMe && activeChannel?.type === 'MATCH_GROUP' && (
-                <span className="text-[10px] text-slate-400 ml-1 block">{msg.senderName}</span>
-              )}
-              <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed shadow-sm relative ${msg.isMe
-                ? 'bg-turf-600 text-white rounded-tr-none'
-                : 'bg-slate-800 text-slate-200 border border-slate-700 rounded-tl-none'
-                }`}>
+          msg.isSystem ? (
+            <div key={msg.id} className="flex justify-center my-4 animate-fade-in px-4">
+              <div className="bg-slate-800/90 border border-slate-700 text-slate-300 text-xs px-4 py-3 rounded-2xl text-center max-w-[90%] shadow-lg whitespace-pre-wrap">
                 {msg.text}
-                {/* Message Tail */}
-                <div className={`absolute top-0 w-3 h-3 ${msg.isMe ? '-right-1.5 bg-turf-600 [clip-path:polygon(0_0,100%_0,0_100%)]' : '-left-1.5 bg-slate-800 [clip-path:polygon(0_0,100%_0,100%_100%)] border-t border-l border-slate-700'}`}></div>
+
+                {/* Action Button for Time Proposals */}
+                {msg.metadata?.type === 'PROPOSAL_ACTION' && (
+                  <button
+                    onClick={() => handleAcceptProposal(msg.metadata.reservationId)}
+                    className="mt-3 bg-green-600 hover:bg-green-700 text-white font-bold py-1.5 px-4 rounded-full text-xs transition-colors flex items-center gap-1 mx-auto"
+                  >
+                    <span>✅</span>
+                    <span>Teklifi Kabul Et</span>
+                  </button>
+                )}
               </div>
-              <span className={`text-[10px] block ${msg.isMe ? 'text-right text-slate-500' : 'text-left text-slate-500'}`}>
-                {msg.timestamp}
-              </span>
             </div>
-          </div>
+          ) : (
+            <div key={msg.id} className={`flex gap-3 ${msg.isMe ? 'justify-end' : 'justify-start'}`}>
+              {!msg.isMe && (
+                <div className="flex flex-col items-center gap-1">
+                  <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-white overflow-hidden">
+                    {msg.senderName.charAt(0)}
+                  </div>
+                </div>
+              )}
+
+              <div className={`max-w-[75%] space-y-1`}>
+                {!msg.isMe && activeChannel?.type === 'MATCH_GROUP' && (
+                  <span className="text-[10px] text-slate-400 ml-1 block">{msg.senderName}</span>
+                )}
+                <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed shadow-sm relative ${msg.isMe
+                  ? 'bg-turf-600 text-white rounded-tr-none'
+                  : 'bg-slate-800 text-slate-200 border border-slate-700 rounded-tl-none'
+                  }`}>
+                  {msg.text}
+                  {/* Message Tail */}
+                  <div className={`absolute top-0 w-3 h-3 ${msg.isMe ? '-right-1.5 bg-turf-600 [clip-path:polygon(0_0,100%_0,0_100%)]' : '-left-1.5 bg-slate-800 [clip-path:polygon(0_0,100%_0,100%_100%)] border-t border-l border-slate-700'}`}></div>
+                </div>
+                <span className={`text-[10px] block ${msg.isMe ? 'text-right text-slate-500' : 'text-left text-slate-500'}`}>
+                  {msg.timestamp}
+                </span>
+              </div>
+            </div>
+          )
         ))}
 
         {/* AI Coach Advice Bubble */}

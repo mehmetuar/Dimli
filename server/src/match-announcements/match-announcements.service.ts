@@ -139,7 +139,7 @@ export class MatchAnnouncementsService {
 
     // Run every hour to check for expired announcements
     // Using EVERY_MINUTE for testing purposes if needed, but EVERY_HOUR is safer for production unless real-time is critical.
-    @Cron(CronExpression.EVERY_HOUR)
+    @Cron(CronExpression.EVERY_HOUR, { name: 'cleanup_expired_announcements' })
     async handleCron() {
         console.log('⏰ Running cleanup cron job...');
 

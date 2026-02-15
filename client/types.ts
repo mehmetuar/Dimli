@@ -139,6 +139,10 @@ export interface Pitch {
   facilities?: string[]; // Moved from Business
   business?: Business;
   schedule?: PitchSlot[]; // Mock schedule for today
+  location?: string;
+  coordinates?: { lat: number; lng: number };
+  rating?: number;
+  phone?: string;
 }
 
 export interface PitchOwner {

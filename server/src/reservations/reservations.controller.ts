@@ -16,8 +16,13 @@ export class ReservationsController {
     }
 
     @Post(':id/approve')
-    approve(@Param('id') id: string) {
-        return this.reservationsService.approve(id);
+    approve(@Param('id') id: string, @Body() body: { note?: string }) {
+        return this.reservationsService.approve(id, body?.note);
+    }
+
+    @Post(':id/business-note')
+    sendBusinessNote(@Param('id') id: string, @Body() body: { note: string }) {
+        return this.reservationsService.sendBusinessNote(id, body.note);
     }
 
     @Get('my-team')
@@ -30,8 +35,14 @@ export class ReservationsController {
         return this.reservationsService.cancel(id, body.teamId);
     }
 
-    @Get('pitch/:pitchId')
-    findByPitch(@Param('pitchId') pitchId: string, @Query('date') date: string) {
-        return this.reservationsService.findByPitchAndDateRange(pitchId, date);
+    @Post(':id/propose-time')
+    proposeTime(@Param('id') id: string, @Body() body: { userId: string, newSlotTime: string }) {
+        // In real app, userId comes from Token. Here trusting body for now as existing pattern.
+        return this.reservationsService.proposeTime(id, body.userId, new Date(body.newSlotTime));
+    }
+
+    @Post(':id/accept-proposal')
+    acceptProposal(@Param('id') id: string, @Body() body: { userId: string }) {
+        return this.reservationsService.acceptProposal(id, body.userId);
     }
 }

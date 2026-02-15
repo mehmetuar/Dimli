@@ -20,6 +20,23 @@ const generateMockSchedule = (startHour: number, endHour: number) => {
   return slots;
 };
 
+export const DEFAULT_FACILITIES = [
+  'Aydınlatma',
+  'Duş',
+  'Soyunma Odası',
+  'Otopark',
+  'Kafeterya',
+  'WiFi',
+  'Tribün',
+  'Yelek',
+  'Eldiven',
+  'Krampon Kiralama',
+  'Su Satışı',
+  'Servis',
+  'Kamera Kaydı',
+  'Ayakkabı Kiralama'
+];
+
 export const MOCK_PITCHES: Pitch[] = [
   {
     id: 'p1',

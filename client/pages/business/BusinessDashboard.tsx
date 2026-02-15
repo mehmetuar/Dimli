@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
-import { Calendar, Check, X, Clock, Users, LogOut, Phone } from 'lucide-react';
+import { Calendar, Check, X, Clock, Users, LogOut, Phone, MessageSquare } from 'lucide-react';
 import { BusinessNavbar } from '../../components/BusinessNavbar';
 import { ConfirmModal } from '../../components/ConfirmModal';
 
@@ -9,8 +9,11 @@ export const BusinessDashboard: React.FC = () => {
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
     const [dashboardData, setDashboardData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
-    const [selectedSlot, setSelectedSlot] = useState<any>(null); // For modal
+    const [selectedSlot, setSelectedSlot] = useState<any>(null);
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+    const [note, setNote] = useState('');
+    const [actionType, setActionType] = useState<'APPROVE' | 'SEND_NOTE' | null>(null);
+    const [targetReservationId, setTargetReservationId] = useState<string | null>(null);
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -21,7 +24,7 @@ export const BusinessDashboard: React.FC = () => {
         setLoading(true);
         try {
             const ownerId = localStorage.getItem('ownerId');
-            if (!ownerId) return; // Should redirect to login
+            if (!ownerId) return;
 
             const response = await api.get(`/business-owner/dashboard?date=${selectedDate}&ownerId=${ownerId}`);
             setDashboardData(response.data);
@@ -32,7 +35,6 @@ export const BusinessDashboard: React.FC = () => {
         }
     };
 
-    // 🆕 Helper: Check if a slot is in the past
     const isPastSlot = (time: string, date: string): boolean => {
         const now = new Date();
         const [hour] = time.split(':').map(Number);
@@ -48,15 +50,40 @@ export const BusinessDashboard: React.FC = () => {
         navigate('/business/login');
     };
 
-    const handleApprove = async (reservationId: string) => {
+    const openActionModal = (type: 'APPROVE' | 'SEND_NOTE', reservationId: string) => {
+        setActionType(type);
+        setTargetReservationId(reservationId);
+        setNote('');
+    };
+
+    const handleTransaction = async () => {
+        if (!targetReservationId || !actionType) return;
+
         try {
             const ownerId = localStorage.getItem('ownerId');
-            await api.post(`/business-owner/approve-reservation/${reservationId}`, { ownerId });
-            setSelectedSlot(null); // Close modal
-            fetchDashboard(); // Refresh data
-        } catch (error) {
-            console.error('Error approving:', error);
-            alert('Onaylama başarısız oldu.');
+            if (actionType === 'APPROVE') {
+                await api.post(`/business-owner/approve-reservation/${targetReservationId}`, {
+                    ownerId,
+                    note
+                });
+                setSelectedSlot(null); // Close slot detail modal
+                fetchDashboard(); // Refresh data
+            } else if (actionType === 'SEND_NOTE') {
+                await api.post(`/business-owner/reservation/${targetReservationId}/note`, {
+                    ownerId,
+                    note
+                });
+                alert('Mesajınız takımlara iletildi.');
+            }
+
+            // Close Action Modal
+            setTargetReservationId(null);
+            setActionType(null);
+            setNote('');
+        } catch (error: any) {
+            console.error('Transaction error:', error);
+            const msg = error.response?.data?.message || 'İşlem başarısız oldu.';
+            alert(`HATA: ${msg}`);
         }
     };
 
@@ -100,7 +127,6 @@ export const BusinessDashboard: React.FC = () => {
                         <h2 className="text-lg font-bold mb-3 pl-2 border-l-4 border-orange-500">{pitch.pitchName}</h2>
                         <div className="grid grid-cols-4 gap-3">
                             {pitch.slots.map((slot: any) => {
-                                // 🆕 Check if this slot is in the past
                                 const isPast = isPastSlot(slot.time, selectedDate);
 
                                 return (
@@ -155,7 +181,9 @@ export const BusinessDashboard: React.FC = () => {
                                 selectedSlot.reservations.map((res: any) => (
                                     <div key={res.id} className={`p-5 rounded-2xl border transition-all ${res.status === 'APPROVED'
                                         ? 'bg-gradient-to-br from-slate-800 to-slate-900 border-green-500/30 ring-1 ring-green-500/20'
-                                        : 'bg-slate-800 border-slate-700'
+                                        : res.status === 'REJECTED'
+                                            ? 'bg-slate-800/50 border-red-900/30 opacity-75'
+                                            : 'bg-slate-800 border-slate-700'
                                         }`}>
 
                                         {/* TEAM 1 (Requester) */}
@@ -217,13 +245,27 @@ export const BusinessDashboard: React.FC = () => {
                                         {/* STATUS & ACTIONS */}
                                         <div className="mt-4 pt-4 border-t border-slate-700/50">
                                             {res.status === 'APPROVED' ? (
-                                                <div className="flex items-center justify-center gap-2 text-green-400 font-bold bg-green-500/10 py-3 rounded-xl border border-green-500/20">
-                                                    <Check className="w-5 h-5" />
-                                                    <span>Kesinleşmiş Rezervasyon</span>
+                                                <div className="space-y-3">
+                                                    <div className="flex items-center justify-center gap-2 text-green-400 font-bold bg-green-500/10 py-3 rounded-xl border border-green-500/20">
+                                                        <Check className="w-5 h-5" />
+                                                        <span>Kesinleşmiş Rezervasyon</span>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => openActionModal('SEND_NOTE', res.id)}
+                                                        className="w-full bg-slate-700 hover:bg-slate-600 text-white py-2 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2"
+                                                    >
+                                                        <MessageSquare className="w-4 h-4 text-orange-400" />
+                                                        Takımlara Not Gönder
+                                                    </button>
+                                                </div>
+                                            ) : res.status === 'REJECTED' ? (
+                                                <div className="flex items-center justify-center gap-2 text-red-500 font-bold bg-red-900/10 py-3 rounded-xl border border-red-500/20">
+                                                    <X className="w-5 h-5" />
+                                                    <span>Reddedildi (Pasif)</span>
                                                 </div>
                                             ) : (
                                                 <button
-                                                    onClick={() => handleApprove(res.id)}
+                                                    onClick={() => openActionModal('APPROVE', res.id)}
                                                     className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white py-3 rounded-xl font-bold text-sm transition-all shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2 group"
                                                 >
                                                     <div className="bg-white/20 p-1 rounded-full group-hover:scale-110 transition-transform">
@@ -257,6 +299,49 @@ export const BusinessDashboard: React.FC = () => {
                 cancelText="İptal"
                 isDangerous={false}
             />
+
+            {/* General Action Modal (Approve or Note) */}
+            {targetReservationId && actionType && (
+                <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4">
+                    <div className="bg-slate-800 w-full max-w-sm rounded-3xl border border-slate-700 p-6 animate-scale-in">
+                        <h3 className="text-xl font-bold text-white mb-2 text-center">
+                            {actionType === 'APPROVE' ? 'Rezervasyonu Onayla' : 'Takımlara Not Gönder'}
+                        </h3>
+
+                        <p className="text-slate-400 text-sm text-center mb-4">
+                            {actionType === 'APPROVE'
+                                ? 'Onay mesajıyla birlikte takımlara bir not iletmek ister misiniz?'
+                                : 'Maç sahiplerinin göreceği bir not girin.'}
+                        </p>
+
+                        <textarea
+                            value={note}
+                            onChange={(e) => setNote(e.target.value)}
+                            placeholder="Örn: Lütfen 15 dk erken gelin (Opsiyonel)"
+                            className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-orange-500 min-h-[100px] mb-4"
+                        />
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => {
+                                    setTargetReservationId(null);
+                                    setActionType(null);
+                                    setNote('');
+                                }}
+                                className="flex-1 bg-slate-700 text-white font-bold py-3 rounded-xl hover:bg-slate-600 transition-colors"
+                            >
+                                Vazgeç
+                            </button>
+                            <button
+                                onClick={handleTransaction}
+                                className="flex-1 bg-orange-600 text-white font-bold py-3 rounded-xl hover:bg-orange-500 transition-colors shadow-lg shadow-orange-600/20"
+                            >
+                                {actionType === 'APPROVE' ? 'Onayla ve Gönder' : 'Gönder'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Business Navbar */}
             <BusinessNavbar />

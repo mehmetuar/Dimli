@@ -62,12 +62,13 @@ export class ChatService {
         });
     }
 
-    async sendMessage(channelId: string, senderId: string, content: string, isSystemMessage = false): Promise<ChatMessage> {
+    async sendMessage(channelId: string, senderId: string, content: string, isSystemMessage = false, metadata?: any): Promise<ChatMessage> {
         const message = this.chatMessageRepository.create({
             channelId,
             senderId,
             content,
-            isSystemMessage
+            isSystemMessage,
+            metadata
         });
 
         await this.chatMessageRepository.save(message);

@@ -40,4 +40,8 @@ export class PitchesService {
     async update(id: string, updateData: any) {
         return await this.pitchesRepository.update(id, updateData);
     }
+
+    async remove(id: string) {
+        return await this.pitchesRepository.delete(id);
+    }
 }

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Patch } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Patch, Delete } from '@nestjs/common';
 import { PitchesService } from './pitches.service';
 
 @Controller('pitches')
@@ -29,4 +29,10 @@ export class PitchesController {
     update(@Param('id') id: string, @Body() updatePitchDto: any) {
         return this.pitchesService.update(id, updatePitchDto);
     }
+
+    @Delete(':id')
+    remove(@Param('id') id: string) {
+        return this.pitchesService.remove(id);
+    }
 }
+

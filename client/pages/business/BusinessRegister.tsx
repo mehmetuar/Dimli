@@ -53,10 +53,7 @@ const steps = [
     { id: 5, title: 'Onay', icon: CheckCircle },
 ];
 
-const facilitiesList = [
-    'Duş', 'Otopark', 'Kafeterya', 'WiFi', 'Soyunma Odası',
-    'Kamera Kaydı', 'Tribün', 'Ayakkabı Kiralama'
-];
+import { DEFAULT_FACILITIES } from '../../constants';
 
 export const BusinessRegister: React.FC = () => {
     const navigate = useNavigate();
@@ -267,14 +264,14 @@ export const BusinessRegister: React.FC = () => {
                                     <div>
                                         <label className="text-xs text-slate-400 font-bold uppercase mb-2 block">İmkanlar</label>
                                         <div className="flex flex-wrap gap-2">
-                                            {facilitiesList.map(facility => (
+                                            {DEFAULT_FACILITIES.map(facility => (
                                                 <button
                                                     key={facility}
                                                     type="button"
                                                     onClick={() => toggleFacility(index, facility)}
                                                     className={`px-3 py-1 rounded-full text-xs font-bold transition-colors ${pitch.facilities.includes(facility)
-                                                            ? 'bg-green-600 text-white'
-                                                            : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                                                        ? 'bg-green-600 text-white'
+                                                        : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
                                                         }`}
                                                 >
                                                     {facility}
@@ -340,11 +337,11 @@ export const BusinessRegister: React.FC = () => {
                                 <div
                                     key={step.id}
                                     className={`flex items-center gap-3 p-3 rounded-xl transition-all ${isActive ? 'bg-orange-600 text-white shadow-lg shadow-orange-900/50' :
-                                            isCompleted ? 'text-green-500' : 'text-slate-500'
+                                        isCompleted ? 'text-green-500' : 'text-slate-500'
                                         }`}
                                 >
                                     <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${isActive ? 'border-white bg-white/20' :
-                                            isCompleted ? 'border-green-500 bg-green-500/10' : 'border-slate-600 bg-slate-800'
+                                        isCompleted ? 'border-green-500 bg-green-500/10' : 'border-slate-600 bg-slate-800'
                                         }`}>
                                         {isCompleted ? <CheckCircle size={16} /> : <Icon size={16} />}
                                     </div>

@@ -27,6 +27,9 @@ export class ChatMessage {
     @Column({ default: false })
     isSystemMessage: boolean;
 
+    @Column('json', { nullable: true })
+    metadata: any; // For actionable messages (e.g. { type: 'PROPOSAL', reservationId: '...' })
+
     @CreateDateColumn()
     createdAt: Date;
 }

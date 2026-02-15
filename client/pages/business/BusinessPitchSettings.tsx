@@ -1,30 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../../services/api';
-import { Save, ArrowLeft, Clock, DollarSign, ListChecks } from 'lucide-react';
+import { Save, ArrowLeft, Clock, DollarSign, ListChecks, Plus, Trash2, X } from 'lucide-react';
 import { BusinessNavbar } from '../../components/BusinessNavbar';
+import { DEFAULT_FACILITIES } from '../../constants';
 
-const FACILITIES_LIST = [
-    'Aydınlatma',
-    'Duş',
-    'Soyunma Odası',
-    'Otopark',
-    'Kafeterya',
-    'WiFi',
-    'Tribün',
-    'Yelek',
-    'Eldiven',
-    'Krampon Kiralama',
-    'Su Satışı',
-    'Servis'
-];
 
 export const BusinessPitchSettings: React.FC = () => {
     const { pitchId } = useParams();
     const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [deleting, setDeleting] = useState(false);
     const [success, setSuccess] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [newFacility, setNewFacility] = useState('');
+    const [showFacilityInput, setShowFacilityInput] = useState(false);
 
     const [formData, setFormData] = useState({
         name: '',
@@ -79,6 +70,19 @@ export const BusinessPitchSettings: React.FC = () => {
         }
     };
 
+    const handleDeletePitch = async () => {
+        setDeleting(true);
+        try {
+            await api.delete(`/pitches/${pitchId}`);
+            navigate('/business/settings/pitches');
+        } catch (error) {
+            console.error('Error deleting pitch:', error);
+            alert('Saha silinirken bir hata oluştu.');
+            setDeleting(false);
+            setShowDeleteModal(false);
+        }
+    };
+
     const handleFacilityToggle = (facility: string) => {
         setFormData(prev => {
             const exists = prev.facilities.includes(facility);
@@ -90,9 +94,26 @@ export const BusinessPitchSettings: React.FC = () => {
         });
     };
 
+    const handleAddFacility = () => {
+        if (newFacility.trim()) {
+            const formatted = newFacility.trim();
+            if (!formData.facilities.includes(formatted)) {
+                setFormData(prev => ({
+                    ...prev,
+                    facilities: [...prev.facilities, formatted]
+                }));
+            }
+            setNewFacility('');
+            setShowFacilityInput(false);
+        }
+    };
+
     const handleChange = (field: string, value: string) => {
         setFormData(prev => ({ ...prev, [field]: value }));
     };
+
+    // Combine default facilities with any custom ones present in formData
+    const allFacilities = Array.from(new Set([...DEFAULT_FACILITIES, ...formData.facilities]));
 
     if (loading) {
         return (
@@ -103,7 +124,7 @@ export const BusinessPitchSettings: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-slate-900 text-white pb-24">
+        <div className="min-h-screen bg-slate-900 text-white pb-24 relative">
             {/* Header */}
             <div className="bg-slate-800 p-4 sticky top-0 z-10 border-b border-slate-700 shadow-lg flex items-center gap-3">
                 <button onClick={() => navigate('/business/settings/pitches')} className="p-2 bg-slate-700 rounded-lg hover:bg-slate-600 transition-colors">
@@ -174,12 +195,15 @@ export const BusinessPitchSettings: React.FC = () => {
 
                 {/* Facilities */}
                 <div className="bg-slate-800 p-5 rounded-xl border border-slate-700">
-                    <h2 className="text-lg font-bold text-orange-500 mb-4 flex items-center gap-2">
-                        <ListChecks className="w-5 h-5" />
-                        Saha İmkanları
-                    </h2>
-                    <div className="grid grid-cols-2 gap-3">
-                        {FACILITIES_LIST.map((facility) => {
+                    <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-lg font-bold text-orange-500 flex items-center gap-2">
+                            <ListChecks className="w-5 h-5" />
+                            Saha İmkanları
+                        </h2>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 mb-4">
+                        {allFacilities.map((facility) => {
                             const isSelected = formData.facilities.includes(facility);
                             return (
                                 <button
@@ -196,19 +220,93 @@ export const BusinessPitchSettings: React.FC = () => {
                             );
                         })}
                     </div>
+
+                    {showFacilityInput ? (
+                        <div className="flex gap-2">
+                            <input
+                                type="text"
+                                value={newFacility}
+                                onChange={(e) => setNewFacility(e.target.value)}
+                                placeholder="Özellik adı..."
+                                className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 text-white focus:outline-none focus:border-orange-500"
+                                autoFocus
+                            />
+                            <button
+                                type="button"
+                                onClick={handleAddFacility}
+                                className="bg-green-600 hover:bg-green-500 text-white px-3 rounded-lg flex items-center gap-1 font-bold text-sm"
+                            >
+                                Ekle
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setShowFacilityInput(false)}
+                                className="bg-slate-700 hover:bg-slate-600 text-white px-3 rounded-lg"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={() => setShowFacilityInput(true)}
+                            className="w-full py-3 bg-slate-900 border border-dashed border-slate-600 rounded-xl text-slate-400 hover:text-white hover:border-slate-400 transition-colors flex items-center justify-center gap-2 font-bold text-sm"
+                        >
+                            <Plus className="w-4 h-4" /> Yeni İmkan Ekle
+                        </button>
+                    )}
                 </div>
 
-                <button
-                    type="submit"
-                    disabled={saving}
-                    className="w-full bg-orange-600 hover:bg-orange-500 disabled:bg-slate-700 text-white py-4 rounded-xl font-black text-lg uppercase tracking-wider transition-colors shadow-lg shadow-orange-600/20 flex items-center justify-center gap-2"
-                >
-                    <Save className="w-5 h-5" />
-                    {saving ? 'Kaydediliyor...' : 'Değişiklikleri Kaydet'}
-                </button>
+                <div className="pt-4 flex flex-col gap-4">
+                    <button
+                        type="submit"
+                        disabled={saving}
+                        className="w-full bg-orange-600 hover:bg-orange-500 disabled:bg-slate-700 text-white py-4 rounded-xl font-black text-lg uppercase tracking-wider transition-colors shadow-lg shadow-orange-600/20 flex items-center justify-center gap-2"
+                    >
+                        <Save className="w-5 h-5" />
+                        {saving ? 'Kaydediliyor...' : 'Değişiklikleri Kaydet'}
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={() => setShowDeleteModal(true)}
+                        className="w-full bg-slate-800 hover:bg-red-500/10 border border-slate-700 hover:border-red-500 text-slate-400 hover:text-red-500 py-4 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
+                    >
+                        <Trash2 className="w-5 h-5" />
+                        Sahayı Sil
+                    </button>
+                </div>
             </form>
 
             <BusinessNavbar />
+
+            {/* Delete Modal */}
+            {showDeleteModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+                    <div className="bg-slate-900 border border-slate-700 p-6 rounded-2xl w-full max-w-sm shadow-2xl">
+                        <h3 className="text-xl font-bold text-white mb-2">Emin misiniz?</h3>
+                        <p className="text-slate-400 mb-6">
+                            Bu sahayı silmek istediğinize emin misiniz? Bu işlem geri alınamaz ve sahaya ait tüm veriler silinecektir.
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setShowDeleteModal(false)}
+                                className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl transition-colors"
+                            >
+                                İptal
+                            </button>
+                            <button
+                                onClick={handleDeletePitch}
+                                disabled={deleting}
+                                className="flex-1 py-3 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2"
+                            >
+                                {deleting ? 'Siliniyor...' : 'Evet, Sil'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
+

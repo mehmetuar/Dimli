@@ -57,6 +57,12 @@ export class Reservation {
     @Column({ nullable: true })
     matchAnnouncementId: string; // Reference to match announcement if type is MATCH
 
+    @Column({ nullable: true })
+    proposedTime: Date; // For conflict resolution: suggested new time
+
+    @Column({ nullable: true })
+    proposedByUserId: string; // Who proposed the new time?
+
     @CreateDateColumn()
     createdAt: Date;
 }
