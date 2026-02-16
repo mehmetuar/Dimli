@@ -440,8 +440,8 @@ export const Chat: React.FC = () => {
 
         {messages.map((msg) => (
           msg.isSystem ? (
-            <div key={msg.id} className="flex justify-center my-4 animate-fade-in px-4">
-              <div className="bg-slate-800/90 border border-slate-700 text-slate-300 text-xs px-4 py-3 rounded-2xl text-center max-w-[90%] shadow-lg whitespace-pre-wrap">
+            <div key={msg.id} className="flex justify-center my-4 animate-fade-in px-4 w-full">
+              <div className="bg-slate-800/95 border border-slate-700 text-slate-200 text-sm font-medium px-6 py-4 rounded-xl text-center w-full shadow-lg whitespace-pre-wrap">
                 {msg.text}
 
                 {/* Action Button for Time Proposals */}

@@ -70,6 +70,11 @@ export class ReservationsService {
                 throw new Error('Reservation not found');
             }
 
+            // 1.1 Allow Re-approval of REJECTED reservations if slot is free
+            if (reservation.status !== ReservationStatus.PENDING && reservation.status !== ReservationStatus.REJECTED) {
+                throw new Error('Sadece beklemede veya reddedilmiş rezervasyonlar onaylanabilir.');
+            }
+
             this.logger.log(`Reservation found. Pitch: ${reservation.pitch?.name}, Business: ${reservation.pitch?.business?.name}`);
 
             // 2. STRICT DOUBLE BOOKING CHECK (Time Range)
@@ -97,7 +102,7 @@ export class ReservationsService {
             await manager.save(reservation);
             this.logger.log(`Reservation ${id} status updated to APPROVED.`);
 
-            // 4. PREPARE AND SEND SYSTEM MESSAGE
+            // 4. PREPARE AND SEND SYSTEM MESSAGE (Success)
             if (reservation.matchAnnouncementId) {
                 // Determine Business Name and Pitch Name
                 const businessName = reservation.pitch?.business?.name || 'İşletme';
@@ -107,15 +112,15 @@ export class ReservationsService {
                 const dateStr = approvalTime.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
                 const timeStr = approvalTime.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
 
-                // Construct Message
-                let messageContent = `Tebrikler işletme sahibi maçınızı kesinleştirdi. 👏\n\n` +
-                    `📅 ${dateStr} tarihinde\n` +
-                    `🏟️ ${businessName} işletmesinin ${pitchName} nolu sahasında\n` +
-                    `🕗 Saat ${timeStr} için iyi oyunlar!`;
+                // Construct Message - CLEAN & EMOJI-FREE (except ball)
+                let messageContent = `Maçınız kesinleşti! ⚽\n\n` +
+                    `Tarih: ${dateStr}\n` +
+                    `Saat: ${timeStr}\n` +
+                    `Saha: ${pitchName}`;
 
                 // Add Business Note if exists
                 if (businessNote && businessNote.trim() !== '') {
-                    messageContent += `\n\n💬 **İşletme Mesajı:**\n${businessNote}`;
+                    messageContent += `\n\n💬 **İşletme Notu:**\n${businessNote}`;
                 }
 
                 this.logger.log(`Sending approval system message for matchAnnouncementId: ${reservation.matchAnnouncementId}`);
@@ -131,7 +136,7 @@ export class ReservationsService {
                 this.logger.warn(`No matchAnnouncementId found for reservation ${id}, skipping chat message.`);
             }
 
-            // 5. Reject others for the same slot
+            // 5. Reject others for the same slot (PASSIVE STATE)
             const others = await manager.find(Reservation, {
                 where: {
                     pitchId: reservation.pitchId,
@@ -154,7 +159,79 @@ export class ReservationsService {
                                 manager,
                                 other.matchAnnouncementId,
                                 other.team,
-                                `Bu saat için eşleşme şansını kaçırdınız. 😔\n(İşletme başka bir takımı onayladı)`,
+                                `İşletme farklı bir kullanıcıyı kesinleştirdi. 😔\nBu saat için maç fırsatınızı kaçırdınız.\nFarklı saatlere göz atmaya ne dersiniz?`,
+                                { type: 'MATCH_REJECTED_PASSIVE', reservationId: other.id }
+                            );
+                        }
+                    }
+                }
+            }
+
+            return reservation;
+        });
+    }
+
+    async revokeConfirmation(id: string) {
+        this.logger.log(`Revoking confirmation for reservation: ${id}`);
+
+        return this.dataSource.transaction(async (manager) => {
+            const reservation = await manager.findOne(Reservation, {
+                where: { id },
+                relations: ['pitch', 'pitch.business', 'team', 'team.captain']
+            });
+
+            if (!reservation) {
+                throw new Error('Reservation not found');
+            }
+
+            if (reservation.status !== ReservationStatus.APPROVED) {
+                throw new Error('Sadece onaylanmış maçların onayı kaldırılabilir.');
+            }
+
+            // 1. Change status back to PENDING (Business Initiative)
+            reservation.status = ReservationStatus.PENDING;
+            await manager.save(reservation);
+
+            // 2. Notify the team
+            if (reservation.matchAnnouncementId) {
+                await this.sendSystemMessage(
+                    manager,
+                    reservation.matchAnnouncementId,
+                    reservation.team,
+                    `İşletme onayı kaldırdı. Rezervasyonunuz tekrar onay bekliyor durumuna döndü. 🔄\nDiğer takımlarla birlikte değerlendirileceksiniz.`,
+                    { type: 'MATCH_REVOKED_TO_PENDING', reservationId: reservation.id }
+                );
+            }
+
+            // 3. Find and restore conflicting REJECTED reservations
+            const revocationTime = new Date(reservation.slotTime);
+            const windowStart = new Date(revocationTime.getTime() - 15 * 60000); // -15 mins
+            const windowEnd = new Date(revocationTime.getTime() + 15 * 60000);   // +15 mins
+
+            const conflictingRejected = await manager.find(Reservation, {
+                where: {
+                    pitchId: reservation.pitchId,
+                    status: ReservationStatus.REJECTED,
+                    slotTime: Between(windowStart, windowEnd)
+                },
+                relations: ['team', 'team.captain']
+            });
+
+            if (conflictingRejected.length > 0) {
+                this.logger.log(`Restoring ${conflictingRejected.length} rejected reservations to PENDING.`);
+                for (const conflict of conflictingRejected) {
+                    if (conflict.id !== id) {
+                        conflict.status = ReservationStatus.PENDING;
+                        await manager.save(conflict);
+
+                        // Notify restored teams
+                        if (conflict.matchAnnouncementId) {
+                            await this.sendSystemMessage(
+                                manager,
+                                conflict.matchAnnouncementId,
+                                conflict.team,
+                                `Müjde! 🎉\nİşletme önceki onayı kaldırdı. Rezervasyonunuz tekrar aktif hale geldi ve onay bekliyor.\nŞansınız devam ediyor!`,
+                                { type: 'MATCH_RESTORED_TO_PENDING', reservationId: conflict.id }
                             );
                         }
                     }
@@ -250,19 +327,34 @@ export class ReservationsService {
     async cancel(id: string, teamId: string) {
         const reservation = await this.reservationRepository.findOne({
             where: { id, team: { id: teamId } },
-            relations: ['team']
+            relations: ['team', 'team.captain']
         });
 
         if (!reservation) {
             throw new Error('Reservation not found or unauthorized');
         }
 
-        if (reservation.status !== ReservationStatus.PENDING && reservation.status !== ReservationStatus.REJECTED) {
-            throw new Error('Only pending or rejected reservations can be cancelled');
+        // Allow cancelling APPROVED as well now (Captain cancellation)
+        if (reservation.status !== ReservationStatus.PENDING &&
+            reservation.status !== ReservationStatus.REJECTED &&
+            reservation.status !== ReservationStatus.APPROVED) {
+            throw new Error('Bu rezervasyon iptal edilemez.');
         }
 
         reservation.status = ReservationStatus.CANCELLED;
         await this.reservationRepository.save(reservation);
+
+        // Notify chat if it was an approved match
+        if (reservation.matchAnnouncementId) {
+            await this.sendSystemMessage(
+                this.dataSource.manager,
+                reservation.matchAnnouncementId,
+                reservation.team, // Sender context (Captain)
+                `Takım kaptanı maçı iptal etti. ❌`,
+                { type: 'MATCH_CANCELLED_BY_CAPTAIN', reservationId: reservation.id }
+            );
+        }
+
         return reservation;
     }
 

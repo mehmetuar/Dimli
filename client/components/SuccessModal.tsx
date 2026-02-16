@@ -1,7 +1,7 @@
 import React from 'react';
 import { Crown, Shield, ShieldX, Trash2, Check, CheckCircle } from 'lucide-react';
 
-export type SuccessType = 'TEAM_CREATED' | 'CAPTAIN' | 'VICE' | 'ROLE_REMOVED' | 'KICK' | 'CHALLENGE_SENT' | 'CHALLENGE_ACCEPTED' | 'CHALLENGE_REJECTED' | 'DEFAULT';
+export type SuccessType = 'TEAM_CREATED' | 'CAPTAIN' | 'VICE' | 'ROLE_REMOVED' | 'KICK' | 'CHALLENGE_SENT' | 'CHALLENGE_ACCEPTED' | 'CHALLENGE_REJECTED' | 'MESSAGE_SENT' | 'MATCH_CANCELLED' | 'MATCH_APPROVED' | 'DEFAULT';
 
 interface SuccessModalProps {
     isOpen: boolean;
@@ -39,6 +39,9 @@ export const SuccessModal: React.FC<SuccessModalProps> = ({
             case 'CHALLENGE_SENT': return <Shield className="w-10 h-10 text-turf-500" />;
             case 'CHALLENGE_ACCEPTED': return <CheckCircle className="w-10 h-10 text-green-500" />;
             case 'CHALLENGE_REJECTED': return <ShieldX className="w-10 h-10 text-red-500" />;
+            case 'MESSAGE_SENT': return <Check className="w-10 h-10 text-green-500" />;
+            case 'MATCH_CANCELLED': return <ShieldX className="w-10 h-10 text-red-500" />;
+            case 'MATCH_APPROVED': return <CheckCircle className="w-10 h-10 text-green-500" />;
             default: return <Shield className="w-10 h-10 text-turf-500" />;
         }
     };
@@ -51,6 +54,9 @@ export const SuccessModal: React.FC<SuccessModalProps> = ({
             case 'KICK': return 'bg-red-500/20';
             case 'CHALLENGE_REJECTED': return 'bg-red-500/20';
             case 'CHALLENGE_ACCEPTED': return 'bg-green-500/20';
+            case 'MESSAGE_SENT': return 'bg-green-500/20';
+            case 'MATCH_CANCELLED': return 'bg-red-500/20';
+            case 'MATCH_APPROVED': return 'bg-green-500/20';
             default: return 'bg-turf-500/20';
         }
     };
@@ -63,6 +69,9 @@ export const SuccessModal: React.FC<SuccessModalProps> = ({
             case 'KICK': return 'bg-red-600 hover:bg-red-500 shadow-red-600/20';
             case 'CHALLENGE_REJECTED': return 'bg-red-600 hover:bg-red-500 shadow-red-600/20';
             case 'CHALLENGE_ACCEPTED': return 'bg-green-600 hover:bg-green-500 shadow-green-600/20';
+            case 'MESSAGE_SENT': return 'bg-green-600 hover:bg-green-500 shadow-green-600/20';
+            case 'MATCH_CANCELLED': return 'bg-red-600 hover:bg-red-500 shadow-red-600/20';
+            case 'MATCH_APPROVED': return 'bg-green-600 hover:bg-green-500 shadow-green-600/20';
             default: return 'bg-turf-600 hover:bg-turf-500 shadow-turf-600/20';
         }
     };
@@ -77,6 +86,9 @@ export const SuccessModal: React.FC<SuccessModalProps> = ({
             case 'CHALLENGE_SENT': return 'MEYDAN OKUMA!';
             case 'CHALLENGE_ACCEPTED': return 'KABUL EDİLDİ!';
             case 'CHALLENGE_REJECTED': return 'REDDEDİLDİ';
+            case 'MESSAGE_SENT': return 'İLETİLDİ!';
+            case 'MATCH_CANCELLED': return 'İPTAL EDİLDİ';
+            case 'MATCH_APPROVED': return 'MAÇ ONAYLANDI!';
             default: return 'BAŞARILI!';
         }
     };

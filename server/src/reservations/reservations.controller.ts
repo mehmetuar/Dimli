@@ -25,6 +25,16 @@ export class ReservationsController {
         return this.reservationsService.sendBusinessNote(id, body.note);
     }
 
+    @Post(':id/revoke')
+    revoke(@Param('id') id: string) {
+        return this.reservationsService.revokeConfirmation(id);
+    }
+
+    @Get('pitch/:id')
+    findByPitchAndDate(@Param('id') pitchId: string, @Query('date') date: string) {
+        return this.reservationsService.findByPitchAndDateRange(pitchId, date);
+    }
+
     @Get('my-team')
     findByTeam(@Query('teamId') teamId: string) {
         return this.reservationsService.findByTeam(teamId);

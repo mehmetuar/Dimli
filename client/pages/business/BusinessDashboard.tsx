@@ -4,6 +4,7 @@ import api from '../../services/api';
 import { Calendar, Check, X, Clock, Users, LogOut, Phone, MessageSquare } from 'lucide-react';
 import { BusinessNavbar } from '../../components/BusinessNavbar';
 import { ConfirmModal } from '../../components/ConfirmModal';
+import { SuccessModal, SuccessType } from '../../components/SuccessModal';
 
 export const BusinessDashboard: React.FC = () => {
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -14,6 +15,15 @@ export const BusinessDashboard: React.FC = () => {
     const [note, setNote] = useState('');
     const [actionType, setActionType] = useState<'APPROVE' | 'SEND_NOTE' | null>(null);
     const [targetReservationId, setTargetReservationId] = useState<string | null>(null);
+
+    // UX States
+    const [successModal, setSuccessModal] = useState<{ isOpen: boolean; message: string; type: SuccessType }>({
+        isOpen: false,
+        message: '',
+        type: 'DEFAULT'
+    });
+    const [cancelReservationId, setCancelReservationId] = useState<string | null>(null);
+
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -56,24 +66,54 @@ export const BusinessDashboard: React.FC = () => {
         setNote('');
     };
 
+    const handleCancelClick = (reservationId: string) => {
+        setCancelReservationId(reservationId);
+    };
+
+    const handleConfirmCancel = async () => {
+        if (!cancelReservationId) return;
+        try {
+            await api.post(`/reservations/${cancelReservationId}/revoke`);
+            setSuccessModal({
+                isOpen: true,
+                message: 'Maç başarıyla iptal edildi ve takımlara bildirildi.',
+                type: 'MATCH_CANCELLED'
+            });
+            setSelectedSlot(null); // Close slot detail modal
+            fetchDashboard(); // Refresh data
+        } catch (error) {
+            console.error('Cancel error:', error);
+            alert('İptal işlemi başarısız.');
+        } finally {
+            setCancelReservationId(null);
+        }
+    };
+
     const handleTransaction = async () => {
         if (!targetReservationId || !actionType) return;
 
         try {
             const ownerId = localStorage.getItem('ownerId');
             if (actionType === 'APPROVE') {
-                await api.post(`/business-owner/approve-reservation/${targetReservationId}`, {
-                    ownerId,
+                await api.post(`/reservations/${targetReservationId}/approve`, {
                     note
+                });
+                setSuccessModal({
+                    isOpen: true,
+                    message: 'Maç başarıyla onaylandı ve takımlara bildirildi.',
+                    type: 'MATCH_APPROVED'
                 });
                 setSelectedSlot(null); // Close slot detail modal
                 fetchDashboard(); // Refresh data
             } else if (actionType === 'SEND_NOTE') {
-                await api.post(`/business-owner/reservation/${targetReservationId}/note`, {
-                    ownerId,
+                await api.post(`/reservations/${targetReservationId}/business-note`, {
                     note
                 });
-                alert('Mesajınız takımlara iletildi.');
+                setSuccessModal({
+                    isOpen: true,
+                    message: 'Mesajınız takımlara iletildi.',
+                    type: 'MESSAGE_SENT'
+                });
             }
 
             // Close Action Modal
@@ -250,13 +290,22 @@ export const BusinessDashboard: React.FC = () => {
                                                         <Check className="w-5 h-5" />
                                                         <span>Kesinleşmiş Rezervasyon</span>
                                                     </div>
-                                                    <button
-                                                        onClick={() => openActionModal('SEND_NOTE', res.id)}
-                                                        className="w-full bg-slate-700 hover:bg-slate-600 text-white py-2 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2"
-                                                    >
-                                                        <MessageSquare className="w-4 h-4 text-orange-400" />
-                                                        Takımlara Not Gönder
-                                                    </button>
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            onClick={() => openActionModal('SEND_NOTE', res.id)}
+                                                            className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-2 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2"
+                                                        >
+                                                            <MessageSquare className="w-4 h-4 text-orange-400" />
+                                                            Not Gönder
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleCancelClick(res.id)}
+                                                            className="bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 hover:border-red-500/50 p-2 rounded-xl transition-all"
+                                                            title="Maçı İptal Et"
+                                                        >
+                                                            <X className="w-5 h-5" />
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             ) : res.status === 'REJECTED' ? (
                                                 <div className="flex items-center justify-center gap-2 text-red-500 font-bold bg-red-900/10 py-3 rounded-xl border border-red-500/20">
@@ -298,6 +347,26 @@ export const BusinessDashboard: React.FC = () => {
                 confirmText="Çıkış Yap"
                 cancelText="İptal"
                 isDangerous={false}
+            />
+
+            {/* Cancel Match Confirmation */}
+            <ConfirmModal
+                isOpen={!!cancelReservationId}
+                onClose={() => setCancelReservationId(null)}
+                onConfirm={handleConfirmCancel}
+                title="Maçı İptal Et"
+                message="Bu kesinleşmiş maçı iptal etmek istediğinize emin misiniz? Bu işlem geri alınamaz ve takımlara bildirilir."
+                confirmText="Evet, İptal Et"
+                cancelText="Vazgeç"
+                isDangerous={true}
+            />
+
+            {/* Success Modal */}
+            <SuccessModal
+                isOpen={successModal.isOpen}
+                onClose={() => setSuccessModal({ ...successModal, isOpen: false })}
+                message={successModal.message}
+                type={successModal.type}
             />
 
             {/* General Action Modal (Approve or Note) */}
