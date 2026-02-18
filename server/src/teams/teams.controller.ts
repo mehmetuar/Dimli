@@ -68,6 +68,15 @@ export class TeamsController {
     }
 
     @UseGuards(JwtAuthGuard)
+    @Patch(':id/home-business')
+    updateHomeBusiness(
+        @Param('id') id: string,
+        @Body('homeBusinessId') homeBusinessId: string
+    ) {
+        return this.teamsService.updateHomeBusiness(id, homeBusinessId);
+    }
+
+    @UseGuards(JwtAuthGuard)
     @Patch(':id/description')
     updateDescription(
         @Param('id') id: string,

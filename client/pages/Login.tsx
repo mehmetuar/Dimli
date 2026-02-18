@@ -11,13 +11,18 @@ export const Login: React.FC = () => {
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
+        console.log('Login button clicked');
+        // alert('Login button clicked'); // Debug
         try {
+            console.log('Sending login request to:', api.defaults.baseURL);
             const response = await api.post('/auth/login', { username, password });
+            console.log('Login response:', response);
             localStorage.setItem('token', response.data.access_token);
             navigate('/'); // Redirect to home (Marketplace) after login
-        } catch (err) {
+        } catch (err: any) {
+            console.error('Login error:', err);
+            // alert(`Login error: ${err.message}`); // Debug
             setError('Giriş başarısız. Lütfen bilgilerinizi kontrol edin.');
-            console.error(err);
         }
     };
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../../services/api';
-import { Save, ArrowLeft, Clock, DollarSign, ListChecks, Plus, Trash2, X } from 'lucide-react';
+import { Save, ArrowLeft, Clock, TurkishLira, ListChecks, Plus, Trash2, X } from 'lucide-react';
 import { BusinessNavbar } from '../../components/BusinessNavbar';
 import { DEFAULT_FACILITIES } from '../../constants';
 
@@ -156,7 +156,7 @@ export const BusinessPitchSettings: React.FC = () => {
                             Saatlik Ücret (TL)
                         </label>
                         <div className="relative">
-                            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 w-5 h-5" />
+                            <TurkishLira className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 w-5 h-5" />
                             <input
                                 type="number"
                                 value={formData.pricePerHour}

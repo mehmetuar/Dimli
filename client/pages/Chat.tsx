@@ -1,7 +1,7 @@
 
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Bot, ChevronLeft, Users, Shield, Star, Phone, MessageSquare, UserPlus } from 'lucide-react';
+import { Send, Bot, ChevronLeft, Users, Shield, Star, Phone, MessageSquare, UserPlus, ArrowDown } from 'lucide-react';
 import { getTacticalAdvice } from '../services/geminiService';
 import { SkillLevel, ChatChannel, Team } from '../types';
 import { MOCK_CHANNELS, MOCK_MESSAGES, MOCK_TEAMS, CURRENT_USER, MOCK_JOKERS } from '../constants';
@@ -80,6 +80,10 @@ export const Chat: React.FC = () => {
   const [optionsModalChannel, setOptionsModalChannel] = useState<any | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Scroll State
+  const [showScrollButton, setShowScrollButton] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const isUserAtBottomRef = useRef(true); // Default to true so it scrolls on first load
   const endRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
   const navigate = useNavigate();
@@ -232,9 +236,34 @@ export const Chat: React.FC = () => {
     }
   };
 
+  const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
+    endRef.current?.scrollIntoView({ behavior });
+  };
+
+  const handleScroll = () => {
+    if (!scrollContainerRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
+    // Check if user is near bottom (within 100px)
+    const isAtBottom = scrollHeight - scrollTop - clientHeight < 150;
+    isUserAtBottomRef.current = isAtBottom;
+    setShowScrollButton(!isAtBottom);
+  };
+
+  // Scroll effect on new messages
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, tactic, selectedChannelId]);
+    // Only scroll if user was already at bottom
+    if (isUserAtBottomRef.current) {
+      scrollToBottom();
+    }
+  }, [messages, tactic]);
+
+  // Reset scroll on channel change
+  useEffect(() => {
+    isUserAtBottomRef.current = true;
+    setShowScrollButton(false);
+    // Use timeout to ensure content is rendered before scrolling
+    setTimeout(() => scrollToBottom('instant'), 100);
+  }, [selectedChannelId]);
 
   // --- COMPONENT: CHANNEL LIST ---
   if (!selectedChannelId) {
@@ -430,7 +459,11 @@ export const Chat: React.FC = () => {
       </div>
 
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-6 bg-pitch">
+      <div
+        ref={scrollContainerRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto p-4 space-y-6 bg-pitch relative"
+      >
         {/* System Welcome Message */}
         <div className="flex justify-center">
           <span className="bg-slate-800 text-slate-400 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wide mt-6">
@@ -438,8 +471,10 @@ export const Chat: React.FC = () => {
           </span>
         </div>
 
-        {messages.map((msg) => (
-          msg.isSystem ? (
+        {messages.map((msg, index) => {
+          const isNextSameTime = messages[index + 1]?.timestamp === msg.timestamp;
+
+          return msg.isSystem ? (
             <div key={msg.id} className="flex justify-center my-4 animate-fade-in px-4 w-full">
               <div className="bg-slate-800/95 border border-slate-700 text-slate-200 text-sm font-medium px-6 py-4 rounded-xl text-center w-full shadow-lg whitespace-pre-wrap">
                 {msg.text}
@@ -478,13 +513,15 @@ export const Chat: React.FC = () => {
                   {/* Message Tail */}
                   <div className={`absolute top-0 w-3 h-3 ${msg.isMe ? '-right-1.5 bg-turf-600 [clip-path:polygon(0_0,100%_0,0_100%)]' : '-left-1.5 bg-slate-800 [clip-path:polygon(0_0,100%_0,100%_100%)] border-t border-l border-slate-700'}`}></div>
                 </div>
-                <span className={`text-[10px] block ${msg.isMe ? 'text-right text-slate-500' : 'text-left text-slate-500'}`}>
-                  {msg.timestamp}
-                </span>
+                {!isNextSameTime && (
+                  <span className={`text-[10px] block ${msg.isMe ? 'text-right text-slate-500' : 'text-left text-slate-500'}`}>
+                    {msg.timestamp}
+                  </span>
+                )}
               </div>
             </div>
-          )
-        ))}
+          );
+        })}
 
         {/* AI Coach Advice Bubble */}
         {showTactic && (
@@ -506,6 +543,19 @@ export const Chat: React.FC = () => {
           </div>
         )}
         <div ref={endRef} />
+
+        {/* Floating Scroll to Bottom Button */}
+        {showScrollButton && (
+          <button
+            onClick={() => {
+              isUserAtBottomRef.current = true; // Force flag update
+              scrollToBottom();
+            }}
+            className="fixed bottom-24 right-4 bg-slate-800 text-turf-500 p-3 rounded-full shadow-xl border border-slate-700 animate-bounce cursor-pointer z-50 hover:bg-slate-700 transition-colors"
+          >
+            <ArrowDown className="w-6 h-6" />
+          </button>
+        )}
       </div>
 
       {/* Input Area */}

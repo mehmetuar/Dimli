@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import api from '../../services/api';
 import {
     Briefcase, MapPin, CheckCircle, ChevronRight, ChevronLeft,
-    User, Store, Plus, Trash2, Clock, DollarSign
+    User, Store, Plus, Trash2, Clock, TurkishLira
 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
@@ -255,7 +255,7 @@ export const BusinessRegister: React.FC = () => {
                                                 <option value="Açık Saha">Açık Saha</option>
                                             </select>
                                         </div>
-                                        <Input label="Saatlik Ücret (TL)" type="number" value={pitch.pricePerHour} onChange={e => updatePitch(index, 'pricePerHour', parseFloat(e.target.value))} icon={<DollarSign size={14} />} />
+                                        <Input label="Saatlik Ücret (TL)" type="number" value={pitch.pricePerHour} onChange={e => updatePitch(index, 'pricePerHour', parseFloat(e.target.value))} icon={<TurkishLira size={14} />} />
                                         <div className="grid grid-cols-2 gap-2">
                                             <Input label="Açılış (Opsiyonel)" type="time" value={pitch.openTime || ''} onChange={e => updatePitch(index, 'openTime', e.target.value)} />
                                             <Input label="Kapanış (Opsiyonel)" type="time" value={pitch.closeTime || ''} onChange={e => updatePitch(index, 'closeTime', e.target.value)} />

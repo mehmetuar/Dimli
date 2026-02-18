@@ -51,6 +51,7 @@ export interface Team {
   location: string;
   coordinates?: { lat: number; lng: number }; // New field
   homePitchId?: string; // The ID of their favorite pitch
+  homeBusinessId?: string; // The ID of their favorite business
   fairPlayScore: number; // 1-5
   description: string;
   wins: number;

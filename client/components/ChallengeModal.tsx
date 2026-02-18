@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, MapPin, Calendar, Clock, Shield } from 'lucide-react';
+import { X, MapPin, Calendar, Clock, Shield, Swords, Store, Banknote } from 'lucide-react';
 import { LoadingSpinner } from './LoadingSpinner';
 
 interface ChallengeModalProps {
@@ -13,6 +13,8 @@ interface ChallengeModalProps {
         time: string;
         pitchName: string;
         pitchLocation: string;
+        businessName?: string;
+        pricePerTeam?: number;
     };
     onSubmit: (note: string) => void;
 }
@@ -80,9 +82,12 @@ export const ChallengeModal: React.FC<ChallengeModalProps> = ({ isOpen, onClose,
                             </div>
                             <div className="col-span-2 space-y-1 pt-2 border-t border-slate-700/30">
                                 <div className="flex items-center gap-1.5 text-slate-400 text-[10px] font-bold uppercase">
-                                    <Shield className="w-3 h-3" /> Saha
+                                    <Store className="w-3 h-3" /> İşletme & Saha
                                 </div>
-                                <div className="text-white font-bold text-sm">{match.pitchName}</div>
+                                <div className="text-white font-bold text-sm">
+                                    {match.businessName && <span className="text-turf-400">{match.businessName} - </span>}
+                                    {match.pitchName}
+                                </div>
                             </div>
                             <div className="col-span-2 space-y-1">
                                 <div className="flex items-center gap-1.5 text-slate-400 text-[10px] font-bold uppercase">
@@ -90,6 +95,14 @@ export const ChallengeModal: React.FC<ChallengeModalProps> = ({ isOpen, onClose,
                                 </div>
                                 <div className="text-slate-300 text-sm">{match.pitchLocation}</div>
                             </div>
+                            {match.pricePerTeam && (
+                                <div className="col-span-2 mt-2 bg-slate-800/50 p-2 rounded-lg border border-slate-700/50 flex items-center justify-between">
+                                    <div className="flex items-center gap-2 text-slate-400 text-xs font-bold uppercase">
+                                        <Banknote className="w-4 h-4 text-green-500" /> Takım Ücreti
+                                    </div>
+                                    <div className="text-green-400 font-bold text-sm">{match.pricePerTeam} ₺</div>
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -123,13 +136,13 @@ export const ChallengeModal: React.FC<ChallengeModalProps> = ({ isOpen, onClose,
                         <button
                             onClick={handleSubmit}
                             disabled={isLoading}
-                            className="flex-[2] bg-turf-600 text-white py-3.5 rounded-xl font-bold text-sm uppercase tracking-wider hover:bg-turf-500 transition-colors shadow-lg shadow-turf-600/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            className="flex-[2] bg-turf-600 text-white py-3.5 rounded-xl font-black text-sm uppercase tracking-wider hover:bg-turf-500 transition-colors shadow-lg shadow-turf-600/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         >
                             {isLoading ? (
                                 <LoadingSpinner size="sm" text="" />
                             ) : (
                                 <>
-                                    Meydan Oku <Shield className="w-4 h-4 fill-current" />
+                                    Meydan Oku <Swords className="w-5 h-5 fill-current" />
                                 </>
                             )}
                         </button>

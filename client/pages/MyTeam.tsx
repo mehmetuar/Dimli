@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { MOCK_PITCHES, MOCK_JOKERS, MOCK_MATCH_HISTORY } from '../constants';
+import { MOCK_JOKERS, MOCK_MATCH_HISTORY } from '../constants';
 import { generateTeamBio } from '../services/geminiService';
 import { FairPlayScore } from '../components/FairPlayScore';
 import { LevelBadge } from '../components/LevelBadge';
-import { Users, Trophy, MapPin, Shield, Star, Settings, LogOut, Edit, UserPlus, X, Check, Crown, AlertTriangle, ChevronRight, User, Edit2, Sparkles, Save, Plus, MoreVertical, ShieldX, Trash2, History } from 'lucide-react';
+import { Users, Trophy, MapPin, Shield, Star, Settings, LogOut, Edit, UserPlus, X, Check, Crown, AlertTriangle, ChevronRight, User, Edit2, Sparkles, Save, Plus, MoreVertical, ShieldX, Trash2, History, Store } from 'lucide-react';
 import { LoadingSpinner } from '../components/LoadingSpinner';
-import { Team, Player, Position } from '../types';
+import { Team, Player, Position, Pitch, Business } from '../types';
 import { CreateTeamModal } from '../components/CreateTeamModal';
 import { JoinTeamModal } from '../components/JoinTeamModal';
 import { AddPlayerModal } from '../components/AddPlayerModal';
@@ -13,7 +13,7 @@ import { ConfirmModal } from '../components/ConfirmModal';
 import { MatchHistoryModal } from '../components/MatchHistoryModal';
 import { CreateMatchModal } from '../components/CreateMatchModal';
 import { SuccessModal, SuccessType } from '../components/SuccessModal';
-import api from '../services/api';
+import api, { getPitches, getBusinesses } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 
 export const MyTeam: React.FC = () => {
@@ -22,6 +22,8 @@ export const MyTeam: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [myTeam, setMyTeam] = useState<Team | undefined>(undefined);
     const [roster, setRoster] = useState<Partial<Player>[]>([]);
+    const [pitches, setPitches] = useState<Pitch[]>([]);
+    const [businesses, setBusinesses] = useState<Business[]>([]);
     const [bio, setBio] = useState('');
     const [isEditingBio, setIsEditingBio] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
@@ -83,6 +85,13 @@ export const MyTeam: React.FC = () => {
                 const user = response.data;
                 setCurrentUser(user);
 
+                // Fetch pitches in parallel or sequence
+                const pitchesData = await getPitches();
+                setPitches(pitchesData);
+
+                const businessesData = await getBusinesses();
+                setBusinesses(businessesData);
+
                 if (user.team) {
                     const teamResponse = await api.get(`/teams/${user.team.id}`);
                     const fullTeam = teamResponse.data;
@@ -136,18 +145,18 @@ export const MyTeam: React.FC = () => {
         }
     };
 
-    const handleSetHomePitch = async (pitchId: string) => {
+    const handleSetHomeBusiness = async (businessId: string) => {
         if (!myTeam) return;
         try {
-            const response = await api.patch(`/teams/${myTeam.id}/home-pitch`, {
-                homePitchId: pitchId
+            const response = await api.patch(`/teams/${myTeam.id}/home-business`, {
+                homeBusinessId: businessId
             });
             setMyTeam(response.data);
             setIsEditingPitch(false);
-            setSuccessMessage('Ev sahibi saha başarıyla ayarlandı!');
+            setSuccessMessage('Favori işletme başarıyla güncellendi!');
         } catch (error) {
-            console.error('Failed to set home pitch:', error);
-            setErrorMessage('Ev sahibi saha ayarlanamadı.');
+            console.error('Failed to set home business:', error);
+            setErrorMessage('İşletme seçilemedi.');
         }
     };
 
@@ -245,7 +254,7 @@ export const MyTeam: React.FC = () => {
         }
     };
 
-    const selectedHomePitch = MOCK_PITCHES.find(p => p.id === myTeam?.homePitchId);
+    const selectedHomeBusiness = businesses.find(b => b.id === myTeam?.homeBusinessId);
     const isCaptain = myTeam ? ((myTeam.captain && (myTeam.captain as any).id === currentUser?.id) || myTeam.captainId === currentUser?.id) : false;
     const isViceCaptain = myTeam?.viceCaptainIds?.includes(currentUser?.id) || false;
 
@@ -512,48 +521,48 @@ export const MyTeam: React.FC = () => {
                         Geçmiş Maçlar
                     </button>
 
-                    {/* Home Pitch Section */}
+                    {/* Home Business Section */}
                     <div className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden">
                         <div className="p-4 border-b border-slate-700 flex justify-between items-center">
                             <h3 className="font-sport font-bold text-xl text-white flex items-center gap-2">
-                                <MapPin className="w-5 h-5 text-turf-500" />
-                                EV SAHİBİ SAHA
+                                <Store className="w-5 h-5 text-turf-500" />
+                                EV SAHİBİ SAHA (Favori İşletme)
                             </h3>
                             {isCaptain && (
                                 <button
                                     onClick={() => setIsEditingPitch(!isEditingPitch)}
                                     className="text-xs bg-slate-700 hover:bg-slate-600 text-white px-3 py-1 rounded-lg transition-colors"
                                 >
-                                    {selectedHomePitch ? 'Değiştir' : 'Saha Seç'}
+                                    {selectedHomeBusiness ? 'Değiştir' : 'İşletme Seç'}
                                 </button>
                             )}
                         </div>
 
                         {isEditingPitch ? (
                             <div className="p-4 bg-slate-900">
-                                <p className="text-xs text-slate-400 mb-3">Takımınızın favori sahasını seçin:</p>
+                                <p className="text-xs text-slate-400 mb-3">Takımınızın favori işletmesini seçin:</p>
                                 <div className="space-y-2 max-h-40 overflow-y-auto">
-                                    {MOCK_PITCHES.map(pitch => (
+                                    {businesses.map(business => (
                                         <button
-                                            key={pitch.id}
-                                            onClick={() => handleSetHomePitch(pitch.id)}
+                                            key={business.id}
+                                            onClick={() => handleSetHomeBusiness(business.id)}
                                             className="w-full text-left p-3 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 flex justify-between items-center"
                                         >
-                                            <span className="text-white text-sm font-bold">{pitch.name}</span>
-                                            <span className="text-xs text-slate-400">{pitch.location}</span>
+                                            <span className="text-white text-sm font-bold">{business.name}</span>
+                                            <span className="text-xs text-slate-400">{business.district}, {business.city}</span>
                                         </button>
                                     ))}
                                 </div>
                             </div>
                         ) : (
-                            selectedHomePitch ? (
+                            selectedHomeBusiness ? (
                                 <div className="relative group">
-                                    <img src={selectedHomePitch.imageUrl} className="w-full h-32 object-cover opacity-60" alt="Pitch" />
+                                    <img src={selectedHomeBusiness.coverImageUrl || 'https://images.unsplash.com/photo-1529900748604-07564a03e7a6?auto=format&fit=crop&q=80&w=2070'} className="w-full h-32 object-cover opacity-60" alt="Business" />
                                     <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-slate-900 to-transparent">
-                                        <div className="text-white font-bold text-lg">{selectedHomePitch.name}</div>
-                                        <div className="text-slate-300 text-xs">{selectedHomePitch.location}</div>
+                                        <div className="text-white font-bold text-lg">{selectedHomeBusiness.name}</div>
+                                        <div className="text-slate-300 text-xs">{selectedHomeBusiness.district}, {selectedHomeBusiness.city}</div>
                                     </div>
-                                    {isCaptain && myTeam.homePitchId && (
+                                    {isCaptain && myTeam.homeBusinessId && (
                                         <button
                                             onClick={() => {
                                                 setIsCreateMatchModalOpen(true);
@@ -566,7 +575,7 @@ export const MyTeam: React.FC = () => {
                                 </div>
                             ) : (
                                 <div className="p-8 text-center">
-                                    <p className="text-slate-500 text-sm">Henüz bir ev sahibi saha seçmediniz.</p>
+                                    <p className="text-slate-500 text-sm">Henüz bir favori işletme seçmediniz.</p>
                                 </div>
                             )
                         )}

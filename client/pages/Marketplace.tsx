@@ -1,12 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
-import { Filter, Search, Plus, Calendar, MapPin, Clock, ChevronRight, Shield, Users, Star, Lock, X } from 'lucide-react';
+import { Filter, Search, Plus, Calendar, MapPin, Clock, ChevronRight, Shield, Users, Star, Lock, X, TurkishLira } from 'lucide-react';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { useNavigate } from 'react-router-dom';
 import { LevelBadge } from '../components/LevelBadge';
 import { FairPlayScore } from '../components/FairPlayScore';
 import { CreateMatchModal } from '../components/CreateMatchModal';
 import { ChallengeModal } from '../components/ChallengeModal';
+import { TeamDetailModal } from '../components/TeamDetailModal';
 
 import { SuccessModal } from '../components/SuccessModal';
 import { ConfirmModal } from '../components/ConfirmModal';
@@ -23,6 +24,8 @@ export const Marketplace: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isChallengeModalOpen, setIsChallengeModalOpen] = useState(false);
+  const [challenges, setChallenges] = useState<any[]>([]);
+  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
   const [selectedMatch, setSelectedMatch] = useState<any>(null);
   const [myChallenges, setMyChallenges] = useState<any[]>([]);
   const [confirmCancelModal, setConfirmCancelModal] = useState<{ isOpen: boolean; challengeId: string | null }>({ isOpen: false, challengeId: null });
@@ -205,6 +208,15 @@ export const Marketplace: React.FC = () => {
         onClose={() => setIsCreateModalOpen(false)}
       />
 
+      {selectedTeamId && (
+        <TeamDetailModal
+          isOpen={!!selectedTeamId}
+          onClose={() => setSelectedTeamId(null)}
+          teamId={selectedTeamId}
+          currentUserId={currentUser?.id}
+        />
+      )}
+
       <LocationFilterModal
         isOpen={isLocationFilterOpen}
         onClose={() => setIsLocationFilterOpen(false)}
@@ -318,12 +330,24 @@ export const Marketplace: React.FC = () => {
 
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex items-center gap-4">
-                    <div className="relative">
+                    <div
+                      className="relative cursor-pointer hover:scale-105 transition-transform"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (announcement.teamId) setSelectedTeamId(announcement.teamId);
+                      }}
+                    >
                       <img src={announcement.team?.logoUrl || '/default-team-logo.png'} alt={announcement.team?.name} className="w-14 h-14 rounded-full bg-slate-900 object-cover border-2 border-slate-600 shadow-lg" />
                     </div>
-                    <div>
+                    <div
+                      className="cursor-pointer group/team"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (announcement.teamId) setSelectedTeamId(announcement.teamId);
+                      }}
+                    >
                       <div className="flex items-center gap-2">
-                        <h3 className="font-sport font-bold text-2xl text-white uppercase italic tracking-wide">{announcement.team?.name}</h3>
+                        <h3 className="font-sport font-bold text-2xl text-white uppercase italic tracking-wide group-hover/team:text-turf-500 transition-colors">{announcement.team?.name}</h3>
                         <FairPlayScore score={announcement.team?.fairPlayScore || 0} />
                       </div>
                       <div className="flex items-center gap-2 mt-1">
@@ -375,6 +399,25 @@ export const Marketplace: React.FC = () => {
                           </>
                         ) : (
                           'Saha Bilgisi Yükleniyor'
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Price Display */}
+                  <div className="col-span-2 flex items-center gap-3 bg-slate-900/50 p-3 rounded-xl border border-slate-700/50">
+                    <div className="bg-slate-800 p-2 rounded-lg">
+                      <TurkishLira className="w-4 h-4 text-green-500" />
+                    </div>
+                    <div>
+                      <div className="text-[10px] text-slate-500 font-bold uppercase">Saha Ücreti (Takım Başı)</div>
+                      <div className="text-sm font-bold text-slate-200">
+                        {pitch ? (
+                          <span className="text-green-400 flex items-center gap-1">
+                            {pitch.pricePerHour / 2} <TurkishLira size={12} className="stroke-[3]" />
+                          </span>
+                        ) : (
+                          <span className="text-slate-500 text-xs">Fiyat Bilgisi Yok</span>
                         )}
                       </div>
                     </div>
@@ -434,7 +477,9 @@ export const Marketplace: React.FC = () => {
             pitchLocation: (() => {
               const { business } = getPitchDetails(selectedMatch.pitchId);
               return business ? `${business.district}, ${business.city}` : 'Konum Yok';
-            })()
+            })(),
+            businessName: getPitchDetails(selectedMatch.pitchId).business?.name,
+            pricePerTeam: getPitchDetails(selectedMatch.pitchId).pitch?.pricePerHour ? getPitchDetails(selectedMatch.pitchId).pitch!.pricePerHour / 2 : undefined
           }}
           onSubmit={handleSubmitChallenge}
         />

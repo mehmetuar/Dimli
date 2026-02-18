@@ -65,8 +65,6 @@ export class TeamsService {
         if (!team) return null;
 
         // Manually load players using query builder to find all users with this team
-        // This part is now redundant if 'players' is in relations, but keeping it as per instruction to only add to relations.
-        // If the intention was to remove manual loading, that would be a separate instruction.
         const players = await this.usersService['usersRepository']
             .createQueryBuilder('user')
             .leftJoinAndSelect('user.team', 'team')
@@ -74,9 +72,17 @@ export class TeamsService {
             .getMany();
 
         console.log(`🔍 DEBUG: Found ${players.length} players for team ${team.name}`);
-        console.log('Player usernames:', players.map(p => p.username));
 
-        team.players = players;
+        // Map User entity to Player interface structure
+        team.players = players.map(user => ({
+            ...user,
+            id: user.id,
+            name: user.full_name || user.username, // vital mapping
+            position: user.position,
+            avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name || user.username)}&background=random`,
+            rating: user.rating,
+            teamId: team.id
+        }));
 
         return team;
     }
@@ -171,6 +177,16 @@ export class TeamsService {
         if (!team) throw new Error('Team not found');
 
         team.homePitchId = homePitchId;
+        // If switching back to pitch, maybe clear business? Or keep both as preference?
+        // Let's keep distinct for now.
+        return this.teamsRepository.save(team);
+    }
+
+    async updateHomeBusiness(teamId: string, homeBusinessId: string): Promise<Team> {
+        const team = await this.findOne(teamId);
+        if (!team) throw new Error('Team not found');
+
+        team.homeBusinessId = homeBusinessId;
         return this.teamsRepository.save(team);
     }
 
