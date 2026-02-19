@@ -97,6 +97,11 @@ export class TeamsService {
         // Check if user is already in a team
         if (user.team) throw new Error('User is already in a team');
 
+        // Check max roster size
+        if (team.players && team.players.length >= 28) {
+            throw new Error('Kadro maksimum 28 kişi olabilir.');
+        }
+
         // Set the team on the user (this is the ManyToOne side, which owns the foreign key)
         user.team = team;
 
@@ -196,5 +201,58 @@ export class TeamsService {
 
         team.description = description;
         return this.teamsRepository.save(team);
+    }
+
+    async updateTeam(teamId: string, dto: { name?: string; level?: string; location?: string; logoUrl?: string; primaryColor?: string; secondaryColor?: string }): Promise<Team> {
+        const team = await this.findOne(teamId);
+        if (!team) throw new Error('Team not found');
+
+        if (dto.name !== undefined) team.name = dto.name;
+        if (dto.level !== undefined) team.level = dto.level;
+        if (dto.location !== undefined) team.location = dto.location;
+        if (dto.logoUrl !== undefined) team.logoUrl = dto.logoUrl;
+        if (dto.primaryColor !== undefined) team.primaryColor = dto.primaryColor;
+        if (dto.secondaryColor !== undefined) team.secondaryColor = dto.secondaryColor;
+
+        return this.teamsRepository.save(team);
+    }
+
+    async leaveTeam(teamId: string, userId: string): Promise<void> {
+        const team = await this.findOne(teamId);
+        if (!team) throw new Error('Team not found');
+
+        if (team.captain && team.captain.id === userId) {
+            throw new Error('Kaptan takımdan ayrılamaz. Önce kaptanlığı devredin.');
+        }
+
+        const user = await this.usersService.findById(userId);
+        if (!user) throw new Error('User not found');
+
+        // Remove from vice captains if applicable
+        if (team.viceCaptainIds?.includes(userId)) {
+            team.viceCaptainIds = team.viceCaptainIds.filter(id => id !== userId);
+            await this.teamsRepository.save(team);
+        }
+
+        // Remove teamId from user
+        user.team = null as any;
+        await this.usersService['usersRepository'].save(user);
+    }
+
+    async deleteTeam(teamId: string, userId: string): Promise<void> {
+        const team = await this.findOne(teamId);
+        if (!team) throw new Error('Team not found');
+
+        const isCaptain = (team.captain && team.captain.id === userId) || team.captainId === userId;
+        if (!isCaptain) throw new Error('Sadece kaptan takımı silebilir.');
+
+        if (team.players && team.players.length > 0) {
+            for (const player of team.players) {
+                player.team = null as any;
+                await this.usersService['usersRepository'].save(player);
+            }
+        }
+
+        await this.teamsRepository.delete(teamId);
     }
 }

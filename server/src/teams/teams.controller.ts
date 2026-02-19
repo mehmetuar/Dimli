@@ -84,4 +84,25 @@ export class TeamsController {
     ) {
         return this.teamsService.updateDescription(id, description);
     }
+
+    @UseGuards(JwtAuthGuard)
+    @Patch(':id')
+    updateTeam(
+        @Param('id') id: string,
+        @Body() dto: { name?: string; level?: string; location?: string; logoUrl?: string; primaryColor?: string; secondaryColor?: string }
+    ) {
+        return this.teamsService.updateTeam(id, dto);
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Delete(':id/leave')
+    leaveTeam(@Param('id') id: string, @Request() req) {
+        return this.teamsService.leaveTeam(id, req.user.id);
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Delete(':id')
+    deleteTeam(@Param('id') id: string, @Request() req) {
+        return this.teamsService.deleteTeam(id, req.user.id);
+    }
 }

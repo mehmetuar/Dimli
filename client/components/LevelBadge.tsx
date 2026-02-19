@@ -1,33 +1,26 @@
 import React from 'react';
-import { SkillLevel } from '../types';
+
+const LEVEL_MAP: Record<string, { label: string; colorClass: string }> = {
+  BEGINNER: { label: 'Başlangıç', colorClass: 'bg-green-500/20 text-green-400 border-green-500/40' },
+  INTERMEDIATE: { label: 'Orta', colorClass: 'bg-blue-500/20 text-blue-400 border-blue-500/40' },
+  ADVANCED: { label: 'İleri', colorClass: 'bg-purple-500/20 text-purple-400 border-purple-500/40' },
+  PRO: { label: 'Profesyonel', colorClass: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/40' },
+  // Legacy support
+  EXPERT: { label: 'Uzman', colorClass: 'bg-red-500/20 text-red-400 border-red-500/40' },
+};
 
 interface Props {
-  level: SkillLevel;
+  level?: string;
 }
 
 export const LevelBadge: React.FC<Props> = ({ level }) => {
-  let colorClass = '';
-
-  switch (level) {
-    case SkillLevel.BEGINNER:
-      colorClass = 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
-      break;
-    case SkillLevel.INTERMEDIATE:
-      colorClass = 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
-      break;
-    case SkillLevel.ADVANCED:
-      colorClass = 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300';
-      break;
-    case SkillLevel.EXPERT:
-      colorClass = 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
-      break;
-    default:
-      colorClass = 'bg-gray-100 text-gray-800';
-  }
+  const entry = level ? LEVEL_MAP[level.toUpperCase()] : undefined;
+  const label = entry?.label ?? (level || '—');
+  const colorClass = entry?.colorClass ?? 'bg-slate-700 text-slate-400 border-slate-600';
 
   return (
-    <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${colorClass}`}>
-      {level}
+    <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${colorClass}`}>
+      {label}
     </span>
   );
 };

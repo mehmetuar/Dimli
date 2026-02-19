@@ -45,6 +45,7 @@ export interface Team {
   name: string;
   logoUrl: string;
   primaryColor: string; // Tailwind class e.g. "bg-red-600"
+  secondaryColor?: string; // Second team color Tailwind class
   captainId: string;
   viceCaptainIds?: string[]; // Array of vice-captain IDs (max 2)
   level: SkillLevel;

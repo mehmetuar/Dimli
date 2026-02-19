@@ -15,6 +15,9 @@ export class Team {
     @Column({ name: 'primary_color', nullable: true })
     primaryColor: string;
 
+    @Column({ name: 'secondary_color', nullable: true })
+    secondaryColor: string;
+
     @Column({ nullable: true })
     level: string; // 'BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'PRO'
 

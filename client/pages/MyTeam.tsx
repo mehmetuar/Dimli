@@ -16,6 +16,20 @@ import { SuccessModal, SuccessType } from '../components/SuccessModal';
 import api, { getPitches, getBusinesses } from '../services/api';
 import { useNavigate } from 'react-router-dom';
 
+// Map Tailwind class names to hex colors for runtime inline styles
+const COLOR_HEX: Record<string, string> = {
+    'bg-blue-500': '#3b82f6',
+    'bg-green-500': '#22c55e',
+    'bg-red-500': '#ef4444',
+    'bg-yellow-500': '#eab308',
+    'bg-purple-500': '#a855f7',
+    'bg-orange-500': '#f97316',
+    'bg-pink-500': '#ec4899',
+    'bg-cyan-500': '#06b6d4',
+    'bg-white': '#ffffff',
+};
+const toHex = (cls?: string) => (cls ? COLOR_HEX[cls] ?? '#3b82f6' : '#3b82f6');
+
 export const MyTeam: React.FC = () => {
     const navigate = useNavigate();
     const [currentUser, setCurrentUser] = useState<any>(null);
@@ -178,6 +192,28 @@ export const MyTeam: React.FC = () => {
         const isCaptain = myTeam.captain?.id === currentUser.id || myTeam.captainId === currentUser.id;
 
         if (isCaptain) {
+            // Solo captain → offer to delete the team entirely
+            if (roster.length <= 1) {
+                setConfirmModal({
+                    isOpen: true,
+                    title: '⚠️ Takımı Sil',
+                    message: `Takımda sadece sen varsın. Ayrılırsan "${myTeam.name}" takımı tamamen silinecek. Bunu onaylıyor musun?`,
+                    onConfirm: async () => {
+                        try {
+                            await api.delete(`/teams/${myTeam.id}`);
+                            setMyTeam(undefined);
+                            setRoster([]);
+                            navigate('/team');
+                        } catch (err: any) {
+                            setErrorMessage(err.response?.data?.message || 'Takım silinemedi.');
+                        }
+                    },
+                    isDangerous: true
+                });
+                return;
+            }
+
+            // Captain with other players → must transfer first
             setConfirmModal({
                 isOpen: true,
                 title: 'Uyarı',
@@ -192,11 +228,17 @@ export const MyTeam: React.FC = () => {
             isOpen: true,
             title: 'Takımdan Ayrıl',
             message: `${myTeam.name} takımından ayrılmak istediğine emin misin?`,
-            onConfirm: () => {
-                setMyTeam(undefined);
-                setRoster([]);
-                navigate('/profile'); // Go back to profile after leaving
+            onConfirm: async () => {
+                try {
+                    await api.delete(`/teams/${myTeam.id}/leave`);
+                    setMyTeam(undefined);
+                    setRoster([]);
+                    navigate('/team');
+                } catch (err: any) {
+                    setErrorMessage(err.response?.data?.message || 'Takımdan ayrılınamadı.');
+                }
             },
+
             isDangerous: true
         });
     };
@@ -303,7 +345,7 @@ export const MyTeam: React.FC = () => {
                         </div>
                         <div className="p-4 space-y-2">
                             <button
-                                onClick={() => { setIsTeamMenuOpen(false); window.location.href = '/settings/team'; }}
+                                onClick={() => { setIsTeamMenuOpen(false); navigate('/settings/team'); }}
                                 className="w-full flex items-center gap-4 p-4 rounded-2xl bg-slate-700/50 hover:bg-slate-700 text-white transition-all active:scale-95"
                             >
                                 <div className="bg-blue-500/20 p-2 rounded-full text-blue-400">
@@ -423,19 +465,53 @@ export const MyTeam: React.FC = () => {
                 </div>
             ) : (
                 <div className="animate-fade-in space-y-6">
-                    {/* Header Card */}
-                    <div className="bg-slate-800 rounded-2xl p-6 border border-slate-700 relative overflow-hidden">
-                        <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-${myTeam.primaryColor?.replace('bg-', '') || 'blue-500'} to-transparent opacity-20 rounded-bl-full`}></div>
+                    {/* Header Card — uses team primary+secondary colors */}
+                    <div
+                        className="rounded-2xl p-6 border border-slate-700 relative overflow-hidden"
+                        style={{
+                            background: `linear-gradient(135deg, ${toHex((myTeam as any).primaryColor)}18 0%, #1e293b 50%, ${toHex((myTeam as any).secondaryColor || (myTeam as any).primaryColor)}12 100%)`
+                        }}
+                    >
+                        {/* Color accent blobs */}
+                        <div
+                            className="absolute top-0 right-0 w-40 h-40 rounded-bl-full opacity-20"
+                            style={{ background: `radial-gradient(circle at top right, ${toHex((myTeam as any).primaryColor)}, transparent 70%)` }}
+                        />
+                        <div
+                            className="absolute bottom-0 left-0 w-28 h-28 rounded-tr-full opacity-10"
+                            style={{ background: `radial-gradient(circle at bottom left, ${toHex((myTeam as any).secondaryColor || (myTeam as any).primaryColor)}, transparent 70%)` }}
+                        />
 
                         <div className="flex justify-between items-start relative z-10">
                             <div className="flex items-center gap-4">
-                                <img src={myTeam.logoUrl || 'https://via.placeholder.com/150'} className="w-20 h-20 rounded-full border-4 border-slate-800 bg-slate-900 object-cover shadow-lg" alt="Logo" />
+                                <div
+                                    className="w-20 h-20 rounded-full flex items-center justify-center overflow-hidden shadow-xl"
+                                    style={{ border: `3px solid ${toHex((myTeam as any).primaryColor)}60` }}
+                                >
+                                    {(myTeam as any).logoUrl ? (
+                                        <img src={(myTeam as any).logoUrl} className="w-full h-full object-cover" alt="Logo"
+                                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                                    ) : (
+                                        <div
+                                            className="w-full h-full flex items-center justify-center text-white font-black text-2xl"
+                                            style={{ background: `linear-gradient(135deg, ${toHex((myTeam as any).primaryColor)}, ${toHex((myTeam as any).secondaryColor || (myTeam as any).primaryColor)}88)` }}
+                                        >
+                                            {myTeam.name?.slice(0, 2).toUpperCase()}
+                                        </div>
+                                    )}
+                                </div>
                                 <div>
                                     <h2 className="font-sport font-black text-3xl text-white italic tracking-wide uppercase">{myTeam.name}</h2>
                                     <div className="flex items-center gap-2 mt-1">
                                         <LevelBadge level={myTeam.level} />
                                         <FairPlayScore score={myTeam.fairPlayScore} />
                                     </div>
+                                    {myTeam.location && (
+                                        <div className="flex items-center gap-1 mt-1 text-slate-400 text-xs">
+                                            <MapPin className="w-3 h-3" />
+                                            {myTeam.location}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
@@ -586,16 +662,24 @@ export const MyTeam: React.FC = () => {
                         <div className="flex justify-between items-center mb-4">
                             <h3 className="font-sport font-bold text-xl text-white flex items-center gap-2">
                                 <Shield className="w-5 h-5 text-blue-500" /> KADRO
+                                <span className={`text-sm font-bold px-2 py-0.5 rounded-lg ${roster.length >= 28
+                                    ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                                    : 'bg-slate-700 text-slate-300'
+                                    }`}>{roster.length}/28</span>
                             </h3>
                             {isCaptain && (
                                 <div className="flex items-center gap-2">
-                                    <button
-                                        onClick={() => setIsAddPlayerModalOpen(true)}
-                                        className="bg-turf-600 hover:bg-turf-500 text-white p-1.5 rounded-lg transition-colors shadow-lg shadow-turf-600/20"
-                                        title="Oyuncu Ekle / Davet Et"
-                                    >
-                                        <UserPlus className="w-4 h-4" />
-                                    </button>
+                                    {roster.length >= 28 ? (
+                                        <span className="text-[10px] bg-red-500/20 text-red-400 px-2 py-1 rounded font-bold uppercase border border-red-500/30">Kadro Dolu</span>
+                                    ) : (
+                                        <button
+                                            onClick={() => setIsAddPlayerModalOpen(true)}
+                                            className="bg-turf-600 hover:bg-turf-500 text-white p-1.5 rounded-lg transition-colors shadow-lg shadow-turf-600/20"
+                                            title="Oyuncu Ekle / Davet Et"
+                                        >
+                                            <UserPlus className="w-4 h-4" />
+                                        </button>
+                                    )}
                                     <span className="text-[10px] bg-turf-900/50 text-turf-500 px-2 py-1 rounded font-bold uppercase border border-turf-500/20">Yönetici Modu</span>
                                 </div>
                             )}
