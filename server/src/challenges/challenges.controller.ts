@@ -30,6 +30,11 @@ export class ChallengesController {
         return this.challengesService.findByTeamId(teamId);
     }
 
+    @Get('team/:teamId/incoming')
+    async getIncomingByTeam(@Param('teamId') teamId: string) {
+        return this.challengesService.findIncomingByTeamId(teamId);
+    }
+
     @Delete(':id')
     async delete(@Param('id') id: string) {
         return this.challengesService.delete(id);

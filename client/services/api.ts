@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-    baseURL: 'http://172.20.10.13:3000', // Updated to current machine IP
+    baseURL: 'http://10.5.50.4:3000', // Updated to current machine IP
 });
 
 // Request interceptor to add token

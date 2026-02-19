@@ -196,19 +196,21 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
 
                                 {preSelectedPitchId ? (
                                     // READ ONLY VIEW if pre-selected
-                                    <div className="bg-slate-900 p-3 rounded-xl border border-slate-700 flex items-center gap-3 relative">
-                                        <div className="w-12 h-12 bg-slate-800 rounded-lg flex items-center justify-center text-turf-500">
-                                            <MapPin className="w-6 h-6" />
+                                    <div className="bg-slate-900 p-4 rounded-xl border border-slate-700 flex items-center gap-3">
+                                        <div className="w-11 h-11 bg-slate-800 rounded-xl flex items-center justify-center text-turf-500 flex-shrink-0">
+                                            <MapPin className="w-5 h-5" />
                                         </div>
-                                        <div>
-                                            <div className="font-bold text-white text-sm">{selectedPitch?.name}</div>
-                                            <div className="text-xs text-slate-500">
+                                        <div className="flex-1 min-w-0">
+                                            <div className="font-bold text-white text-sm truncate">
                                                 {businesses.find(b => b.pitches?.some(p => p.id === selectedPitchId))?.name}
                                             </div>
+                                            <div className="text-xs text-slate-400 truncate">
+                                                {selectedPitch?.name}
+                                            </div>
                                         </div>
-                                        <span className="ml-auto text-[10px] bg-slate-800 px-2 py-1 rounded text-slate-400 border border-slate-700">Sabitlendi</span>
-                                        <div className="absolute top-2 right-20 bg-slate-800 px-2 py-0.5 rounded border border-slate-600">
-                                            <span className="text-white font-sport font-bold text-xs">₺{selectedPitch?.pricePerHour}</span>
+                                        <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                                            <span className="text-turf-400 font-black text-base font-sport">₺{selectedPitch?.pricePerHour}</span>
+                                            <span className="text-[10px] bg-slate-800 px-2 py-0.5 rounded-full text-slate-400 border border-slate-700">Sabitlendi</span>
                                         </div>
                                     </div>
                                 ) : (
@@ -272,14 +274,22 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
 
                             {/* Step 2: Date & Time */}
                             <div className="mb-8 animate-fade-in delay-75">
-                                <label className="text-xs font-bold text-slate-500 uppercase mb-3 block flex items-center gap-2">
+                                <label className="text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-2">
                                     <span className="w-5 h-5 rounded-full bg-turf-600 text-slate-900 flex items-center justify-center text-[10px]">2</span>
                                     Zamanlama
                                 </label>
-                                <div className="flex gap-4">
-                                    <div className="flex-1">
-                                        <div className="relative">
-                                            <Calendar className="absolute left-3 top-3 w-4 h-4 text-slate-500" />
+                                <div className="space-y-3">
+                                    {/* Date Card */}
+                                    <div className="relative bg-slate-900 border border-slate-700 rounded-xl flex items-center gap-3 px-4 py-3 focus-within:border-turf-500 transition-colors">
+                                        <div className="w-9 h-9 rounded-lg bg-slate-800 flex items-center justify-center flex-shrink-0">
+                                            <Calendar className="w-4 h-4 text-turf-400" />
+                                        </div>
+                                        <div className="flex-1 flex flex-col items-center">
+                                            <div className="text-[10px] text-turf-400 font-bold uppercase tracking-widest mb-0.5">
+                                                {date
+                                                    ? new Date(date + 'T12:00:00').toLocaleDateString('tr-TR', { weekday: 'long' }).toUpperCase()
+                                                    : 'GÜN'}
+                                            </div>
                                             <input
                                                 type="date"
                                                 min={getTodayDate()}
@@ -288,21 +298,26 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
                                                     maxDate.setDate(maxDate.getDate() + 30);
                                                     return maxDate.toISOString().split('T')[0];
                                                 })()}
-                                                className="w-full bg-slate-900 border border-slate-700 rounded-xl py-2.5 pl-10 pr-3 text-white text-sm focus:border-turf-500 focus:outline-none"
+                                                className="bg-transparent text-white text-sm font-semibold focus:outline-none text-center"
                                                 value={date}
                                                 onChange={(e) => setDate(e.target.value)}
                                             />
                                         </div>
                                     </div>
-                                    <div className="flex-1">
-                                        <div className="relative">
-                                            <Clock className="absolute left-3 top-3 w-4 h-4 text-slate-500" />
+
+                                    {/* Time Card */}
+                                    <div className="relative bg-slate-900 border border-slate-700 rounded-xl flex items-center gap-3 px-4 py-3 focus-within:border-turf-500 transition-colors">
+                                        <div className="w-9 h-9 rounded-lg bg-slate-800 flex items-center justify-center flex-shrink-0">
+                                            <Clock className="w-4 h-4 text-turf-400" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <div className="text-[10px] text-slate-500 uppercase font-bold mb-0.5">Saat</div>
                                             <select
-                                                className="w-full bg-slate-900 border border-slate-700 rounded-xl py-2.5 pl-10 pr-3 text-white text-sm focus:border-turf-500 focus:outline-none appearance-none"
+                                                className="w-full bg-transparent text-white text-sm font-semibold focus:outline-none appearance-none"
                                                 value={time}
                                                 onChange={(e) => setTime(e.target.value)}
                                             >
-                                                <option value="">Saat Seç</option>
+                                                <option value="" className="bg-slate-900">Saat Seçin</option>
                                                 {Array.from({ length: 14 }, (_, i) => i + 10)
                                                     .filter(h => {
                                                         const today = getTodayDate();
@@ -313,7 +328,7 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
                                                         return true;
                                                     })
                                                     .map(h => (
-                                                        <option key={h} value={`${h}:00`}>{h}:00 - {h + 1}:00</option>
+                                                        <option key={h} value={`${h}:00`} className="bg-slate-900">{h}:00 – {h + 1}:00</option>
                                                     ))}
                                             </select>
                                         </div>

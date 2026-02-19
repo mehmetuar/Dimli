@@ -60,6 +60,33 @@ export interface Team {
   players?: any[]; // Team roster from API
 }
 
+export interface MatchAnnouncement {
+  id: string;
+  teamId: string;
+  pitchId?: string;
+  date: string;
+  time: string;
+  playerCount: number;
+  description?: string;
+  status: string;
+  createdAt: string;
+  team?: Team;
+  pitch?: Pitch;
+}
+
+export interface Challenge {
+  id: string;
+  fromTeamId: string;
+  toTeamId?: string;
+  toMatchId: string;
+  note?: string;
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
+  createdAt: string;
+  fromTeam?: Team; // Populated by backend
+  toTeam?: Team; // Populated by backend
+  match?: MatchAnnouncement; // Populated by backend
+}
+
 export interface MatchOffer {
   id: string;
   fromTeamId: string;

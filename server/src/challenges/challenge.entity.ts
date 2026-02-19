@@ -1,15 +1,11 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
 
 @Entity('challenges')
 export class Challenge {
     @PrimaryGeneratedColumn('uuid')
     id: string;
 
-    @Column()
-    fromTeamId: string;
 
-    @Column()
-    toMatchId: string;
 
     @Column({ type: 'text', nullable: true })
     note: string;
@@ -19,4 +15,18 @@ export class Challenge {
 
     @CreateDateColumn()
     createdAt: Date;
+
+    @ManyToOne('Team', { eager: true })
+    @JoinColumn({ name: 'fromTeamId' })
+    fromTeam: any;
+
+    @Column({ nullable: true })
+    fromTeamId: string;
+
+    @ManyToOne('MatchAnnouncement', { eager: true })
+    @JoinColumn({ name: 'toMatchId' })
+    match: any;
+
+    @Column({ nullable: true })
+    toMatchId: string;
 }

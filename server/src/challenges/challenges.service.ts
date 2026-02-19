@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Challenge } from './challenge.entity';
+import { MatchAnnouncement } from '../match-announcements/match-announcement.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 import { MatchAnnouncementsService } from '../match-announcements/match-announcements.service';
 import { TeamsService } from '../teams/teams.service';
@@ -13,6 +14,8 @@ export class ChallengesService {
     constructor(
         @InjectRepository(Challenge)
         private challengesRepository: Repository<Challenge>,
+        @InjectRepository(MatchAnnouncement)
+        private matchAnnouncementsRepository: Repository<MatchAnnouncement>,
         private notificationsService: NotificationsService,
         private matchAnnouncementsService: MatchAnnouncementsService,
         private teamsService: TeamsService,
@@ -44,7 +47,7 @@ export class ChallengesService {
         const savedChallenge = await this.challengesRepository.save(challenge);
 
         // 2. Fetch Match Announcement to find target team
-        const match = await this.matchAnnouncementsService['matchAnnouncementsRepository'].findOne({
+        const match = await this.matchAnnouncementsRepository.findOne({
             where: { id: toMatchId },
             relations: ['team', 'team.captain']
         });
@@ -86,6 +89,30 @@ export class ChallengesService {
             order: { createdAt: 'DESC' }
         });
     }
+
+    async findIncomingByTeamId(teamId: string): Promise<Challenge[]> {
+        // Find match announcements created by this team
+        const matches = await this.matchAnnouncementsRepository.find({
+            where: { teamId },
+            select: ['id']
+        });
+
+        const matchIds = matches.map(m => m.id);
+
+        if (matchIds.length === 0) return [];
+
+        // Find PENDING challenges for these matches
+        return this.challengesRepository.createQueryBuilder('challenge')
+            .leftJoinAndSelect('challenge.fromTeam', 'fromTeam')         // Challenger Team
+            .leftJoinAndSelect('challenge.match', 'match')               // Match Announcement
+            .leftJoinAndSelect('match.pitch', 'pitch')                   // Pitch info
+            .leftJoinAndSelect('pitch.business', 'business')             // Business/Facility info
+            .where('challenge.toMatchId IN (:...matchIds)', { matchIds })
+            .andWhere('challenge.status = :status', { status: 'PENDING' })
+            .orderBy('challenge.createdAt', 'DESC')
+            .getMany();
+    }
+
 
     async delete(id: string): Promise<void> {
         const challenge = await this.challengesRepository.findOne({ where: { id } });
@@ -130,13 +157,13 @@ export class ChallengesService {
             console.log('✅ Challenge ACCEPTED! Starting match confirmation flow...');
 
             // 1. Update Match Status to CONFIRMED
-            await this.matchAnnouncementsService['matchAnnouncementsRepository'].update(challenge.toMatchId, {
+            await this.matchAnnouncementsRepository.update(challenge.toMatchId, {
                 status: 'CONFIRMED'
             });
             console.log('📝 Match status updated to CONFIRMED for match:', challenge.toMatchId);
 
             // 2. Create Chat Channel
-            const match = await this.matchAnnouncementsService['matchAnnouncementsRepository'].findOne({
+            const match = await this.matchAnnouncementsRepository.findOne({
                 where: { id: challenge.toMatchId },
                 relations: ['team', 'team.captain']
             });

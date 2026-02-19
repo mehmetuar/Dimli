@@ -1,11 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
-import { Bell, Check, X, Calendar, Shield, Info, ChevronRight, UserPlus, CheckCircle, AlertCircle, MessageSquare, MapPin, Handshake } from 'lucide-react';
+import { Bell, Check, X, Calendar, UserPlus, CheckCircle, AlertCircle, MessageSquare, MapPin, Handshake } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { PlayerDetailModal } from '../components/PlayerDetailModal';
-import { Position, Player } from '../types';
+import { TeamDetailModal } from '../components/TeamDetailModal';
+import { Position, Challenge } from '../types';
 
 interface JoinRequest {
    id: string;
@@ -38,76 +39,39 @@ interface Notification {
 }
 
 export const Notifications: React.FC = () => {
-   const [activeTab, setActiveTab] = useState<'ALL' | 'JOIN_REQUESTS'>('ALL');
+   const [activeTab, setActiveTab] = useState<'ALL' | 'JOIN_REQUESTS' | 'MATCH_REQUESTS'>('ALL');
    const [notifications, setNotifications] = useState<Notification[]>([]);
    const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
+   const [matchRequests, setMatchRequests] = useState<Challenge[]>([]);
    const [loading, setLoading] = useState(true);
    const [successMessage, setSuccessMessage] = useState('');
    const [errorMessage, setErrorMessage] = useState('');
    const navigate = useNavigate();
    const [selectedJoinRequest, setSelectedJoinRequest] = useState<JoinRequest | null>(null);
+   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
 
-
+   // ✅ KRİTİK DÜZELTME: useEffect ile fetchData çağrılıyor
+   // Eski kodda bu useEffect tamamen eksikti - sayfa her zaman loading'de kalıyordu
    useEffect(() => {
       fetchData();
+
+      // Socket.io gerçek zamanlı bildirim dinleyici
+      const socket = (window as any).__socket;
+      if (socket) {
+         const handleRefresh = () => fetchData();
+         socket.on('notification', handleRefresh);
+         socket.on('newChallenge', handleRefresh);
+         socket.on('joinRequest', handleRefresh);
+
+         return () => {
+            socket.off('notification', handleRefresh);
+            socket.off('newChallenge', handleRefresh);
+            socket.off('joinRequest', handleRefresh);
+         };
+      }
    }, []);
 
-   useEffect(() => {
-      // Auto-hide success/error messages after 3 seconds
-      if (successMessage || errorMessage) {
-         const timer = setTimeout(() => {
-            setSuccessMessage('');
-            setErrorMessage('');
-         }, 3000);
-         return () => clearTimeout(timer);
-      }
-   }, [successMessage, errorMessage]);
-
-   const fetchData = async () => {
-      try {
-         setLoading(true);
-
-         // Fetch notifications
-         const notifResponse = await api.get('/notifications');
-         const fetchedNotifications = notifResponse.data;
-         setNotifications(fetchedNotifications);
-
-         // Mark unread notifications as read
-         const unreadIds = fetchedNotifications.filter((n: any) => !n.read).map((n: any) => n.id);
-         if (unreadIds.length > 0) {
-            // We can iterate or add a bulk endpoint. For now, iterate (simpler for quick fix)
-            // Or better, just mark them as read in the UI and let user click individually? 
-            // User request: "bildirim kutusuna tıklanana kadar yeni bildirimler kaç adetse sayısı yazmalı"
-            // This implies once they click the box (visit page), it should clear? 
-            // Usually visiting the page clears the "unread count" badge.
-            // Let's mark them as read in backend.
-            await Promise.all(unreadIds.map((id: string) => api.patch(`/notifications/${id}/read`)));
-         }
-
-         // Fetch join requests for user's teams (assuming user is captain)
-         // We'll need to get user's teams first
-         const teamsResponse = await api.get('/teams'); // Get all teams where user is captain
-         const myTeams = teamsResponse.data.filter((team: any) =>
-            team.captainId === getCurrentUserId() ||
-            team.captain?.id === getCurrentUserId()
-         );
-
-         // Fetch join requests for each team
-         const allJoinRequests: JoinRequest[] = [];
-         for (const team of myTeams) {
-            const reqResponse = await api.get(`/join-requests/team/${team.id}`);
-            allJoinRequests.push(...reqResponse.data);
-         }
-         setJoinRequests(allJoinRequests);
-      } catch (error) {
-         console.error('Failed to fetch notifications:', error);
-      } finally {
-         setLoading(false);
-      }
-   };
-
    const getCurrentUserId = () => {
-      // Get from local storage or context
       const token = localStorage.getItem('token');
       if (!token) return null;
       try {
@@ -118,14 +82,68 @@ export const Notifications: React.FC = () => {
       }
    };
 
+   const fetchData = async () => {
+      try {
+         setLoading(true);
+
+         // Bildirimleri getir
+         const notifResponse = await api.get('/notifications');
+         const fetchedNotifications = notifResponse.data;
+         setNotifications(fetchedNotifications);
+
+         // Okunmamışları okundu olarak işaretle
+         const unreadIds = fetchedNotifications.filter((n: any) => !n.read).map((n: any) => n.id);
+         if (unreadIds.length > 0) {
+            await Promise.all(unreadIds.map((id: string) => api.patch(`/notifications/${id}/read`)));
+         }
+
+         // Kullanıcının takımlarını getir
+         const teamsResponse = await api.get('/teams');
+         const myTeams = teamsResponse.data.filter((team: any) =>
+            team.captainId === getCurrentUserId() ||
+            team.captain?.id === getCurrentUserId()
+         );
+
+         // Her takım için katılma ve maç isteklerini getir
+         const allJoinRequests: JoinRequest[] = [];
+         const allMatchRequests: Challenge[] = [];
+
+         for (const team of myTeams) {
+            // Katılma istekleri
+            try {
+               const joinRes = await api.get(`/join-requests/team/${team.id}`);
+               allJoinRequests.push(...joinRes.data);
+            } catch (err) {
+               console.error(`Katılma istekleri alınamadı (takım: ${team.id})`, err);
+            }
+
+            // Maç istekleri (gelen challenge'lar)
+            try {
+               const matchRes = await api.get(`/challenges/team/${team.id}/incoming`);
+               allMatchRequests.push(...matchRes.data);
+            } catch (err) {
+               console.error(`Maç istekleri alınamadı (takım: ${team.id})`, err);
+            }
+         }
+
+         setJoinRequests(allJoinRequests);
+         setMatchRequests(allMatchRequests);
+
+      } catch (error) {
+         console.error('Bildirimler alınamadı:', error);
+      } finally {
+         setLoading(false);
+      }
+   };
+
    const handleAcceptJoinRequest = async (requestId: string) => {
       try {
          await api.patch(`/join-requests/${requestId}/accept`);
-         // Refresh data
          await fetchData();
          setSuccessMessage('Katılma isteği kabul edildi! Oyuncu takıma eklendi.');
+         setErrorMessage('');
       } catch (error: any) {
-         console.error('Failed to accept join request:', error);
+         console.error('Katılma isteği kabul edilemedi:', error);
          setErrorMessage(error.response?.data?.message || 'Kabul edilemedi.');
       }
    };
@@ -133,32 +151,24 @@ export const Notifications: React.FC = () => {
    const handleRejectJoinRequest = async (requestId: string) => {
       try {
          await api.patch(`/join-requests/${requestId}/reject`);
-         // Refresh data
          await fetchData();
          setSuccessMessage('Katılma isteği reddedildi.');
+         setErrorMessage('');
       } catch (error: any) {
-         console.error('Failed to reject join request:', error);
+         console.error('Katılma isteği reddedilemedi:', error);
          setErrorMessage(error.response?.data?.message || 'Reddedilemedi.');
       }
    };
 
    const handleAcceptChallenge = async (challengeId: string) => {
       try {
-         const response = await api.patch(`/challenges/${challengeId}/accept`);
-         // If response contains channelId (from backend logic), navigate to chat
-         // Note: Backend might not return channelId directly in the challenge object, 
-         // but we know a notification with 'isChatRedirect' metadata will be created for the challenger.
-         // For the acceptor (host), we should also probably redirect or just show success.
-         // Let's check if the backend returns the updated challenge.
-
+         await api.patch(`/challenges/${challengeId}/accept`);
          await fetchData();
          setSuccessMessage('Meydan okuma kabul edildi! Sohbet kanalı oluşturuluyor...');
-
-         // Optional: Redirect to chat immediately if we can get the channel ID
-         // For now, let's just refresh. The user will see the new chat in the Chat tab.
+         setErrorMessage('');
          setTimeout(() => navigate('/chat'), 1500);
       } catch (error: any) {
-         console.error('Failed to accept challenge:', error);
+         console.error('Meydan okuma kabul edilemedi:', error);
          setErrorMessage(error.response?.data?.message || 'Kabul edilemedi.');
       }
    };
@@ -168,13 +178,15 @@ export const Notifications: React.FC = () => {
          await api.patch(`/challenges/${challengeId}/reject`);
          await fetchData();
          setSuccessMessage('Meydan okuma reddedildi.');
+         setErrorMessage('');
       } catch (error: any) {
-         console.error('Failed to reject challenge:', error);
+         console.error('Meydan okuma reddedilemedi:', error);
          setErrorMessage(error.response?.data?.message || 'Reddedilemedi.');
       }
    };
 
    const filteredJoinRequests = joinRequests.filter(r => r.status === 'PENDING');
+   const filteredMatchRequests = matchRequests.filter(r => r.status === 'PENDING');
 
    return (
       <div className="pb-28 pt-20 pt-safe-top px-4 max-w-3xl mx-auto min-h-screen bg-pitch">
@@ -183,19 +195,16 @@ export const Notifications: React.FC = () => {
                BİLDİRİMLER
             </h1>
             <p className="text-slate-400 text-sm mt-1">
-               Katılma istekleri ve diğer bildirimler
+               Katılma istekleri ve maç teklifleri
             </p>
          </header>
 
-         {/* Success Message */}
          {successMessage && (
             <div className="mb-6 bg-green-500/10 border border-green-500/50 text-green-400 p-4 rounded-xl flex items-center gap-3 animate-fade-in">
                <CheckCircle className="w-5 h-5 flex-shrink-0" />
                <p className="font-bold text-sm">{successMessage}</p>
             </div>
          )}
-
-         {/* Error Message */}
          {errorMessage && (
             <div className="mb-6 bg-red-500/10 border border-red-500/50 text-red-400 p-4 rounded-xl flex items-center gap-3 animate-fade-in">
                <AlertCircle className="w-5 h-5 flex-shrink-0" />
@@ -203,25 +212,34 @@ export const Notifications: React.FC = () => {
             </div>
          )}
 
-         {/* Tab Switcher */}
+         {/* Tab Switcher - hepsi tek satırda */}
          <div className="flex p-1 bg-slate-800 rounded-xl mb-6 border border-slate-700">
             <button
                onClick={() => setActiveTab('ALL')}
-               className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${activeTab === 'ALL'
+               className={`flex-1 py-2.5 text-[10px] font-bold rounded-lg transition-all leading-tight ${activeTab === 'ALL'
+                  ? 'bg-slate-600 text-white shadow-lg'
+                  : 'text-slate-400 hover:text-white'
+                  }`}
+            >
+               HEPSİ{`\n(${notifications.length})`}
+            </button>
+            <button
+               onClick={() => setActiveTab('MATCH_REQUESTS')}
+               className={`flex-1 py-2.5 text-[10px] font-bold rounded-lg transition-all leading-tight ${activeTab === 'MATCH_REQUESTS'
                   ? 'bg-turf-600 text-white shadow-lg'
                   : 'text-slate-400 hover:text-white'
                   }`}
             >
-               HEPSİ ({notifications.length})
+               MAÇ{`\nİSTEKLERİ (${filteredMatchRequests.length})`}
             </button>
             <button
                onClick={() => setActiveTab('JOIN_REQUESTS')}
-               className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${activeTab === 'JOIN_REQUESTS'
+               className={`flex-1 py-2.5 text-[10px] font-bold rounded-lg transition-all leading-tight ${activeTab === 'JOIN_REQUESTS'
                   ? 'bg-blue-600 text-white shadow-lg'
                   : 'text-slate-400 hover:text-white'
                   }`}
             >
-               KATILMA İSTEKLERİ ({filteredJoinRequests.length})
+               KATILMA{`\nİSTEKLERİ (${filteredJoinRequests.length})`}
             </button>
          </div>
 
@@ -229,7 +247,103 @@ export const Notifications: React.FC = () => {
             <LoadingSpinner fullScreen text="Bildirimler Yükleniyor..." />
          ) : (
             <div className="space-y-4">
-               {/* JOIN REQUESTS TAB */}
+
+               {/* MAÇ İSTEKLERİ TAB */}
+               {activeTab === 'MATCH_REQUESTS' && (
+                  <>
+                     {filteredMatchRequests.length === 0 ? (
+                        <div className="text-center py-12 opacity-50">
+                           <Handshake className="w-12 h-12 text-slate-600 mx-auto mb-3" />
+                           <p className="text-slate-400 text-sm">Bekleyen maç isteği yok.</p>
+                        </div>
+                     ) : (
+                        filteredMatchRequests.map(request => (
+                           <div
+                              key={request.id}
+                              className="p-4 rounded-2xl border flex gap-4 items-center transition-all cursor-pointer group relative overflow-hidden bg-slate-800 border-slate-700 hover:border-turf-500/50 hover:bg-slate-800/80"
+                           >
+                              <div className="absolute right-0 top-0 w-20 h-full bg-gradient-to-l from-turf-600/10 to-transparent pointer-events-none"></div>
+
+                              <div
+                                 className="relative cursor-pointer hover:scale-105 transition-transform"
+                                 onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (request.fromTeamId) setSelectedTeamId(request.fromTeamId);
+                                 }}
+                              >
+                                 <img
+                                    src={request.fromTeam?.logoUrl || '/default-team-logo.png'}
+                                    alt={request.fromTeam?.name || 'Rakip Takım'}
+                                    className="w-16 h-16 rounded-full object-cover border-2 border-slate-600 group-hover:border-turf-500 transition-colors bg-slate-900"
+                                 />
+                              </div>
+                              <div className="flex-1 min-w-0 relative z-10">
+                                 <div className="flex justify-between items-start">
+                                    <h3
+                                       className="font-bold text-white text-lg truncate group-hover:text-turf-400 transition-colors cursor-pointer"
+                                       onClick={(e) => {
+                                          e.stopPropagation();
+                                          if (request.fromTeamId) setSelectedTeamId(request.fromTeamId);
+                                       }}
+                                    >
+                                       {request.fromTeam?.name || 'Rakip Takım'}
+                                    </h3>
+                                    <span className="text-[10px] font-bold text-slate-500 uppercase">
+                                       {new Date(request.createdAt).toLocaleDateString('tr-TR')}
+                                    </span>
+                                 </div>
+
+                                 <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
+                                    <Calendar className="w-3 h-3 text-turf-500" />
+                                    <span className="text-white font-bold">
+                                       {request.match ? `${new Date(request.match.date).toLocaleDateString('tr-TR')} ${request.match.time}` : 'Tarih Bilinmiyor'}
+                                    </span>
+                                 </div>
+
+                                 {/* Saha ve işletme bilgisi */}
+                                 {(request.match as any)?.pitch && (
+                                    <div className="flex items-center gap-1 text-xs text-turf-400 mt-1 mb-1">
+                                       <MapPin className="w-3 h-3 flex-shrink-0" />
+                                       <span className="font-semibold truncate">
+                                          {(request.match as any).pitch.business?.name
+                                             ? `${(request.match as any).pitch.business.name} · ${(request.match as any).pitch.name}`
+                                             : (request.match as any).pitch.name}
+                                       </span>
+                                    </div>
+                                 )}
+
+                                 {request.note && (
+                                    <p className="text-xs text-slate-300 italic mb-1 line-clamp-1">"{request.note}"</p>
+                                 )}
+
+                                 <div className="flex gap-2">
+                                    <button
+                                       onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleAcceptChallenge(request.id);
+                                       }}
+                                       className="flex-1 py-2 bg-turf-600 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1 hover:bg-turf-500 transition-colors shadow-lg shadow-turf-600/20"
+                                    >
+                                       <Check className="w-3 h-3" /> Kabul Et
+                                    </button>
+                                    <button
+                                       onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleRejectChallenge(request.id);
+                                       }}
+                                       className="flex-1 py-2 bg-slate-700 text-slate-300 rounded-lg text-xs font-bold flex items-center justify-center gap-1 hover:bg-red-900/50 hover:text-red-400 transition-colors"
+                                    >
+                                       <X className="w-3 h-3" /> Reddet
+                                    </button>
+                                 </div>
+                              </div>
+                           </div>
+                        ))
+                     )}
+                  </>
+               )}
+
+               {/* KATILMA İSTEKLERİ TAB */}
                {activeTab === 'JOIN_REQUESTS' && (
                   <>
                      {filteredJoinRequests.length === 0 ? (
@@ -246,8 +360,7 @@ export const Notifications: React.FC = () => {
                                  setSelectedJoinRequest(request);
                               }}
                            >
-                              {/* Highlight Effect */}
-                              <div className="absolute right-0 top-0 w-20 h-full bg-gradient-to-l from-black/20 to-transparent pointer-events-none"></div>
+                              <div className="absolute right-0 top-0 w-20 h-full bg-gradient-to-l from-blue-600/10 to-transparent pointer-events-none"></div>
 
                               <div className="relative">
                                  <img
@@ -301,7 +414,7 @@ export const Notifications: React.FC = () => {
                   </>
                )}
 
-               {/* ALL TAB */}
+               {/* HEPSİ TAB */}
                {activeTab === 'ALL' && (
                   <>
                      {notifications.length === 0 ? (
@@ -336,12 +449,11 @@ export const Notifications: React.FC = () => {
                                  </div>
 
                                  <p className="text-sm text-slate-300 mb-3 leading-relaxed">
-                                    {/* Use title/message if available, fallback to generic */}
                                     {(notif as any).title && <span className="block font-bold text-white mb-1">{(notif as any).title}</span>}
                                     {(notif as any).message || 'Bildirim detayları'}
                                  </p>
 
-                                 {/* Challenge Actions */}
+                                 {/* Challenge Aksiyonları */}
                                  {notif.type === 'CHALLENGE' && (notif.metadata?.challengeId || notif.relatedId) && !notif.metadata?.isChatRedirect && (
                                     (() => {
                                        const date = notif.metadata?.matchDate;
@@ -349,7 +461,6 @@ export const Notifications: React.FC = () => {
                                        let isExpired = false;
 
                                        if (date && time) {
-                                          // Handle Date object or string from backend
                                           const dateStr = typeof date === 'string' ? date : new Date(date).toISOString().split('T')[0];
                                           const matchDate = new Date(`${dateStr}T${time}`);
                                           if (!isNaN(matchDate.getTime())) {
@@ -386,7 +497,7 @@ export const Notifications: React.FC = () => {
                                     })()
                                  )}
 
-                                 {/* Chat Redirect Action */}
+                                 {/* Sohbet Yönlendirme */}
                                  {notif.metadata?.isChatRedirect && (
                                     (() => {
                                        const date = notif.metadata?.matchDate;
@@ -394,13 +505,9 @@ export const Notifications: React.FC = () => {
                                        let isExpired = false;
 
                                        if (date && time) {
-                                          // Handle Date object or string from backend
                                           const dateStr = typeof date === 'string' ? date : new Date(date).toISOString().split('T')[0];
                                           const matchDate = new Date(`${dateStr}T${time}`);
-
-                                          // Add 1 hour (plus allowance) for "Match End"
                                           const matchEndDate = new Date(matchDate.getTime() + 65 * 60 * 1000);
-
                                           if (!isNaN(matchDate.getTime())) {
                                              isExpired = new Date() > matchEndDate;
                                           }
@@ -430,6 +537,7 @@ export const Notifications: React.FC = () => {
                )}
             </div>
          )}
+
          <PlayerDetailModal
             isOpen={!!selectedJoinRequest}
             onClose={() => setSelectedJoinRequest(null)}
@@ -450,6 +558,17 @@ export const Notifications: React.FC = () => {
             onAccept={() => selectedJoinRequest && handleAcceptJoinRequest(selectedJoinRequest.id)}
             onReject={() => selectedJoinRequest && handleRejectJoinRequest(selectedJoinRequest.id)}
          />
+
+         {/* Maç İstekleri için Takım Detay Modal */}
+         {selectedTeamId && (
+            <TeamDetailModal
+               isOpen={!!selectedTeamId}
+               onClose={() => setSelectedTeamId(null)}
+               teamId={selectedTeamId}
+               currentUserId={getCurrentUserId()}
+            />
+         )}
+
       </div>
    );
 };
