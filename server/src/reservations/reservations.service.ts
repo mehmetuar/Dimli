@@ -1,10 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository, In, LessThan, MoreThan, Between } from 'typeorm';
+import { DataSource, Repository, In, LessThan, MoreThan, Between, MoreThanOrEqual } from 'typeorm';
 import { Reservation, ReservationStatus } from './entities/reservation.entity';
 import { ChatService } from '../chat/chat.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ChatChannel } from '../chat/chat-channel.entity';
+import { Cron, CronExpression } from '@nestjs/schedule';
 
 @Injectable()
 export class ReservationsService {
@@ -19,6 +20,68 @@ export class ReservationsService {
         private chatChannelRepository: Repository<ChatChannel>,
         private dataSource: DataSource
     ) { }
+
+    // ... existing methods ...
+
+    @Cron(CronExpression.EVERY_MINUTE)
+    async checkMatchReminders() {
+        const now = new Date();
+        const twoHoursFromNow = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+        const twoHoursFiveMinutesFromNow = new Date(now.getTime() + 2 * 60 * 60 * 1000 + 5 * 60 * 1000);
+
+        const reservations = await this.reservationRepository.find({
+            where: {
+                status: ReservationStatus.APPROVED,
+                reminderSent: false,
+                slotTime: Between(twoHoursFromNow, twoHoursFiveMinutesFromNow)
+            },
+            relations: ['team', 'team.players', 'opponentTeam', 'opponentTeam.players', 'pitch', 'pitch.business']
+        });
+
+        if (reservations.length > 0) {
+            this.logger.log(`Found ${reservations.length} matches starting in ~2 hours. Sending reminders...`);
+        }
+
+        for (const reservation of reservations) {
+            const playersToNotify: any[] = [];
+
+            // Add Team A players
+            if (reservation.team?.players) {
+                playersToNotify.push(...reservation.team.players);
+            }
+
+            // Add Team B players
+            if (reservation.opponentTeam?.players) {
+                playersToNotify.push(...reservation.opponentTeam.players);
+            }
+
+            const timeStr = reservation.slotTime.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+            const pitchName = reservation.pitch?.name || 'Saha';
+            const businessName = reservation.pitch?.business?.name || 'İşletme';
+
+            // Send notifications
+            for (const player of playersToNotify) {
+                await this.notificationsService.create({
+                    userId: player.id,
+                    type: 'MATCH_REMINDER',
+                    title: '⏳ Maçın Başlamasına 2 Saat Kaldı!',
+                    message: `${businessName} - ${pitchName} sahasındaki maçınız saat ${timeStr}'da başlayacak. Hazırlanmayı unutmayın!`,
+                    relatedId: reservation.id,
+                    read: false,
+                    metadata: {
+                        reservationId: reservation.id,
+                        matchTime: timeStr,
+                        pitchName
+                    }
+                });
+            }
+
+            // Mark as sent
+            reservation.reminderSent = true;
+            await this.reservationRepository.save(reservation);
+        }
+    }
+
 
     async create(createReservationDto: any) {
         const reservation = this.reservationRepository.create(createReservationDto);
@@ -322,6 +385,20 @@ export class ReservationsService {
             relations: ['pitch', 'pitch.business', 'team', 'opponentTeam'],
             order: { slotTime: 'ASC' }
         });
+    }
+
+    async findUpcomingByTeam(teamId: string) {
+        const now = new Date();
+        return this.reservationRepository.createQueryBuilder('reservation')
+            .leftJoinAndSelect('reservation.pitch', 'pitch')
+            .leftJoinAndSelect('pitch.business', 'business')
+            .leftJoinAndSelect('reservation.team', 'team')
+            .leftJoinAndSelect('reservation.opponentTeam', 'opponentTeam')
+            .where('reservation.status = :status', { status: ReservationStatus.APPROVED })
+            .andWhere('reservation.slotTime >= :now', { now })
+            .andWhere('(reservation.teamId = :teamId OR reservation.opponentTeamId = :teamId)', { teamId })
+            .orderBy('reservation.slotTime', 'ASC')
+            .getMany();
     }
 
     async cancel(id: string, teamId: string) {

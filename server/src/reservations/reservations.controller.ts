@@ -40,6 +40,11 @@ export class ReservationsController {
         return this.reservationsService.findByTeam(teamId);
     }
 
+    @Get('upcoming')
+    findUpcoming(@Query('teamId') teamId: string) {
+        return this.reservationsService.findUpcomingByTeam(teamId);
+    }
+
     @Post(':id/cancel')
     cancel(@Param('id') id: string, @Body() body: { teamId: string }) {
         return this.reservationsService.cancel(id, body.teamId);

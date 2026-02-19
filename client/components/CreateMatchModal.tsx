@@ -2,8 +2,18 @@
 import React, { useState, useEffect } from 'react';
 import { X, MapPin, Calendar, Clock, Shield, ChevronRight, CheckCircle, Trophy, Filter, Store } from 'lucide-react';
 import { LoadingSpinner } from '../components/LoadingSpinner';
-import { SkillLevel, Business, Pitch } from '../types';
-import api from '../services/api';
+import { SkillLevel, Business, Pitch, ReservationStatus } from '../types';
+import api, { getReservationsByPitch } from '../services/api';
+
+interface Props {
+    isOpen: boolean;
+    onClose: () => void;
+    preSelectedPitchId?: string;
+    preSelectedHour?: number;
+}
+
+import { DateSelectionModal } from './DateSelectionModal';
+import { TimeSelectionModal } from './TimeSelectionModal';
 
 interface Props {
     isOpen: boolean;
@@ -43,6 +53,13 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
     const [successMessage, setSuccessMessage] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
     const [currentUser, setCurrentUser] = useState<any>(null);
+
+    // Booked slots tracking
+    const [bookedHours, setBookedHours] = useState<number[]>([]);
+
+    // Modal states
+    const [isDateModalOpen, setIsDateModalOpen] = useState(false);
+    const [isTimeModalOpen, setIsTimeModalOpen] = useState(false);
 
     // Fetch initial data (User & Businesses)
     useEffect(() => {
@@ -88,9 +105,35 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
                 setSelectedPitchId('');
                 setSuccessMessage('');
                 setErrorMessage('');
+                setBookedHours([]);
             }
         }
     }, [isOpen, preSelectedPitchId]);
+
+    // Fetch booked slots when pitch or date changes
+    useEffect(() => {
+        const fetchBookedSlots = async () => {
+            if (!selectedPitchId || !date) return;
+
+            try {
+                const reservations = await getReservationsByPitch(selectedPitchId, date);
+                // Filter only APPROVED reservations
+                const approvedReservations = reservations.filter((r: any) => r.status === ReservationStatus.APPROVED);
+
+                // Extract hours
+                const hours = approvedReservations.map((r: any) => {
+                    const d = new Date(r.slotTime);
+                    return d.getHours();
+                });
+
+                setBookedHours(hours);
+            } catch (error) {
+                console.error('Failed to fetch booked slots:', error);
+            }
+        };
+
+        fetchBookedSlots();
+    }, [selectedPitchId, date]);
 
     const myTeam = currentUser?.team;
 
@@ -142,6 +185,19 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
         return null;
     };
     const selectedPitch = getSelectedPitch();
+
+    // Helper to find selected business object
+    const getSelectedBusiness = () => {
+        if (selectedBusinessId) {
+            return businesses.find(b => b.id === selectedBusinessId);
+        }
+        if (selectedPitchId) {
+            return businesses.find(b => b.pitches?.some(p => p.id === selectedPitchId));
+        }
+        return undefined;
+    };
+    const selectedBusiness = getSelectedBusiness();
+
 
     // Filter Logic for Businesses
     const regions = ['TÜMÜ', ...new Set(businesses.map(b => b.district || b.city || ''))].filter(Boolean);
@@ -280,59 +336,55 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
                                 </label>
                                 <div className="space-y-3">
                                     {/* Date Card */}
-                                    <div className="relative bg-slate-900 border border-slate-700 rounded-xl flex items-center gap-3 px-4 py-3 focus-within:border-turf-500 transition-colors">
+                                    <div
+                                        onClick={() => setIsDateModalOpen(true)}
+                                        className="relative bg-slate-900 border border-slate-700 rounded-xl flex items-center gap-3 px-4 py-3 cursor-pointer hover:border-turf-500 transition-colors"
+                                    >
                                         <div className="w-9 h-9 rounded-lg bg-slate-800 flex items-center justify-center flex-shrink-0">
                                             <Calendar className="w-4 h-4 text-turf-400" />
                                         </div>
-                                        <div className="flex-1 flex flex-col items-center">
-                                            <div className="text-[10px] text-turf-400 font-bold uppercase tracking-widest mb-0.5">
+                                        <div className="flex-1 flex flex-col">
+                                            <div className="text-[10px] text-slate-500 font-bold uppercase mb-0.5">TARİH</div>
+                                            <div className="text-white text-sm font-semibold">
                                                 {date
-                                                    ? new Date(date + 'T12:00:00').toLocaleDateString('tr-TR', { weekday: 'long' }).toUpperCase()
-                                                    : 'GÜN'}
+                                                    ? new Date(date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', weekday: 'long' })
+                                                    : 'Tarih Seçin'}
                                             </div>
-                                            <input
-                                                type="date"
-                                                min={getTodayDate()}
-                                                max={(() => {
-                                                    const maxDate = new Date();
-                                                    maxDate.setDate(maxDate.getDate() + 30);
-                                                    return maxDate.toISOString().split('T')[0];
-                                                })()}
-                                                className="bg-transparent text-white text-sm font-semibold focus:outline-none text-center"
-                                                value={date}
-                                                onChange={(e) => setDate(e.target.value)}
-                                            />
                                         </div>
+                                        <ChevronRight className="w-4 h-4 text-slate-600" />
                                     </div>
+                                    <DateSelectionModal
+                                        isOpen={isDateModalOpen}
+                                        onClose={() => setIsDateModalOpen(false)}
+                                        onSelect={setDate}
+                                        selectedDate={date}
+                                    />
 
                                     {/* Time Card */}
-                                    <div className="relative bg-slate-900 border border-slate-700 rounded-xl flex items-center gap-3 px-4 py-3 focus-within:border-turf-500 transition-colors">
+                                    <div
+                                        onClick={() => setIsTimeModalOpen(true)}
+                                        className={`relative bg-slate-900 border border-slate-700 rounded-xl flex items-center gap-3 px-4 py-3 cursor-pointer hover:border-turf-500 transition-colors ${!selectedBusiness ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    >
                                         <div className="w-9 h-9 rounded-lg bg-slate-800 flex items-center justify-center flex-shrink-0">
                                             <Clock className="w-4 h-4 text-turf-400" />
                                         </div>
-                                        <div className="flex-1">
-                                            <div className="text-[10px] text-slate-500 uppercase font-bold mb-0.5">Saat</div>
-                                            <select
-                                                className="w-full bg-transparent text-white text-sm font-semibold focus:outline-none appearance-none"
-                                                value={time}
-                                                onChange={(e) => setTime(e.target.value)}
-                                            >
-                                                <option value="" className="bg-slate-900">Saat Seçin</option>
-                                                {Array.from({ length: 14 }, (_, i) => i + 10)
-                                                    .filter(h => {
-                                                        const today = getTodayDate();
-                                                        if (date === today) {
-                                                            const currentHour = new Date().getHours();
-                                                            return h > currentHour;
-                                                        }
-                                                        return true;
-                                                    })
-                                                    .map(h => (
-                                                        <option key={h} value={`${h}:00`} className="bg-slate-900">{h}:00 – {h + 1}:00</option>
-                                                    ))}
-                                            </select>
+                                        <div className="flex-1 flex flex-col">
+                                            <div className="text-[10px] text-slate-500 font-bold uppercase mb-0.5">SAAT</div>
+                                            <div className="text-white text-sm font-semibold">
+                                                {time ? `${time} - ${parseInt(time.split(':')[0]) + 1}:00` : selectedBusiness ? 'Saat Seçin' : 'Önce Saha Seçin'}
+                                            </div>
                                         </div>
+                                        <ChevronRight className="w-4 h-4 text-slate-600" />
                                     </div>
+                                    <TimeSelectionModal
+                                        isOpen={isTimeModalOpen}
+                                        onClose={() => setIsTimeModalOpen(false)}
+                                        onSelect={setTime}
+                                        selectedTime={time}
+                                        business={selectedBusiness}
+                                        selectedDate={date}
+                                        bookedHours={bookedHours}
+                                    />
                                 </div>
                             </div>
 

@@ -63,6 +63,9 @@ export class Reservation {
     @Column({ nullable: true })
     proposedByUserId: string; // Who proposed the new time?
 
+    @Column({ default: false })
+    reminderSent: boolean;
+
     @CreateDateColumn()
     createdAt: Date;
 }

@@ -3,7 +3,7 @@ import { MOCK_JOKERS, MOCK_MATCH_HISTORY } from '../constants';
 import { generateTeamBio } from '../services/geminiService';
 import { FairPlayScore } from '../components/FairPlayScore';
 import { LevelBadge } from '../components/LevelBadge';
-import { Users, Trophy, MapPin, Shield, Star, Settings, LogOut, Edit, UserPlus, X, Check, Crown, AlertTriangle, ChevronRight, User, Edit2, Sparkles, Save, Plus, MoreVertical, ShieldX, Trash2, History, Store } from 'lucide-react';
+import { Users, Trophy, MapPin, Shield, Star, Settings, LogOut, Edit, UserPlus, X, Check, Crown, AlertTriangle, ChevronRight, User, Edit2, Sparkles, Save, Plus, MoreVertical, ShieldX, Trash2, History, Store, Calendar } from 'lucide-react';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { Team, Player, Position, Pitch, Business } from '../types';
 import { CreateTeamModal } from '../components/CreateTeamModal';
@@ -11,6 +11,7 @@ import { JoinTeamModal } from '../components/JoinTeamModal';
 import { AddPlayerModal } from '../components/AddPlayerModal';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { MatchHistoryModal } from '../components/MatchHistoryModal';
+import { UpcomingMatchesModal } from '../components/UpcomingMatchesModal';
 import { CreateMatchModal } from '../components/CreateMatchModal';
 import { SuccessModal, SuccessType } from '../components/SuccessModal';
 import api, { getPitches, getBusinesses } from '../services/api';
@@ -46,6 +47,9 @@ export const MyTeam: React.FC = () => {
     const [isJoinTeamModalOpen, setIsJoinTeamModalOpen] = useState(false);
     const [isAddPlayerModalOpen, setIsAddPlayerModalOpen] = useState(false);
     const [isMatchHistoryOpen, setIsMatchHistoryOpen] = useState(false);
+    const [isUpcomingMatchesOpen, setIsUpcomingMatchesOpen] = useState(false);
+    const [upcomingMatches, setUpcomingMatches] = useState<any[]>([]);
+    const [isUpcomingLoading, setIsUpcomingLoading] = useState(false);
     const [isCreateMatchModalOpen, setIsCreateMatchModalOpen] = useState(false);
     const [isTeamMenuOpen, setIsTeamMenuOpen] = useState(false);
 
@@ -132,6 +136,19 @@ export const MyTeam: React.FC = () => {
         };
         fetchUser();
     }, []);
+
+    const fetchUpcomingMatches = async () => {
+        if (!myTeam?.id) return;
+        setIsUpcomingLoading(true);
+        try {
+            const response = await api.get(`/reservations/upcoming?teamId=${myTeam.id}`);
+            setUpcomingMatches(response.data);
+        } catch (error) {
+            console.error('Failed to fetch upcoming matches:', error);
+        } finally {
+            setIsUpcomingLoading(false);
+        }
+    };
 
     // Actions
     const handleGenerateBio = async () => {
@@ -418,6 +435,15 @@ export const MyTeam: React.FC = () => {
                 matches={MOCK_MATCH_HISTORY}
             />
 
+            {/* Upcoming Matches Modal */}
+            <UpcomingMatchesModal
+                isOpen={isUpcomingMatchesOpen}
+                onClose={() => setIsUpcomingMatchesOpen(false)}
+                matches={upcomingMatches}
+                currentTeamId={myTeam?.id}
+                isLoading={isUpcomingLoading}
+            />
+
             {/* CreateMatch Modal */}
             <CreateMatchModal
                 isOpen={isCreateMatchModalOpen}
@@ -587,6 +613,18 @@ export const MyTeam: React.FC = () => {
                             </div>
                         </div>
                     </div>
+
+                    {/* Upcoming Matches Button */}
+                    <button
+                        onClick={() => {
+                            setIsUpcomingMatchesOpen(true);
+                            fetchUpcomingMatches();
+                        }}
+                        className="w-full bg-gradient-to-r from-turf-600 to-green-600 text-white font-bold py-3 rounded-xl hover:from-turf-500 hover:to-green-500 transition-all shadow-lg shadow-turf-600/20 flex items-center justify-center gap-2"
+                    >
+                        <Calendar className="w-5 h-5" />
+                        Yaklaşan Maçlar
+                    </button>
 
                     {/* Match History Button */}
                     <button

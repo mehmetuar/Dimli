@@ -214,3 +214,10 @@ export interface MatchHistory {
   fairPlayScore: number; // 1-5  
   location: string;
 }
+
+export enum ReservationStatus {
+  PENDING = 'PENDING',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
+  CANCELLED = 'CANCELLED'
+}

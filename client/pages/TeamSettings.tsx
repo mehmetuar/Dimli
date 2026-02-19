@@ -140,20 +140,7 @@ export const TeamSettings: React.FC = () => {
                         </p>
                     )}
                 </div>
-                {isCaptain && (
-                    <button
-                        onClick={handleSave}
-                        disabled={isSaving}
-                        className="flex items-center gap-2 bg-turf-600 hover:bg-turf-500 disabled:opacity-50 text-white font-bold px-4 py-2 rounded-xl transition-colors text-sm shadow-lg shadow-turf-600/20"
-                    >
-                        {isSaving ? (
-                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        ) : (
-                            <Save className="w-4 h-4" />
-                        )}
-                        Kaydet
-                    </button>
-                )}
+
             </header>
 
             {/* Toast Messages */}
@@ -283,8 +270,8 @@ export const TeamSettings: React.FC = () => {
                                     disabled={!isCaptain}
                                     title={c.label}
                                     className={`w-10 h-10 rounded-full transition-all active:scale-90 disabled:cursor-not-allowed ${primaryColor === c.value
-                                            ? 'ring-4 ring-offset-2 ring-offset-slate-800 ring-white scale-110'
-                                            : 'hover:scale-105'
+                                        ? 'ring-4 ring-offset-2 ring-offset-slate-800 ring-white scale-110'
+                                        : 'hover:scale-105'
                                         } ${c.value === 'bg-white' ? 'border border-slate-600' : ''}`}
                                     style={{ backgroundColor: c.hex }}
                                 />
@@ -304,8 +291,8 @@ export const TeamSettings: React.FC = () => {
                                     disabled={!isCaptain}
                                     title={c.label}
                                     className={`w-10 h-10 rounded-full transition-all active:scale-90 disabled:cursor-not-allowed ${secondaryColor === c.value
-                                            ? 'ring-4 ring-offset-2 ring-offset-slate-800 ring-white scale-110'
-                                            : 'hover:scale-105'
+                                        ? 'ring-4 ring-offset-2 ring-offset-slate-800 ring-white scale-110'
+                                        : 'hover:scale-105'
                                         } ${c.value === 'bg-white' ? 'border border-slate-600' : ''}`}
                                     style={{ backgroundColor: c.hex }}
                                 />

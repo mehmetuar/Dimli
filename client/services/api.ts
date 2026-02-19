@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-    baseURL: 'http://10.5.50.4:3000', // Updated to current machine IP
+    baseURL: 'http://Mehmet-MacBook-Air-2.local:3000',
 });
 
 // Request interceptor to add token
@@ -56,6 +56,13 @@ export const changePassword = async (data: any) => {
 
 export const getPitches = async () => {
     const response = await api.get('/pitches');
+    return response.data;
+};
+
+export const getReservationsByPitch = async (pitchId: string, date: string) => {
+    const response = await api.get(`/reservations/pitch/${pitchId}`, {
+        params: { date }
+    });
     return response.data;
 };
 
