@@ -192,6 +192,10 @@ export interface ChatChannel {
   participants?: string[]; // Player IDs
   opponentTeamId?: string; // If DM with a team
   participantId?: string; // New: If DM with a specific player (Joker)
+  reservation?: {
+    status: ReservationStatus;
+    slotTime: string;
+  };
 }
 
 export interface ChatMessage {

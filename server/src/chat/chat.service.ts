@@ -5,6 +5,7 @@ import { ChatChannel } from './chat-channel.entity';
 import { ChatMessage } from './chat-message.entity';
 import { ChatParticipant } from './chat-participant.entity';
 import { User } from '../users/user.entity';
+import { Reservation } from '../reservations/entities/reservation.entity';
 
 @Injectable()
 export class ChatService {
@@ -15,6 +16,8 @@ export class ChatService {
         private chatMessageRepository: Repository<ChatMessage>,
         @InjectRepository(ChatParticipant)
         private chatParticipantRepository: Repository<ChatParticipant>,
+        @InjectRepository(Reservation)
+        private reservationRepository: Repository<Reservation>,
     ) { }
 
     async createChannel(type: 'DM' | 'MATCH_GROUP' | 'TEAM_INTERNAL', name: string, participants: User[], relatedMatchId?: string): Promise<ChatChannel> {
@@ -45,7 +48,7 @@ export class ChatService {
             order: { channel: { lastActivityAt: 'DESC' } }
         });
 
-        return participations.map(p => {
+        const channels = await Promise.all(participations.map(async p => {
             const channel = p.channel;
             // Calculate unread count
             const unreadCount = channel.messages.filter(m =>
@@ -54,12 +57,30 @@ export class ChatService {
 
             const lastMessage = channel.messages.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
 
+            let reservationData: { status: string; slotTime: Date } | null = null;
+            if (channel.relatedMatchId) {
+                // Find reservation linked to this match announcement
+                const reservation = await this.reservationRepository.findOne({
+                    where: { matchAnnouncementId: channel.relatedMatchId }
+                });
+
+                if (reservation) {
+                    reservationData = {
+                        status: reservation.status,
+                        slotTime: reservation.slotTime
+                    };
+                }
+            }
+
             return {
                 ...channel,
                 lastMessage,
-                unreadCount
+                unreadCount,
+                reservation: reservationData
             };
-        });
+        }));
+
+        return channels;
     }
 
     async sendMessage(channelId: string, senderId: string, content: string, isSystemMessage = false, metadata?: any): Promise<ChatMessage> {

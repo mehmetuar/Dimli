@@ -57,12 +57,81 @@ const formatMessageDate = (dateString: string | Date) => {
   }
 
   // Check if within last week
+  // Check if within last week
   if (diff < 7 * oneDay) {
     return date.toLocaleDateString('tr-TR', { weekday: 'long' });
   }
 
   // Older
   return date.toLocaleDateString('tr-TR', { year: 'numeric', month: '2-digit', day: '2-digit' });
+};
+
+// Match Status Data Helper
+const getMatchStatusInfo = (reservation?: { status: string; slotTime: string }): {
+  label: string;
+  borderColor: string;
+  badgeColor: string;
+  textColor: string;
+  bgTint: string;
+  type: 'pending' | 'confirmed' | 'played' | 'unplayed';
+} | null => {
+  if (!reservation) return null;
+
+  const now = new Date();
+  const slotDate = new Date(reservation.slotTime);
+  const matchEndTime = new Date(slotDate.getTime() + 60 * 60 * 1000);
+
+  if (reservation.status === 'PENDING') {
+    return { label: 'Onay Bekliyor', borderColor: 'border-orange-500/60', badgeColor: '#f97316', textColor: 'text-orange-400', bgTint: 'bg-orange-500/5', type: 'pending' };
+  }
+  if (reservation.status === 'APPROVED' && now <= matchEndTime) {
+    return { label: 'Kesinleşti', borderColor: 'border-green-500/60', badgeColor: '#22c55e', textColor: 'text-green-400', bgTint: 'bg-green-500/5', type: 'confirmed' };
+  }
+  if (reservation.status === 'APPROVED' && now > matchEndTime) {
+    return { label: 'Oynanmış Maç', borderColor: 'border-blue-500/60', badgeColor: '#3b82f6', textColor: 'text-blue-400', bgTint: 'bg-blue-500/5', type: 'played' };
+  }
+  if (now > slotDate && reservation.status !== 'APPROVED') {
+    return { label: 'Oynanmamış Maç', borderColor: 'border-red-500/60', badgeColor: '#ef4444', textColor: 'text-red-400', bgTint: 'bg-red-500/5', type: 'unplayed' };
+  }
+  return null;
+};
+
+// Inline Badge SVG Component
+const MatchStatusBadge: React.FC<{ reservation?: { status: string; slotTime: string }, size?: 'sm' | 'md' }> = ({ reservation, size = 'sm' }) => {
+  const info = getMatchStatusInfo(reservation);
+  if (!info) return null;
+  const s = size === 'sm' ? 14 : 16;
+
+  if (info.type === 'pending') {
+    return (
+      <span className="inline-flex items-center ml-1.5 shrink-0" title={info.label}>
+        <svg width={s} height={s} viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="11" fill={info.badgeColor} />
+          <circle cx="12" cy="12" r="8" fill="none" stroke="white" strokeWidth="1.5" />
+          <path d="M12 7.5v4.5l2.5 2.5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </span>
+    );
+  }
+  if (info.type === 'unplayed') {
+    return (
+      <span className="inline-flex items-center ml-1.5 shrink-0" title={info.label}>
+        <svg width={s} height={s} viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="11" fill={info.badgeColor} />
+          <path d="M8.5 8.5l7 7M15.5 8.5l-7 7" stroke="white" strokeWidth="2" strokeLinecap="round" />
+        </svg>
+      </span>
+    );
+  }
+  // confirmed or played → checkmark
+  return (
+    <span className="inline-flex items-center ml-1.5 shrink-0" title={info.label}>
+      <svg width={s} height={s} viewBox="0 0 24 24" fill="none">
+        <circle cx="12" cy="12" r="11" fill={info.badgeColor} />
+        <path d="M7.5 12.5l3 3 6-6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </span>
+  );
 };
 
 export const Chat: React.FC = () => {
@@ -389,10 +458,17 @@ export const Chat: React.FC = () => {
 
           <img src={activeChannel?.avatarUrl || 'https://picsum.photos/200'} className="w-10 h-10 rounded-full bg-slate-800 object-cover" />
           <div className="flex-1">
-            <h2 className="text-white font-bold leading-tight">{activeChannel?.name}</h2>
+            <h2 className="text-white font-bold leading-tight flex items-center">{activeChannel?.name}<MatchStatusBadge reservation={activeChannel?.reservation} size="md" /></h2>
             <div className="flex items-center gap-2 text-xs text-slate-400">
               {activeChannel?.type === 'MATCH_GROUP' ? (
-                <span className="flex items-center gap-1 text-turf-500"><Users className="w-3 h-3" /> {activeChannel.participants?.length || 14} Oyuncu Aktif</span>
+                <div className="flex flex-col">
+                  <span className="flex items-center gap-1 text-turf-500"><Users className="w-3 h-3" /> {activeChannel.participants?.length || 14} Oyuncu Aktif</span>
+                  {(() => {
+                    const info = getMatchStatusInfo(activeChannel?.reservation);
+                    if (info) return <span className={`text-[10px] font-semibold ${info.textColor}`}>{info.label}</span>;
+                    return null;
+                  })()}
+                </div>
               ) : (
                 <span className="flex items-center gap-1 text-green-500"><span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span> Çevrimiçi</span>
               )}
@@ -473,6 +549,11 @@ export const Chat: React.FC = () => {
 
         {messages.map((msg, index) => {
           const isNextSameTime = messages[index + 1]?.timestamp === msg.timestamp;
+          const prevMsg = messages[index - 1];
+          const nextMsg = messages[index + 1];
+          // WhatsApp-style grouping: hide avatar/name if previous non-system message is from same sender
+          const isPrevSameSender = prevMsg && !prevMsg.isSystem && !msg.isSystem && prevMsg.senderId === msg.senderId;
+          const isNextSameSender = nextMsg && !nextMsg.isSystem && !msg.isSystem && nextMsg.senderId === msg.senderId;
 
           return msg.isSystem ? (
             <div key={msg.id} className="flex justify-center my-4 animate-fade-in px-4 w-full">
@@ -492,29 +573,29 @@ export const Chat: React.FC = () => {
               </div>
             </div>
           ) : (
-            <div key={msg.id} className={`flex gap-3 ${msg.isMe ? 'justify-end' : 'justify-start'}`}>
+            <div key={msg.id} className={`flex items-end gap-2 ${msg.isMe ? 'justify-end' : 'justify-start'} ${isPrevSameSender ? '!mt-0.5' : ''}`}>
               {!msg.isMe && (
-                <div className="flex flex-col items-center gap-1">
-                  <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-white overflow-hidden">
-                    {msg.senderName.charAt(0)}
-                  </div>
+                <div style={{ width: 28, flexShrink: 0 }}>
+                  {!isNextSameSender ? (
+                    <div className="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-bold text-white overflow-hidden">
+                      {msg.senderName.charAt(0)}
+                    </div>
+                  ) : null}
                 </div>
               )}
 
-              <div className={`max-w-[75%] space-y-1`}>
-                {!msg.isMe && activeChannel?.type === 'MATCH_GROUP' && (
-                  <span className="text-[10px] text-slate-400 ml-1 block">{msg.senderName}</span>
-                )}
-                <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed shadow-sm relative ${msg.isMe
-                  ? 'bg-turf-600 text-white rounded-tr-none'
-                  : 'bg-slate-800 text-slate-200 border border-slate-700 rounded-tl-none'
+              <div className={`max-w-[75%]`}>
+                <div className={`px-3 py-2 rounded-2xl text-sm leading-relaxed shadow-sm relative ${msg.isMe
+                  ? `bg-turf-600 text-white ${!isNextSameSender ? 'rounded-br-sm' : ''}`
+                  : `bg-slate-800 text-slate-200 border border-slate-700 ${!isNextSameSender ? 'rounded-bl-sm' : ''}`
                   }`}>
+                  {!msg.isMe && !isPrevSameSender && (
+                    <span className="text-[11px] font-semibold text-turf-400 block mb-0.5">{msg.senderName}</span>
+                  )}
                   {msg.text}
-                  {/* Message Tail */}
-                  <div className={`absolute top-0 w-3 h-3 ${msg.isMe ? '-right-1.5 bg-turf-600 [clip-path:polygon(0_0,100%_0,0_100%)]' : '-left-1.5 bg-slate-800 [clip-path:polygon(0_0,100%_0,100%_100%)] border-t border-l border-slate-700'}`}></div>
                 </div>
-                {!isNextSameTime && (
-                  <span className={`text-[10px] block ${msg.isMe ? 'text-right text-slate-500' : 'text-left text-slate-500'}`}>
+                {!isNextSameTime && !isNextSameSender && (
+                  <span className={`text-[10px] block mt-1 ${msg.isMe ? 'text-right text-slate-500' : 'text-left text-slate-500'}`}>
                     {msg.timestamp}
                   </span>
                 )}
@@ -631,6 +712,10 @@ const ChannelItem: React.FC<ChannelItemProps> = ({ channel, onClick, onLongPress
     onClick();
   };
 
+  const statusInfo = getMatchStatusInfo(channel.reservation);
+  const borderClass = statusInfo ? statusInfo.borderColor : 'border-slate-700';
+  const bgClass = statusInfo ? statusInfo.bgTint : '';
+
   return (
     <div
       onMouseDown={handleMouseDown}
@@ -639,7 +724,7 @@ const ChannelItem: React.FC<ChannelItemProps> = ({ channel, onClick, onLongPress
       onTouchStart={handleMouseDown}
       onTouchEnd={handleMouseUp}
       onClick={handleClick}
-      className="bg-slate-800 p-4 rounded-2xl border border-slate-700 flex gap-4 items-center hover:bg-slate-750 active:scale-95 transition-all cursor-pointer select-none"
+      className={`bg-slate-800 ${bgClass} p-4 rounded-2xl border-2 ${borderClass} flex gap-4 items-center hover:bg-slate-750 active:scale-95 transition-all cursor-pointer select-none`}
     >
       <div className="relative">
         <img src={channel.avatarUrl || 'https://picsum.photos/200'} alt={channel.name} className={`w-14 h-14 object-cover ${channel.type === 'MATCH_GROUP' ? 'rounded-2xl' : 'rounded-full'}`} />
@@ -651,7 +736,7 @@ const ChannelItem: React.FC<ChannelItemProps> = ({ channel, onClick, onLongPress
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex justify-between items-start">
-          <h4 className="text-white font-bold truncate pr-2">{channel.name}</h4>
+          <h4 className="text-white font-bold truncate pr-2 flex items-center">{channel.name}<MatchStatusBadge reservation={channel.reservation} /></h4>
           <div className="flex flex-col items-end gap-1">
             <span className={`text-[10px] whitespace-nowrap ${channel.unreadCount > 0 ? 'text-blue-500 font-bold' : 'text-slate-500'}`}>
               {formatMessageDate(channel.lastActivityAt)}
@@ -665,8 +750,13 @@ const ChannelItem: React.FC<ChannelItemProps> = ({ channel, onClick, onLongPress
         </div>
         <p className="text-sm truncate mt-0.5 text-slate-400">
           {channel.type === 'MATCH_GROUP' && <span className="text-turf-500 font-bold mr-1">Takım:</span>}
-          {channel.lastMessage?.content || 'Sohbete gitmek için tıkla'}
+          {startLongPress ? 'Seçenekler...' : (channel.lastMessage?.content || 'Sohbete girmek için tıkla')}
         </p>
+        {statusInfo && (
+          <span className={`text-[10px] font-semibold mt-1 inline-block ${statusInfo.textColor}`}>
+            {statusInfo.label}
+          </span>
+        )}
       </div>
     </div>
   );
