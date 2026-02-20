@@ -7,6 +7,7 @@ import { SkillLevel, ChatChannel, Team } from '../types';
 import { MOCK_CHANNELS, MOCK_MESSAGES, MOCK_TEAMS, CURRENT_USER, MOCK_JOKERS } from '../constants';
 import { useLocation } from 'react-router-dom';
 import { InviteJokerModal } from '../components/InviteJokerModal';
+import { MatchDetailModal } from '../components/MatchDetailModal';
 import api from '../services/api';
 import { useNavigate } from 'react-router-dom';
 
@@ -142,6 +143,9 @@ export const Chat: React.FC = () => {
   const [showTactic, setShowTactic] = useState(false);
   const [tactic, setTactic] = useState('');
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [matchDetailData, setMatchDetailData] = useState<any>(null);
+  const [isMatchDetailOpen, setIsMatchDetailOpen] = useState(false);
+  const [isMatchDetailLoading, setIsMatchDetailLoading] = useState(false);
 
   const [currentUser, setCurrentUser] = useState<any>(null);
 
@@ -309,6 +313,25 @@ export const Chat: React.FC = () => {
     endRef.current?.scrollIntoView({ behavior });
   };
 
+  const handleOpenMatchDetail = async () => {
+    if (!selectedChannelId || !activeChannel?.relatedMatchId) return;
+    setIsMatchDetailOpen(true);
+    setIsMatchDetailLoading(true);
+    try {
+      const response = await api.get(`/chat/channels/${selectedChannelId}/match-details`);
+      if (response.data?.error) {
+        setMatchDetailData(null);
+      } else {
+        setMatchDetailData(response.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch match details:', error);
+      setMatchDetailData(null);
+    } finally {
+      setIsMatchDetailLoading(false);
+    }
+  };
+
   const handleScroll = () => {
     if (!scrollContainerRef.current) return;
     const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
@@ -446,6 +469,13 @@ export const Chat: React.FC = () => {
         joker={opponentJoker}
       />
 
+      <MatchDetailModal
+        isOpen={isMatchDetailOpen}
+        onClose={() => setIsMatchDetailOpen(false)}
+        data={matchDetailData}
+        loading={isMatchDetailLoading}
+      />
+
       {/* Custom Header */}
       <div className="bg-slate-900/90 backdrop-blur pt-safe-top top-safe-top p-4 border-b border-slate-800 flex flex-col gap-3 sticky top-0 z-50 shadow-lg">
         <div className="flex items-center gap-3">
@@ -456,8 +486,12 @@ export const Chat: React.FC = () => {
             <ChevronLeft className="w-6 h-6" />
           </button>
 
-          <img src={activeChannel?.avatarUrl || 'https://picsum.photos/200'} className="w-10 h-10 rounded-full bg-slate-800 object-cover" />
-          <div className="flex-1">
+          <img
+            src={activeChannel?.avatarUrl || 'https://picsum.photos/200'}
+            className="w-10 h-10 rounded-full bg-slate-800 object-cover cursor-pointer active:scale-90 transition-transform"
+            onClick={handleOpenMatchDetail}
+          />
+          <div className="flex-1" onClick={handleOpenMatchDetail} style={{ cursor: activeChannel?.relatedMatchId ? 'pointer' : 'default' }}>
             <h2 className="text-white font-bold leading-tight flex items-center">{activeChannel?.name}<MatchStatusBadge reservation={activeChannel?.reservation} size="md" /></h2>
             <div className="flex items-center gap-2 text-xs text-slate-400">
               {activeChannel?.type === 'MATCH_GROUP' ? (

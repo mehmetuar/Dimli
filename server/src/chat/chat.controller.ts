@@ -31,6 +31,11 @@ export class ChatController {
         return this.chatService.markAsRead(id, req.user.id);
     }
 
+    @Get('channels/:id/match-details')
+    getChannelMatchDetails(@Param('id') id: string) {
+        return this.chatService.getChannelMatchDetails(id);
+    }
+
     @Get('unread-count')
     getUnreadCount(@Request() req) {
         return this.chatService.getUnreadCount(req.user.id);

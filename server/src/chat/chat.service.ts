@@ -6,6 +6,9 @@ import { ChatMessage } from './chat-message.entity';
 import { ChatParticipant } from './chat-participant.entity';
 import { User } from '../users/user.entity';
 import { Reservation } from '../reservations/entities/reservation.entity';
+import { MatchAnnouncement } from '../match-announcements/match-announcement.entity';
+import { Team } from '../teams/team.entity';
+import { Pitch } from '../pitches/entities/pitch.entity';
 
 @Injectable()
 export class ChatService {
@@ -18,6 +21,12 @@ export class ChatService {
         private chatParticipantRepository: Repository<ChatParticipant>,
         @InjectRepository(Reservation)
         private reservationRepository: Repository<Reservation>,
+        @InjectRepository(MatchAnnouncement)
+        private matchAnnouncementRepository: Repository<MatchAnnouncement>,
+        @InjectRepository(Team)
+        private teamRepository: Repository<Team>,
+        @InjectRepository(Pitch)
+        private pitchRepository: Repository<Pitch>,
     ) { }
 
     async createChannel(type: 'DM' | 'MATCH_GROUP' | 'TEAM_INTERNAL', name: string, participants: User[], relatedMatchId?: string): Promise<ChatChannel> {
@@ -223,5 +232,97 @@ export class ChatService {
 
         await this.chatChannelRepository.delete(channelId);
         logger.log(`Channel ${channelId} deleted successfully.`);
+    }
+
+    async getChannelMatchDetails(channelId: string): Promise<any> {
+        const logger = new Logger('ChatService');
+
+        // 1. Find the channel
+        const channel = await this.chatChannelRepository.findOne({ where: { id: channelId } });
+        if (!channel) throw new NotFoundException('Channel not found');
+        if (!channel.relatedMatchId) {
+            return { error: 'NO_MATCH', message: 'Bu sohbetin bir maçla ilişkisi yok.' };
+        }
+
+        // 2. Find the match announcement with team and pitch
+        const match = await this.matchAnnouncementRepository.findOne({
+            where: { id: channel.relatedMatchId },
+            relations: ['team', 'pitch', 'pitch.business'],
+        });
+
+        if (!match) {
+            return { error: 'MATCH_NOT_FOUND', message: 'Maç bulunamadı.' };
+        }
+
+        // 3. Find reservation to get opponent team
+        const reservation = await this.reservationRepository.findOne({
+            where: { matchAnnouncementId: channel.relatedMatchId },
+        });
+
+        // 4. Load both teams with captain info
+        const homeTeam = await this.teamRepository.findOne({
+            where: { id: match.teamId },
+            relations: ['captain', 'players'],
+        });
+
+        let awayTeam: any = null;
+        if (reservation?.opponentTeamId) {
+            awayTeam = await this.teamRepository.findOne({
+                where: { id: reservation.opponentTeamId },
+                relations: ['captain', 'players'],
+            });
+        }
+
+        // 5. Build response
+        const buildTeamData = (team: any) => {
+            if (!team) return null;
+            return {
+                id: team.id,
+                name: team.name,
+                logoUrl: team.logoUrl,
+                primaryColor: team.primaryColor,
+                secondaryColor: team.secondaryColor,
+                level: team.level,
+                fairPlayScore: team.fairPlayScore,
+                wins: team.wins,
+                losses: team.losses,
+                playerCount: team.players?.length || 0,
+                captain: team.captain ? {
+                    id: team.captain.id,
+                    name: team.captain.full_name || team.captain.username,
+                    phone: team.captain.phone,
+                } : null,
+            };
+        };
+
+        return {
+            homeTeam: buildTeamData(homeTeam),
+            awayTeam: buildTeamData(awayTeam),
+            match: {
+                id: match.id,
+                date: match.date,
+                time: match.time,
+                status: match.status,
+                playerCount: match.playerCount,
+                description: match.description,
+            },
+            reservation: reservation ? {
+                id: reservation.id,
+                status: reservation.status,
+                slotTime: reservation.slotTime,
+            } : null,
+            pitch: match.pitch ? {
+                id: match.pitch.id,
+                name: match.pitch.name,
+                type: match.pitch.type,
+                pricePerHour: match.pitch.pricePerHour,
+                business: match.pitch.business ? {
+                    id: match.pitch.business.id,
+                    name: match.pitch.business.name,
+                    phone: match.pitch.business.phone,
+                    address: match.pitch.business.address,
+                } : null,
+            } : null,
+        };
     }
 }
