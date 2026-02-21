@@ -8,7 +8,7 @@ interface ReservationModalProps {
     pitch: any;
     business: any;
     selectedDate: string;
-    selectedHour: number;
+    selectedStartTime: string;
     teamId: string;
     onSuccess: () => void;
 }
@@ -19,7 +19,7 @@ export const ReservationModal: React.FC<ReservationModalProps> = ({
     pitch,
     business,
     selectedDate,
-    selectedHour,
+    selectedStartTime,
     teamId,
     onSuccess
 }) => {
@@ -34,8 +34,9 @@ export const ReservationModal: React.FC<ReservationModalProps> = ({
 
         try {
             // Create slot time
+            const [h, m] = (selectedStartTime || '00:00').split(':').map(Number);
             const slotTime = new Date(selectedDate);
-            slotTime.setHours(selectedHour, 0, 0, 0);
+            slotTime.setHours(h, m || 0, 0, 0);
 
             await api.post('/reservations', {
                 pitchId: pitch.id,
@@ -63,8 +64,8 @@ export const ReservationModal: React.FC<ReservationModalProps> = ({
         });
     };
 
-    const formatTime = (hour: number) => {
-        return `${hour.toString().padStart(2, '0')}:00`;
+    const formatTime = (time: string) => {
+        return time;
     };
 
     return (
@@ -111,7 +112,7 @@ export const ReservationModal: React.FC<ReservationModalProps> = ({
                         <Clock className="w-5 h-5 text-orange-500" />
                         <div>
                             <p className="text-xs text-slate-400">Saat</p>
-                            <p className="font-bold text-white">{formatTime(selectedHour)}</p>
+                            <p className="font-bold text-white">{formatTime(selectedStartTime)}</p>
                         </div>
                     </div>
 

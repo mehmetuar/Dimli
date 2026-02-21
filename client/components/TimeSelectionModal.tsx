@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { X, Clock, AlertTriangle } from 'lucide-react';
-import { Business } from '../types';
+import { Business, Pitch } from '../types';
 
 interface TimeSelectionModalProps {
     isOpen: boolean;
@@ -8,8 +8,9 @@ interface TimeSelectionModalProps {
     onSelect: (time: string) => void;
     selectedTime: string;
     business?: Business;
+    pitch?: Pitch | any;
     selectedDate: string;
-    bookedHours?: number[];
+    bookedHours?: string[]; // Changed to string[] to support HH:MM
 }
 
 export const TimeSelectionModal: React.FC<TimeSelectionModalProps> = ({
@@ -18,34 +19,61 @@ export const TimeSelectionModal: React.FC<TimeSelectionModalProps> = ({
     onSelect,
     selectedTime,
     business,
+    pitch,
     selectedDate,
     bookedHours = [],
 }) => {
     if (!isOpen) return null;
 
     const timeSlots = useMemo(() => {
-        if (!business) return [];
+        if (!business && !pitch) return [];
 
+        // 1. DYNAMIC SLOTS (from pitch)
+        if (pitch?.timeSlots && pitch.timeSlots.length > 0) {
+            return pitch.timeSlots
+                .filter((ts: any) => ts.isActive !== false)
+                .map((ts: any) => {
+                    const timeStr = ts.startTime;
+                    const label = `${ts.startTime} – ${ts.endTime}`;
+
+                    // Check past
+                    const [h, m] = ts.startTime.split(':').map(Number);
+                    const now = new Date();
+                    const slotDate = new Date(selectedDate);
+                    slotDate.setHours(h, m || 0, 0, 0);
+                    const isPast = slotDate < now;
+
+                    const isBooked = bookedHours.includes(ts.startTime);
+
+                    return {
+                        value: timeStr,
+                        label,
+                        isPast,
+                        isBooked
+                    };
+                })
+                .sort((a: any, b: any) => a.value.localeCompare(b.value));
+        }
+
+        // 2. FALLBACK HOURLY SLOTS
         // Parse open/close times (e.g. "09:00", "23:00")
-        const openHour = business.openTime ? parseInt(business.openTime.split(':')[0]) : 9;
-        const closeHour = business.closeTime ? parseInt(business.closeTime.split(':')[0]) : 24; // Default 24 if missing
+        const openTime = pitch?.openTime || business?.openTime || '09:00';
+        const closeTime = pitch?.closeTime || business?.closeTime || '23:00';
+
+        const openHour = parseInt(openTime.split(':')[0]);
+        const closeHour = parseInt(closeTime.split(':')[0]);
 
         const slots = [];
         for (let h = openHour; h < closeHour; h++) {
-            const timeStr = `${h}:00`;
+            const timeStr = `${String(h).padStart(2, '0')}:00`;
             const label = `${String(h).padStart(2, '0')}:00 – ${String(h + 1).padStart(2, '0')}:00`;
 
-            // Check past time
-            let isPast = false;
-            const todayStr = new Date().toISOString().split('T')[0];
-            if (selectedDate === todayStr) {
-                const currentHour = new Date().getHours();
-                if (h <= currentHour) {
-                    isPast = true;
-                }
-            }
+            const now = new Date();
+            const slotDate = new Date(selectedDate);
+            slotDate.setHours(h, 0, 0, 0);
+            const isPast = slotDate < now;
 
-            const isBooked = bookedHours.includes(h);
+            const isBooked = bookedHours.includes(timeStr);
 
             slots.push({
                 value: timeStr,
@@ -56,7 +84,7 @@ export const TimeSelectionModal: React.FC<TimeSelectionModalProps> = ({
             });
         }
         return slots;
-    }, [business, selectedDate, bookedHours]);
+    }, [business, pitch, selectedDate, bookedHours]);
 
     return (
         <div className="fixed inset-0 z-[80] flex items-center justify-center px-4 bg-black/80 backdrop-blur-sm animate-fade-in">

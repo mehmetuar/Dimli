@@ -1,6 +1,7 @@
 import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, JoinColumn, OneToMany } from 'typeorm';
 import { Business } from '../../business/entities/business.entity';
 import { MatchAnnouncement } from '../../match-announcements/match-announcement.entity';
+import { TimeSlot } from './time-slot.entity';
 
 @Entity('pitches')
 export class Pitch {
@@ -22,6 +23,9 @@ export class Pitch {
 
     @OneToMany(() => MatchAnnouncement, (announcement) => announcement.pitch)
     matchAnnouncements: MatchAnnouncement[];
+
+    @OneToMany(() => TimeSlot, (timeSlot) => timeSlot.pitch, { cascade: true, eager: true })
+    timeSlots: TimeSlot[];
 
     @Column({ nullable: true })
     type: string; // 'INDOOR', 'OUTDOOR'

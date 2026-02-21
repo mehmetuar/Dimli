@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Patch, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Patch, Delete, Put } from '@nestjs/common';
 import { PitchesService } from './pitches.service';
 
 @Controller('pitches')
@@ -33,6 +33,18 @@ export class PitchesController {
     @Delete(':id')
     remove(@Param('id') id: string) {
         return this.pitchesService.remove(id);
+    }
+
+    // ===== TIME SLOT ENDPOINTS =====
+
+    @Put(':id/time-slots')
+    setTimeSlots(@Param('id') id: string, @Body() body: { slots: { startTime: string; endTime: string }[] }) {
+        return this.pitchesService.setTimeSlots(id, body.slots);
+    }
+
+    @Get(':id/time-slots')
+    getTimeSlots(@Param('id') id: string) {
+        return this.pitchesService.getTimeSlots(id);
     }
 }
 

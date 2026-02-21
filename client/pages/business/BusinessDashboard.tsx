@@ -47,9 +47,11 @@ export const BusinessDashboard: React.FC = () => {
 
     const isPastSlot = (time: string, date: string): boolean => {
         const now = new Date();
-        const [hour] = time.split(':').map(Number);
+        // Time might be "19:00" or "19:30 - 20:30"
+        const startTimeStr = time.includes(' - ') ? time.split(' - ')[0] : time;
+        const [hour, minute] = startTimeStr.split(':').map(Number);
         const slotDate = new Date(date);
-        slotDate.setHours(hour, 0, 0, 0);
+        slotDate.setHours(hour, minute || 0, 0, 0);
         return slotDate < now;
     };
 
@@ -166,12 +168,12 @@ export const BusinessDashboard: React.FC = () => {
                     <div key={pitch.pitchId}>
                         <h2 className="text-lg font-bold mb-3 pl-2 border-l-4 border-orange-500">{pitch.pitchName}</h2>
                         <div className="grid grid-cols-4 gap-3">
-                            {pitch.slots.map((slot: any) => {
+                            {pitch.slots.map((slot: any, slotIdx: number) => {
                                 const isPast = isPastSlot(slot.time, selectedDate);
 
                                 return (
                                     <button
-                                        key={slot.time}
+                                        key={slotIdx}
                                         onClick={() => {
                                             if (slot.status !== 'EMPTY' && !isPast) {
                                                 setSelectedSlot(slot);

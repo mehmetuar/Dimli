@@ -9,7 +9,7 @@ interface Props {
     isOpen: boolean;
     onClose: () => void;
     preSelectedPitchId?: string;
-    preSelectedHour?: number;
+    preSelectedStartTime?: string;
 }
 
 import { DateSelectionModal } from './DateSelectionModal';
@@ -19,10 +19,10 @@ interface Props {
     isOpen: boolean;
     onClose: () => void;
     preSelectedPitchId?: string;
-    preSelectedHour?: number;
+    preSelectedStartTime?: string;
 }
 
-export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelectedPitchId, preSelectedHour }) => {
+export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelectedPitchId, preSelectedStartTime }) => {
     if (!isOpen) return null;
 
     const [businesses, setBusinesses] = useState<Business[]>([]);
@@ -44,7 +44,7 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
     };
 
     const [date, setDate] = useState(getTodayDate());
-    const [time, setTime] = useState(preSelectedHour ? `${preSelectedHour}:00` : '');
+    const [time, setTime] = useState(preSelectedStartTime || '');
     const [level, setLevel] = useState(SkillLevel.INTERMEDIATE);
     const [note, setNote] = useState('');
     const [playerCount, setPlayerCount] = useState(7);
@@ -55,7 +55,7 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
     const [currentUser, setCurrentUser] = useState<any>(null);
 
     // Booked slots tracking
-    const [bookedHours, setBookedHours] = useState<number[]>([]);
+    const [bookedTimes, setBookedTimes] = useState<string[]>([]);
 
     // Modal states
     const [isDateModalOpen, setIsDateModalOpen] = useState(false);
@@ -105,7 +105,7 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
                 setSelectedPitchId('');
                 setSuccessMessage('');
                 setErrorMessage('');
-                setBookedHours([]);
+                setBookedTimes([]);
             }
         }
     }, [isOpen, preSelectedPitchId]);
@@ -120,13 +120,13 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
                 // Filter only APPROVED reservations
                 const approvedReservations = reservations.filter((r: any) => r.status === ReservationStatus.APPROVED);
 
-                // Extract hours
-                const hours = approvedReservations.map((r: any) => {
+                // Extract times (HH:MM format)
+                const times = approvedReservations.map((r: any) => {
                     const d = new Date(r.slotTime);
-                    return d.getHours();
+                    return d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', hour12: false });
                 });
 
-                setBookedHours(hours);
+                setBookedTimes(times);
             } catch (error) {
                 console.error('Failed to fetch booked slots:', error);
             }
@@ -371,7 +371,7 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
                                         <div className="flex-1 flex flex-col">
                                             <div className="text-[10px] text-slate-500 font-bold uppercase mb-0.5">SAAT</div>
                                             <div className="text-white text-sm font-semibold">
-                                                {time ? `${time} - ${parseInt(time.split(':')[0]) + 1}:00` : selectedBusiness ? 'Saat Seçin' : 'Önce Saha Seçin'}
+                                                {time ? `${time}` : selectedBusiness ? 'Saat Seçin' : 'Önce Saha Seçin'}
                                             </div>
                                         </div>
                                         <ChevronRight className="w-4 h-4 text-slate-600" />
@@ -382,8 +382,9 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
                                         onSelect={setTime}
                                         selectedTime={time}
                                         business={selectedBusiness}
+                                        pitch={selectedPitch}
                                         selectedDate={date}
-                                        bookedHours={bookedHours}
+                                        bookedHours={bookedTimes}
                                     />
                                 </div>
                             </div>

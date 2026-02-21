@@ -43,68 +43,98 @@ export class BusinessOwnerService {
 
         for (const pitch of pitches) {
             const pitchSlots: any[] = [];
+            const hasCustomSlots = pitch.timeSlots && pitch.timeSlots.length > 0;
 
-            // Determine start/end hours for THIS specific pitch
-            // Fallback to business hours, then defaults
-            const openTime = pitch.openTime || business.openTime || '09:00';
-            const closeTime = pitch.closeTime || business.closeTime || '23:00'; // Defaulting to 23:00 if nothing set
+            if (hasCustomSlots) {
+                // ===== DYNAMIC SLOTS MODE =====
+                for (const ts of pitch.timeSlots) {
+                    if (!ts.isActive) continue;
 
-            const startHour = parseInt(openTime.split(':')[0]);
-            const endHour = parseInt(closeTime.split(':')[0]);
+                    const [startH, startM] = ts.startTime.split(':').map(Number);
+                    const slotTime = new Date(startOfDay);
+                    slotTime.setHours(startH, startM, 0, 0);
 
-            const hours: number[] = [];
-            // Handle next day hours (e.g. closing at 02:00)
-            if (endHour < startHour) {
-                // Example: 09:00 - 02:00
-                // 9, 10 ... 23
-                for (let i = startHour; i <= 23; i++) hours.push(i);
-                // 0, 1
-                for (let i = 0; i < endHour; i++) hours.push(i);
+                    // Find reservations matching this slot's start time
+                    const reservations = await this.reservationsService.findByPitchAndDate(pitch.id, slotTime, slotTime);
+                    const slotReservations = reservations.filter((r: any) => {
+                        const rTime = new Date(r.slotTime);
+                        return Math.abs(rTime.getTime() - slotTime.getTime()) < 60000;
+                    });
+
+                    let status = 'EMPTY';
+                    const approved = slotReservations.find((r: any) => r.status === 'APPROVED');
+                    const pending = slotReservations.filter((r: any) => r.status === 'PENDING');
+
+                    if (approved) {
+                        status = 'FULL';
+                    } else if (pending.length > 0) {
+                        status = 'PENDING';
+                    }
+
+                    pitchSlots.push({
+                        time: `${ts.startTime} - ${ts.endTime}`,
+                        startTime: ts.startTime,
+                        endTime: ts.endTime,
+                        iosInfo: slotTime.toISOString(),
+                        status,
+                        reservations: slotReservations
+                    });
+                }
             } else {
-                // Example: 09:00 - 23:00
-                for (let i = startHour; i < endHour; i++) hours.push(i);
-            }
+                // ===== FALLBACK: HOURLY SLOTS MODE =====
+                const openTime = pitch.openTime || business.openTime || '09:00';
+                const closeTime = pitch.closeTime || business.closeTime || '23:00';
 
-            for (const hour of hours) {
-                const slotTime = new Date(startOfDay);
-                slotTime.setHours(hour);
+                const startHour = parseInt(openTime.split(':')[0]);
+                const endHour = parseInt(closeTime.split(':')[0]);
 
-                // If we wrapped around to next day (e.g. 01:00 vs 09:00 start)
-                if (endHour < startHour && hour < startHour) {
-                    slotTime.setDate(slotTime.getDate() + 1);
+                const hours: number[] = [];
+                if (endHour < startHour) {
+                    for (let i = startHour; i <= 23; i++) hours.push(i);
+                    for (let i = 0; i < endHour; i++) hours.push(i);
+                } else {
+                    for (let i = startHour; i < endHour; i++) hours.push(i);
                 }
 
-                // Find reservations
-                // Optimization: Fetch all for range once, but for now simplistic approach
-                const reservations = await this.reservationsService.findByPitchAndDate(pitch.id, slotTime, slotTime);
+                for (const hour of hours) {
+                    const slotTime = new Date(startOfDay);
+                    slotTime.setHours(hour);
 
-                // Filter for this specific hour (since findByPitchAndDate isn't strict yet)
-                const slotReservations = reservations.filter((r: any) => {
-                    const rTime = new Date(r.slotTime);
-                    // Compare timestamps or hours/dates
-                    return Math.abs(rTime.getTime() - slotTime.getTime()) < 60000; // within minute
-                });
+                    if (endHour < startHour && hour < startHour) {
+                        slotTime.setDate(slotTime.getDate() + 1);
+                    }
 
-                let status = 'EMPTY'; // GRAY
-                const approved = slotReservations.find((r: any) => r.status === 'APPROVED');
-                const pending = slotReservations.filter((r: any) => r.status === 'PENDING');
+                    const reservations = await this.reservationsService.findByPitchAndDate(pitch.id, slotTime, slotTime);
+                    const slotReservations = reservations.filter((r: any) => {
+                        const rTime = new Date(r.slotTime);
+                        return Math.abs(rTime.getTime() - slotTime.getTime()) < 60000;
+                    });
 
-                if (approved) {
-                    status = 'FULL'; // RED/GREEN
-                } else if (pending.length > 0) {
-                    status = 'PENDING'; // ORANGE
+                    let status = 'EMPTY';
+                    const approved = slotReservations.find((r: any) => r.status === 'APPROVED');
+                    const pending = slotReservations.filter((r: any) => r.status === 'PENDING');
+
+                    if (approved) {
+                        status = 'FULL';
+                    } else if (pending.length > 0) {
+                        status = 'PENDING';
+                    }
+
+                    pitchSlots.push({
+                        time: `${hour}:00`,
+                        startTime: `${hour.toString().padStart(2, '0')}:00`,
+                        endTime: `${(hour + 1).toString().padStart(2, '0')}:00`,
+                        iosInfo: slotTime.toISOString(),
+                        status,
+                        reservations: slotReservations
+                    });
                 }
-
-                pitchSlots.push({
-                    time: `${hour}:00`,
-                    iosInfo: slotTime.toISOString(),
-                    status,
-                    reservations: slotReservations
-                });
             }
+
             slotsResponse.push({
                 pitchId: pitch.id,
                 pitchName: pitch.name,
+                hasCustomSlots,
                 slots: pitchSlots
             });
         }

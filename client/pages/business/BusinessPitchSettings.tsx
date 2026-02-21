@@ -4,6 +4,7 @@ import api from '../../services/api';
 import { Save, ArrowLeft, Clock, TurkishLira, ListChecks, Plus, Trash2, X } from 'lucide-react';
 import { BusinessNavbar } from '../../components/BusinessNavbar';
 import { DEFAULT_FACILITIES } from '../../constants';
+import { BusinessTimePickerModal } from '../../components/BusinessTimePickerModal';
 
 
 export const BusinessPitchSettings: React.FC = () => {
@@ -16,6 +17,19 @@ export const BusinessPitchSettings: React.FC = () => {
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [newFacility, setNewFacility] = useState('');
     const [showFacilityInput, setShowFacilityInput] = useState(false);
+
+    // Time Slots State
+    const [timeSlots, setTimeSlots] = useState<{ startTime: string; endTime: string }[]>([]);
+    const [newSlotStart, setNewSlotStart] = useState('09:00');
+    const [newSlotEnd, setNewSlotEnd] = useState('10:00');
+    const [savingSlots, setSavingSlots] = useState(false);
+    const [slotsSuccess, setSlotsSuccess] = useState(false);
+
+    // Modal state
+    const [isTimePickerOpen, setIsTimePickerOpen] = useState<{
+        open: boolean;
+        type: 'OPEN' | 'CLOSE' | 'SLOT_START' | 'SLOT_END'
+    }>({ open: false, type: 'OPEN' });
 
     const [formData, setFormData] = useState({
         name: '',
@@ -41,6 +55,14 @@ export const BusinessPitchSettings: React.FC = () => {
                 closeTime: pitch.closeTime || '',
                 facilities: pitch.facilities || []
             });
+
+            // Load time slots
+            if (pitch.timeSlots && pitch.timeSlots.length > 0) {
+                setTimeSlots(pitch.timeSlots.map((ts: any) => ({
+                    startTime: ts.startTime,
+                    endTime: ts.endTime
+                })));
+            }
 
             setLoading(false);
         } catch (error) {
@@ -112,6 +134,39 @@ export const BusinessPitchSettings: React.FC = () => {
         setFormData(prev => ({ ...prev, [field]: value }));
     };
 
+    // ===== TIME SLOT HANDLERS =====
+    const handleAddSlot = () => {
+        if (newSlotStart && newSlotEnd && newSlotStart < newSlotEnd) {
+            // Check for duplicates
+            const exists = timeSlots.some(
+                s => s.startTime === newSlotStart && s.endTime === newSlotEnd
+            );
+            if (!exists) {
+                setTimeSlots(prev => [...prev, { startTime: newSlotStart, endTime: newSlotEnd }]
+                    .sort((a, b) => a.startTime.localeCompare(b.startTime)));
+            }
+        }
+    };
+
+    const handleRemoveSlot = (index: number) => {
+        setTimeSlots(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const handleSaveSlots = async () => {
+        setSavingSlots(true);
+        setSlotsSuccess(false);
+        try {
+            await api.put(`/pitches/${pitchId}/time-slots`, { slots: timeSlots });
+            setSlotsSuccess(true);
+            setTimeout(() => setSlotsSuccess(false), 3000);
+        } catch (error) {
+            console.error('Error saving time slots:', error);
+            alert('Saat slotları kaydedilirken hata oluştu.');
+        } finally {
+            setSavingSlots(false);
+        }
+    };
+
     // Combine default facilities with any custom ones present in formData
     const allFacilities = Array.from(new Set([...DEFAULT_FACILITIES, ...formData.facilities]));
 
@@ -172,25 +227,140 @@ export const BusinessPitchSettings: React.FC = () => {
                             <label className="block text-sm font-bold mb-2 text-slate-300">
                                 Açılış Saati
                             </label>
-                            <input
-                                type="time"
-                                value={formData.openTime}
-                                onChange={(e) => handleChange('openTime', e.target.value)}
-                                className="w-full p-3 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
-                            />
+                            <button
+                                type="button"
+                                onClick={() => setIsTimePickerOpen({ open: true, type: 'OPEN' })}
+                                className="w-full p-3 bg-slate-900 border border-slate-700 rounded-lg text-white text-left hover:border-orange-500 transition-all font-mono font-bold"
+                            >
+                                {formData.openTime}
+                            </button>
                         </div>
                         <div>
                             <label className="block text-sm font-bold mb-2 text-slate-300">
                                 Kapanış Saati
                             </label>
-                            <input
-                                type="time"
-                                value={formData.closeTime}
-                                onChange={(e) => handleChange('closeTime', e.target.value)}
-                                className="w-full p-3 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
-                            />
+                            <button
+                                type="button"
+                                onClick={() => setIsTimePickerOpen({ open: true, type: 'CLOSE' })}
+                                className="w-full p-3 bg-slate-900 border border-slate-700 rounded-lg text-white text-left hover:border-orange-500 transition-all font-mono font-bold"
+                            >
+                                {formData.closeTime}
+                            </button>
                         </div>
                     </div>
+
+                    <BusinessTimePickerModal
+                        isOpen={isTimePickerOpen.open && (isTimePickerOpen.type === 'OPEN' || isTimePickerOpen.type === 'CLOSE')}
+                        onClose={() => setIsTimePickerOpen({ ...isTimePickerOpen, open: false })}
+                        title={isTimePickerOpen.type === 'OPEN' ? "AÇILIŞ SAATİ" : "KAPANIŞ SAATİ"}
+                        initialTime={isTimePickerOpen.type === 'OPEN' ? formData.openTime : formData.closeTime}
+                        onSelect={(time) => {
+                            if (isTimePickerOpen.type === 'OPEN') handleChange('openTime', time);
+                            else handleChange('closeTime', time);
+                        }}
+                    />
+                </div>
+
+                {/* ===== TIME SLOTS SECTION ===== */}
+                <div className="bg-slate-800 p-5 rounded-xl border border-slate-700 space-y-4">
+                    <h2 className="text-lg font-bold text-orange-500 mb-2 flex items-center gap-2">
+                        <Clock className="w-5 h-5" />
+                        ⏰ Saat Slotları
+                    </h2>
+                    <p className="text-xs text-slate-400 mb-4">
+                        Bu saha için kiralık saat aralıklarını tanımlayın. Slot eklemezseniz açılış-kapanış saatleri baz alınarak otomatik saatlik slotlar oluşturulur.
+                    </p>
+
+                    {slotsSuccess && (
+                        <div className="p-3 bg-green-600/20 border border-green-500 rounded-xl text-green-500 font-bold text-center text-sm">
+                            ✓ Saat slotları kaydedildi!
+                        </div>
+                    )}
+
+                    {/* Existing Slots */}
+                    {timeSlots.length > 0 ? (
+                        <div className="space-y-2">
+                            {timeSlots.map((slot, index) => (
+                                <div key={index} className="flex items-center justify-between bg-slate-900 p-3 rounded-xl border border-slate-700">
+                                    <div className="flex items-center gap-3">
+                                        <div className="bg-orange-500/20 px-3 py-1 rounded-lg">
+                                            <span className="text-orange-400 font-black text-lg">{slot.startTime}</span>
+                                        </div>
+                                        <span className="text-slate-500 font-bold">→</span>
+                                        <div className="bg-orange-500/20 px-3 py-1 rounded-lg">
+                                            <span className="text-orange-400 font-black text-lg">{slot.endTime}</span>
+                                        </div>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleRemoveSlot(index)}
+                                        className="p-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-lg transition-colors"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="text-center py-6 bg-slate-900/50 rounded-xl border border-dashed border-slate-700">
+                            <Clock className="w-8 h-8 text-slate-600 mx-auto mb-2" />
+                            <p className="text-slate-500 text-sm">Henüz saat slotu tanımlanmamış.</p>
+                            <p className="text-slate-600 text-xs">Aşağıdan yeni slotlar ekleyin.</p>
+                        </div>
+                    )}
+
+                    {/* Add New Slot */}
+                    <div className="flex items-end gap-2">
+                        <div className="flex-1">
+                            <label className="block text-xs text-slate-400 font-bold mb-1">Başlangıç</label>
+                            <button
+                                type="button"
+                                onClick={() => setIsTimePickerOpen({ open: true, type: 'SLOT_START' })}
+                                className="w-full p-3 bg-slate-900 border border-slate-700 rounded-lg text-white text-left hover:border-orange-500 transition-all font-mono font-bold"
+                            >
+                                {newSlotStart}
+                            </button>
+                        </div>
+                        <div className="flex-1">
+                            <label className="block text-xs text-slate-400 font-bold mb-1">Bitiş</label>
+                            <button
+                                type="button"
+                                onClick={() => setIsTimePickerOpen({ open: true, type: 'SLOT_END' })}
+                                className="w-full p-3 bg-slate-900 border border-slate-700 rounded-lg text-white text-left hover:border-orange-500 transition-all font-mono font-bold"
+                            >
+                                {newSlotEnd}
+                            </button>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={handleAddSlot}
+                            className="bg-orange-600 hover:bg-orange-500 text-white p-3 rounded-lg font-bold transition-colors flex items-center gap-1 h-[46px]"
+                        >
+                            <Plus className="w-5 h-5" />
+                        </button>
+                    </div>
+
+                    <BusinessTimePickerModal
+                        isOpen={isTimePickerOpen.open && (isTimePickerOpen.type === 'SLOT_START' || isTimePickerOpen.type === 'SLOT_END')}
+                        onClose={() => setIsTimePickerOpen({ ...isTimePickerOpen, open: false })}
+                        title={isTimePickerOpen.type === 'SLOT_START' ? "SLOT BAŞLANGIÇ" : "SLOT BİTİŞ"}
+                        initialTime={isTimePickerOpen.type === 'SLOT_START' ? newSlotStart : newSlotEnd}
+                        onSelect={(time) => {
+                            if (isTimePickerOpen.type === 'SLOT_START') setNewSlotStart(time);
+                            else setNewSlotEnd(time);
+                        }}
+                    />
+
+                    {/* Save Slots Button */}
+                    <button
+                        type="button"
+                        onClick={handleSaveSlots}
+                        disabled={savingSlots}
+                        className="w-full bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-500 hover:to-orange-600 disabled:from-slate-700 disabled:to-slate-700 text-white py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
+                    >
+                        <Save className="w-4 h-4" />
+                        {savingSlots ? 'Kaydediliyor...' : `Slotları Kaydet (${timeSlots.length} slot)`}
+                    </button>
                 </div>
 
                 {/* Facilities */}

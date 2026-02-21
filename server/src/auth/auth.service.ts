@@ -8,6 +8,7 @@ import { RegisterBusinessDto } from './dto/register-business.dto';
 import { Business } from '../business/entities/business.entity';
 import { Pitch } from '../pitches/entities/pitch.entity';
 import { BusinessOwner } from '../business-owner/entities/business-owner.entity';
+import { TimeSlot } from '../pitches/entities/time-slot.entity';
 
 @Injectable()
 export class AuthService {
@@ -111,7 +112,7 @@ export class AuthService {
             savedOwner.business = savedBusiness;
             await queryRunner.manager.save(savedOwner);
 
-            // 4. Create Pitches
+            // 4. Create Pitches (with optional TimeSlots)
             if (data.pitches && data.pitches.length > 0) {
                 for (const pitchData of data.pitches) {
                     const pitch = new Pitch();
@@ -136,7 +137,19 @@ export class AuthService {
                     pitch.business = savedBusiness;
                     pitch.businessId = savedBusiness.id;
 
-                    await queryRunner.manager.save(pitch);
+                    const savedPitch = await queryRunner.manager.save(pitch);
+
+                    // 4b. Create TimeSlots for this pitch
+                    if ((pitchData as any).timeSlots && Array.isArray((pitchData as any).timeSlots)) {
+                        for (const slotData of (pitchData as any).timeSlots) {
+                            const timeSlot = new TimeSlot();
+                            timeSlot.pitchId = savedPitch.id;
+                            timeSlot.startTime = slotData.startTime;
+                            timeSlot.endTime = slotData.endTime;
+                            timeSlot.isActive = true;
+                            await queryRunner.manager.save(timeSlot);
+                        }
+                    }
                 }
             }
 

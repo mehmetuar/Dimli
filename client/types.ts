@@ -14,6 +14,13 @@ export enum Position {
   FWD = 'Forvet'
 }
 
+export interface TimeSlot {
+  id?: string;
+  startTime: string;
+  endTime: string;
+  isActive?: boolean;
+}
+
 export interface Player {
   id: string;
   name: string;
@@ -172,6 +179,10 @@ export interface Pitch {
   coordinates?: { lat: number; lng: number };
   rating?: number;
   phone?: string;
+  // Added these based on backend entity
+  openTime?: string;
+  closeTime?: string;
+  timeSlots?: TimeSlot[];
 }
 
 export interface PitchOwner {
