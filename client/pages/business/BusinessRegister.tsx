@@ -48,8 +48,8 @@ interface RegisterBusinessData {
 
 const steps = [
     { id: 1, title: 'Yetkili', icon: User },
-    { id: 2, title: 'İşletme', icon: Store },
-    { id: 3, title: 'Konum', icon: MapPin },
+    { id: 2, title: 'Konum', icon: MapPin },
+    { id: 3, title: 'İşletme', icon: Store },
     { id: 4, title: 'Sahalar', icon: Briefcase },
     { id: 5, title: 'Onay', icon: CheckCircle },
 ];
@@ -57,15 +57,17 @@ const steps = [
 import { DEFAULT_FACILITIES } from '../../constants';
 import { LocationSelectionModal } from '../../components/LocationSelectionModal';
 import { BusinessTimePickerModal } from '../../components/BusinessTimePickerModal';
-
+import { locationService } from '../../services/locationService';
 export const BusinessRegister: React.FC = () => {
     const navigate = useNavigate();
     const [currentStep, setCurrentStep] = useState(1);
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [isGeocoding, setIsGeocoding] = useState(false);
 
     // Modal states
     const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
+    const [locationModalStep, setLocationModalStep] = useState<'CITY' | 'DISTRICT'>('CITY');
     const [isTimePickerOpen, setIsTimePickerOpen] = useState<{
         open: boolean;
         type: 'OPEN' | 'CLOSE' | 'PITCH_OPEN' | 'PITCH_CLOSE' | 'SLOT_START' | 'SLOT_END';
@@ -160,9 +162,23 @@ export const BusinessRegister: React.FC = () => {
 
     const LocationMarker = () => {
         useMapEvents({
-            click(e) {
+            async click(e) {
                 updateBusiness('latitude', e.latlng.lat);
                 updateBusiness('longitude', e.latlng.lng);
+
+                // Fetch city/district info automatically
+                try {
+                    setIsGeocoding(true);
+                    const locationInfo = await locationService.reverseGeocode(e.latlng.lat, e.latlng.lng);
+                    if (locationInfo) {
+                        updateBusiness('city', locationInfo.city);
+                        updateBusiness('district', locationInfo.district);
+                    }
+                } catch (error) {
+                    console.error('Reverse geocoding error:', error);
+                } finally {
+                    setIsGeocoding(false);
+                }
             },
         });
         return formData.business.latitude ? (
@@ -207,6 +223,45 @@ export const BusinessRegister: React.FC = () => {
                     </div>
                 );
             case 2:
+                // New Step 2: Location Map
+                return (
+                    <div className="space-y-4 animate-fade-in h-full flex flex-col">
+                        <h2 className="text-xl font-bold text-white mb-2">Konum Seçimi</h2>
+                        <p className="text-sm text-slate-400 mb-4">Harita üzerinde işletmenizin konumunu işaretleyin. İl ve ilçe bilgileriniz otomatik doldurulacaktır.</p>
+                        <div className="flex-1 min-h-[400px] rounded-xl overflow-hidden border-2 border-slate-700 relative z-[1]">
+                            <MapContainer
+                                center={[formData.business.latitude, formData.business.longitude]}
+                                zoom={13}
+                                style={{ height: '400px', width: '100%', borderRadius: '12px' }}
+                            >
+                                <TileLayer
+                                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                                />
+                                <LocationMarker />
+                            </MapContainer>
+                        </div>
+                        <div className="flex flex-col items-center gap-2 mt-2">
+                            {isGeocoding ? (
+                                <div className="flex items-center gap-2 text-orange-500 animate-pulse text-sm font-bold">
+                                    <div className="w-3 h-3 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+                                    KONUMDAN BİLGİ ALINIYOR...
+                                </div>
+                            ) : (
+                                (formData.business.city || formData.business.district) && (
+                                    <div className="text-sm font-bold text-green-500 bg-green-500/10 px-4 py-1.5 rounded-full border border-green-500/20">
+                                        {formData.business.city} {formData.business.district ? `/ ${formData.business.district}` : ''}
+                                    </div>
+                                )
+                            )}
+                            <div className="text-center text-slate-500 text-[10px] font-mono">
+                                {formData.business.latitude.toFixed(6)}, {formData.business.longitude.toFixed(6)}
+                            </div>
+                        </div>
+                    </div>
+                );
+            case 3:
+                // New Step 3: Business Details (Previously Step 2)
                 return (
                     <div className="space-y-4 animate-fade-in">
                         <h2 className="text-xl font-bold text-white mb-4">İşletme Detayları</h2>
@@ -219,7 +274,10 @@ export const BusinessRegister: React.FC = () => {
                                     <label className="text-xs text-slate-400 font-bold uppercase ml-1">Şehir *</label>
                                     <button
                                         type="button"
-                                        onClick={() => setIsLocationModalOpen(true)}
+                                        onClick={() => {
+                                            setLocationModalStep('CITY');
+                                            setIsLocationModalOpen(true);
+                                        }}
                                         className="w-full bg-slate-800 border border-slate-700 text-white p-3 rounded-xl text-left hover:border-orange-500 transition-all font-medium"
                                     >
                                         {formData.business.city || "Şehir Seç..."}
@@ -230,10 +288,13 @@ export const BusinessRegister: React.FC = () => {
                                     <button
                                         type="button"
                                         disabled={!formData.business.city}
-                                        onClick={() => setIsLocationModalOpen(true)}
+                                        onClick={() => {
+                                            setLocationModalStep('DISTRICT');
+                                            setIsLocationModalOpen(true);
+                                        }}
                                         className={`w-full border p-3 rounded-xl text-left transition-all font-medium ${!formData.business.city
-                                                ? 'bg-slate-900 border-slate-800 text-slate-600 cursor-not-allowed'
-                                                : 'bg-slate-800 border-slate-700 text-white hover:border-orange-500'
+                                            ? 'bg-slate-900 border-slate-800 text-slate-600 cursor-not-allowed'
+                                            : 'bg-slate-800 border-slate-700 text-white hover:border-orange-500'
                                             }`}
                                     >
                                         {formData.business.district || "İlçe Seç..."}
@@ -267,29 +328,6 @@ export const BusinessRegister: React.FC = () => {
                                     </button>
                                 </div>
                             </div>
-                        </div>
-                    </div>
-                );
-            case 3:
-                return (
-                    <div className="space-y-4 animate-fade-in h-full flex flex-col">
-                        <h2 className="text-xl font-bold text-white mb-2">Konum Seçimi</h2>
-                        <p className="text-sm text-slate-400 mb-4">Harita üzerinde işletmenizin konumunu işaretleyin.</p>
-                        <div className="flex-1 min-h-[400px] rounded-xl overflow-hidden border-2 border-slate-700 relative z-0">
-                            <MapContainer
-                                center={[formData.business.latitude, formData.business.longitude]}
-                                zoom={13}
-                                style={{ height: '100%', width: '100%' }}
-                            >
-                                <TileLayer
-                                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                                />
-                                <LocationMarker />
-                            </MapContainer>
-                        </div>
-                        <div className="text-center text-orange-400 text-sm font-mono mt-2">
-                            {formData.business.latitude.toFixed(6)}, {formData.business.longitude.toFixed(6)}
                         </div>
                     </div>
                 );
@@ -543,6 +581,7 @@ export const BusinessRegister: React.FC = () => {
                 }}
                 initialCity={formData.business.city}
                 initialDistrict={formData.business.district}
+                initialStep={locationModalStep}
             />
 
             <BusinessTimePickerModal

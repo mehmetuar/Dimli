@@ -265,7 +265,7 @@ export const BusinessPitchSettings: React.FC = () => {
                 <div className="bg-slate-800 p-5 rounded-xl border border-slate-700 space-y-4">
                     <h2 className="text-lg font-bold text-orange-500 mb-2 flex items-center gap-2">
                         <Clock className="w-5 h-5" />
-                        ⏰ Saat Slotları
+                        Saat Slotları
                     </h2>
                     <p className="text-xs text-slate-400 mb-4">
                         Bu saha için kiralık saat aralıklarını tanımlayın. Slot eklemezseniz açılış-kapanış saatleri baz alınarak otomatik saatlik slotlar oluşturulur.

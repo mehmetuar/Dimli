@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { X, Search, ChevronRight, MapPin } from 'lucide-react';
-import { TURKEY_LOCATIONS } from '../constants/locationData';
+import { X, Search, ChevronRight, MapPin, Loader2 } from 'lucide-react';
+import { locationService, Province, District } from '../services/locationService';
 
 interface Props {
     isOpen: boolean;
@@ -8,37 +8,74 @@ interface Props {
     onSelect: (city: string, district: string) => void;
     initialCity?: string;
     initialDistrict?: string;
+    initialStep?: 'CITY' | 'DISTRICT';
 }
 
-export const LocationSelectionModal: React.FC<Props> = ({ isOpen, onClose, onSelect, initialCity, initialDistrict }) => {
-    const [step, setStep] = useState<'CITY' | 'DISTRICT'>('CITY');
-    const [selectedCity, setSelectedCity] = useState<string>('');
+export const LocationSelectionModal: React.FC<Props> = ({
+    isOpen,
+    onClose,
+    onSelect,
+    initialCity,
+    initialDistrict,
+    initialStep = 'CITY'
+}) => {
+    const [step, setStep] = useState<'CITY' | 'DISTRICT'>(initialStep);
+    const [selectedCity, setSelectedCity] = useState<string>(initialCity || '');
     const [search, setSearch] = useState('');
+    const [cities, setCities] = useState<Province[]>([]);
+    const [districts, setDistricts] = useState<District[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
 
+    // Fetch cities on mount
+    useEffect(() => {
+        const fetchCities = async () => {
+            try {
+                const data = await locationService.getProvinces();
+                setCities(data);
+            } catch (error) {
+                console.error('Error loading cities:', error);
+            }
+        };
+        fetchCities();
+    }, []);
+
+    // Sync state with props when modal opens
     useEffect(() => {
         if (isOpen) {
-            // Always start with City selection if requested, or District if city is already selected
-            // But for a better UX, if they click "Şehir Seç", we want CITY. 
-            // We'll trust the parent to pass the right initial values or manage opening logic.
-            setStep(initialCity && initialDistrict ? 'DISTRICT' : 'CITY');
+            setStep(initialStep);
             setSelectedCity(initialCity || '');
             setSearch('');
+
+            if (initialCity) {
+                fetchDistricts(initialCity);
+            }
         }
-    }, [isOpen, initialCity, initialDistrict]);
+    }, [isOpen, initialCity, initialStep]);
+
+    const fetchDistricts = async (cityName: string) => {
+        setIsLoading(true);
+        try {
+            const data = await locationService.getDistricts(cityName);
+            setDistricts(data);
+        } catch (error) {
+            console.error('Error loading districts:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const filteredCities = useMemo(() => {
-        return TURKEY_LOCATIONS.filter(c => c.name.toLowerCase().includes(search.toLowerCase()));
-    }, [search]);
+        return cities.filter(c => c.name.toLocaleLowerCase('tr').includes(search.toLocaleLowerCase('tr')));
+    }, [search, cities]);
 
     const filteredDistricts = useMemo(() => {
-        const city = TURKEY_LOCATIONS.find(c => c.name === selectedCity);
-        if (!city) return [];
-        return city.districts.filter(d => d.toLowerCase().includes(search.toLowerCase()));
-    }, [selectedCity, search]);
+        return districts.filter(d => d.name.toLocaleLowerCase('tr').includes(search.toLocaleLowerCase('tr')));
+    }, [search, districts]);
 
-    const handleCitySelect = (city: string) => {
+    const handleCitySelect = async (city: string) => {
         setSelectedCity(city);
         setSearch('');
+        await fetchDistricts(city);
         setStep('DISTRICT');
     };
 
@@ -81,11 +118,16 @@ export const LocationSelectionModal: React.FC<Props> = ({ isOpen, onClose, onSel
                 </div>
 
                 {/* List */}
-                <div className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar">
-                    {step === 'CITY' ? (
+                <div className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar min-h-[300px]">
+                    {isLoading ? (
+                        <div className="flex flex-col items-center justify-center p-12 text-slate-500 gap-3">
+                            <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+                            <span className="text-sm font-medium">Yükleniyor...</span>
+                        </div>
+                    ) : step === 'CITY' ? (
                         filteredCities.map(city => (
                             <button
-                                key={city.name}
+                                key={city.id}
                                 onClick={() => handleCitySelect(city.name)}
                                 className="w-full p-4 rounded-xl flex items-center justify-between hover:bg-slate-800 transition-all group border border-transparent hover:border-slate-700"
                             >
@@ -108,12 +150,12 @@ export const LocationSelectionModal: React.FC<Props> = ({ isOpen, onClose, onSel
                             </button>
                             {filteredDistricts.map(district => (
                                 <button
-                                    key={district}
-                                    onClick={() => handleDistrictSelect(district)}
+                                    key={district.id}
+                                    onClick={() => handleDistrictSelect(district.name)}
                                     className="w-full p-4 rounded-xl flex items-center justify-between hover:bg-slate-800 transition-all group border border-transparent hover:border-slate-700"
                                 >
-                                    <span className="font-bold text-white">{district}</span>
-                                    {initialDistrict === district && initialCity === selectedCity && (
+                                    <span className="font-bold text-white">{district.name}</span>
+                                    {initialDistrict === district.name && initialCity === selectedCity && (
                                         <div className="w-2 h-2 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.6)]" />
                                     )}
                                 </button>
@@ -121,7 +163,7 @@ export const LocationSelectionModal: React.FC<Props> = ({ isOpen, onClose, onSel
                         </>
                     )}
 
-                    {(step === 'CITY' ? filteredCities.length : filteredDistricts.length) === 0 && (
+                    {!isLoading && (step === 'CITY' ? filteredCities.length : filteredDistricts.length) === 0 && (
                         <div className="p-8 text-center text-slate-500 italic text-sm">
                             Sonuç bulunamadı...
                         </div>
