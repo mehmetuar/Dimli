@@ -74,7 +74,7 @@ export const BusinessRegister: React.FC = () => {
         pitchIdx?: number;
     }>({ open: false, type: 'OPEN' });
 
-    const [tempSlot, setTempSlot] = useState({ startTime: '09:00', endTime: '10:00' });
+    const [tempSlot, setTempSlot] = useState({ startTime: '19:00', endTime: '20:00' });
 
     // Initial State
     const [formData, setFormData] = useState<RegisterBusinessData>({
@@ -601,7 +601,7 @@ export const BusinessRegister: React.FC = () => {
                                 isTimePickerOpen.type === 'PITCH_OPEN' ? formData.pitches[isTimePickerOpen.pitchIdx].openTime :
                                     isTimePickerOpen.type === 'PITCH_CLOSE' ? formData.pitches[isTimePickerOpen.pitchIdx].closeTime :
                                         isTimePickerOpen.type === 'SLOT_START' ? tempSlot.startTime : tempSlot.endTime
-                            ) : '09:00'
+                            ) : '19:00'
                 }
                 onSelect={(time) => {
                     if (isTimePickerOpen.type === 'OPEN') updateBusiness('openTime', time);

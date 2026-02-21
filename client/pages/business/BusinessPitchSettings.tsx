@@ -20,8 +20,8 @@ export const BusinessPitchSettings: React.FC = () => {
 
     // Time Slots State
     const [timeSlots, setTimeSlots] = useState<{ startTime: string; endTime: string }[]>([]);
-    const [newSlotStart, setNewSlotStart] = useState('09:00');
-    const [newSlotEnd, setNewSlotEnd] = useState('10:00');
+    const [newSlotStart, setNewSlotStart] = useState('19:00');
+    const [newSlotEnd, setNewSlotEnd] = useState('20:00');
     const [savingSlots, setSavingSlots] = useState(false);
     const [slotsSuccess, setSlotsSuccess] = useState(false);
 

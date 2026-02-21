@@ -129,47 +129,59 @@ export const BusinessDashboard: React.FC = () => {
         }
     };
 
-    if (loading) return <div className="min-h-screen bg-slate-900 flex items-center justify-center text-white">Yükleniyor...</div>;
-    if (!dashboardData) return <div className="min-h-screen bg-slate-900 flex items-center justify-center text-white">Veri bulunamadı.</div>;
+    const formatTimeRange = (time: string): string => {
+        if (time.includes(' - ')) return time;
+        const [hour, minute] = time.split(':').map(Number);
+        const endHour = (hour + 1) % 24;
+        const endTime = `${endHour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+        return `${time} - ${endTime}`;
+    };
+
+    if (loading) return <div className="min-h-screen bg-slate-900 flex items-center justify-center text-white font-bold animate-pulse">Yükleniyor...</div>;
+    if (!dashboardData) return <div className="min-h-screen bg-slate-900 flex items-center justify-center text-white font-bold italic">Veri bulunamadı.</div>;
 
     return (
-        <div className="min-h-screen bg-slate-900 text-white pb-20">
+        <div className="min-h-screen bg-slate-950 text-white pb-24">
             {/* Header */}
-            <div className="bg-slate-800 p-4 sticky top-0 z-10 border-b border-slate-700 shadow-lg">
+            <div className="bg-slate-900/80 backdrop-blur-md p-4 sticky top-0 z-10 border-b border-slate-800 shadow-xl">
                 <div className="flex justify-between items-center mb-4">
                     <div>
-                        <h1 className="font-sport font-bold text-xl text-orange-500">{dashboardData.businessName}</h1>
-                        <div className="text-xs text-slate-400">Yönetim Paneli</div>
+                        <h1 className="font-sport font-black text-2xl text-orange-500 italic tracking-tighter uppercase">{dashboardData.businessName}</h1>
+                        <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">Yönetim Paneli</div>
                     </div>
                     <button
                         onClick={() => setShowLogoutConfirm(true)}
-                        className="p-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors"
+                        className="p-2.5 bg-slate-800 hover:bg-red-600/20 hover:text-red-500 rounded-xl transition-all border border-slate-700"
                         title="Çıkış Yap"
                     >
-                        <LogOut className="w-5 h-5 text-orange-500" />
+                        <LogOut className="w-5 h-5" />
                     </button>
                 </div>
 
                 {/* Date Picker */}
-                <div className="flex items-center bg-slate-900 p-2 rounded-lg border border-slate-700">
-                    <Calendar className="w-5 h-5 text-slate-400 mr-2" />
+                <div className="flex items-center bg-slate-950 p-3 rounded-xl border border-slate-800 group focus-within:border-orange-500 transition-all">
+                    <Calendar className="w-5 h-5 text-slate-500 mr-3 group-focus-within:text-orange-500 transition-colors" />
                     <input
                         type="date"
                         value={selectedDate}
                         onChange={(e) => setSelectedDate(e.target.value)}
-                        className="bg-transparent text-white w-full focus:outline-none font-bold"
+                        className="bg-transparent text-white w-full focus:outline-none font-black text-sm uppercase tracking-wide"
                     />
                 </div>
             </div>
 
             {/* Pitches & Slots */}
-            <div className="p-4 space-y-8">
+            <div className="p-4 space-y-10">
                 {dashboardData.pitches.map((pitch: any) => (
-                    <div key={pitch.pitchId}>
-                        <h2 className="text-lg font-bold mb-3 pl-2 border-l-4 border-orange-500">{pitch.pitchName}</h2>
-                        <div className="grid grid-cols-4 gap-3">
+                    <div key={pitch.pitchId} className="animate-fade-in">
+                        <div className="flex items-center gap-3 mb-4 px-1">
+                            <div className="w-1 h-6 bg-orange-600 rounded-full shadow-[0_0_10px_rgba(234,88,12,0.5)]" />
+                            <h2 className="text-xl font-black italic uppercase tracking-tight text-slate-200">{pitch.pitchName}</h2>
+                        </div>
+                        <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
                             {pitch.slots.map((slot: any, slotIdx: number) => {
                                 const isPast = isPastSlot(slot.time, selectedDate);
+                                const formattedTime = formatTimeRange(slot.time);
 
                                 return (
                                     <button
@@ -181,19 +193,26 @@ export const BusinessDashboard: React.FC = () => {
                                         }}
                                         disabled={isPast}
                                         className={`
-                                            p-3 rounded-xl flex flex-col items-center justify-center border-2 transition-all
-                                            ${isPast ? 'bg-slate-800/30 border-slate-700 text-slate-600 opacity-50 cursor-not-allowed' : ''}
-                                            ${!isPast && slot.status === 'EMPTY' ? 'bg-slate-800 border-slate-700 text-slate-400' : ''}
-                                            ${!isPast && slot.status === 'PENDING' ? 'bg-orange-900/20 border-orange-500 text-orange-500 animate-pulse' : ''}
-                                            ${!isPast && slot.status === 'FULL' ? 'bg-red-900/20 border-red-500 text-red-500' : ''}
+                                            aspect-[1.1] p-2 rounded-2xl flex flex-col items-center justify-center border-2 transition-all relative overflow-hidden group
+                                            ${isPast ? 'bg-slate-900/50 border-slate-800 text-slate-700 opacity-40 cursor-not-allowed' : ''}
+                                            ${!isPast && slot.status === 'EMPTY' ? 'bg-slate-900/80 border-slate-800 text-slate-400 hover:border-slate-600' : ''}
+                                            ${!isPast && slot.status === 'PENDING' ? 'bg-orange-500/5 border-orange-500/50 text-orange-500 shadow-[0_0_20px_rgba(249,115,22,0.1)]' : ''}
+                                            ${!isPast && slot.status === 'FULL' ? 'bg-red-500/5 border-red-500/50 text-red-500 shadow-[0_0_20px_rgba(239,68,68,0.1)]' : ''}
                                         `}
                                     >
-                                        <span className="text-lg font-black">{slot.time}</span>
-                                        <span className="text-[10px] font-bold uppercase mt-1">
+                                        <span className={`font-black tracking-tighter leading-none text-center ${formattedTime.includes(' - ') ? 'text-[11px] sm:text-xs' : 'text-base sm:text-lg'}`}>
+                                            {formattedTime}
+                                        </span>
+                                        <span className="text-[8px] sm:text-[9px] font-bold uppercase mt-1 opacity-60 tracking-wider">
                                             {isPast ? 'GEÇTİ' :
                                                 slot.status === 'EMPTY' ? 'BOŞ' :
-                                                    slot.status === 'PENDING' ? 'ONAY BEKLİYOR' : 'DOLU'}
+                                                    slot.status === 'PENDING' ? 'ONAY' : 'DOLU'}
                                         </span>
+
+                                        {/* Status Indicator Dot */}
+                                        {!isPast && slot.status !== 'EMPTY' && (
+                                            <div className={`absolute top-2 right-2 w-1.5 h-1.5 rounded-full ${slot.status === 'PENDING' ? 'bg-orange-500 animate-pulse' : 'bg-red-500'}`} />
+                                        )}
                                     </button>
                                 );
                             })}
