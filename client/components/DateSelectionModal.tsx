@@ -6,6 +6,7 @@ interface DateSelectionModalProps {
     onClose: () => void;
     onSelect: (date: string) => void;
     selectedDate: string;
+    allowPastDates?: boolean;
 }
 
 export const DateSelectionModal: React.FC<DateSelectionModalProps> = ({
@@ -13,6 +14,7 @@ export const DateSelectionModal: React.FC<DateSelectionModalProps> = ({
     onClose,
     onSelect,
     selectedDate,
+    allowPastDates = false,
 }) => {
     const [currentMonth, setCurrentMonth] = useState(new Date());
 
@@ -41,9 +43,11 @@ export const DateSelectionModal: React.FC<DateSelectionModalProps> = ({
     const handlePrevMonth = () => {
         const newDate = new Date(currentMonth);
         newDate.setMonth(newDate.getMonth() - 1);
-        // Don't go back past current month if it's the current month
-        if (newDate.getFullYear() < today.getFullYear() ||
-            (newDate.getFullYear() === today.getFullYear() && newDate.getMonth() < today.getMonth())) {
+        // Don't go back past current month unless allowPastDates is true
+        if (!allowPastDates && (
+            newDate.getFullYear() < today.getFullYear() ||
+            (newDate.getFullYear() === today.getFullYear() && newDate.getMonth() < today.getMonth())
+        )) {
             return;
         }
         setCurrentMonth(newDate);
@@ -57,8 +61,8 @@ export const DateSelectionModal: React.FC<DateSelectionModalProps> = ({
 
     const handleDateClick = (day: number) => {
         const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
-        // Check if past date
-        if (date < today) return;
+        // Check if past date (only block if allowPastDates is false)
+        if (!allowPastDates && date < today) return;
 
         const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         onSelect(dateStr);
@@ -80,6 +84,7 @@ export const DateSelectionModal: React.FC<DateSelectionModalProps> = ({
     };
 
     const isPast = (day: number) => {
+        if (allowPastDates) return false;
         const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
         return date < today;
     };
@@ -114,7 +119,7 @@ export const DateSelectionModal: React.FC<DateSelectionModalProps> = ({
                         <button
                             onClick={handlePrevMonth}
                             className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-xl transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                            disabled={currentMonth.getMonth() === today.getMonth() && currentMonth.getFullYear() === today.getFullYear()}
+                            disabled={!allowPastDates && currentMonth.getMonth() === today.getMonth() && currentMonth.getFullYear() === today.getFullYear()}
                         >
                             <ChevronLeft className="w-5 h-5" />
                         </button>

@@ -1,10 +1,19 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, MapPin, Lock } from 'lucide-react';
+import { Building2, MapPin, Lock, LogOut } from 'lucide-react';
 import { BusinessNavbar } from '../../components/BusinessNavbar';
+import { ConfirmModal } from '../../components/ConfirmModal';
 
 export const BusinessSettingsHub: React.FC = () => {
     const navigate = useNavigate();
+    const [showConfirm, setShowConfirm] = useState(false);
+
+    const handleLogout = () => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('role');
+        localStorage.removeItem('ownerId');
+        navigate('/business/login');
+    };
 
     const menuItems = [
         {
@@ -60,9 +69,35 @@ export const BusinessSettingsHub: React.FC = () => {
                         </div>
                     </button>
                 ))}
+
+                {/* Logout Button */}
+                <button
+                    onClick={() => setShowConfirm(true)}
+                    className="w-full mt-8 p-6 rounded-2xl border border-red-500/20 bg-red-500/5 flex items-center gap-4 transition-all hover:bg-red-500/10 group"
+                >
+                    <div className="w-12 h-12 rounded-xl bg-slate-900 border border-slate-700 flex items-center justify-center text-red-500 group-hover:scale-110 transition-transform">
+                        <LogOut className="w-6 h-6" />
+                    </div>
+                    <div className="flex-1 text-left">
+                        <h3 className="text-lg font-bold text-red-500">Çıkış Yap</h3>
+                        <p className="text-sm text-slate-500">Güvenli bir şekilde oturumu kapat</p>
+                    </div>
+                </button>
             </div>
+
+            <ConfirmModal
+                isOpen={showConfirm}
+                onClose={() => setShowConfirm(false)}
+                onConfirm={handleLogout}
+                title="Çıkış Yap"
+                message="Hesabınızdan çıkış yapmak istediğinize emin misiniz?"
+                confirmText="Çıkış Yap"
+                cancelText="İptal"
+                isDangerous={false}
+            />
 
             <BusinessNavbar />
         </div>
     );
 };
+

@@ -19,6 +19,7 @@ import { BusinessInfoSettings } from './pages/business/BusinessInfoSettings';
 import { BusinessPitchList } from './pages/business/BusinessPitchList';
 import { BusinessPitchSettings } from './pages/business/BusinessPitchSettings';
 import { BusinessPasswordSettings } from './pages/business/BusinessPasswordSettings';
+import { BusinessNotificationsPage } from './pages/business/BusinessNotificationsPage';
 
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { ProfileSettings } from './pages/ProfileSettings';
@@ -42,6 +43,7 @@ function AppContent() {
           <Route path="/business/settings/pitches" element={<BusinessPitchList />} />
           <Route path="/business/settings/pitches/:pitchId" element={<BusinessPitchSettings />} />
           <Route path="/business/settings/password" element={<BusinessPasswordSettings />} />
+          <Route path="/business/notifications" element={<BusinessNotificationsPage />} />
           <Route element={<ProtectedRoute />}>
             <Route path="/" element={<Marketplace />} />
             <Route path="/pitches" element={<PitchBooking />} />

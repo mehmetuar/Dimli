@@ -1,17 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
-import { Calendar, Check, X, Clock, Users, LogOut, Phone, MessageSquare } from 'lucide-react';
+import { Calendar, Check, X, Clock, Users, Phone, MessageSquare } from 'lucide-react';
 import { BusinessNavbar } from '../../components/BusinessNavbar';
 import { ConfirmModal } from '../../components/ConfirmModal';
 import { SuccessModal, SuccessType } from '../../components/SuccessModal';
+import { DateSelectionModal } from '../../components/DateSelectionModal';
+import { BusinessNotificationBell } from '../../components/BusinessNotificationBell';
+import { BusinessNotificationsPanel } from '../../components/BusinessNotificationsPanel';
 
 export const BusinessDashboard: React.FC = () => {
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
     const [dashboardData, setDashboardData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [selectedSlot, setSelectedSlot] = useState<any>(null);
-    const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+    const [showDatePicker, setShowDatePicker] = useState(false);
     const [note, setNote] = useState('');
     const [actionType, setActionType] = useState<'APPROVE' | 'SEND_NOTE' | null>(null);
     const [targetReservationId, setTargetReservationId] = useState<string | null>(null);
@@ -55,12 +58,7 @@ export const BusinessDashboard: React.FC = () => {
         return slotDate < now;
     };
 
-    const handleLogout = () => {
-        localStorage.removeItem('token');
-        localStorage.removeItem('role');
-        localStorage.removeItem('ownerId');
-        navigate('/business/login');
-    };
+    // Removed handleLogout - moved to settings hub
 
     const openActionModal = (type: 'APPROVE' | 'SEND_NOTE', reservationId: string) => {
         setActionType(type);
@@ -149,25 +147,23 @@ export const BusinessDashboard: React.FC = () => {
                         <h1 className="font-sport font-black text-2xl text-orange-500 italic tracking-tighter uppercase">{dashboardData.businessName}</h1>
                         <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">Yönetim Paneli</div>
                     </div>
-                    <button
-                        onClick={() => setShowLogoutConfirm(true)}
-                        className="p-2.5 bg-slate-800 hover:bg-red-600/20 hover:text-red-500 rounded-xl transition-all border border-slate-700"
-                        title="Çıkış Yap"
-                    >
-                        <LogOut className="w-5 h-5" />
-                    </button>
+                    <BusinessNotificationBell onClick={() => navigate('/business/notifications')} />
                 </div>
 
                 {/* Date Picker */}
-                <div className="flex items-center bg-slate-950 p-3 rounded-xl border border-slate-800 group focus-within:border-orange-500 transition-all">
-                    <Calendar className="w-5 h-5 text-slate-500 mr-3 group-focus-within:text-orange-500 transition-colors" />
-                    <input
-                        type="date"
-                        value={selectedDate}
-                        onChange={(e) => setSelectedDate(e.target.value)}
-                        className="bg-transparent text-white w-full focus:outline-none font-black text-sm uppercase tracking-wide"
-                    />
-                </div>
+                <button
+                    onClick={() => setShowDatePicker(true)}
+                    className="flex items-center w-full bg-slate-950 p-3 rounded-xl border border-slate-800 hover:border-orange-500 transition-all group"
+                >
+                    <Calendar className="w-5 h-5 text-slate-500 mr-3 group-hover:text-orange-500 transition-colors shrink-0" />
+                    <span className="text-white font-black text-sm uppercase tracking-wide">
+                        {(() => {
+                            const [y, m, d] = selectedDate.split('-').map(Number);
+                            const months = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+                            return `${d} ${months[m - 1]} ${y}`;
+                        })()}
+                    </span>
+                </button>
             </div>
 
             {/* Pitches & Slots */}
@@ -194,19 +190,19 @@ export const BusinessDashboard: React.FC = () => {
                                         disabled={isPast}
                                         className={`
                                             aspect-[1.1] p-2 rounded-2xl flex flex-col items-center justify-center border-2 transition-all relative overflow-hidden group
-                                            ${isPast ? 'bg-slate-900/50 border-slate-800 text-slate-700 opacity-40 cursor-not-allowed' : ''}
-                                            ${!isPast && slot.status === 'EMPTY' ? 'bg-slate-900/80 border-slate-800 text-slate-400 hover:border-slate-600' : ''}
-                                            ${!isPast && slot.status === 'PENDING' ? 'bg-orange-500/5 border-orange-500/50 text-orange-500 shadow-[0_0_20px_rgba(249,115,22,0.1)]' : ''}
-                                            ${!isPast && slot.status === 'FULL' ? 'bg-red-500/5 border-red-500/50 text-red-500 shadow-[0_0_20px_rgba(239,68,68,0.1)]' : ''}
+                                            ${isPast ? 'bg-slate-800/40 border-slate-700/50 text-slate-400 opacity-90 cursor-not-allowed' : ''}
+                                            ${!isPast && slot.status === 'EMPTY' ? 'bg-slate-900 border-slate-700 text-slate-300 hover:border-slate-500' : ''}
+                                            ${!isPast && slot.status === 'PENDING' ? 'bg-orange-500/15 border-orange-500/60 text-orange-400 shadow-[0_0_20px_rgba(249,115,22,0.15)]' : ''}
+                                            ${!isPast && slot.status === 'FULL' ? 'bg-red-500/15 border-red-500/60 text-red-400 shadow-[0_0_20px_rgba(239,68,68,0.15)]' : ''}
                                         `}
                                     >
-                                        <span className={`font-black tracking-tighter leading-none text-center ${formattedTime.includes(' - ') ? 'text-[11px] sm:text-xs' : 'text-base sm:text-lg'}`}>
+                                        <span className={`font-black tracking-tighter leading-none text-center ${formattedTime.includes(' - ') ? 'text-[15px] sm:text-base' : 'text-lg sm:text-xl'} ${isPast ? 'text-slate-400' : 'text-white'}`}>
                                             {formattedTime}
                                         </span>
-                                        <span className="text-[8px] sm:text-[9px] font-bold uppercase mt-1 opacity-60 tracking-wider">
+                                        <span className={`text-[9px] sm:text-[10px] font-bold uppercase mt-1.5 tracking-widest ${isPast ? 'text-slate-500' : 'text-slate-400'} opacity-90`}>
                                             {isPast ? 'GEÇTİ' :
                                                 slot.status === 'EMPTY' ? 'BOŞ' :
-                                                    slot.status === 'PENDING' ? 'ONAY' : 'DOLU'}
+                                                    slot.status === 'PENDING' ? 'Onay Bekliyor' : 'DOLU'}
                                         </span>
 
                                         {/* Status Indicator Dot */}
@@ -358,17 +354,7 @@ export const BusinessDashboard: React.FC = () => {
                 </div>
             )}
 
-            {/* Logout Confirmation Modal */}
-            <ConfirmModal
-                isOpen={showLogoutConfirm}
-                onClose={() => setShowLogoutConfirm(false)}
-                onConfirm={handleLogout}
-                title="Çıkış Yap"
-                message="Hesabınızdan çıkış yapmak istediğinize emin misiniz?"
-                confirmText="Çıkış Yap"
-                cancelText="İptal"
-                isDangerous={false}
-            />
+            {/* Removed Logout Confirm Modal */}
 
             {/* Cancel Match Confirmation */}
             <ConfirmModal
@@ -432,6 +418,15 @@ export const BusinessDashboard: React.FC = () => {
                     </div>
                 </div>
             )}
+
+            {/* Date Selection Modal */}
+            <DateSelectionModal
+                isOpen={showDatePicker}
+                onClose={() => setShowDatePicker(false)}
+                onSelect={(date) => setSelectedDate(date)}
+                selectedDate={selectedDate}
+                allowPastDates={true}
+            />
 
             {/* Business Navbar */}
             <BusinessNavbar />

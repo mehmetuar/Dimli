@@ -1,9 +1,30 @@
 import { Controller, Post, Body, Get, Param, UseGuards, Request, Query } from '@nestjs/common';
 import { BusinessOwnerService } from './business-owner.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Controller('business-owner')
 export class BusinessOwnerController {
-    constructor(private readonly businessOwnerService: BusinessOwnerService) { }
+    constructor(
+        private readonly businessOwnerService: BusinessOwnerService,
+        private readonly notificationsService: NotificationsService,
+    ) { }
+
+    @Get('notifications')
+    async getNotifications(@Query('ownerId') ownerId: string) {
+        return this.notificationsService.findByOwner(ownerId);
+    }
+
+    @Get('notifications/unread-count')
+    async getUnreadCount(@Query('ownerId') ownerId: string) {
+        const count = await this.notificationsService.getUnreadCountForOwner(ownerId);
+        return { count };
+    }
+
+    @Post('notifications/mark-all-read')
+    async markAllRead(@Body('ownerId') ownerId: string) {
+        await this.notificationsService.markAllAsReadForOwner(ownerId);
+        return { success: true };
+    }
 
     // TODO: Add proper AuthGuard for BusinessOwner
     // @UseGuards(JwtAuthGuard)

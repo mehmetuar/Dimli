@@ -6,10 +6,12 @@ import { Reservation } from './entities/reservation.entity';
 import { ChatModule } from '../chat/chat.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { ChatChannel } from '../chat/chat-channel.entity';
+import { Pitch } from '../pitches/entities/pitch.entity';
+import { BusinessOwner } from '../business-owner/entities/business-owner.entity';
 
 @Module({
     imports: [
-        TypeOrmModule.forFeature([Reservation, ChatChannel]),
+        TypeOrmModule.forFeature([Reservation, ChatChannel, Pitch, BusinessOwner]),
         ChatModule,
         NotificationsModule
     ],

@@ -128,4 +128,25 @@ export class NotificationsService {
             where: { userId, read: false },
         });
     }
+
+    // Business Owner Notifications
+    async findByOwner(ownerId: string): Promise<Notification[]> {
+        return this.notificationsRepository.find({
+            where: { userId: ownerId }, // Using userId column for ownerId too
+            order: { createdAt: 'DESC' },
+        });
+    }
+
+    async getUnreadCountForOwner(ownerId: string): Promise<number> {
+        return this.notificationsRepository.count({
+            where: { userId: ownerId, read: false },
+        });
+    }
+
+    async markAllAsReadForOwner(ownerId: string): Promise<void> {
+        await this.notificationsRepository.update(
+            { userId: ownerId, read: false },
+            { read: true }
+        );
+    }
 }

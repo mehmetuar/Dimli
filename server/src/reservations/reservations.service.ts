@@ -6,6 +6,8 @@ import { ChatService } from '../chat/chat.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ChatChannel } from '../chat/chat-channel.entity';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { Pitch } from '../pitches/entities/pitch.entity';
+import { BusinessOwner } from '../business-owner/entities/business-owner.entity';
 
 @Injectable()
 export class ReservationsService {
@@ -14,6 +16,10 @@ export class ReservationsService {
     constructor(
         @InjectRepository(Reservation)
         private reservationRepository: Repository<Reservation>,
+        @InjectRepository(Pitch)
+        private pitchRepository: Repository<Pitch>,
+        @InjectRepository(BusinessOwner)
+        private businessOwnerRepository: Repository<BusinessOwner>,
         private chatService: ChatService,
         private notificationsService: NotificationsService,
         @InjectRepository(ChatChannel)
@@ -85,7 +91,48 @@ export class ReservationsService {
 
     async create(createReservationDto: any) {
         const reservation = this.reservationRepository.create(createReservationDto);
-        return this.reservationRepository.save(reservation);
+        const savedReservation = await this.reservationRepository.save(reservation) as unknown as Reservation;
+
+        // Notify Business Owner
+        try {
+            const pitch = await this.pitchRepository.findOne({
+                where: { id: (savedReservation as any).pitchId },
+                relations: ['business']
+            });
+
+            if (pitch && pitch.business) {
+                const owner = await this.businessOwnerRepository.findOne({
+                    where: { business: { id: pitch.business.id } }
+                });
+
+                if (owner) {
+                    const slotTime = new Date((savedReservation as any).slotTime);
+                    const dateStr = slotTime.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
+                    const timeStr = slotTime.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+
+                    await this.notificationsService.create({
+                        userId: owner.id,
+                        type: 'RESERVATION_REQUEST',
+                        title: 'Yeni Rezervasyon İsteği!',
+                        message: `${pitch.name} için ${dateStr} saat ${timeStr} dilimine yeni bir istek var.`,
+                        relatedId: (savedReservation as any).id,
+                        read: false,
+                        metadata: {
+                            reservationId: (savedReservation as any).id,
+                            pitchName: pitch.name,
+                            date: dateStr,
+                            time: timeStr,
+                            role: 'BUSINESS_OWNER'
+                        }
+                    });
+                    this.logger.log(`Notification sent to business owner ${owner.id} for reservation ${(savedReservation as any).id}`);
+                }
+            }
+        } catch (error) {
+            this.logger.error('Failed to send business owner notification', error);
+        }
+
+        return savedReservation;
     }
 
     async findAll() {
