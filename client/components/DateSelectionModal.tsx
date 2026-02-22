@@ -97,7 +97,7 @@ export const DateSelectionModal: React.FC<DateSelectionModalProps> = ({
     const weekDays = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
 
     return (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center px-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+        <div className="fixed inset-0 z-[90] flex items-center justify-center px-4 bg-black/80 backdrop-blur-sm animate-fade-in">
             <div className="bg-slate-800 w-full max-w-sm rounded-3xl border border-slate-700 overflow-hidden shadow-2xl animate-scale-in">
                 {/* Header */}
                 <div className="p-4 border-b border-slate-700 flex items-center justify-between bg-slate-900/50">

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Bell, Calendar, Clock, ChevronRight } from 'lucide-react';
 import api from '../../services/api';
 import { BusinessNavbar } from '../../components/BusinessNavbar';
+import { BusinessLoadingSpinner } from '../../components/BusinessLoadingSpinner';
 
 export const BusinessNotificationsPage: React.FC = () => {
     const navigate = useNavigate();
@@ -55,9 +56,8 @@ export const BusinessNotificationsPage: React.FC = () => {
             {/* Content */}
             <div className="p-4 space-y-3">
                 {loading ? (
-                    <div className="py-40 flex flex-col items-center justify-center space-y-4">
-                        <div className="w-12 h-12 border-4 border-orange-500/20 border-t-orange-500 rounded-full animate-spin" />
-                        <span className="text-slate-500 font-bold italic">Yükleniyor...</span>
+                    <div className="py-40 flex justify-center w-full">
+                        <BusinessLoadingSpinner />
                     </div>
                 ) : notifications.length > 0 ? (
                     notifications.map((notif) => (

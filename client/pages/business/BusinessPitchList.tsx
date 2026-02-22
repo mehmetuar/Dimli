@@ -5,6 +5,7 @@ import { ArrowLeft, ChevronRight, Goal, Plus, X, Clock, ListChecks } from 'lucid
 import { BusinessNavbar } from '../../components/BusinessNavbar';
 import { DEFAULT_FACILITIES } from '../../constants';
 import { BusinessTimePickerModal } from '../../components/BusinessTimePickerModal';
+import { BusinessLoadingSpinner } from '../../components/BusinessLoadingSpinner';
 
 export const BusinessPitchList: React.FC = () => {
     const navigate = useNavigate();
@@ -123,11 +124,7 @@ export const BusinessPitchList: React.FC = () => {
     };
 
     if (loading) {
-        return (
-            <div className="min-h-screen bg-slate-900 flex items-center justify-center text-white">
-                Yükleniyor...
-            </div>
-        );
+        return <BusinessLoadingSpinner fullScreen />;
     }
 
     return (

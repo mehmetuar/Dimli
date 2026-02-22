@@ -5,6 +5,7 @@ import { Save, ArrowLeft, Clock, TurkishLira, ListChecks, Plus, Trash2, X } from
 import { BusinessNavbar } from '../../components/BusinessNavbar';
 import { DEFAULT_FACILITIES } from '../../constants';
 import { BusinessTimePickerModal } from '../../components/BusinessTimePickerModal';
+import { BusinessLoadingSpinner } from '../../components/BusinessLoadingSpinner';
 
 
 export const BusinessPitchSettings: React.FC = () => {
@@ -171,11 +172,7 @@ export const BusinessPitchSettings: React.FC = () => {
     const allFacilities = Array.from(new Set([...DEFAULT_FACILITIES, ...formData.facilities]));
 
     if (loading) {
-        return (
-            <div className="min-h-screen bg-slate-900 flex items-center justify-center text-white">
-                Yükleniyor...
-            </div>
-        );
+        return <BusinessLoadingSpinner fullScreen />;
     }
 
     return (

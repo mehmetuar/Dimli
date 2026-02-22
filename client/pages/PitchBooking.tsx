@@ -727,10 +727,13 @@ export const PitchBooking: React.FC = () => {
                                              return (
                                                 <div
                                                    key={slotIdx}
-                                                   className="p-3 rounded-xl border border-slate-700 bg-slate-800/30 text-slate-600 opacity-50 cursor-not-allowed"
+                                                   className="p-3 rounded-xl border border-slate-700 bg-slate-800/30 text-slate-600 opacity-50 cursor-not-allowed flex flex-col items-center justify-center min-h-[80px]"
                                                 >
-                                                   <span className="text-lg font-sport font-bold">{slot.startTime}</span>
-                                                   <span className="text-[10px] font-bold mt-1 block">GEÇTİ</span>
+                                                   <span className="text-[15px] sm:text-base font-black tracking-tighter leading-none">{slot.startTime}</span>
+                                                   {slot.endTime && (
+                                                      <span className="text-[10px] font-bold opacity-75 mt-0.5">{slot.endTime}</span>
+                                                   )}
+                                                   <span className="text-[10px] font-bold mt-1.5 tracking-widest uppercase">GEÇTİ</span>
                                                 </div>
                                              );
                                           }
@@ -800,18 +803,18 @@ export const PitchBooking: React.FC = () => {
                                                 }}
                                                 className={`p-3 rounded-xl border text-center transition-all flex flex-col items-center justify-center relative overflow-hidden group min-h-[80px] ${slotClass}`}
                                              >
-                                                <span className="text-lg font-sport font-bold">{slot.startTime}</span>
+                                                <span className="text-[15px] sm:text-base font-black tracking-tighter leading-none">{slot.startTime}</span>
                                                 {slot.endTime && (
-                                                   <span className="text-[9px] text-slate-500 font-mono">- {slot.endTime}</span>
+                                                   <span className="text-[10px] font-bold opacity-75 mt-0.5 mb-1">{slot.endTime}</span>
                                                 )}
 
                                                 {subLabel ? (
-                                                   <div className="flex flex-col items-center gap-0.5 mt-1">
-                                                      <span className="text-[9px] font-bold bg-orange-500/20 px-1 rounded text-orange-400">{label}</span>
-                                                      <span className="text-[9px] font-bold text-turf-400">{subLabel}</span>
+                                                   <div className="flex flex-col items-center gap-1 mt-0.5">
+                                                      <span className="text-[9px] font-bold bg-orange-500/20 px-1.5 py-0.5 rounded tracking-wider text-orange-400 uppercase">{label}</span>
+                                                      <span className="text-[9px] font-bold text-turf-400 tracking-wider uppercase">{subLabel}</span>
                                                    </div>
                                                 ) : (
-                                                   <span className="text-[10px] font-bold mt-1">{label}</span>
+                                                   <span className="text-[10px] font-bold mt-0.5 tracking-widest uppercase">{label}</span>
                                                 )}
 
                                                 {slot.status === 'AVAILABLE' && isAuthorized() && !approvedReservation && !hasPending && !hasAnnouncement && (

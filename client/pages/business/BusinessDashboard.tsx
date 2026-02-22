@@ -8,6 +8,7 @@ import { SuccessModal, SuccessType } from '../../components/SuccessModal';
 import { DateSelectionModal } from '../../components/DateSelectionModal';
 import { BusinessNotificationBell } from '../../components/BusinessNotificationBell';
 import { BusinessNotificationsPanel } from '../../components/BusinessNotificationsPanel';
+import { BusinessLoadingSpinner } from '../../components/BusinessLoadingSpinner';
 
 export const BusinessDashboard: React.FC = () => {
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -135,7 +136,7 @@ export const BusinessDashboard: React.FC = () => {
         return `${time} - ${endTime}`;
     };
 
-    if (loading) return <div className="min-h-screen bg-slate-900 flex items-center justify-center text-white font-bold animate-pulse">Yükleniyor...</div>;
+    if (loading) return <BusinessLoadingSpinner fullScreen />;
     if (!dashboardData) return <div className="min-h-screen bg-slate-900 flex items-center justify-center text-white font-bold italic">Veri bulunamadı.</div>;
 
     return (
