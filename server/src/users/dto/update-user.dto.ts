@@ -33,4 +33,7 @@ export class UpdateUserDto {
     @IsOptional()
     @IsString()
     foot?: string;
+
+    @IsOptional()
+    favoriteBusinessIds?: string[];
 }

@@ -2,6 +2,7 @@ import React from 'react';
 import { X, MapPin, Handshake, Star, MessageCircle, UserPlus, Edit } from 'lucide-react';
 import { Player } from '../types';
 import { MOCK_PITCHES } from '../constants';
+import { getBusinesses } from '../services/api';
 
 interface PlayerDetailModalProps {
     isOpen: boolean;
@@ -29,9 +30,18 @@ export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
 }) => {
     if (!isOpen || !player) return null;
 
-    // Resolve favorite pitches
-    const favoritePitches = player.favoritePitchIds?.map(id =>
-        MOCK_PITCHES.find(p => p.id === id)
+    const [businesses, setBusinesses] = React.useState<any[]>([]);
+
+    React.useEffect(() => {
+        if (isOpen) {
+            getBusinesses().then(setBusinesses).catch(console.error);
+        }
+    }, [isOpen]);
+
+    // Resolve favorite pitches/businesses (Check both keys to be safe with Player type vs User entity)
+    const activeFavorites = (player.favoriteBusinessIds || player.favoritePitchIds || []);
+    const favoriteItems = activeFavorites.map(id =>
+        businesses.find(b => b.id === id)
     ).filter(Boolean);
 
     return (
@@ -63,7 +73,7 @@ export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
                         <div className="w-40 h-40 relative -mr-4 -mt-2">
                             <img
                                 src={player.avatarUrl || `https://ui-avatars.com/api/?name=${player.name}&background=0D8ABC&color=fff`}
-                                className="w-full h-full object-cover rounded-full border-4 border-slate-800/50 shadow-2xl drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)]"
+                                className="w-full h-full object-cover rounded-full border-4 border-slate-800/50 shadow-2xl drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)] aspect-square"
                                 alt={player.name}
                             />
                         </div>
@@ -106,42 +116,22 @@ export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
                             </div>
                         </div>
 
-                        {/* Extra Info: Form & Sharing Status */}
-                        <div className="flex gap-3 mb-6">
-                            <div className="flex-1 bg-black/40 rounded-xl p-3 border border-white/5">
-                                <div className="text-[10px] text-slate-400 uppercase font-bold mb-1">Son 5 Maç</div>
-                                <div className="flex gap-1">
-                                    {player.form?.map((result, i) => (
-                                        <span key={i} className={`w-4 h-4 rounded flex items-center justify-center text-[8px] font-black ${result === 'W' ? 'bg-green-500 text-black' :
-                                            result === 'L' ? 'bg-red-500 text-white' : 'bg-gray-500 text-white'
-                                            }`}>
-                                            {result}
-                                        </span>
-                                    )) || <span className="text-xs text-slate-500">-</span>}
-                                </div>
-                            </div>
-                            <div className={`flex-1 rounded-xl p-3 border flex flex-col justify-center items-center ${player.sharesFee ? 'bg-turf-900/30 border-turf-500/30' : 'bg-slate-800 border-slate-700'}`}>
-                                <Handshake className={`w-5 h-5 mb-1 ${player.sharesFee ? 'text-turf-500' : 'text-slate-500'}`} />
-                                <div className={`text-[10px] uppercase font-bold text-center leading-none ${player.sharesFee ? 'text-turf-300' : 'text-slate-500'}`}>
-                                    {player.sharesFee ? 'Ücrete Ortak' : 'Misafir'}
-                                </div>
-                            </div>
-                        </div>
 
-                        {/* Favorite Pitches */}
+
+                        {/* Favorite Businesses */}
                         <div className="mb-6">
                             <h3 className="text-[10px] font-bold text-slate-500 uppercase mb-2 flex items-center gap-1">
-                                <Star className="w-3 h-3 text-yellow-500" /> Oynadığı Sahalar
+                                <Star className="w-3 h-3 text-yellow-500" /> Favori İşletmeler
                             </h3>
                             <div className="flex flex-wrap gap-2">
-                                {favoritePitches && favoritePitches.length > 0 ? (
-                                    favoritePitches.map(pitch => (
-                                        <span key={pitch?.id} className="text-xs font-bold text-slate-300 bg-white/5 px-2 py-1 rounded border border-white/10">
-                                            {pitch?.name}
+                                {favoriteItems && favoriteItems.length > 0 ? (
+                                    favoriteItems.map((item: any) => (
+                                        <span key={item?.id} className="text-xs font-bold text-slate-300 bg-white/5 px-2 py-1 rounded border border-white/10">
+                                            {item?.name}
                                         </span>
                                     ))
                                 ) : (
-                                    <span className="text-xs text-slate-500 italic">Saha tercihi yok.</span>
+                                    <span className="text-xs text-slate-500 italic">Favori işletme seçimi yok.</span>
                                 )}
                             </div>
                         </div>

@@ -14,12 +14,34 @@ export class TeamsService {
     ) { }
 
     async create(createTeamDto: any, user: User): Promise<Team> {
+        // Prevent frontend mock captainId from overriding
+        delete createTeamDto.captainId;
+
+        // Fetch the managed user entity to ensure TypeORM tracks it for the relationship
+        const managedUser = await this.usersService.findById(user.id);
+        if (!managedUser) throw new Error('User not found');
+
+        // Preempt the TypeORM duplicate key unique constraint on OneToOne
+        const existingLedTeam = await this.teamsRepository.findOne({ where: { captainId: managedUser.id } });
+        if (existingLedTeam) {
+            throw new Error('Zaten bir takımın kaptanısınız. Yeni takım kurmak için mevcut takımı devretmeli veya silmelisiniz.');
+        }
+
         const team = this.teamsRepository.create({
             ...createTeamDto,
-            captain: user,
-            players: [user]
-        } as unknown as Team); // Force cast to avoid type issues with DeepPartial
-        return this.teamsRepository.save(team);
+            captain: managedUser,
+            captainId: managedUser.id,
+            players: [managedUser] // This is safe now because managedUser is tracked
+        } as unknown as Team);
+
+        const savedTeam = await this.teamsRepository.save(team);
+
+        // Update the user explicitly to point to the newly created team
+        managedUser.team = savedTeam;
+        await this.usersService['usersRepository'].save(managedUser);
+
+        // Return the full team with relations
+        return this.findOne(savedTeam.id) as Promise<Team>;
     }
 
     async findAll(): Promise<Team[]> {
@@ -221,7 +243,15 @@ export class TeamsService {
         const team = await this.findOne(teamId);
         if (!team) throw new Error('Team not found');
 
-        if (team.captain && team.captain.id === userId) {
+        const isCaptain = team.captain && team.captain.id === userId;
+
+        // If the captain is leaving and they are the only player, delete the team entirely
+        if (isCaptain && team.players && team.players.length === 1) {
+            await this.deleteTeam(teamId, userId);
+            return;
+        }
+
+        if (isCaptain) {
             throw new Error('Kaptan takımdan ayrılamaz. Önce kaptanlığı devredin.');
         }
 

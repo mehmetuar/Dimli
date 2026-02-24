@@ -260,19 +260,29 @@ export const MyTeam: React.FC = () => {
         });
     };
 
-    const handleKickPlayer = async (playerId: string) => {
+    const handleKickPlayer = (playerId: string) => {
         if (!myTeam) return;
-        if (confirm("Bu oyuncuyu takımdan çıkarmak istiyor musun?")) {
-            try {
-                await api.delete(`/teams/${myTeam.id}/players/${playerId}`);
-                setRoster(prev => prev.filter(p => p.id !== playerId));
-                setSuccessMessage('Oyuncu takımdan atıldı.');
-                setSuccessType('KICK');
-            } catch (error: any) {
-                console.error("Failed to kick player", error);
-                setErrorMessage(error.response?.data?.message || "Oyuncu çıkarılamadı.");
+
+        // Close the player actions bottom sheet first
+        setPlayerActionsModal({ isOpen: false, player: null });
+
+        setConfirmModal({
+            isOpen: true,
+            title: 'Takımdan At',
+            message: 'Bu oyuncuyu takımdan çıkarmak istiyor musun?',
+            isDangerous: true,
+            onConfirm: async () => {
+                try {
+                    await api.delete(`/teams/${myTeam.id}/players/${playerId}`);
+                    setRoster(prev => prev.filter(p => p.id !== playerId));
+                    setSuccessMessage('Oyuncu takımdan atıldı.');
+                    setSuccessType('KICK');
+                } catch (error: any) {
+                    console.error("Failed to kick player", error);
+                    setErrorMessage(error.response?.data?.message || "Oyuncu çıkarılamadı.");
+                }
             }
-        }
+        });
     };
 
     const handleRevokeViceCaptain = async (playerId: string) => {

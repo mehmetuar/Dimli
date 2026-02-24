@@ -1,6 +1,8 @@
-
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { HashRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { Geolocation } from '@capacitor/geolocation';
+import axios from 'axios';
+import api from './services/api';
 import { Navbar } from './components/Navbar';
 import { Marketplace } from './pages/Marketplace';
 import { TeamProfile } from './pages/TeamProfile';
@@ -28,6 +30,54 @@ import { TeamSettings } from './pages/TeamSettings';
 function AppContent() {
   const location = useLocation();
   const isAuthPage = location.pathname === '/login' || location.pathname === '/register' || location.pathname.startsWith('/business');
+  const [watchId, setWatchId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let currentWatchId: string | null = null;
+
+    const startWatching = async () => {
+      // Only track if logged in as a normal user (has token and not on auth/business pages)
+      const token = localStorage.getItem('token');
+      if (!token || isAuthPage) return;
+
+      try {
+        const permission = await Geolocation.checkPermissions();
+        if (permission.location !== 'granted') return; // Don't aggressively ask across the app, let ProfileSettings or UserProfile handle the initial prompt
+
+        currentWatchId = await Geolocation.watchPosition(
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 10000 },
+          async (position, err) => {
+            if (err || !position) return;
+            try {
+              const { latitude, longitude } = position.coords;
+              const response = await axios.get(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+              if (response.data && response.data.address) {
+                const address = response.data.address;
+                const locationName = address.district || address.city || address.town || address.state;
+                if (locationName) {
+                  // Silently update location on backend
+                  await api.patch('/users/me', { location: locationName });
+                }
+              }
+            } catch (error) {
+              console.error("Background location update failed", error);
+            }
+          }
+        );
+        setWatchId(currentWatchId);
+      } catch (error) {
+        console.error("Failed to start watching position", error);
+      }
+    };
+
+    startWatching();
+
+    return () => {
+      if (currentWatchId) {
+        Geolocation.clearWatch({ id: currentWatchId });
+      }
+    };
+  }, [isAuthPage]);
 
   return (
     <div className="flex flex-col h-screen bg-pitch text-white overflow-hidden">

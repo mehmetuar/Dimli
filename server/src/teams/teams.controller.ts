@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, UseGuards, Request, Delete, Patch } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, UseGuards, Request, Delete, Patch, HttpException, HttpStatus } from '@nestjs/common';
 import { TeamsService } from './teams.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
@@ -8,8 +8,18 @@ export class TeamsController {
 
     @UseGuards(JwtAuthGuard)
     @Post()
-    create(@Body() createTeamDto: any, @Request() req) {
-        return this.teamsService.create(createTeamDto, req.user);
+    async create(@Body() createTeamDto: any, @Request() req) {
+        try {
+            return await this.teamsService.create(createTeamDto, req.user);
+        } catch (error: any) {
+            console.error("🔥 TEAM CREATION ERROR 🔥", error);
+            throw new HttpException({
+                status: HttpStatus.INTERNAL_SERVER_ERROR,
+                error: error.message,
+                detail: error.detail,
+                stack: error.stack
+            }, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
     }
 
     @Get()

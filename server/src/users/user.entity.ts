@@ -35,6 +35,9 @@ export class User {
     @Column({ nullable: true })
     foot: string;
 
+    @Column('simple-array', { nullable: true })
+    favoriteBusinessIds: string[];
+
     @Column('float', { default: 0 })
     rating: number;
 

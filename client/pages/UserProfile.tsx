@@ -5,12 +5,14 @@ import { Geolocation } from '@capacitor/geolocation';
 import api from '../services/api';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { PlayerDetailModal } from '../components/PlayerDetailModal';
 
 export const UserProfile: React.FC = () => {
     const navigate = useNavigate();
     const [currentUser, setCurrentUser] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [isModalOpen, setIsModalOpen] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
 
@@ -171,21 +173,27 @@ export const UserProfile: React.FC = () => {
                 <div className="relative bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl overflow-hidden border border-slate-700 shadow-2xl">
                     <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]"></div>
                     <div className="relative z-10 p-6 flex flex-col items-center">
-                        <div className="w-32 h-32 rounded-full p-1 bg-gradient-to-r from-turf-500 to-blue-500 mb-4 relative group-avatar">
+                        <div
+                            className="w-32 h-32 rounded-full p-1 bg-gradient-to-r from-turf-500 to-blue-500 mb-4 relative group-avatar cursor-pointer"
+                            onClick={() => setIsModalOpen(true)}
+                        >
                             <img
                                 src={'https://picsum.photos/100/100?random=1'}
                                 alt="Profile"
                                 className="w-full h-full rounded-full object-cover border-4 border-slate-900"
                             />
                             <button
-                                onClick={() => setIsMenuOpen(true)}
+                                onClick={(e) => { e.stopPropagation(); setIsMenuOpen(true); }}
                                 className="absolute -right-2 -bottom-2 bg-slate-800 text-white p-2.5 rounded-full border border-slate-600 shadow-lg hover:bg-slate-700 hover:scale-110 transition-all z-20"
                             >
                                 <Settings className="w-5 h-5" />
                             </button>
                         </div>
 
-                        <h2 className="font-sport font-bold text-4xl text-white uppercase italic tracking-wide mb-6">
+                        <h2
+                            className="font-sport font-bold text-4xl text-white uppercase italic tracking-wide mb-6 cursor-pointer hover:text-turf-400 transition-colors"
+                            onClick={() => setIsModalOpen(true)}
+                        >
                             {currentUser.full_name || currentUser.username}
                         </h2>
 
@@ -217,6 +225,27 @@ export const UserProfile: React.FC = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Profile Preview Modal */}
+            <PlayerDetailModal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                player={{
+                    id: currentUser.id,
+                    name: currentUser.full_name || currentUser.username,
+                    position: currentUser.position || '-',
+                    secondaryPosition: currentUser.secondaryPosition,
+                    location: currentUser.location,
+                    birthDate: currentUser.birthDate,
+                    foot: currentUser.foot,
+                    isJoker: false,
+                    avatarUrl: 'https://picsum.photos/100/100?random=1',
+                    favoritePitchIds: currentUser.favoriteBusinessIds || [],
+                    sharesFee: false // Not shown for isMe anyway
+                } as any}
+                isMe={true}
+                onEdit={() => navigate('/settings/profile')}
+            />
         </>
     );
 };
