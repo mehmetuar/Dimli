@@ -379,7 +379,9 @@ export const Marketplace: React.FC = () => {
                     </div>
                     <div>
                       <div className="text-[10px] text-slate-500 font-bold uppercase">Saat</div>
-                      <div className="text-sm font-bold text-slate-200">{announcement.time}</div>
+                      <div className="text-sm font-bold text-slate-200">
+                        {announcement.time} - {`${(parseInt(announcement.time.split(':')[0]) + 1).toString().padStart(2, '0')}:${announcement.time.split(':')[1]}`}
+                      </div>
                     </div>
                   </div>
                   <div className="col-span-2 flex items-center gap-3 bg-slate-900/50 p-3 rounded-xl border border-slate-700/50">
@@ -389,13 +391,16 @@ export const Marketplace: React.FC = () => {
                     <div className="overflow-hidden">
                       <div className="text-[10px] text-slate-500 font-bold uppercase">Saha & Konum</div>
                       {/* --- Updated Pitch/Business Display --- */}
-                      <div className="text-sm font-bold text-slate-200 truncate">
+                      <div className="text-sm font-bold text-slate-200 truncate flex flex-wrap gap-x-2 items-center">
                         {pitch ? (
                           <>
                             <span className="text-turf-400">{business?.name}</span>
-                            <span className="mx-1 text-slate-500">-</span>
-                            {pitch.name}
-                            <span className="ml-2 text-xs text-slate-500 font-normal">({business?.district}, {business?.city})</span>
+                            <span className="text-slate-500">-</span>
+                            <span>{pitch.name}</span>
+                            <span className="flex items-center gap-1 text-xs text-turf-400 bg-turf-900/40 px-2 py-0.5 rounded-md border border-turf-500/20 whitespace-nowrap">
+                              <MapPin className="w-3 h-3" />
+                              {business?.district}
+                            </span>
                           </>
                         ) : (
                           'Saha Bilgisi Yükleniyor'
