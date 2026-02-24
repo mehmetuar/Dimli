@@ -1,6 +1,7 @@
 import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, JoinColumn, CreateDateColumn } from 'typeorm';
 import { Pitch } from '../../pitches/entities/pitch.entity';
 import { Team } from '../../teams/team.entity';
+import { MatchAnnouncement } from '../../match-announcements/match-announcement.entity';
 
 export enum ReservationStatus {
     PENDING = 'PENDING',
@@ -54,8 +55,13 @@ export class Reservation {
     })
     type: 'DIRECT' | 'MATCH'; // Reservation type: direct booking or match-based
 
+    // Reference to match announcement if type is MATCH
     @Column({ nullable: true })
-    matchAnnouncementId: string; // Reference to match announcement if type is MATCH
+    matchAnnouncementId: string;
+
+    @ManyToOne(() => MatchAnnouncement, { nullable: true })
+    @JoinColumn({ name: 'matchAnnouncementId' })
+    matchAnnouncement: MatchAnnouncement;
 
     @Column({ nullable: true })
     proposedTime: Date; // For conflict resolution: suggested new time

@@ -4,7 +4,9 @@ import { Repository } from 'typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule'; // Import Cron
 import { MatchAnnouncement } from './match-announcement.entity';
 import { User } from '../users/user.entity';
-import { NotificationsService } from '../notifications/notifications.service'; // Import NotificationsService
+import { NotificationsService } from '../notifications/notifications.service';
+import { ReservationsService } from '../reservations/reservations.service';
+import { ChatService } from '../chat/chat.service';
 
 @Injectable()
 export class MatchAnnouncementsService {
@@ -13,7 +15,9 @@ export class MatchAnnouncementsService {
         private matchAnnouncementsRepository: Repository<MatchAnnouncement>,
         @InjectRepository(User)
         private usersRepository: Repository<User>,
-        private notificationsService: NotificationsService, // Inject Service
+        private notificationsService: NotificationsService,
+        private reservationsService: ReservationsService,
+        private chatService: ChatService,
     ) { }
 
     async create(data: Partial<MatchAnnouncement>, userId: string): Promise<MatchAnnouncement> {
@@ -101,7 +105,39 @@ export class MatchAnnouncementsService {
         });
 
         const saved = await this.matchAnnouncementsRepository.save(announcement);
-        console.log('💾 Saved announcement:', { id: saved.id, teamId: saved.teamId });
+        console.log('💾 Saved announcement:', { id: saved.id, teamId: saved.teamId, matchType: saved.matchType });
+
+        if (saved.matchType === 'kendi_aramizda') {
+            console.log('⚽ Kendi aramızda match detected. Creating chat and pending reservation...');
+            try {
+                // Create single-team chat
+                const channel = await this.chatService.createChannel(
+                    'MATCH_GROUP',
+                    `${user.team.name} (Kendi Aramızda)`,
+                    [user], // Add captain/creator
+                    saved.id
+                );
+
+                await this.chatService.sendMessage(
+                    channel.id,
+                    user.id,
+                    `Saha isteği gönderildi!\n${saved.date} ${saved.time}\n\nİşletme onayladığında sahanız kesinleşecektir. Onay durumunu buradan takip edebilirsiniz.\n\nLütfen işletmeyi arayıp sahanızı kesinleştiriniz. Yerinizi Kapabilirler`,
+                    true
+                );
+
+                // Create pending reservation
+                await this.reservationsService.create({
+                    pitchId: saved.pitchId,
+                    teamId: user.team.id,
+                    slotTime: announcementDate,
+                    type: 'MATCH',
+                    matchAnnouncementId: saved.id
+                });
+                console.log('✅ Pending reservation created successfully for Kendi Aramızda match.');
+            } catch (error) {
+                console.error('❌ Failed to create auto-reservation or chat for Kendi Aramızda:', error);
+            }
+        }
 
         return saved;
 

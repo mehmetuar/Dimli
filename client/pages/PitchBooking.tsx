@@ -50,21 +50,24 @@ export const PitchBooking: React.FC = () => {
    const [slotDetailModal, setSlotDetailModal] = useState<{
       isOpen: boolean;
       slotTime: string | null;
+      slotEndTime?: string | null;
       reservations: any[];
       announcements: any[];
       approvedReservation?: any;
    }>({
       isOpen: false,
       slotTime: null,
+      slotEndTime: null,
       reservations: [],
       announcements: [],
       approvedReservation: undefined
    });
 
-   const openSlotDetail = (slotTime: string, reservations: any[], announcements: any[], approvedReservation?: any) => {
+   const openSlotDetail = (slotTime: string, slotEndTime: string, reservations: any[], announcements: any[], approvedReservation?: any) => {
       setSlotDetailModal({
          isOpen: true,
          slotTime,
+         slotEndTime,
          reservations,
          announcements,
          approvedReservation
@@ -546,6 +549,7 @@ export const PitchBooking: React.FC = () => {
             isOpen={slotDetailModal.isOpen}
             onClose={() => setSlotDetailModal({ ...slotDetailModal, isOpen: false })}
             slotTime={slotDetailModal.slotTime || ''}
+            slotEndTime={slotDetailModal.slotEndTime || ''}
             reservations={slotDetailModal.reservations}
             announcements={slotDetailModal.announcements}
             approvedReservation={slotDetailModal.approvedReservation}
@@ -639,7 +643,9 @@ export const PitchBooking: React.FC = () => {
                // If no pitches, handle gracefully?
                if (!business.pitches || business.pitches.length === 0) return null;
 
-               const activeMatches = pitchAnnouncements.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+               const activeMatches = pitchAnnouncements
+                  .filter(a => a.matchType !== 'kendi_aramizda')
+                  .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
                const groupedMatches = groupMatchesByDate(activeMatches);
 
                return (
@@ -765,20 +771,20 @@ export const PitchBooking: React.FC = () => {
                                              slotClass = 'bg-slate-800 border-orange-500/50 text-orange-400 cursor-pointer hover:border-turf-500';
                                              label = 'ONAY BEKLİYOR';
                                              subLabel = 'RAKİP ARANIYOR';
-                                             action = () => openSlotDetail(slot.startTime, pendingReservations, announcements);
+                                             action = () => openSlotDetail(slot.startTime, slot.endTime || '', pendingReservations, announcements);
                                           }
                                           else if (approvedReservation) {
                                              slotClass = 'bg-red-900/20 border-red-900/50 text-red-700 cursor-pointer hover:opacity-80';
                                              label = 'DOLU';
-                                             action = () => openSlotDetail(slot.startTime, [], [], approvedReservation);
+                                             action = () => openSlotDetail(slot.startTime, slot.endTime || '', [], [], approvedReservation);
                                           } else if (hasPending) {
                                              slotClass = 'bg-orange-900/20 border-orange-500/50 text-orange-400 cursor-pointer hover:border-turf-500';
                                              label = 'ONAY BEKLİYOR';
-                                             action = () => openSlotDetail(slot.startTime, pendingReservations, announcements);
+                                             action = () => openSlotDetail(slot.startTime, slot.endTime || '', pendingReservations, announcements);
                                           } else if (hasAnnouncement) {
                                              slotClass = 'bg-orange-900/20 border-orange-500/50 text-orange-400 animate-pulse cursor-pointer hover:border-turf-500';
                                              label = 'RAKİP ARANIYOR';
-                                             action = () => openSlotDetail(slot.startTime, pendingReservations, announcements);
+                                             action = () => openSlotDetail(slot.startTime, slot.endTime || '', pendingReservations, announcements);
                                           } else {
                                              if (isAuthorized()) {
                                                 slotClass = 'bg-slate-800 border-slate-700 text-slate-300 hover:border-turf-500 hover:text-white cursor-pointer';

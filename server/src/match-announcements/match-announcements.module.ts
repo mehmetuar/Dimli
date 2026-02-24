@@ -7,9 +7,10 @@ import { MatchAnnouncementsController } from './match-announcements.controller';
 
 import { NotificationsModule } from '../notifications/notifications.module';
 import { ReservationsModule } from '../reservations/reservations.module';
+import { ChatModule } from '../chat/chat.module';
 
 @Module({
-    imports: [TypeOrmModule.forFeature([MatchAnnouncement, User]), NotificationsModule, ReservationsModule],
+    imports: [TypeOrmModule.forFeature([MatchAnnouncement, User]), NotificationsModule, ReservationsModule, ChatModule],
     controllers: [MatchAnnouncementsController],
     providers: [MatchAnnouncementsService],
     exports: [MatchAnnouncementsService],

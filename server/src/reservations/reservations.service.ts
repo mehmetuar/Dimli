@@ -147,6 +147,7 @@ export class ReservationsService {
             .leftJoinAndSelect('team.captain', 'teamCaptain')
             .leftJoinAndSelect('reservation.opponentTeam', 'opponentTeam')
             .leftJoinAndSelect('opponentTeam.captain', 'opponentCaptain')
+            .leftJoinAndSelect('reservation.matchAnnouncement', 'matchAnnouncement')
             .where('reservation.pitchId = :pitchId', { pitchId })
             .andWhere('reservation.slotTime >= :start', { start })
             .andWhere('reservation.slotTime <= :end', { end })

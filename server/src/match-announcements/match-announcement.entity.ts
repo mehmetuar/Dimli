@@ -36,6 +36,9 @@ export class MatchAnnouncement {
     @Column({ default: 'PENDING' })
     status: string; // PENDING, CONFIRMED, CANCELLED
 
+    @Column({ name: 'match_type', default: 'rakip_araniyor' })
+    matchType: string;
+
     @CreateDateColumn({ name: 'created_at' })
     createdAt: Date;
 }

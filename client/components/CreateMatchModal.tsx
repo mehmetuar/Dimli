@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { X, MapPin, Calendar, Clock, Shield, ChevronRight, CheckCircle, Trophy, Filter, Store } from 'lucide-react';
+import { X, MapPin, Calendar, Clock, Shield, ChevronRight, CheckCircle, Trophy, Filter, Store, Info } from 'lucide-react';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import { SkillLevel, Business, Pitch, ReservationStatus } from '../types';
 import api, { getReservationsByPitch } from '../services/api';
@@ -60,6 +60,9 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
     // Modal states
     const [isDateModalOpen, setIsDateModalOpen] = useState(false);
     const [isTimeModalOpen, setIsTimeModalOpen] = useState(false);
+
+    // Flow State
+    const [matchType, setMatchType] = useState<'rakip_araniyor' | 'kendi_aramizda'>('rakip_araniyor');
 
     // Fetch initial data (User & Businesses)
     useEffect(() => {
@@ -153,7 +156,8 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
                 time,
                 requiredLevel: level,
                 playerCount,
-                description: note
+                description: note,
+                matchType
             });
 
             console.log('✅ Announcement created:', response.data);
@@ -244,6 +248,32 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
                             </div>
                         ) : (
                             <>
+                                {/* Match Type Toggle */}
+                                <div className="mb-6 animate-fade-in">
+                                    <div className="flex p-1 bg-slate-900 rounded-xl">
+                                        <button
+                                            onClick={() => setMatchType('rakip_araniyor')}
+                                            className={`flex-1 py-3 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${matchType === 'rakip_araniyor' ? 'bg-turf-600 text-white shadow-lg shadow-turf-600/30' : 'text-slate-400 hover:text-slate-200'}`}
+                                        >
+                                            <Shield className="w-4 h-4" />
+                                            Rakip Aranıyor
+                                        </button>
+                                        <button
+                                            onClick={() => setMatchType('kendi_aramizda')}
+                                            className={`flex-1 py-3 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${matchType === 'kendi_aramizda' ? 'bg-turf-600 text-white shadow-lg shadow-turf-600/30' : 'text-slate-400 hover:text-slate-200'}`}
+                                        >
+                                            <Store className="w-4 h-4" />
+                                            Kendi Aramızda
+                                        </button>
+                                    </div>
+                                    {matchType === 'kendi_aramizda' && (
+                                        <div className="mt-3 bg-blue-500/10 border border-blue-500/30 text-blue-400 px-4 py-3 rounded-xl flex gap-3 animate-fade-in text-xs leading-relaxed">
+                                            <Info className="w-5 h-5 shrink-0" />
+                                            <p><strong>Bilgilendirme:</strong> Kendi aramızda butonu ile ilgili saatte işletme onayı ile saha sadece sizin için rezerve edilecektir. Sizin için tek takımlı bir sohbet başlatılacaktır.</p>
+                                        </div>
+                                    )}
+                                </div>
+
                                 {/* Step 1: Pitch/Business Selection */}
                                 <div className="mb-8 animate-fade-in">
                                     <label className="text-xs font-bold text-slate-500 uppercase mb-3 block flex items-center gap-2">
@@ -378,26 +408,28 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
 
                                 {/* Step 3: Details */}
                                 <div className="mb-4 animate-fade-in delay-150">
-                                    <label className="text-xs font-bold text-slate-500 uppercase mb-3 block flex items-center gap-2">
+                                    <label className="text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-2">
                                         <span className="w-5 h-5 rounded-full bg-turf-600 text-slate-900 flex items-center justify-center text-[10px]">3</span>
                                         Detaylar
                                     </label>
 
                                     <div className="space-y-4">
-                                        <div>
-                                            <span className="text-xs text-slate-400 mb-2 block">Aranan Rakip Seviyesi</span>
-                                            <div className="flex p-1 bg-slate-900 rounded-lg">
-                                                {Object.values(SkillLevel).map((lvl) => (
-                                                    <button
-                                                        key={lvl}
-                                                        onClick={() => setLevel(lvl)}
-                                                        className={`flex-1 py-2 text-[10px] font-bold rounded transition-colors ${level === lvl ? 'bg-slate-700 text-white shadow' : 'text-slate-500 hover:text-slate-300'}`}
-                                                    >
-                                                        {lvl}
-                                                    </button>
-                                                ))}
+                                        {matchType === 'rakip_araniyor' && (
+                                            <div>
+                                                <span className="text-xs text-slate-400 mb-2 block">Aranan Rakip Seviyesi</span>
+                                                <div className="flex p-1 bg-slate-900 rounded-lg">
+                                                    {Object.values(SkillLevel).map((lvl) => (
+                                                        <button
+                                                            key={lvl}
+                                                            onClick={() => setLevel(lvl)}
+                                                            className={`flex-1 py-2 text-[10px] font-bold rounded transition-colors ${level === lvl ? 'bg-slate-700 text-white shadow' : 'text-slate-500 hover:text-slate-300'}`}
+                                                        >
+                                                            {lvl}
+                                                        </button>
+                                                    ))}
+                                                </div>
                                             </div>
-                                        </div>
+                                        )}
 
                                         <div>
                                             <span className="text-xs text-slate-400 mb-2 block">Kadro Boyutu</span>
@@ -435,7 +467,7 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
                         <div className="flex items-center justify-between mb-4 px-2">
                             <div>
                                 <div className="text-[10px] text-slate-500 uppercase font-bold">Tahmini Saha Payı</div>
-                                <div className="text-lg font-bold text-white">₺{selectedPitch ? selectedPitch.pricePerHour / 2 : '0'}</div>
+                                <div className="text-lg font-bold text-white">₺{selectedPitch ? (matchType === 'kendi_aramizda' ? selectedPitch.pricePerHour : selectedPitch.pricePerHour / 2) : '0'}</div>
                             </div>
                             {myTeam && (
                                 <div className="flex items-center gap-2">

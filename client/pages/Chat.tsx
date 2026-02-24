@@ -1,15 +1,14 @@
 
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, Bot, ChevronLeft, Users, Shield, Star, Phone, MessageSquare, UserPlus, ArrowDown } from 'lucide-react';
 import { getTacticalAdvice } from '../services/geminiService';
 import { SkillLevel, ChatChannel, Team } from '../types';
 import { MOCK_CHANNELS, MOCK_MESSAGES, MOCK_TEAMS, CURRENT_USER, MOCK_JOKERS } from '../constants';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { KendiAramizdaMatchModal } from '../components/KendiAramizdaMatchModal';
 import { InviteJokerModal } from '../components/InviteJokerModal';
 import { MatchDetailModal } from '../components/MatchDetailModal';
 import api from '../services/api';
-import { useNavigate } from 'react-router-dom';
 
 // Utility Hook for Long Press
 const useLongPress = (callback: () => void, ms = 500) => {
@@ -469,12 +468,21 @@ export const Chat: React.FC = () => {
         joker={opponentJoker}
       />
 
-      <MatchDetailModal
-        isOpen={isMatchDetailOpen}
-        onClose={() => setIsMatchDetailOpen(false)}
-        data={matchDetailData}
-        loading={isMatchDetailLoading}
-      />
+      {matchDetailData?.match?.matchType === 'kendi_aramizda' ? (
+        <KendiAramizdaMatchModal
+          isOpen={isMatchDetailOpen}
+          onClose={() => setIsMatchDetailOpen(false)}
+          data={matchDetailData}
+          loading={isMatchDetailLoading}
+        />
+      ) : (
+        <MatchDetailModal
+          isOpen={isMatchDetailOpen}
+          onClose={() => setIsMatchDetailOpen(false)}
+          data={matchDetailData}
+          loading={isMatchDetailLoading}
+        />
+      )}
 
       {/* Custom Header */}
       <div className="bg-slate-900/90 backdrop-blur pt-safe-top top-safe-top p-4 border-b border-slate-800 flex flex-col gap-3 sticky top-0 z-50 shadow-lg">

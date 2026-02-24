@@ -61,7 +61,7 @@ export const Marketplace: React.FC = () => {
   };
 
   const getFilteredMatches = () => {
-    let filtered = [...matches];
+    let filtered = [...matches].filter(m => m.matchType !== 'kendi_aramizda');
 
     // Filter by Location
     if (locationFilter.type === 'DISTRICT' && locationFilter.value) {

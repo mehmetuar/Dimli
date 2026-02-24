@@ -69,9 +69,38 @@ export class ChatService {
             let reservationData: { status: string; slotTime: Date } | null = null;
             if (channel.relatedMatchId) {
                 // Find reservation linked to this match announcement
-                const reservation = await this.reservationRepository.findOne({
+                let reservation = await this.reservationRepository.findOne({
                     where: { matchAnnouncementId: channel.relatedMatchId }
                 });
+
+                // FALLBACK FOR OLD MATCHES: Find by relation through match
+                if (!reservation) {
+                    const match = await this.matchAnnouncementRepository.findOne({
+                        where: { id: channel.relatedMatchId }
+                    });
+
+                    if (match) {
+                        try {
+                            const [hours, minutes] = match.time.split(':').map(Number);
+                            const slotDateTime = new Date(match.date);
+                            slotDateTime.setHours(hours, minutes || 0, 0, 0);
+
+                            reservation = await this.reservationRepository.findOne({
+                                where: { teamId: match.teamId, slotTime: slotDateTime, type: 'MATCH' }
+                            });
+
+                            if (!reservation) {
+                                // If no reservation, just map the match status
+                                reservationData = {
+                                    status: match.status === 'CONFIRMED' ? 'APPROVED' : 'PENDING',
+                                    slotTime: slotDateTime
+                                };
+                            }
+                        } catch (e) {
+                            // ignore date parse errors
+                        }
+                    }
+                }
 
                 if (reservation) {
                     reservationData = {
@@ -255,9 +284,24 @@ export class ChatService {
         }
 
         // 3. Find reservation to get opponent team
-        const reservation = await this.reservationRepository.findOne({
+        let reservation = await this.reservationRepository.findOne({
             where: { matchAnnouncementId: channel.relatedMatchId },
         });
+
+        // FALLBACK FOR OLD MATCHES: Find by relation through match
+        if (!reservation) {
+            try {
+                const [hours, minutes] = match.time.split(':').map(Number);
+                const slotDateTime = new Date(match.date);
+                slotDateTime.setHours(hours, minutes || 0, 0, 0);
+
+                reservation = await this.reservationRepository.findOne({
+                    where: { teamId: match.teamId, slotTime: slotDateTime, type: 'MATCH' }
+                });
+            } catch (e) {
+                // ignore date parse errors
+            }
+        }
 
         // 4. Load both teams with captain info
         const homeTeam = await this.teamRepository.findOne({
@@ -305,6 +349,7 @@ export class ChatService {
                 status: match.status,
                 playerCount: match.playerCount,
                 description: match.description,
+                matchType: match.matchType,
             },
             reservation: reservation ? {
                 id: reservation.id,

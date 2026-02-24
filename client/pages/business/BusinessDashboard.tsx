@@ -224,9 +224,13 @@ export const BusinessDashboard: React.FC = () => {
                     <div className="bg-slate-800 w-full max-w-md rounded-2xl p-6 border border-slate-700 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-between items-start mb-6">
                             <div>
-                                <h3 className="text-2xl font-black text-white">{selectedSlot.time}</h3>
+                                <h3 className="text-2xl font-black text-white">{selectedSlot.startTime} - {selectedSlot.endTime}</h3>
                                 <p className="text-slate-400 text-sm">
-                                    {selectedSlot.status === 'FULL' ? 'Kesinleşmiş Maç' : 'Rezervasyon İstekleri'}
+                                    {selectedSlot.status === 'FULL'
+                                        ? 'Kesinleşmiş Maç'
+                                        : selectedSlot.reservations?.[0]?.matchAnnouncement?.matchType === 'kendi_aramizda'
+                                            ? 'Kendi Aramızda İstekleri'
+                                            : 'Rezervasyon İstekleri'}
                                 </p>
                             </div>
                             <button onClick={() => setSelectedSlot(null)} className="p-2 bg-slate-700/50 rounded-full hover:bg-slate-600 text-slate-300 hover:text-white transition-colors">
@@ -266,13 +270,23 @@ export const BusinessDashboard: React.FC = () => {
                                             </div>
                                         </div>
 
-                                        {/* VS Badge if Opponent Exists */}
+                                        {/* VS Badge if Opponent Exists or if Kendi Aramızda indicated */}
                                         {res.opponentTeam && (
                                             <div className="relative flex items-center justify-center py-2 mb-4">
                                                 <div className="absolute inset-0 flex items-center">
                                                     <div className="w-full border-t border-slate-700/50"></div>
                                                 </div>
                                                 <div className="relative bg-slate-800 px-3 text-slate-500 font-black italic">VS</div>
+                                            </div>
+                                        )}
+                                        {!res.opponentTeam && res.matchAnnouncement?.matchType === 'kendi_aramizda' && (
+                                            <div className="relative flex items-center justify-center py-2 mb-4">
+                                                <div className="absolute inset-0 flex items-center">
+                                                    <div className="w-full border-t border-slate-700/50"></div>
+                                                </div>
+                                                <div className="relative bg-slate-800 px-3 text-orange-500 font-black italic flex items-center gap-1">
+                                                    <Users className="w-4 h-4" /> KENDİ ARAMIZDA (Tek Takım)
+                                                </div>
                                             </div>
                                         )}
 

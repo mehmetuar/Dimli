@@ -6,6 +6,7 @@ interface SlotDetailModalProps {
     isOpen: boolean;
     onClose: () => void;
     slotTime: string; // e.g., "19:00"
+    slotEndTime?: string; // e.g., "20:00"
     reservations: any[]; // Pending reservations
     announcements: any[]; // Looking for opponent
     approvedReservation?: any; // If FULL
@@ -19,6 +20,7 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
     isOpen,
     onClose,
     slotTime,
+    slotEndTime,
     reservations,
     announcements,
     approvedReservation,
@@ -47,7 +49,7 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                             <Clock className="w-5 h-5" />
                             <span className="font-bold text-sm tracking-wider">SAAT DETAYI</span>
                         </div>
-                        <h2 className="font-sport font-black text-4xl text-white italic">{slotTime}</h2>
+                        <h2 className="font-sport font-black text-4xl text-white italic">{slotTime}{slotEndTime ? ` - ${slotEndTime}` : ''}</h2>
                     </div>
                     <button
                         onClick={onClose}
@@ -67,29 +69,45 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                                 <p className="text-slate-400 text-sm mb-6">Bu saat için saha ayrılmış durumda.</p>
 
                                 <div className="flex items-center justify-center gap-4">
-                                    <div className="text-center">
-                                        <div className="w-16 h-16 bg-slate-800 rounded-full mx-auto mb-2 border-2 border-slate-600 overflow-hidden relative flex items-center justify-center">
-                                            {approvedReservation.team?.logoUrl ? (
-                                                <img src={approvedReservation.team.logoUrl} className="w-full h-full object-cover" />
-                                            ) : (
-                                                <Shield className="w-8 h-8 text-slate-600" />
-                                            )}
+                                    {!approvedReservation.opponentTeam ? (
+                                        <div className="flex flex-col items-center justify-center gap-2">
+                                            <div className="w-20 h-20 bg-slate-800 rounded-full mx-auto mb-2 border-2 border-orange-500/50 flex items-center justify-center shadow-[0_0_15px_rgba(249,115,22,0.15)] relative overflow-hidden">
+                                                {approvedReservation.team?.logoUrl ? (
+                                                    <img src={approvedReservation.team.logoUrl} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <Users className="w-8 h-8 text-orange-400" />
+                                                )}
+                                            </div>
+                                            <div className="font-bold text-white text-lg uppercase tracking-wider text-center">{approvedReservation.team?.name || 'Kendi Aramızda'}</div>
+                                            <div className="text-[10px] font-bold text-orange-400 uppercase tracking-widest bg-orange-500/10 px-3 py-1 rounded-full border border-orange-500/30">Kendi Aramızda (Tek Takım)</div>
                                         </div>
-                                        <div className="font-bold text-white text-sm">{approvedReservation.team?.name || 'Takım A'}</div>
-                                    </div>
+                                    ) : (
+                                        <>
+                                            <div className="text-center flex-1">
+                                                <div className="w-16 h-16 bg-slate-800 rounded-full mx-auto mb-2 border-2 border-slate-600 overflow-hidden relative flex items-center justify-center">
+                                                    {approvedReservation.team?.logoUrl ? (
+                                                        <img src={approvedReservation.team.logoUrl} className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <Shield className="w-8 h-8 text-slate-600" />
+                                                    )}
+                                                </div>
+                                                <div className="font-bold text-white text-sm">{approvedReservation.team?.name || 'Takım A'}</div>
+                                            </div>
 
-                                    <div className="text-2xl font-black text-slate-500 italic">VS</div>
+                                            <div className="text-2xl font-black text-slate-500 italic px-2">VS</div>
 
-                                    <div className="text-center">
-                                        <div className="w-16 h-16 bg-slate-800 rounded-full mx-auto mb-2 border-2 border-slate-600 overflow-hidden relative flex items-center justify-center">
-                                            {approvedReservation.opponentTeam?.logoUrl ? (
-                                                <img src={approvedReservation.opponentTeam.logoUrl} className="w-full h-full object-cover" />
-                                            ) : (
-                                                <Shield className="w-8 h-8 text-slate-600" />
-                                            )}
-                                        </div>
-                                        <div className="font-bold text-white text-sm">{approvedReservation.opponentTeam?.name || (approvedReservation.type === 'MATCH' ? 'Rakip Bekleniyor' : 'Hazırlık')}</div>
-                                    </div>
+                                            <div className="text-center flex-1">
+                                                <div className="w-16 h-16 bg-slate-800 rounded-full mx-auto mb-2 border-2 border-slate-600 overflow-hidden relative flex items-center justify-center">
+                                                    {approvedReservation.opponentTeam?.logoUrl ? (
+                                                        <img src={approvedReservation.opponentTeam.logoUrl} className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <Shield className="w-8 h-8 text-slate-600" />
+                                                    )}
+                                                </div>
+                                                <div className="font-bold text-white text-sm">{approvedReservation.opponentTeam?.name || (approvedReservation.type === 'MATCH' ? 'Rakip Bekleniyor' : 'Hazırlık')}</div>
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
                             </div>
                         </div>
