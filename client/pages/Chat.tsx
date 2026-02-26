@@ -81,6 +81,9 @@ const getMatchStatusInfo = (reservation?: { status: string; slotTime: string }):
   const slotDate = new Date(reservation.slotTime);
   const matchEndTime = new Date(slotDate.getTime() + 60 * 60 * 1000);
 
+  if (now > slotDate && reservation.status !== 'APPROVED') {
+    return { label: 'Oynanmamış Maç', borderColor: 'border-red-500/60', badgeColor: '#ef4444', textColor: 'text-red-400', bgTint: 'bg-red-500/5', type: 'unplayed' };
+  }
   if (reservation.status === 'PENDING') {
     return { label: 'Onay Bekliyor', borderColor: 'border-orange-500/60', badgeColor: '#f97316', textColor: 'text-orange-400', bgTint: 'bg-orange-500/5', type: 'pending' };
   }
@@ -89,9 +92,6 @@ const getMatchStatusInfo = (reservation?: { status: string; slotTime: string }):
   }
   if (reservation.status === 'APPROVED' && now > matchEndTime) {
     return { label: 'Oynanmış Maç', borderColor: 'border-blue-500/60', badgeColor: '#3b82f6', textColor: 'text-blue-400', bgTint: 'bg-blue-500/5', type: 'played' };
-  }
-  if (now > slotDate && reservation.status !== 'APPROVED') {
-    return { label: 'Oynanmamış Maç', borderColor: 'border-red-500/60', badgeColor: '#ef4444', textColor: 'text-red-400', bgTint: 'bg-red-500/5', type: 'unplayed' };
   }
   return null;
 };

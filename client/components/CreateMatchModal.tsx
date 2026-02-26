@@ -10,6 +10,7 @@ interface Props {
     onClose: () => void;
     preSelectedPitchId?: string;
     preSelectedStartTime?: string;
+    preSelectedDate?: string;
 }
 
 import { DateSelectionModal } from './DateSelectionModal';
@@ -20,9 +21,10 @@ interface Props {
     onClose: () => void;
     preSelectedPitchId?: string;
     preSelectedStartTime?: string;
+    preSelectedDate?: string;
 }
 
-export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelectedPitchId, preSelectedStartTime }) => {
+export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelectedPitchId, preSelectedStartTime, preSelectedDate }) => {
     if (!isOpen) return null;
 
     const [businesses, setBusinesses] = useState<Business[]>([]);
@@ -43,7 +45,7 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
         return `${year}-${month}-${day}`;
     };
 
-    const [date, setDate] = useState(getTodayDate());
+    const [date, setDate] = useState(preSelectedDate || getTodayDate());
     const [time, setTime] = useState(preSelectedStartTime || '');
     const [level, setLevel] = useState(SkillLevel.INTERMEDIATE);
     const [note, setNote] = useState('');
@@ -102,6 +104,8 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
 
         if (isOpen) {
             fetchInitialData();
+            // Always sync date with filter selection when opening
+            setDate(preSelectedDate || getTodayDate());
             // Reset state if opening fresh (optional, but good for UX if not pre-selected)
             if (!preSelectedPitchId) {
                 setSelectedBusinessId(null);

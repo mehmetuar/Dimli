@@ -173,7 +173,7 @@ export class ReservationsService {
             // 1. Fetch the reservation with all necessary relations
             const reservation = await manager.findOne(Reservation, {
                 where: { id },
-                relations: ['pitch', 'pitch.business', 'team', 'team.captain', 'opponentTeam']
+                relations: ['pitch', 'pitch.business', 'pitch.timeSlots', 'team', 'team.captain', 'team.players', 'opponentTeam', 'opponentTeam.players']
             });
 
             if (!reservation) {
@@ -219,19 +219,35 @@ export class ReservationsService {
                 const businessName = reservation.pitch?.business?.name || 'İşletme';
                 const pitchName = reservation.pitch?.name || 'Saha';
 
-                // Format Date and Time
+                // Format Date with Day Name
+                const dayName = approvalTime.toLocaleDateString('tr-TR', { weekday: 'long' });
                 const dateStr = approvalTime.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
-                const timeStr = approvalTime.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+                const startTimeStr = approvalTime.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
 
-                // Construct Message - CLEAN & EMOJI-FREE (except ball)
+                // Calculate end time from pitch time slots or default +1 hour
+                let endTimeStr = '';
+                const timeSlots = reservation.pitch?.timeSlots;
+                if (timeSlots && timeSlots.length > 0) {
+                    const matchingSlot = timeSlots.find(slot => slot.startTime === startTimeStr);
+                    if (matchingSlot) {
+                        endTimeStr = matchingSlot.endTime;
+                    }
+                }
+                if (!endTimeStr) {
+                    const endTime = new Date(approvalTime.getTime() + 60 * 60 * 1000);
+                    endTimeStr = endTime.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+                }
+
+                // Construct Message with full details
                 let messageContent = `Maçınız kesinleşti! ⚽\n\n` +
-                    `Tarih: ${dateStr}\n` +
-                    `Saat: ${timeStr}\n` +
-                    `Saha: ${pitchName}`;
+                    `🏟️ ${businessName}\n` +
+                    `📍 ${pitchName}\n` +
+                    `📅 ${dateStr} ${dayName.charAt(0).toUpperCase() + dayName.slice(1)}\n` +
+                    `⏰ ${startTimeStr} - ${endTimeStr}`;
 
                 // Add Business Note if exists
                 if (businessNote && businessNote.trim() !== '') {
-                    messageContent += `\n\n💬 **İşletme Notu:**\n${businessNote}`;
+                    messageContent += `\n\n💬 İşletme Notu:\n${businessNote}`;
                 }
 
                 this.logger.log(`Sending approval system message for matchAnnouncementId: ${reservation.matchAnnouncementId}`);
@@ -245,6 +261,41 @@ export class ReservationsService {
                 );
             } else {
                 this.logger.warn(`No matchAnnouncementId found for reservation ${id}, skipping chat message.`);
+            }
+
+            // 4.5 SEND NOTIFICATIONS TO ALL TEAM PLAYERS
+            try {
+                const businessName = reservation.pitch?.business?.name || 'İşletme';
+                const pitchName = reservation.pitch?.name || 'Saha';
+                const notifDayName = approvalTime.toLocaleDateString('tr-TR', { weekday: 'long' });
+                const notifDateStr = approvalTime.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
+                const notifTimeStr = approvalTime.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+
+                const playersToNotify: any[] = [];
+                if (reservation.team?.players) {
+                    playersToNotify.push(...reservation.team.players);
+                }
+                if (reservation.opponentTeam?.players) {
+                    playersToNotify.push(...reservation.opponentTeam.players);
+                }
+
+                for (const player of playersToNotify) {
+                    await this.notificationsService.create({
+                        userId: player.id,
+                        type: 'SYSTEM',
+                        title: '⚽ Maçınız Kesinleşti!',
+                        message: `${businessName} - ${pitchName}\n${notifDateStr} ${notifDayName.charAt(0).toUpperCase() + notifDayName.slice(1)} | ${notifTimeStr}\n\nTakımım sayfasından yaklaşan maçlarınızı görüntüleyebilirsiniz. İyi oyunlar! 🏆`,
+                        relatedId: reservation.id,
+                        read: false,
+                        metadata: {
+                            type: 'MATCH_APPROVED',
+                            reservationId: reservation.id
+                        }
+                    });
+                }
+                this.logger.log(`Sent MATCH_APPROVED notifications to ${playersToNotify.length} players.`);
+            } catch (error) {
+                this.logger.error('Failed to send player notifications:', error);
             }
 
             // 5. Reject others for the same slot (PASSIVE STATE)
@@ -370,7 +421,7 @@ export class ReservationsService {
         }
 
         const businessName = reservation.pitch?.business?.name || 'İşletme';
-        const messageContent = `💬 **${businessName} Mesajı:**\n${note}`;
+        const messageContent = `💬 ${businessName} Mesajı:\n${note}`;
 
         await this.sendSystemMessage(
             this.dataSource.manager, // Use main manager since not in a transaction

@@ -77,6 +77,9 @@ const getMatchStatusConfig = (reservation?: { status: string; slotTime: string }
     const slotDate = new Date(reservation.slotTime);
     const matchEndTime = new Date(slotDate.getTime() + 60 * 60 * 1000);
 
+    if (now > slotDate && reservation.status !== 'APPROVED') {
+        return { label: 'Oynanmamış Maç', color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/30', gradient: 'from-red-500 to-rose-500', type: 'unplayed' as const };
+    }
     if (reservation.status === 'PENDING') {
         return { label: 'Onay Bekliyor', color: 'text-orange-400', bg: 'bg-orange-500/10', border: 'border-orange-500/30', gradient: 'from-orange-500 to-amber-500', type: 'pending' as const };
     }
@@ -88,9 +91,6 @@ const getMatchStatusConfig = (reservation?: { status: string; slotTime: string }
     }
     if (reservation.status === 'REJECTED') {
         return { label: 'Reddedildi', color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/30', gradient: 'from-red-500 to-rose-500', type: 'unplayed' as const };
-    }
-    if (now > slotDate && reservation.status !== 'APPROVED') {
-        return { label: 'Oynanmamış Maç', color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/30', gradient: 'from-red-500 to-rose-500', type: 'unplayed' as const };
     }
     return { label: 'Beklemede', color: 'text-slate-400', bg: 'bg-slate-500/10', border: 'border-slate-500/30', gradient: 'from-slate-500 to-slate-600', type: 'pending' as const };
 };

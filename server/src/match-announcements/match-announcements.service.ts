@@ -7,6 +7,7 @@ import { User } from '../users/user.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ReservationsService } from '../reservations/reservations.service';
 import { ChatService } from '../chat/chat.service';
+import { Pitch } from '../pitches/entities/pitch.entity';
 
 @Injectable()
 export class MatchAnnouncementsService {
@@ -21,7 +22,7 @@ export class MatchAnnouncementsService {
     ) { }
 
     async create(data: Partial<MatchAnnouncement>, userId: string): Promise<MatchAnnouncement> {
-        // Get user to find their team
+        // Ensure user belongs to a team
         const user = await this.usersRepository.findOne({
             where: { id: userId },
             relations: ['team']
@@ -110,18 +111,62 @@ export class MatchAnnouncementsService {
         if (saved.matchType === 'kendi_aramizda') {
             console.log('⚽ Kendi aramızda match detected. Creating chat and pending reservation...');
             try {
+                // For "Kendi Aramızda" matches, all team members should be in the chat
+                const players = await this.usersRepository.find({
+                    where: { teamId: user.team.id }
+                });
+
+                const participants = players && players.length > 0
+                    ? players
+                    : [user];
+
                 // Create single-team chat
                 const channel = await this.chatService.createChannel(
                     'MATCH_GROUP',
                     `${user.team.name} (Kendi Aramızda)`,
-                    [user], // Add captain/creator
+                    participants, // Add all team members
                     saved.id
                 );
+
+                // Load pitch with business and timeSlots for detailed message
+                const pitchData = await this.matchAnnouncementsRepository.manager.findOne(
+                    Pitch,
+                    {
+                        where: { id: saved.pitchId },
+                        relations: ['business', 'timeSlots']
+                    }
+                );
+
+                const businessName = pitchData?.business?.name || 'İşletme';
+                const pitchName = pitchData?.name || 'Saha';
+
+                // Format date with day name
+                const dayName = announcementDate.toLocaleDateString('tr-TR', { weekday: 'long' });
+                const formattedDate = announcementDate.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
+
+                // Calculate end time from pitch time slots or default +1 hour
+                let endTimeStr = '';
+                const timeSlots = pitchData?.timeSlots;
+                if (timeSlots && timeSlots.length > 0) {
+                    const matchingSlot = timeSlots.find(slot => slot.startTime === data.time);
+                    if (matchingSlot) {
+                        endTimeStr = matchingSlot.endTime;
+                    }
+                }
+                if (!endTimeStr) {
+                    const endTime = new Date(announcementDate.getTime() + 60 * 60 * 1000);
+                    endTimeStr = endTime.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+                }
 
                 await this.chatService.sendMessage(
                     channel.id,
                     user.id,
-                    `Saha isteği gönderildi!\n${saved.date} ${saved.time}\n\nİşletme onayladığında sahanız kesinleşecektir. Onay durumunu buradan takip edebilirsiniz.\n\nLütfen işletmeyi arayıp sahanızı kesinleştiriniz. Yerinizi Kapabilirler`,
+                    `Saha isteği gönderildi! 📋\n\n` +
+                    `🏟️ ${businessName}\n` +
+                    `📍 ${pitchName}\n` +
+                    `📅 ${formattedDate} ${dayName.charAt(0).toUpperCase() + dayName.slice(1)}\n` +
+                    `⏰ ${data.time} - ${endTimeStr}\n\n` +
+                    `İşletme onayladığında sahanız kesinleşecektir.\nOnay durumunu buradan takip edebilirsiniz.\n\nLütfen işletmeyi arayıp sahanızı kesinleştiriniz.\nYerinizi kapabilirler.`,
                     true
                 );
 
@@ -232,10 +277,10 @@ export class MatchAnnouncementsService {
                     }
                 }
 
-                // Delete or Mark Expired
-                await this.matchAnnouncementsRepository.remove(announcement);
-                // Alternatively: announcement.status = 'EXPIRED'; await repo.save(announcement);
-                console.log('✅ Announcement removed.');
+                // Mark Expired instead of Delete
+                announcement.status = 'EXPIRED';
+                await this.matchAnnouncementsRepository.save(announcement);
+                console.log('✅ Announcement marked as EXPIRED.');
             }
         }
     }
@@ -248,11 +293,11 @@ export class MatchAnnouncementsService {
         const day = String(today.getDate()).padStart(2, '0');
         const todayStr = `${year}-${month}-${day}`;
 
-        // Delete announcements where date is less than today
+        // Expire announcements where date is less than today
         await this.matchAnnouncementsRepository
             .createQueryBuilder()
-            .delete()
-            .from(MatchAnnouncement)
+            .update(MatchAnnouncement)
+            .set({ status: 'EXPIRED' })
             .where('date < :today', { today: todayStr })
             .andWhere('status = :status', { status: 'PENDING' })
             .execute();

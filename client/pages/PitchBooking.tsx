@@ -570,6 +570,7 @@ export const PitchBooking: React.FC = () => {
             onClose={() => setIsCreateModalOpen(false)}
             preSelectedPitchId={createModalPitchId}
             preSelectedStartTime={createModalStartTime}
+            preSelectedDate={selectedDate}
          />
 
          {/* Reservation Modal */}
@@ -749,13 +750,15 @@ export const PitchBooking: React.FC = () => {
 
                                           const announcements = pitchAnnouncements.filter((announcement: any) => {
                                              const announcementTime = announcement.time || '';
-                                             return announcementTime.startsWith(slot.startTime);
+                                             const announcementDate = announcement.date || '';
+                                             return announcementDate === selectedDate && announcementTime.startsWith(slot.startTime) && announcement.matchType !== 'kendi_aramizda';
                                           });
                                           const hasAnnouncement = announcements.length > 0;
 
                                           const slotReservations = reservations.filter((res: any) => {
                                              const resTime = new Date(res.slotTime);
                                              return resTime.getHours() === slotH && resTime.getMinutes() === (slotM || 0);
+
                                           });
 
                                           const approvedReservation = slotReservations.find((r: any) => r.status === 'APPROVED');

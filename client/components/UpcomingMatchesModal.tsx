@@ -53,10 +53,10 @@ export const UpcomingMatchesModal: React.FC<UpcomingMatchesModalProps> = ({
         return date.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
     };
 
-    const getOpponentName = (match: UpcomingMatch) => {
-        if (!currentTeamId) return match.opponentTeam?.name || match.team?.name || '—';
-        if (match.team?.id === currentTeamId) return match.opponentTeam?.name || 'Rakip TBD';
-        return match.team?.name || 'Rakip TBD';
+    const getOpponentName = (match: UpcomingMatch): string | null => {
+        if (!currentTeamId) return match.opponentTeam?.name || match.team?.name || null;
+        if (match.team?.id === currentTeamId) return match.opponentTeam?.name || null;
+        return match.team?.name || null;
     };
 
     return (
@@ -145,23 +145,21 @@ export const UpcomingMatchesModal: React.FC<UpcomingMatchesModalProps> = ({
                                                 <MapPin className="w-4 h-4 text-blue-400" />
                                             </div>
                                             <div>
-                                                <div className="text-white font-bold text-sm">{pitchName}</div>
-                                                <div className="text-slate-400 text-xs">{businessName}</div>
+                                                <div className="text-white font-bold text-sm">{businessName}</div>
+                                                <div className="text-slate-400 text-xs">{pitchName}</div>
                                             </div>
                                         </div>
 
                                         {/* Opponent */}
-                                        {opponent && opponent !== 'Rakip TBD' && (
-                                            <div className="flex items-center gap-3">
-                                                <div className="bg-slate-800 p-2 rounded-lg shrink-0 border border-slate-700">
-                                                    <Users className="w-4 h-4 text-purple-400" />
-                                                </div>
-                                                <div>
-                                                    <div className="text-slate-400 text-xs">Rakip Takım</div>
-                                                    <div className="text-white font-bold text-sm">{opponent}</div>
-                                                </div>
+                                        <div className="flex items-center gap-3">
+                                            <div className="bg-slate-800 p-2 rounded-lg shrink-0 border border-slate-700">
+                                                <Users className="w-4 h-4 text-purple-400" />
                                             </div>
-                                        )}
+                                            <div>
+                                                <div className="text-slate-400 text-xs">Rakip Takım</div>
+                                                <div className="text-white font-bold text-sm">{opponent ?? 'Kendi Aramızda'}</div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             );

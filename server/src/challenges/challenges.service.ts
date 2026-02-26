@@ -165,7 +165,7 @@ export class ChallengesService {
             // 2. Create Chat Channel
             const match = await this.matchAnnouncementsRepository.findOne({
                 where: { id: challenge.toMatchId },
-                relations: ['team', 'team.captain']
+                relations: ['team', 'team.captain', 'pitch', 'pitch.business', 'pitch.timeSlots']
             });
 
             if (!match) throw new Error('Match not found');
@@ -201,11 +201,40 @@ export class ChallengesService {
                 }
             });
 
-            // 4. Send System Message to Chat
+            // 4. Send System Message to Chat — Detailed format
+            const businessName = match.pitch?.business?.name || 'İşletme';
+            const pitchName = match.pitch?.name || 'Saha';
+
+            // Parse date and format with day name
+            const [matchYear, matchMonth, matchDay] = match.date.split('-').map(Number);
+            const [matchHours, matchMinutes] = match.time.split(':').map(Number);
+            const matchDateTime = new Date(matchYear, matchMonth - 1, matchDay, matchHours, matchMinutes);
+            const dayName = matchDateTime.toLocaleDateString('tr-TR', { weekday: 'long' });
+            const formattedDate = matchDateTime.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
+
+            // Calculate end time from pitch time slots or default +1 hour
+            let endTimeStr = '';
+            const timeSlots = match.pitch?.timeSlots;
+            if (timeSlots && timeSlots.length > 0) {
+                const matchingSlot = timeSlots.find(slot => slot.startTime === match.time);
+                if (matchingSlot) {
+                    endTimeStr = matchingSlot.endTime;
+                }
+            }
+            if (!endTimeStr) {
+                const endTime = new Date(matchDateTime.getTime() + 60 * 60 * 1000);
+                endTimeStr = endTime.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+            }
+
             await this.chatService.sendMessage(
                 channel.id,
-                hostTeam.captain.id, // System message sender (can be anyone or specific system user)
-                `Eşleşme Onaylandı!\n${match.date} ${match.time}\n\nMaçı kesinleştirmek için Sahayı arayın ve saatinizi rezerve edin.\nAcele et! Yerinizi kapabilirler.`,
+                hostTeam.captain.id,
+                `Eşleşme Onaylandı!\n\n` +
+                `🏟️ ${businessName}\n` +
+                `📍 ${pitchName}\n` +
+                `📅 ${formattedDate} ${dayName.charAt(0).toUpperCase() + dayName.slice(1)}\n` +
+                `⏰ ${match.time} - ${endTimeStr}\n\n` +
+                `Maçı kesinleştirmek için Sahayı arayın ve saatinizi rezerve edin.\nAcele et! Yerinizi kapabilirler.`,
                 true
             );
 
