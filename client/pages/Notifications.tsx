@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Bell, Check, X, Calendar, UserPlus, CheckCircle, AlertCircle, MessageSquare, MapPin, Handshake } from 'lucide-react';
+import { Bell, Check, X, Calendar, UserPlus, CheckCircle, AlertCircle, MessageSquare, MapPin, Handshake, Swords } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { LoadingSpinner } from '../components/LoadingSpinner';
@@ -29,7 +29,7 @@ interface JoinRequest {
 
 interface Notification {
    id: string;
-   type: 'JOIN_REQUEST' | 'CHALLENGE' | 'MATCH_RESULT';
+   type: 'JOIN_REQUEST' | 'CHALLENGE' | 'MATCH_RESULT' | 'REMATCH_PROPOSAL' | 'SYSTEM' | 'MATCH_REMINDER' | 'RESERVATION_REQUEST';
    relatedId: string;
    metadata: any;
    read: boolean;
@@ -188,6 +188,29 @@ export const Notifications: React.FC = () => {
    const filteredJoinRequests = joinRequests.filter(r => r.status === 'PENDING');
    const filteredMatchRequests = matchRequests.filter(r => r.status === 'PENDING');
 
+   // Filter REMATCH_PROPOSAL notifications (PENDING ones)
+   const rematchProposals = notifications.filter(n => n.type === 'REMATCH_PROPOSAL');
+
+   const handleAcceptRematchFromNotif = async (notification: Notification) => {
+      const channelId = notification.metadata?.channelId;
+      const matchAnnouncementId = notification.metadata?.matchAnnouncementId;
+      if (!channelId || !matchAnnouncementId) {
+         setErrorMessage('Teklif bilgileri eksik.');
+         return;
+      }
+      try {
+         const result = await api.post(`/chat/channels/${channelId}/accept-rematch`, {
+            matchAnnouncementId
+         });
+         setSuccessMessage('Rövanş teklifi kabul edildi! Yeni sohbet kanalı oluşturuldu.');
+         setErrorMessage('');
+         setTimeout(() => navigate('/chat'), 1500);
+      } catch (error: any) {
+         console.error('Rövanş teklifi kabul edilemedi:', error);
+         setErrorMessage(error.response?.data?.message || 'Kabul edilemedi.');
+      }
+   };
+
    return (
       <div className="pb-28 pt-20 pt-safe-top px-4 max-w-3xl mx-auto min-h-screen bg-pitch">
          <header className="mb-6">
@@ -230,7 +253,7 @@ export const Notifications: React.FC = () => {
                   : 'text-slate-400 hover:text-white'
                   }`}
             >
-               MAÇ{`\nİSTEKLERİ (${filteredMatchRequests.length})`}
+               MAÇ{`\nİSTEKLERİ (${filteredMatchRequests.length + rematchProposals.length})`}
             </button>
             <button
                onClick={() => setActiveTab('JOIN_REQUESTS')}
@@ -251,7 +274,7 @@ export const Notifications: React.FC = () => {
                {/* MAÇ İSTEKLERİ TAB */}
                {activeTab === 'MATCH_REQUESTS' && (
                   <>
-                     {filteredMatchRequests.length === 0 ? (
+                     {filteredMatchRequests.length === 0 && rematchProposals.length === 0 ? (
                         <div className="text-center py-12 opacity-50">
                            <Handshake className="w-12 h-12 text-slate-600 mx-auto mb-3" />
                            <p className="text-slate-400 text-sm">Bekleyen maç isteği yok.</p>
@@ -340,6 +363,55 @@ export const Notifications: React.FC = () => {
                            </div>
                         ))
                      )}
+
+                      {/* Rövanş Teklifleri */}
+                      {rematchProposals.length > 0 && (
+                         <>
+                            {filteredMatchRequests.length > 0 && (
+                               <div className="border-t border-slate-700 my-4 pt-2">
+                                  <p className="text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-2">
+                                     <Swords className="w-4 h-4 text-turf-500" /> Rövanş Teklifleri
+                                  </p>
+                               </div>
+                            )}
+                            {rematchProposals.map(notif => (
+                               <div key={notif.id} className="p-4 rounded-2xl border flex gap-4 items-start transition-all relative overflow-hidden bg-slate-800 border-slate-700 hover:border-turf-500/50">
+                                  <div className="absolute right-0 top-0 w-20 h-full bg-gradient-to-l from-turf-600/10 to-transparent pointer-events-none"></div>
+                                  <div className="w-12 h-12 rounded-full bg-turf-500/20 flex items-center justify-center flex-shrink-0">
+                                     <Swords className="w-6 h-6 text-turf-500" />
+                                  </div>
+                                  <div className="flex-1 min-w-0 relative z-10">
+                                     <div className="flex justify-between items-start">
+                                        <h3 className="font-bold text-white text-base">{notif.metadata?.proposerTeamName || 'Rövanş Teklifi'}</h3>
+                                        <span className="text-[10px] font-bold text-slate-500 uppercase">{new Date(notif.createdAt).toLocaleDateString('tr-TR')}</span>
+                                     </div>
+                                     <div className="flex items-center gap-2 text-xs text-slate-400 mt-1">
+                                        <Calendar className="w-3 h-3 text-turf-500" />
+                                        <span className="text-white font-bold">
+                                           {notif.metadata?.matchDate && notif.metadata?.matchTime
+                                              ? `${new Date(notif.metadata.matchDate).toLocaleDateString('tr-TR')} ${notif.metadata.matchTime}`
+                                              : 'Tarih Bilinmiyor'}
+                                        </span>
+                                     </div>
+                                     {(notif.metadata?.businessName || notif.metadata?.pitchName) && (
+                                        <div className="flex items-center gap-1 text-xs text-turf-400 mt-1 mb-2">
+                                           <MapPin className="w-3 h-3 flex-shrink-0" />
+                                           <span className="font-semibold truncate">{notif.metadata.businessName} · {notif.metadata.pitchName}</span>
+                                        </div>
+                                     )}
+                                     <div className="flex gap-2 mt-2">
+                                        <button onClick={() => handleAcceptRematchFromNotif(notif)} className="flex-1 py-2 bg-turf-600 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1 hover:bg-turf-500 transition-colors shadow-lg shadow-turf-600/20">
+                                           <Check className="w-3 h-3" /> Kabul Et
+                                        </button>
+                                        <button onClick={() => navigate('/chat', { state: { channelId: notif.metadata?.channelId } })} className="flex-1 py-2 bg-slate-700 text-slate-300 rounded-lg text-xs font-bold flex items-center justify-center gap-1 hover:bg-blue-900/50 hover:text-blue-400 transition-colors">
+                                           <MessageSquare className="w-3 h-3" /> Sohbete Git
+                                        </button>
+                                     </div>
+                                  </div>
+                               </div>
+                            ))}
+                         </>
+                      )}
                   </>
                )}
 
@@ -433,7 +505,8 @@ export const Notifications: React.FC = () => {
                            >
                               <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${notif.type === 'JOIN_REQUEST' ? 'bg-blue-500' :
                                  notif.type === 'CHALLENGE' ? 'bg-turf-500' :
-                                    'bg-yellow-500'
+                                    notif.type === 'REMATCH_PROPOSAL' ? 'bg-purple-500' :
+                                       'bg-yellow-500'
                                  }`}></div>
 
                               <div className="p-4 pl-6">
@@ -442,6 +515,10 @@ export const Notifications: React.FC = () => {
                                        {notif.type === 'JOIN_REQUEST' && 'Yeni Katılma İsteği'}
                                        {notif.type === 'CHALLENGE' && 'Yeni Meydan Okuma'}
                                        {notif.type === 'MATCH_RESULT' && 'Maç Sonucu'}
+                                       {notif.type === 'REMATCH_PROPOSAL' && '📩 Yeni Maç Teklifi!'}
+                                       {notif.type === 'SYSTEM' && (notif as any).title}
+                                       {notif.type === 'MATCH_REMINDER' && (notif as any).title}
+                                       {notif.type === 'RESERVATION_REQUEST' && (notif as any).title}
                                     </h3>
                                     <span className="text-[10px] font-bold text-slate-500 uppercase">
                                        {new Date(notif.createdAt).toLocaleDateString('tr-TR')}
@@ -495,6 +572,24 @@ export const Notifications: React.FC = () => {
                                           </div>
                                        );
                                     })()
+                                 )}
+
+                                 {/* Rematch Proposal Actions */}
+                                 {notif.type === 'REMATCH_PROPOSAL' && notif.metadata?.matchAnnouncementId && (
+                                    <div className="flex gap-2 mt-3">
+                                       <button
+                                          onClick={() => handleAcceptRematchFromNotif(notif)}
+                                          className="flex-1 py-2 bg-turf-600 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1 hover:bg-turf-500 transition-colors shadow-lg shadow-turf-600/20"
+                                       >
+                                          <Check className="w-3 h-3" /> Kabul Et
+                                       </button>
+                                       <button
+                                          onClick={() => navigate('/chat', { state: { channelId: notif.metadata?.channelId } })}
+                                          className="flex-1 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1 hover:bg-blue-500 transition-colors shadow-lg shadow-blue-600/20"
+                                       >
+                                          <MessageSquare className="w-3 h-3" /> Sohbete Git
+                                       </button>
+                                    </div>
                                  )}
 
                                  {/* Sohbet Yönlendirme */}

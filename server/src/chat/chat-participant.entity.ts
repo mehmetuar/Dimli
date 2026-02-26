@@ -26,4 +26,7 @@ export class ChatParticipant {
 
     @CreateDateColumn()
     joinedAt: Date;
+
+    @Column({ type: 'timestamp', nullable: true, default: null })
+    deletedAt: Date | null;
 }

@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ChatController } from './chat.controller';
 import { ChatService } from './chat.service';
@@ -10,6 +10,10 @@ import { Reservation } from '../reservations/entities/reservation.entity';
 import { MatchAnnouncement } from '../match-announcements/match-announcement.entity';
 import { Team } from '../teams/team.entity';
 import { Pitch } from '../pitches/entities/pitch.entity';
+import { Challenge } from '../challenges/challenge.entity';
+import { NotificationsModule } from '../notifications/notifications.module';
+import { ReservationsModule } from '../reservations/reservations.module';
+import { TeamsModule } from '../teams/teams.module';
 
 @Module({
     imports: [
@@ -22,7 +26,11 @@ import { Pitch } from '../pitches/entities/pitch.entity';
             MatchAnnouncement,
             Team,
             Pitch,
+            Challenge,
         ]),
+        forwardRef(() => NotificationsModule),
+        forwardRef(() => ReservationsModule),
+        forwardRef(() => TeamsModule),
     ],
     controllers: [ChatController],
     providers: [ChatService],

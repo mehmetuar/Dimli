@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Bot, ChevronLeft, Users, Shield, Star, Phone, MessageSquare, UserPlus, ArrowDown } from 'lucide-react';
+import { Send, Bot, ChevronLeft, Users, Shield, Star, Phone, MessageSquare, UserPlus, ArrowDown, Swords } from 'lucide-react';
 import { getTacticalAdvice } from '../services/geminiService';
 import { SkillLevel, ChatChannel, Team } from '../types';
 import { MOCK_CHANNELS, MOCK_MESSAGES, MOCK_TEAMS, CURRENT_USER, MOCK_JOKERS } from '../constants';
@@ -8,6 +8,9 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { KendiAramizdaMatchModal } from '../components/KendiAramizdaMatchModal';
 import { InviteJokerModal } from '../components/InviteJokerModal';
 import { MatchDetailModal } from '../components/MatchDetailModal';
+import { RematchProposalModal } from '../components/RematchProposalModal';
+import { ConfirmModal } from '../components/ConfirmModal';
+import { SuccessModal } from '../components/SuccessModal';
 import api from '../services/api';
 
 // Utility Hook for Long Press
@@ -151,6 +154,15 @@ export const Chat: React.FC = () => {
   // Chat Options Modal State
   const [optionsModalChannel, setOptionsModalChannel] = useState<any | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Rematch Proposal Modal State
+  const [isRematchModalOpen, setIsRematchModalOpen] = useState(false);
+
+  // Confirm & Success Modal States
+  const [confirmModalOpen, setConfirmModalOpen] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null);
+  const [successModalOpen, setSuccessModalOpen] = useState(false);
+  const [successModalMessage, setSuccessModalMessage] = useState('');
 
   // Scroll State
   const [showScrollButton, setShowScrollButton] = useState(false);
@@ -397,50 +409,54 @@ export const Chat: React.FC = () => {
         </div>
 
         {/* --- CHAT OPTIONS MODAL --- */}
-        {optionsModalChannel && (
-          <div className="fixed inset-0 z-[70] flex items-center justify-center px-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-            <div className="bg-slate-800 w-full max-w-sm rounded-3xl border border-slate-700 p-6 relative">
-              <button
-                onClick={() => setOptionsModalChannel(null)}
-                className="absolute top-4 right-4 text-slate-500 hover:text-white"
-              >
-                <ChevronLeft className="w-6 h-6 rotate-180" /> {/* Or X icon */}
-              </button>
-
-              <h3 className="text-xl font-bold text-white mb-2 text-center">{optionsModalChannel.name}</h3>
-              <p className="text-slate-400 text-sm text-center mb-6">Bu sohbet için ne yapmak istersin?</p>
-
-              <div className="space-y-3">
+        {optionsModalChannel && (() => {
+          const modalStatusInfo = getMatchStatusInfo(optionsModalChannel.reservation);
+          const canDelete = modalStatusInfo?.type === 'played' || modalStatusInfo?.type === 'unplayed';
+          return (
+            <div className="fixed inset-0 z-[70] flex items-center justify-center px-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+              <div className="bg-slate-800 w-full max-w-sm rounded-3xl border border-slate-700 p-6 relative">
                 <button
-                  onClick={() => {
-                    // setSelectedChannelId(optionsModalChannel.id); // No "Go to chat" button needed inside options if normal click works
-                    // But maybe keep it? The user asked for "options".
-                    // Request: "Sohbete tıkladığım zaman direk gir. Eğer basılı tutarsam sohbeti sil modalını aç"
-                    // So the modal is predominantly for deleting.
-                    setOptionsModalChannel(null); // Close modal
-                  }}
-                  className="w-full bg-slate-700 text-white font-bold py-3 rounded-xl hover:bg-slate-600 transition-colors flex items-center justify-center gap-2"
+                  onClick={() => setOptionsModalChannel(null)}
+                  className="absolute top-4 right-4 text-slate-500 hover:text-white"
                 >
-                  Vazgeç
+                  <ChevronLeft className="w-6 h-6 rotate-180" />
                 </button>
 
-                <button
-                  onClick={handleDeleteChannel}
-                  disabled={isDeleting}
-                  className="w-full bg-slate-900 border border-slate-700 text-slate-400 hover:text-red-400 hover:border-red-900/50 font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2"
-                >
-                  {isDeleting ? 'Siliniyor...' : (
-                    <><Shield className="w-5 h-5" /> Sohbeti Sil (Temizle)</>
+                <h3 className="text-xl font-bold text-white mb-2 text-center">{optionsModalChannel.name}</h3>
+                <p className="text-slate-400 text-sm text-center mb-6">Bu sohbet için ne yapmak istersin?</p>
+
+                <div className="space-y-3">
+                  <button
+                    onClick={() => {
+                      setOptionsModalChannel(null);
+                    }}
+                    className="w-full bg-slate-700 text-white font-bold py-3 rounded-xl hover:bg-slate-600 transition-colors flex items-center justify-center gap-2"
+                  >
+                    Vazgeç
+                  </button>
+
+                  {canDelete && (
+                    <button
+                      onClick={handleDeleteChannel}
+                      disabled={isDeleting}
+                      className="w-full bg-slate-900 border border-slate-700 text-slate-400 hover:text-red-400 hover:border-red-900/50 font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2"
+                    >
+                      {isDeleting ? 'Siliniyor...' : (
+                        <><Shield className="w-5 h-5" /> Sohbeti Sil</>
+                      )}
+                    </button>
                   )}
-                </button>
-              </div>
+                </div>
 
-              <p className="text-[10px] text-slate-600 text-center mt-4">
-                Not: Maç saati geçmeyen sohbetler silinemez.
-              </p>
+                {!canDelete && (
+                  <p className="text-[10px] text-slate-600 text-center mt-4">
+                    Not: Sadece oynanmış veya oynanmamış maç sohbetleri silinebilir.
+                  </p>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
       </div>
     );
   }
@@ -459,6 +475,28 @@ export const Chat: React.FC = () => {
     }
   };
 
+  const handleAcceptRematch = async (matchAnnouncementId: string) => {
+    setConfirmAction(() => async () => {
+      try {
+        const result = await api.post(`/chat/channels/${selectedChannelId}/accept-rematch`, {
+          matchAnnouncementId
+        });
+        setSuccessModalMessage('Teklif kabul edildi! Yeni sohbet kanalı oluşturuldu.');
+        setSuccessModalOpen(true);
+        setTimeout(() => {
+          if (result.data?.newChannelId) {
+            window.location.reload();
+          }
+        }, 1500);
+      } catch (error: any) {
+        console.error('Failed to accept rematch:', error);
+        setSuccessModalMessage(error.response?.data?.message || 'İşlem başarısız.');
+        setSuccessModalOpen(true);
+      }
+    });
+    setConfirmModalOpen(true);
+  };
+
   // --- COMPONENT: ACTIVE CHAT VIEW ---
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-pitch-surface">
@@ -466,6 +504,15 @@ export const Chat: React.FC = () => {
         isOpen={isInviteModalOpen}
         onClose={() => setIsInviteModalOpen(false)}
         joker={opponentJoker}
+      />
+
+      <RematchProposalModal
+        isOpen={isRematchModalOpen}
+        onClose={() => setIsRematchModalOpen(false)}
+        channelId={selectedChannelId || ''}
+        matchType={getMatchStatusInfo(activeChannel?.reservation)?.type === 'played' ? 'played' : 'unplayed'}
+        previousPitchId={activeChannel?.pitch?.id}
+        previousPlayerCount={activeChannel?.match?.playerCount}
       />
 
       {matchDetailData?.match?.matchType === 'kendi_aramizda' ? (
@@ -485,7 +532,7 @@ export const Chat: React.FC = () => {
       )}
 
       {/* Custom Header */}
-      <div className="bg-slate-900/90 backdrop-blur pt-safe-top top-safe-top p-4 border-b border-slate-800 flex flex-col gap-3 sticky top-0 z-50 shadow-lg">
+      <div className="bg-slate-900/90 backdrop-blur pt-safe-top p-4 border-b border-slate-800 flex flex-col gap-3 sticky top-0 z-50 shadow-lg">
         <div className="flex items-center gap-3">
           <button
             onClick={() => setSelectedChannelId(null)}
@@ -612,6 +659,28 @@ export const Chat: React.FC = () => {
                     <span>Teklifi Kabul Et</span>
                   </button>
                 )}
+
+                {/* Accept Button for Rematch Proposals */}
+                {msg.metadata?.type === 'REMATCH_PROPOSAL' && msg.metadata?.matchAnnouncementId && (() => {
+                  // Show accept button only to opponent team's captain/vice-captain
+                  const userTeamId = currentUser?.team?.id;
+                  const isCaptain = currentUser?.team?.captainId === currentUser?.id;
+                  const isViceCaptain = currentUser?.team?.viceCaptainIds?.includes(currentUser?.id);
+                  const isProposerTeam = msg.senderId === currentUser?.id; // Don't show to sender
+
+                  if ((isCaptain || isViceCaptain) && !isProposerTeam) {
+                    return (
+                      <button
+                        onClick={() => handleAcceptRematch(msg.metadata.matchAnnouncementId)}
+                        className="mt-3 bg-turf-600 hover:bg-turf-700 text-white font-bold py-2 px-5 rounded-full text-xs transition-colors flex items-center gap-2 mx-auto"
+                      >
+                        <Swords className="w-4 h-4" />
+                        <span>Teklifi Onayla</span>
+                      </button>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
             </div>
           ) : (
@@ -682,27 +751,80 @@ export const Chat: React.FC = () => {
       </div>
 
       {/* Input Area */}
-      <div className="p-3 bg-slate-900 border-t border-slate-800 pb-safe-bottom">
-        <div className="flex gap-2 items-end">
-          {/* Phone button removed */}
-          <div className="flex-1 bg-slate-800 rounded-xl flex items-center border border-slate-700 focus-within:border-turf-500 transition-colors">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-              placeholder="Mesaj yaz..."
-              className="w-full bg-transparent px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none"
-            />
+      {(() => {
+        const activeStatusInfo = getMatchStatusInfo(activeChannel?.reservation);
+        const isMatchFinished = activeStatusInfo?.type === 'played' || activeStatusInfo?.type === 'unplayed';
+
+        return (
+          <div className="p-3 bg-slate-900 border-t border-slate-800 pb-safe-bottom">
+            {isMatchFinished ? (
+              <div className="flex flex-col items-center py-3 gap-3">
+                <div className="flex items-center text-slate-500 text-sm font-medium">
+                  <Shield className="w-4 h-4 mr-2" />
+                  Bu sohbette artık mesaj gönderilemez.
+                </div>
+                {/* Rövanş / Yeni Maç butonu: sadece kaptan ve yardımcılara */}
+                {(() => {
+                  const isCaptain = currentUser?.team?.captainId === currentUser?.id;
+                  const isViceCaptain = currentUser?.team?.viceCaptainIds?.includes(currentUser?.id);
+                  if (isCaptain || isViceCaptain) {
+                    return (
+                      <button
+                        onClick={() => setIsRematchModalOpen(true)}
+                        className="bg-turf-600 hover:bg-turf-700 text-white font-bold py-2.5 px-6 rounded-xl text-sm transition-all flex items-center gap-2 shadow-lg shadow-turf-600/20 hover:scale-[1.02] active:scale-95"
+                      >
+                        <Swords className="w-4 h-4" />
+                        {activeStatusInfo?.type === 'played' ? 'Rövanş İste' : 'Yeni Maç Ayarla'}
+                      </button>
+                    );
+                  }
+                  return null;
+                })()}
+              </div>
+            ) : (
+              <div className="flex gap-2 items-end">
+                <div className="flex-1 bg-slate-800 rounded-xl flex items-center border border-slate-700 focus-within:border-turf-500 transition-colors">
+                  <input
+                    type="text"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                    placeholder="Mesaj yaz..."
+                    className="w-full bg-transparent px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none"
+                  />
+                </div>
+                <button
+                  onClick={handleSend}
+                  className={`p-3 rounded-xl transition-all ${input.trim() ? 'bg-turf-600 text-white shadow-lg shadow-turf-600/20 scale-100' : 'bg-slate-800 text-slate-500 scale-95'}`}
+                >
+                  <Send className="w-5 h-5" />
+                </button>
+              </div>
+            )}
           </div>
-          <button
-            onClick={handleSend}
-            className={`p-3 rounded-xl transition-all ${input.trim() ? 'bg-turf-600 text-white shadow-lg shadow-turf-600/20 scale-100' : 'bg-slate-800 text-slate-500 scale-95'}`}
-          >
-            <Send className="w-5 h-5" />
-          </button>
-        </div>
-      </div>
+        );
+      })()}
+      {/* Confirm Modal for Rematch Acceptance */}
+      <ConfirmModal
+        isOpen={confirmModalOpen}
+        onClose={() => setConfirmModalOpen(false)}
+        onConfirm={() => {
+          setConfirmModalOpen(false);
+          if (confirmAction) confirmAction();
+        }}
+        title="Rövanş Teklifi"
+        message="Bu rövanş teklifini kabul etmek istediğinize emin misiniz?"
+        confirmText="Onayla"
+        cancelText="İptal"
+      />
+
+      {/* Success/Error Modal */}
+      <SuccessModal
+        isOpen={successModalOpen}
+        onClose={() => setSuccessModalOpen(false)}
+        message={successModalMessage}
+        type="CHALLENGE_ACCEPTED"
+      />
     </div>
   );
 };

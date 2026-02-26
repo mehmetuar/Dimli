@@ -45,4 +45,23 @@ export class ChatController {
     deleteChannel(@Param('id') id: string, @Request() req) {
         return this.chatService.deleteChannel(id, req.user.id);
     }
+
+    @Post('channels/:id/rematch-proposal')
+    createRematchProposal(
+        @Param('id') channelId: string,
+        @Body() body: { pitchId: string; date: string; time: string; playerCount: number },
+        @Request() req
+    ) {
+        return this.chatService.createRematchProposal(channelId, req.user.id, body);
+    }
+
+    @Post('channels/:id/accept-rematch')
+    acceptRematchProposal(
+        @Param('id') channelId: string,
+        @Body() body: { matchAnnouncementId: string },
+        @Request() req
+    ) {
+        return this.chatService.acceptRematchProposal(channelId, req.user.id, body);
+    }
 }
+
