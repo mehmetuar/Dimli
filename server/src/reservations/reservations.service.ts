@@ -321,7 +321,7 @@ export class ReservationsService {
                                 manager,
                                 other.matchAnnouncementId,
                                 other.team,
-                                `İşletme farklı bir kullanıcıyı kesinleştirdi. {{SAD}}\nBu saat için maç fırsatınızı kaçırdınız.\nFarklı saatlere göz atmaya ne dersiniz?`,
+                                `İşletme farklı bir kullanıcıyı kesinleştirdi. {{SAD}}\nBu saat için maç fırsatınızı kaçırdınız.\nFarklı saatlere göz atmaya ne dersiniz?\n\nEğer bir sorun olduğunu düşünüyorsanız lütfen işletme ile iletişime geçin.`,
                                 { type: 'MATCH_REJECTED_PASSIVE', reservationId: other.id }
                             );
                         }

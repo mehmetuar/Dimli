@@ -86,6 +86,10 @@ const getMatchStatusInfo = (reservation?: { status: string; slotTime: string }):
   const slotDate = new Date(reservation.slotTime);
   const matchEndTime = new Date(slotDate.getTime() + 60 * 60 * 1000);
 
+  // REJECTED: her zaman Oynanmamış Maç (zaman bağımsız — işletme başkasını onayladı)
+  if (reservation.status === 'REJECTED') {
+    return { label: 'Oynanmamış Maç', borderColor: 'border-red-500/60', badgeColor: '#ef4444', textColor: 'text-red-400', bgTint: 'bg-red-500/5', type: 'unplayed' };
+  }
   if (now > slotDate && reservation.status !== 'APPROVED') {
     return { label: 'Oynanmamış Maç', borderColor: 'border-red-500/60', badgeColor: '#ef4444', textColor: 'text-red-400', bgTint: 'bg-red-500/5', type: 'unplayed' };
   }
