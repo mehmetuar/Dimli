@@ -12,7 +12,7 @@ import { RematchProposalModal } from '../components/RematchProposalModal';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { SuccessModal } from '../components/SuccessModal';
 import { SystemMessageRenderer, stripSystemMessageMarkers } from '../components/SystemMessageRenderer';
-import { CreateMatchModal } from '../components/CreateMatchModal';
+import { KendiAramizdaNewMatchModal } from '../components/KendiAramizdaNewMatchModal';
 import api from '../services/api';
 
 // Utility Hook for Long Press
@@ -521,10 +521,11 @@ export const Chat: React.FC = () => {
       />
 
       {/* Kendi Aramızda — Yeni Maç Ayarla */}
-      <CreateMatchModal
+      <KendiAramizdaNewMatchModal
         isOpen={isKendiAramizdaNewMatchOpen}
         onClose={() => setIsKendiAramizdaNewMatchOpen(false)}
-        preSelectedPitchId={activeChannel?.pitch?.id}
+        channelId={selectedChannelId || ''}
+        previousPitchId={activeChannel?.pitch?.id}
       />
 
       {matchDetailData?.match?.matchType === 'kendi_aramizda' ? (
@@ -543,8 +544,11 @@ export const Chat: React.FC = () => {
         />
       )}
 
+      {/* Safe-area spacer — status bar arka planını header rengiyle örtüyor */}
+      <div className="bg-slate-900 w-full flex-shrink-0" style={{ height: 'env(safe-area-inset-top, 0px)' }} />
+
       {/* Custom Header */}
-      <div className="bg-slate-900/90 backdrop-blur pt-safe-top p-4 border-b border-slate-800 flex flex-col gap-3 sticky top-0 z-50 shadow-lg">
+      <div className="bg-slate-900/90 backdrop-blur p-4 border-b border-slate-800 flex flex-col gap-3 sticky top-0 z-50 shadow-lg">
         <div className="flex items-center gap-3">
           <button
             onClick={() => setSelectedChannelId(null)}
