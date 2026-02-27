@@ -11,6 +11,8 @@ import { MatchDetailModal } from '../components/MatchDetailModal';
 import { RematchProposalModal } from '../components/RematchProposalModal';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { SuccessModal } from '../components/SuccessModal';
+import { SystemMessageRenderer, stripSystemMessageMarkers } from '../components/SystemMessageRenderer';
+import { CreateMatchModal } from '../components/CreateMatchModal';
 import api from '../services/api';
 
 // Utility Hook for Long Press
@@ -157,6 +159,9 @@ export const Chat: React.FC = () => {
 
   // Rematch Proposal Modal State
   const [isRematchModalOpen, setIsRematchModalOpen] = useState(false);
+
+  // Kendi Aramızda Yeni Maç Modal State
+  const [isKendiAramizdaNewMatchOpen, setIsKendiAramizdaNewMatchOpen] = useState(false);
 
   // Confirm & Success Modal States
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
@@ -515,6 +520,13 @@ export const Chat: React.FC = () => {
         previousPlayerCount={activeChannel?.match?.playerCount}
       />
 
+      {/* Kendi Aramızda — Yeni Maç Ayarla */}
+      <CreateMatchModal
+        isOpen={isKendiAramizdaNewMatchOpen}
+        onClose={() => setIsKendiAramizdaNewMatchOpen(false)}
+        preSelectedPitchId={activeChannel?.pitch?.id}
+      />
+
       {matchDetailData?.match?.matchType === 'kendi_aramizda' ? (
         <KendiAramizdaMatchModal
           isOpen={isMatchDetailOpen}
@@ -647,7 +659,7 @@ export const Chat: React.FC = () => {
           return msg.isSystem ? (
             <div key={msg.id} className="flex justify-center my-4 animate-fade-in px-4 w-full">
               <div className="bg-slate-800/95 border border-slate-700 text-slate-200 text-sm font-medium px-6 py-4 rounded-xl text-center w-full shadow-lg whitespace-pre-wrap">
-                {msg.text}
+                <SystemMessageRenderer text={msg.text} />
 
                 {/* Action Button for Time Proposals */}
                 {msg.metadata?.type === 'PROPOSAL_ACTION' && (
@@ -767,16 +779,31 @@ export const Chat: React.FC = () => {
                 {(() => {
                   const isCaptain = currentUser?.team?.captainId === currentUser?.id;
                   const isViceCaptain = currentUser?.team?.viceCaptainIds?.includes(currentUser?.id);
+                  const isKendiAramizda = activeChannel?.name?.includes('(Kendi Aramızda)');
                   if (isCaptain || isViceCaptain) {
-                    return (
-                      <button
-                        onClick={() => setIsRematchModalOpen(true)}
-                        className="bg-turf-600 hover:bg-turf-700 text-white font-bold py-2.5 px-6 rounded-xl text-sm transition-all flex items-center gap-2 shadow-lg shadow-turf-600/20 hover:scale-[1.02] active:scale-95"
-                      >
-                        <Swords className="w-4 h-4" />
-                        {activeStatusInfo?.type === 'played' ? 'Rövanş İste' : 'Yeni Maç Ayarla'}
-                      </button>
-                    );
+                    if (isKendiAramizda) {
+                      // Kendi Aramızda: doğrudan yeni maç oluştur (teklif yok)
+                      return (
+                        <button
+                          onClick={() => setIsKendiAramizdaNewMatchOpen(true)}
+                          className="bg-turf-600 hover:bg-turf-700 text-white font-bold py-2.5 px-6 rounded-xl text-sm transition-all flex items-center gap-2 shadow-lg shadow-turf-600/20 hover:scale-[1.02] active:scale-95"
+                        >
+                          <Swords className="w-4 h-4" />
+                          Yeni Maç Ayarla
+                        </button>
+                      );
+                    } else {
+                      // Normal maç: rövanş teklifi gönder
+                      return (
+                        <button
+                          onClick={() => setIsRematchModalOpen(true)}
+                          className="bg-turf-600 hover:bg-turf-700 text-white font-bold py-2.5 px-6 rounded-xl text-sm transition-all flex items-center gap-2 shadow-lg shadow-turf-600/20 hover:scale-[1.02] active:scale-95"
+                        >
+                          <Swords className="w-4 h-4" />
+                          {activeStatusInfo?.type === 'played' ? 'Rövanş İste' : 'Yeni Maç Ayarla'}
+                        </button>
+                      );
+                    }
                   }
                   return null;
                 })()}
@@ -914,7 +941,9 @@ const ChannelItem: React.FC<ChannelItemProps> = ({ channel, onClick, onLongPress
         </div>
         <p className="text-sm truncate mt-0.5 text-slate-400">
           {channel.type === 'MATCH_GROUP' && <span className="text-turf-500 font-bold mr-1">Takım:</span>}
-          {startLongPress ? 'Seçenekler...' : (channel.lastMessage?.content || 'Sohbete girmek için tıkla')}
+          {startLongPress ? 'Seçenekler...' : (
+            channel.lastMessage?.content ? stripSystemMessageMarkers(channel.lastMessage.content) : 'Sohbete girmek için tıkla'
+          )}
         </p>
         {statusInfo && (
           <span className={`text-[10px] font-semibold mt-1 inline-block ${statusInfo.textColor}`}>

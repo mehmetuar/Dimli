@@ -239,15 +239,15 @@ export class ReservationsService {
                 }
 
                 // Construct Message with full details
-                let messageContent = `Maçınız kesinleşti! ⚽\n\n` +
-                    `🏟️ ${businessName}\n` +
-                    `📍 ${pitchName}\n` +
-                    `📅 ${dateStr} ${dayName.charAt(0).toUpperCase() + dayName.slice(1)}\n` +
-                    `⏰ ${startTimeStr} - ${endTimeStr}`;
+                let messageContent = `Maçınız kesinleşti! {{FOOTBALL}}\n\n` +
+                    `{{STADIUM}} ${businessName}\n` +
+                    `{{PIN}} ${pitchName}\n` +
+                    `{{CALENDAR}} ${dateStr} ${dayName.charAt(0).toUpperCase() + dayName.slice(1)}\n` +
+                    `{{CLOCK}} ${startTimeStr} - ${endTimeStr}`;
 
                 // Add Business Note if exists
                 if (businessNote && businessNote.trim() !== '') {
-                    messageContent += `\n\n💬 İşletme Notu:\n${businessNote}`;
+                    messageContent += `\n\n{{COMMENT}} İşletme Notu:\n${businessNote}`;
                 }
 
                 this.logger.log(`Sending approval system message for matchAnnouncementId: ${reservation.matchAnnouncementId}`);
@@ -321,7 +321,7 @@ export class ReservationsService {
                                 manager,
                                 other.matchAnnouncementId,
                                 other.team,
-                                `İşletme farklı bir kullanıcıyı kesinleştirdi. 😔\nBu saat için maç fırsatınızı kaçırdınız.\nFarklı saatlere göz atmaya ne dersiniz?`,
+                                `İşletme farklı bir kullanıcıyı kesinleştirdi. {{SAD}}\nBu saat için maç fırsatınızı kaçırdınız.\nFarklı saatlere göz atmaya ne dersiniz?`,
                                 { type: 'MATCH_REJECTED_PASSIVE', reservationId: other.id }
                             );
                         }
@@ -360,7 +360,7 @@ export class ReservationsService {
                     manager,
                     reservation.matchAnnouncementId,
                     reservation.team,
-                    `İşletme onayı kaldırdı. Rezervasyonunuz tekrar onay bekliyor durumuna döndü. 🔄\nDiğer takımlarla birlikte değerlendirileceksiniz.`,
+                    `İşletme onayı kaldırdı. Rezervasyonunuz tekrar onay bekliyor durumuna döndü. {{REVOKE}}\nDiğer takımlarla birlikte değerlendirileceksiniz.`,
                     { type: 'MATCH_REVOKED_TO_PENDING', reservationId: reservation.id }
                 );
             }
@@ -392,7 +392,7 @@ export class ReservationsService {
                                 manager,
                                 conflict.matchAnnouncementId,
                                 conflict.team,
-                                `Müjde! 🎉\nİşletme önceki onayı kaldırdı. Rezervasyonunuz tekrar aktif hale geldi ve onay bekliyor.\nŞansınız devam ediyor!`,
+                                `Müjde! {{PARTY}}\nİşletme önceki onayı kaldırdı. Rezervasyonunuz tekrar aktif hale geldi ve onay bekliyor.\nŞansınız devam ediyor!`,
                                 { type: 'MATCH_RESTORED_TO_PENDING', reservationId: conflict.id }
                             );
                         }
@@ -421,7 +421,7 @@ export class ReservationsService {
         }
 
         const businessName = reservation.pitch?.business?.name || 'İşletme';
-        const messageContent = `💬 ${businessName} Mesajı:\n${note}`;
+        const messageContent = `{{COMMENT}} ${businessName} Mesajı:\n${note}`;
 
         await this.sendSystemMessage(
             this.dataSource.manager, // Use main manager since not in a transaction
@@ -526,7 +526,7 @@ export class ReservationsService {
                 this.dataSource.manager,
                 reservation.matchAnnouncementId,
                 reservation.team, // Sender context (Captain)
-                `Takım kaptanı maçı iptal etti. ❌`,
+                `Takım kaptanı maçı iptal etti. {{CANCEL}}`,
                 { type: 'MATCH_CANCELLED_BY_CAPTAIN', reservationId: reservation.id }
             );
         }
@@ -582,7 +582,7 @@ export class ReservationsService {
                 this.dataSource.manager,
                 reservation.matchAnnouncementId,
                 reservation.team, // Context team
-                `⏱️ YENİ SAAT TEKLİFİ\n\n${proposerName} kaptanı yeni bir saat önerdi:\n📅 ${dateStr}\n\nKabul etmek için aşağıdaki butona tıklayın.`,
+                `{{PROPOSAL}} YENİ SAAT TEKLİFİ\n\n${proposerName} kaptanı yeni bir saat önerdi:\n{{CALENDAR}} ${dateStr}\n\nKabul etmek için aşağıdaki butona tıklayın.`,
                 { type: 'PROPOSAL_ACTION', reservationId: reservation.id, proposedTime: newSlotTime }
             );
         }
@@ -639,7 +639,7 @@ export class ReservationsService {
                     manager,
                     reservation.matchAnnouncementId,
                     reservation.team,
-                    `🤝 ANLAŞMA SAĞLANDI!\n\nMaç saati ${dateStr} olarak güncellendi.\nİşletme onayı bekleniyor... ⏳`,
+                    `{{HANDSHAKE}} ANLAŞMA SAĞLANDI!\n\nMaç saati ${dateStr} olarak güncellendi.\nİşletme onayı bekleniyor...`,
                     { type: 'INFO', reservationId: reservation.id }
                 );
             }

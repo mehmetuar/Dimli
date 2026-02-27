@@ -522,11 +522,11 @@ export class ChatService {
         await this.sendMessage(
             channelId,
             userId,
-            `📩 ${userTeam.name} yeni maç teklifi gönderdi!\n\n` +
-            `🏟️ ${businessName}\n` +
-            `📍 ${pitchName}\n` +
-            `📅 ${formattedDate} ${dayName.charAt(0).toUpperCase() + dayName.slice(1)}\n` +
-            `⏰ ${data.time} - ${endTimeStr}`,
+            `{{ENVELOPE}} ${userTeam.name} yeni maç teklifi gönderdi!\n\n` +
+            `{{STADIUM}} ${businessName}\n` +
+            `{{PIN}} ${pitchName}\n` +
+            `{{CALENDAR}} ${formattedDate} ${dayName.charAt(0).toUpperCase() + dayName.slice(1)}\n` +
+            `{{CLOCK}} ${data.time} - ${endTimeStr}`,
             true, // isSystemMessage
             {
                 type: 'REMATCH_PROPOSAL',
@@ -663,11 +663,11 @@ export class ChatService {
         await this.sendMessage(
             newChannel.id,
             userTeam.captain?.id || userId,
-            `Eşleşme Onaylandı! ✅\n\n` +
-            `🏟️ ${businessName}\n` +
-            `📍 ${pitchName}\n` +
-            `📅 ${formattedDate} ${dayName.charAt(0).toUpperCase() + dayName.slice(1)}\n` +
-            `⏰ ${match.time} - ${endTimeStr}\n\n` +
+            `Eşleşme Onaylandı! {{CHECK}}\n\n` +
+            `{{STADIUM}} ${businessName}\n` +
+            `{{PIN}} ${pitchName}\n` +
+            `{{CALENDAR}} ${formattedDate} ${dayName.charAt(0).toUpperCase() + dayName.slice(1)}\n` +
+            `{{CLOCK}} ${match.time} - ${endTimeStr}\n\n` +
             `Maçı kesinleştirmek için Sahayı arayın ve saatinizi rezerve edin.\nAcele et! Yerinizi kapabilirler.`,
             true,
             { type: 'MATCH_CONFIRMED', matchAnnouncementId: match.id }

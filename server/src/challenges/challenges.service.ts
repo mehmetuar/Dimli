@@ -229,11 +229,11 @@ export class ChallengesService {
             await this.chatService.sendMessage(
                 channel.id,
                 hostTeam.captain.id,
-                `Eşleşme Onaylandı!\n\n` +
-                `🏟️ ${businessName}\n` +
-                `📍 ${pitchName}\n` +
-                `📅 ${formattedDate} ${dayName.charAt(0).toUpperCase() + dayName.slice(1)}\n` +
-                `⏰ ${match.time} - ${endTimeStr}\n\n` +
+                `Eşleşme Onaylandı! {{CHECK}}\n\n` +
+                `{{STADIUM}} ${businessName}\n` +
+                `{{PIN}} ${pitchName}\n` +
+                `{{CALENDAR}} ${formattedDate} ${dayName.charAt(0).toUpperCase() + dayName.slice(1)}\n` +
+                `{{CLOCK}} ${match.time} - ${endTimeStr}\n\n` +
                 `Maçı kesinleştirmek için Sahayı arayın ve saatinizi rezerve edin.\nAcele et! Yerinizi kapabilirler.`,
                 true
             );

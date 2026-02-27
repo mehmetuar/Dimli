@@ -161,11 +161,11 @@ export class MatchAnnouncementsService {
                 await this.chatService.sendMessage(
                     channel.id,
                     user.id,
-                    `Saha isteği gönderildi! 📋\n\n` +
-                    `🏟️ ${businessName}\n` +
-                    `📍 ${pitchName}\n` +
-                    `📅 ${formattedDate} ${dayName.charAt(0).toUpperCase() + dayName.slice(1)}\n` +
-                    `⏰ ${data.time} - ${endTimeStr}\n\n` +
+                    `Saha isteği gönderildi! {{CLIPBOARD}}\n\n` +
+                    `{{STADIUM}} ${businessName}\n` +
+                    `{{PIN}} ${pitchName}\n` +
+                    `{{CALENDAR}} ${formattedDate} ${dayName.charAt(0).toUpperCase() + dayName.slice(1)}\n` +
+                    `{{CLOCK}} ${data.time} - ${endTimeStr}\n\n` +
                     `İşletme onayladığında sahanız kesinleşecektir.\nOnay durumunu buradan takip edebilirsiniz.\n\nLütfen işletmeyi arayıp sahanızı kesinleştiriniz.\nYerinizi kapabilirler.`,
                     true
                 );
