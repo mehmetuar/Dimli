@@ -41,6 +41,14 @@ export class UsersController {
     }
 
     @UseGuards(JwtAuthGuard)
+    @Patch('push-token')
+    async updatePushToken(@Request() req, @Body('token') token: string) {
+        if (!token) return { success: false, message: 'Token is required' };
+        await this.usersService.updatePushToken(req.user.id, token);
+        return { success: true };
+    }
+
+    @UseGuards(JwtAuthGuard)
     @Post('change-password')
     @HttpCode(HttpStatus.OK)
     async changePassword(@Request() req, @Body() changePasswordDto: ChangePasswordDto) {

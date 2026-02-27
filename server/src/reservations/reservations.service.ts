@@ -324,6 +324,28 @@ export class ReservationsService {
                                 `İşletme farklı bir kullanıcıyı kesinleştirdi. {{SAD}}\nBu saat için maç fırsatınızı kaçırdınız.\nFarklı saatlere göz atmaya ne dersiniz?\n\nEğer bir sorun olduğunu düşünüyorsanız lütfen işletme ile iletişime geçin.`,
                                 { type: 'MATCH_REJECTED_PASSIVE', reservationId: other.id }
                             );
+
+                            try {
+                                const playersToNotify: any[] = [];
+                                if (other.team?.players) playersToNotify.push(...other.team.players);
+
+                                for (const player of playersToNotify) {
+                                    await this.notificationsService.create({
+                                        userId: player.id,
+                                        type: 'SYSTEM',
+                                        title: '❌ Maç Fırsatı Kaçtı',
+                                        message: `İşletme farklı bir takımı kesinleştirdi. Bu saatteki rezervasyonunuz iptal oldu.`,
+                                        relatedId: other.id,
+                                        read: false,
+                                        metadata: {
+                                            type: 'MATCH_REJECTED_PASSIVE',
+                                            reservationId: other.id
+                                        }
+                                    });
+                                }
+                            } catch (error) {
+                                this.logger.error('Failed to send player rejection notifications:', error);
+                            }
                         }
                     }
                 }
@@ -363,6 +385,29 @@ export class ReservationsService {
                     `İşletme onayı kaldırdı. Rezervasyonunuz tekrar onay bekliyor durumuna döndü. {{REVOKE}}\nDiğer takımlarla birlikte değerlendirileceksiniz.`,
                     { type: 'MATCH_REVOKED_TO_PENDING', reservationId: reservation.id }
                 );
+
+                try {
+                    const playersToNotify: any[] = [];
+                    if (reservation.team?.players) playersToNotify.push(...reservation.team.players);
+                    if (reservation.opponentTeam?.players) playersToNotify.push(...reservation.opponentTeam.players);
+
+                    for (const player of playersToNotify) {
+                        await this.notificationsService.create({
+                            userId: player.id,
+                            type: 'SYSTEM',
+                            title: '⚠️ İşletme Onayı Kaldırdı',
+                            message: `Kesinleşen maçınızın onayı işletme tarafından kaldırıldı. Rezervasyon tekrar 'Onay Bekliyor' durumuna döndü.`,
+                            relatedId: reservation.id,
+                            read: false,
+                            metadata: {
+                                type: 'MATCH_REVOKED_TO_PENDING',
+                                reservationId: reservation.id
+                            }
+                        });
+                    }
+                } catch (error) {
+                    this.logger.error('Failed to send player revoke notifications:', error);
+                }
             }
 
             // 3. Find and restore conflicting REJECTED reservations
@@ -395,6 +440,28 @@ export class ReservationsService {
                                 `Müjde! {{PARTY}}\nİşletme önceki onayı kaldırdı. Rezervasyonunuz tekrar aktif hale geldi ve onay bekliyor.\nŞansınız devam ediyor!`,
                                 { type: 'MATCH_RESTORED_TO_PENDING', reservationId: conflict.id }
                             );
+
+                            try {
+                                const playersToNotify: any[] = [];
+                                if (conflict.team?.players) playersToNotify.push(...conflict.team.players);
+
+                                for (const player of playersToNotify) {
+                                    await this.notificationsService.create({
+                                        userId: player.id,
+                                        type: 'SYSTEM',
+                                        title: '🌟 Şansın Devam Ediyor!',
+                                        message: `İşletme diğer takımın onayını kaldırdı. Reddedilen rezervasyonunuz tekrar "Onay Bekliyor" olarak güncellendi.`,
+                                        relatedId: conflict.id,
+                                        read: false,
+                                        metadata: {
+                                            type: 'MATCH_RESTORED_TO_PENDING',
+                                            reservationId: conflict.id
+                                        }
+                                    });
+                                }
+                            } catch (error) {
+                                this.logger.error('Failed to send player restore notifications:', error);
+                            }
                         }
                     }
                 }
@@ -430,6 +497,26 @@ export class ReservationsService {
             messageContent,
             { type: 'BUSINESS_NOTE', reservationId: reservation.id }
         );
+
+        try {
+            const playersToNotify: any[] = [];
+            if (reservation.team?.players) playersToNotify.push(...reservation.team.players);
+            if (reservation.opponentTeam?.players) playersToNotify.push(...reservation.opponentTeam.players);
+
+            for (const player of playersToNotify) {
+                await this.notificationsService.create({
+                    userId: player.id,
+                    type: 'SYSTEM',
+                    title: `💬 İşletmeden Mesaj: ${businessName}`,
+                    message: note,
+                    relatedId: reservation.id,
+                    read: false,
+                    metadata: { type: 'BUSINESS_NOTE', reservationId: reservation.id }
+                });
+            }
+        } catch (error) {
+            this.logger.error('Failed to send player business note notifications:', error);
+        }
 
         return { success: true };
     }
@@ -529,6 +616,34 @@ export class ReservationsService {
                 `Takım kaptanı maçı iptal etti. {{CANCEL}}`,
                 { type: 'MATCH_CANCELLED_BY_CAPTAIN', reservationId: reservation.id }
             );
+
+            try {
+                const playersToNotify: any[] = [];
+                // Only notify if there are players loaded. In cancel(), relations 'team' and 'team.captain' were loaded.
+                // We might not have players loaded, but that's okay, they will see it in the chat. 
+                // We'll query participants via chat service for robust notification delivery later, or load players here:
+                const resWithPlayers = await this.reservationRepository.findOne({
+                    where: { id: reservation.id },
+                    relations: ['team', 'team.players', 'opponentTeam', 'opponentTeam.players']
+                });
+
+                if (resWithPlayers?.team?.players) playersToNotify.push(...resWithPlayers.team.players);
+                if (resWithPlayers?.opponentTeam?.players) playersToNotify.push(...resWithPlayers.opponentTeam.players);
+
+                for (const player of playersToNotify) {
+                    await this.notificationsService.create({
+                        userId: player.id,
+                        type: 'SYSTEM',
+                        title: '🚫 Maç İptal Edildi',
+                        message: `Takım kaptanı maçı iptal etti.`,
+                        relatedId: reservation.id,
+                        read: false,
+                        metadata: { type: 'MATCH_CANCELLED_BY_CAPTAIN', reservationId: reservation.id }
+                    });
+                }
+            } catch (error) {
+                this.logger.error('Failed to send player cancellation notifications:', error);
+            }
         }
 
         return reservation;
@@ -585,6 +700,27 @@ export class ReservationsService {
                 `{{PROPOSAL}} YENİ SAAT TEKLİFİ\n\n${proposerName} kaptanı yeni bir saat önerdi:\n{{CALENDAR}} ${dateStr}\n\nKabul etmek için aşağıdaki butona tıklayın.`,
                 { type: 'PROPOSAL_ACTION', reservationId: reservation.id, proposedTime: newSlotTime }
             );
+
+            try {
+                // Notify the other team's captain
+                const targetCaptainId = isTeamCaptain
+                    ? (reservation.opponentTeam?.captainId || (reservation.opponentTeam?.captain as any)?.id)
+                    : (reservation.team?.captainId || (reservation.team?.captain as any)?.id);
+
+                if (targetCaptainId) {
+                    await this.notificationsService.create({
+                        userId: targetCaptainId,
+                        type: 'SYSTEM',
+                        title: '🕒 Yeni Saat Teklifi',
+                        message: `${proposerName} kaptanı yeni bir saat önerdi: ${dateStr}`,
+                        relatedId: reservation.id,
+                        read: false,
+                        metadata: { type: 'PROPOSAL_ACTION', reservationId: reservation.id, proposedTime: newSlotTime }
+                    });
+                }
+            } catch (error) {
+                this.logger.error('Failed to send proposal notification:', error);
+            }
         }
 
         return reservation;

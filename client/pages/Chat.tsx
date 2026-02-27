@@ -923,7 +923,7 @@ const ChannelItem: React.FC<ChannelItemProps> = ({ channel, onClick, onLongPress
       onTouchStart={handleMouseDown}
       onTouchEnd={handleMouseUp}
       onClick={handleClick}
-      className={`bg-slate-800 ${bgClass} p-4 rounded-2xl border-2 ${borderClass} flex gap-4 items-center hover:bg-slate-750 active:scale-95 transition-all cursor-pointer select-none`}
+      className={`bg-slate-800 ${bgClass} p-4 rounded-2xl border border-slate-700/50 flex gap-4 items-center hover:bg-slate-750 active:scale-95 transition-all cursor-pointer select-none`}
     >
       <div className="relative">
         <img src={channel.avatarUrl || 'https://picsum.photos/200'} alt={channel.name} className={`w-14 h-14 object-cover ${channel.type === 'MATCH_GROUP' ? 'rounded-2xl' : 'rounded-full'}`} />

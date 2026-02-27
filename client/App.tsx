@@ -10,6 +10,7 @@ import { JokerPool } from './pages/JokerPool';
 import { PitchBooking } from './pages/PitchBooking';
 import { Chat } from './pages/Chat';
 import { Notifications } from './pages/Notifications';
+import { initializePushNotifications } from './services/pushNotificationService';
 
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
@@ -34,6 +35,17 @@ function AppContent() {
 
   useEffect(() => {
     let currentWatchId: string | null = null;
+
+    const initServices = async () => {
+      const token = localStorage.getItem('token');
+      if (!token || isAuthPage) return;
+
+      // Initialize Push Notifications
+      await initializePushNotifications();
+
+      // Initialize Background Location Tracking
+      startWatching();
+    };
 
     const startWatching = async () => {
       // Only track if logged in as a normal user (has token and not on auth/business pages)
@@ -70,7 +82,7 @@ function AppContent() {
       }
     };
 
-    startWatching();
+    initServices();
 
     return () => {
       if (currentWatchId) {

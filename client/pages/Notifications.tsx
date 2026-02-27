@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Bell, Check, X, Calendar, UserPlus, CheckCircle, AlertCircle, MessageSquare, MapPin, Handshake, Swords } from 'lucide-react';
+import { Bell, Check, X, Calendar, UserPlus, CheckCircle, AlertCircle, MessageSquare, MapPin, Handshake, Swords, ShieldCheck, Clock, ShieldAlert, XCircle, MessageCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { LoadingSpinner } from '../components/LoadingSpinner';
@@ -185,11 +185,31 @@ export const Notifications: React.FC = () => {
       }
    };
 
-   const filteredJoinRequests = joinRequests.filter(r => r.status === 'PENDING');
-   const filteredMatchRequests = matchRequests.filter(r => r.status === 'PENDING');
+   const isMatchExpired = (dateVal: any, timeVal: any) => {
+      if (!dateVal || !timeVal) return false;
+      const dateStr = typeof dateVal === 'string' ? dateVal : new Date(dateVal).toISOString().split('T')[0];
+      const matchDateTime = new Date(`${dateStr}T${timeVal}`);
+      if (isNaN(matchDateTime.getTime())) return false;
+      return new Date() > matchDateTime;
+   };
 
-   // Filter REMATCH_PROPOSAL notifications (PENDING ones)
-   const rematchProposals = notifications.filter(n => n.type === 'REMATCH_PROPOSAL');
+   const filteredJoinRequests = joinRequests.filter(r => r.status === 'PENDING');
+   const filteredMatchRequests = matchRequests.filter(r => {
+      if (r.status !== 'PENDING') return false;
+      if (r.match) {
+         return !isMatchExpired(r.match.date, r.match.time);
+      }
+      return true;
+   });
+
+   // Filter REMATCH_PROPOSAL notifications (PENDING ones, and not expired)
+   const rematchProposals = notifications.filter(n => {
+      if (n.type !== 'REMATCH_PROPOSAL') return false;
+      if (n.metadata?.matchDate && n.metadata?.matchTime) {
+         return !isMatchExpired(n.metadata.matchDate, n.metadata.matchTime);
+      }
+      return true;
+   });
 
    const handleAcceptRematchFromNotif = async (notification: Notification) => {
       const channelId = notification.metadata?.channelId;
@@ -364,54 +384,54 @@ export const Notifications: React.FC = () => {
                         ))
                      )}
 
-                      {/* Rövanş Teklifleri */}
-                      {rematchProposals.length > 0 && (
-                         <>
-                            {filteredMatchRequests.length > 0 && (
-                               <div className="border-t border-slate-700 my-4 pt-2">
-                                  <p className="text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-2">
-                                     <Swords className="w-4 h-4 text-turf-500" /> Rövanş Teklifleri
-                                  </p>
-                               </div>
-                            )}
-                            {rematchProposals.map(notif => (
-                               <div key={notif.id} className="p-4 rounded-2xl border flex gap-4 items-start transition-all relative overflow-hidden bg-slate-800 border-slate-700 hover:border-turf-500/50">
-                                  <div className="absolute right-0 top-0 w-20 h-full bg-gradient-to-l from-turf-600/10 to-transparent pointer-events-none"></div>
-                                  <div className="w-12 h-12 rounded-full bg-turf-500/20 flex items-center justify-center flex-shrink-0">
-                                     <Swords className="w-6 h-6 text-turf-500" />
-                                  </div>
-                                  <div className="flex-1 min-w-0 relative z-10">
-                                     <div className="flex justify-between items-start">
-                                        <h3 className="font-bold text-white text-base">{notif.metadata?.proposerTeamName || 'Rövanş Teklifi'}</h3>
-                                        <span className="text-[10px] font-bold text-slate-500 uppercase">{new Date(notif.createdAt).toLocaleDateString('tr-TR')}</span>
-                                     </div>
-                                     <div className="flex items-center gap-2 text-xs text-slate-400 mt-1">
-                                        <Calendar className="w-3 h-3 text-turf-500" />
-                                        <span className="text-white font-bold">
-                                           {notif.metadata?.matchDate && notif.metadata?.matchTime
-                                              ? `${new Date(notif.metadata.matchDate).toLocaleDateString('tr-TR')} ${notif.metadata.matchTime}`
-                                              : 'Tarih Bilinmiyor'}
-                                        </span>
-                                     </div>
-                                     {(notif.metadata?.businessName || notif.metadata?.pitchName) && (
-                                        <div className="flex items-center gap-1 text-xs text-turf-400 mt-1 mb-2">
-                                           <MapPin className="w-3 h-3 flex-shrink-0" />
-                                           <span className="font-semibold truncate">{notif.metadata.businessName} · {notif.metadata.pitchName}</span>
-                                        </div>
-                                     )}
-                                     <div className="flex gap-2 mt-2">
-                                        <button onClick={() => handleAcceptRematchFromNotif(notif)} className="flex-1 py-2 bg-turf-600 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1 hover:bg-turf-500 transition-colors shadow-lg shadow-turf-600/20">
-                                           <Check className="w-3 h-3" /> Kabul Et
-                                        </button>
-                                        <button onClick={() => navigate('/chat', { state: { channelId: notif.metadata?.channelId } })} className="flex-1 py-2 bg-slate-700 text-slate-300 rounded-lg text-xs font-bold flex items-center justify-center gap-1 hover:bg-blue-900/50 hover:text-blue-400 transition-colors">
-                                           <MessageSquare className="w-3 h-3" /> Sohbete Git
-                                        </button>
-                                     </div>
-                                  </div>
-                               </div>
-                            ))}
-                         </>
-                      )}
+                     {/* Rövanş Teklifleri */}
+                     {rematchProposals.length > 0 && (
+                        <>
+                           {filteredMatchRequests.length > 0 && (
+                              <div className="border-t border-slate-700 my-4 pt-2">
+                                 <p className="text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-2">
+                                    <Swords className="w-4 h-4 text-turf-500" /> Rövanş Teklifleri
+                                 </p>
+                              </div>
+                           )}
+                           {rematchProposals.map(notif => (
+                              <div key={notif.id} className="p-4 rounded-2xl border flex gap-4 items-start transition-all relative overflow-hidden bg-slate-800 border-slate-700 hover:border-turf-500/50">
+                                 <div className="absolute right-0 top-0 w-20 h-full bg-gradient-to-l from-turf-600/10 to-transparent pointer-events-none"></div>
+                                 <div className="w-12 h-12 rounded-full bg-turf-500/20 flex items-center justify-center flex-shrink-0">
+                                    <Swords className="w-6 h-6 text-turf-500" />
+                                 </div>
+                                 <div className="flex-1 min-w-0 relative z-10">
+                                    <div className="flex justify-between items-start">
+                                       <h3 className="font-bold text-white text-base">{notif.metadata?.proposerTeamName || 'Rövanş Teklifi'}</h3>
+                                       <span className="text-[10px] font-bold text-slate-500 uppercase">{new Date(notif.createdAt).toLocaleDateString('tr-TR')}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-xs text-slate-400 mt-1">
+                                       <Calendar className="w-3 h-3 text-turf-500" />
+                                       <span className="text-white font-bold">
+                                          {notif.metadata?.matchDate && notif.metadata?.matchTime
+                                             ? `${new Date(notif.metadata.matchDate).toLocaleDateString('tr-TR')} ${notif.metadata.matchTime}`
+                                             : 'Tarih Bilinmiyor'}
+                                       </span>
+                                    </div>
+                                    {(notif.metadata?.businessName || notif.metadata?.pitchName) && (
+                                       <div className="flex items-center gap-1 text-xs text-turf-400 mt-1 mb-2">
+                                          <MapPin className="w-3 h-3 flex-shrink-0" />
+                                          <span className="font-semibold truncate">{notif.metadata.businessName} · {notif.metadata.pitchName}</span>
+                                       </div>
+                                    )}
+                                    <div className="flex gap-2 mt-2">
+                                       <button onClick={() => handleAcceptRematchFromNotif(notif)} className="flex-1 py-2 bg-turf-600 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1 hover:bg-turf-500 transition-colors shadow-lg shadow-turf-600/20">
+                                          <Check className="w-3 h-3" /> Kabul Et
+                                       </button>
+                                       <button onClick={() => navigate('/chat', { state: { channelId: notif.metadata?.channelId } })} className="flex-1 py-2 bg-slate-700 text-slate-300 rounded-lg text-xs font-bold flex items-center justify-center gap-1 hover:bg-blue-900/50 hover:text-blue-400 transition-colors">
+                                          <MessageSquare className="w-3 h-3" /> Sohbete Git
+                                       </button>
+                                    </div>
+                                 </div>
+                              </div>
+                           ))}
+                        </>
+                     )}
                   </>
                )}
 
@@ -503,30 +523,58 @@ export const Notifications: React.FC = () => {
                                  : 'border-slate-700 opacity-90'
                                  }`}
                            >
+                              {/* Left Border Color Line */}
                               <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${notif.type === 'JOIN_REQUEST' ? 'bg-blue-500' :
                                  notif.type === 'CHALLENGE' ? 'bg-turf-500' :
                                     notif.type === 'REMATCH_PROPOSAL' ? 'bg-purple-500' :
-                                       'bg-yellow-500'
+                                       notif.type === 'MATCH_REMINDER' ? 'bg-yellow-500' :
+                                          (notif.metadata?.type === 'MATCH_REJECTED_PASSIVE' || notif.metadata?.type === 'MATCH_CANCELLED_BY_CAPTAIN') ? 'bg-red-500' :
+                                             notif.metadata?.type === 'MATCH_REVOKED_TO_PENDING' ? 'bg-orange-500' :
+                                                notif.metadata?.type === 'BUSINESS_NOTE' ? 'bg-slate-400' :
+                                                   'bg-slate-500'
                                  }`}></div>
 
                               <div className="p-4 pl-6">
-                                 <div className="flex justify-between items-start mb-1">
-                                    <h3 className="font-bold text-white text-lg">
-                                       {notif.type === 'JOIN_REQUEST' && 'Yeni Katılma İsteği'}
-                                       {notif.type === 'CHALLENGE' && 'Yeni Meydan Okuma'}
-                                       {notif.type === 'MATCH_RESULT' && 'Maç Sonucu'}
-                                       {notif.type === 'REMATCH_PROPOSAL' && '📩 Yeni Maç Teklifi!'}
-                                       {notif.type === 'SYSTEM' && (notif as any).title}
-                                       {notif.type === 'MATCH_REMINDER' && (notif as any).title}
-                                       {notif.type === 'RESERVATION_REQUEST' && (notif as any).title}
-                                    </h3>
-                                    <span className="text-[10px] font-bold text-slate-500 uppercase">
+                                 <div className="flex justify-between items-start mb-2">
+                                    <div className="flex items-center gap-2">
+                                       {/* Dynamic Icon */}
+                                       <div className={`p-1.5 rounded-lg flex-shrink-0 ${notif.type === 'JOIN_REQUEST' ? 'bg-blue-500/20 text-blue-500' :
+                                          (notif.type === 'CHALLENGE' || notif.metadata?.type === 'MATCH_APPROVED') ? 'bg-turf-500/20 text-turf-500' :
+                                             notif.type === 'REMATCH_PROPOSAL' ? 'bg-purple-500/20 text-purple-500' :
+                                                notif.type === 'MATCH_REMINDER' ? 'bg-yellow-500/20 text-yellow-500' :
+                                                   (notif.metadata?.type === 'MATCH_REJECTED_PASSIVE' || notif.metadata?.type === 'MATCH_CANCELLED_BY_CAPTAIN') ? 'bg-red-500/20 text-red-500' :
+                                                      notif.metadata?.type === 'MATCH_REVOKED_TO_PENDING' ? 'bg-orange-500/20 text-orange-500' :
+                                                         (notif.metadata?.type === 'PROPOSAL_ACTION' || notif.metadata?.type === 'MATCH_RESTORED_TO_PENDING') ? 'bg-slate-200/20 text-slate-100' :
+                                                            notif.metadata?.type === 'BUSINESS_NOTE' ? 'bg-slate-600/50 text-slate-300' :
+                                                               'bg-slate-700 text-slate-400'
+                                          }`}>
+                                          {notif.type === 'JOIN_REQUEST' && <UserPlus className="w-4 h-4" />}
+                                          {(notif.type === 'CHALLENGE' || notif.metadata?.type === 'MATCH_APPROVED') && <ShieldCheck className="w-4 h-4" />}
+                                          {notif.type === 'REMATCH_PROPOSAL' && <Swords className="w-4 h-4" />}
+                                          {notif.type === 'MATCH_REMINDER' && <Clock className="w-4 h-4" />}
+                                          {(notif.metadata?.type === 'MATCH_REJECTED_PASSIVE' || notif.metadata?.type === 'MATCH_CANCELLED_BY_CAPTAIN') && <XCircle className="w-4 h-4" />}
+                                          {notif.metadata?.type === 'MATCH_REVOKED_TO_PENDING' && <ShieldAlert className="w-4 h-4" />}
+                                          {(notif.metadata?.type === 'PROPOSAL_ACTION' || notif.metadata?.type === 'MATCH_RESTORED_TO_PENDING') && <Handshake className="w-4 h-4" />}
+                                          {notif.metadata?.type === 'BUSINESS_NOTE' && <MessageCircle className="w-4 h-4" />}
+                                          {notif.type === 'SYSTEM' && !notif.metadata?.type && <Bell className="w-4 h-4" />}
+                                       </div>
+
+                                       <h3 className="font-bold text-white text-base">
+                                          {notif.type === 'JOIN_REQUEST' && 'Yeni Katılma İsteği'}
+                                          {notif.type === 'CHALLENGE' && 'Yeni Meydan Okuma'}
+                                          {notif.type === 'MATCH_RESULT' && 'Maç Sonucu'}
+                                          {notif.type === 'REMATCH_PROPOSAL' && 'Yeni Maç Teklifi'}
+                                          {notif.type === 'SYSTEM' && ((notif as any).title ? (notif as any).title.replace(/^[⚽⏳📩✅❌⚠️🌟💬🚫🕒]\s*/, '') : 'Sistem Mesajı')}
+                                          {notif.type === 'MATCH_REMINDER' && ((notif as any).title ? (notif as any).title.replace(/^[⚽⏳📩✅❌⚠️🌟💬🚫🕒]\s*/, '') : 'Maç Hatırlatıcısı')}
+                                          {notif.type === 'RESERVATION_REQUEST' && ((notif as any).title ? (notif as any).title.replace(/^[⚽⏳📩✅❌⚠️🌟💬🚫🕒]\s*/, '') : 'Rezervasyon İsteği')}
+                                       </h3>
+                                    </div>
+                                    <span className="text-[10px] font-bold text-slate-500 uppercase mt-1">
                                        {new Date(notif.createdAt).toLocaleDateString('tr-TR')}
                                     </span>
                                  </div>
 
-                                 <p className="text-sm text-slate-300 mb-3 leading-relaxed">
-                                    {(notif as any).title && <span className="block font-bold text-white mb-1">{(notif as any).title}</span>}
+                                 <p className="text-sm text-slate-300 mb-3 leading-relaxed whitespace-pre-wrap">
                                     {(notif as any).message || 'Bildirim detayları'}
                                  </p>
 

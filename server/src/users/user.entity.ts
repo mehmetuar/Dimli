@@ -41,6 +41,9 @@ export class User {
     @Column('float', { default: 0 })
     rating: number;
 
+    @Column({ nullable: true })
+    pushToken: string;
+
     @Column({ nullable: true, name: 'team_id' })
     teamId: string;
 

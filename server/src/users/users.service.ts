@@ -58,6 +58,10 @@ export class UsersService {
         return this.usersRepository.findOne({ where: { id }, relations: ['team'] });
     }
 
+    async updatePushToken(id: string, pushToken: string): Promise<void> {
+        await this.usersRepository.update(id, { pushToken });
+    }
+
     async changePassword(id: string, changePasswordDto: ChangePasswordDto): Promise<void> {
         const user = await this.usersRepository.findOne({ where: { id } });
         if (!user) {
