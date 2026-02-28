@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Bell, Calendar, Clock, ChevronRight, CheckCircle2 } from 'lucide-react';
 import api from '../services/api';
+import { ConfirmModal } from './ConfirmModal';
 
 interface BusinessNotificationsPanelProps {
     isOpen: boolean;
@@ -11,6 +12,15 @@ interface BusinessNotificationsPanelProps {
 export const BusinessNotificationsPanel: React.FC<BusinessNotificationsPanelProps> = ({ isOpen, onClose, onNotificationClick }) => {
     const [notifications, setNotifications] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
+    const [confirmModal, setConfirmModal] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        onConfirm: () => void;
+        isDangerous?: boolean;
+        confirmText?: string;
+        cancelText?: string;
+    }>({ isOpen: false, title: '', message: '', onConfirm: () => { } });
 
     useEffect(() => {
         if (isOpen) {
@@ -40,6 +50,50 @@ export const BusinessNotificationsPanel: React.FC<BusinessNotificationsPanelProp
         } catch (error) {
             console.error('Failed to mark notification as read:', error);
         }
+    };
+
+    const handleAcceptCancelRequest = async (e: React.MouseEvent, reservationId: string) => {
+        e.stopPropagation();
+        setConfirmModal({
+            isOpen: true,
+            title: 'İptal İsteğini Onayla',
+            message: 'İptal isteğini onaylamak istediğinize emin misiniz? Maç iptal edilecektir.',
+            isDangerous: true,
+            confirmText: 'İptali Onayla',
+            onConfirm: async () => {
+                setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                try {
+                    await api.post(`/reservations/${reservationId}/accept-cancel-request`);
+                    alert('İptal talebi onaylandı. Maç iptal edildi.');
+                    fetchNotifications();
+                } catch (error: any) {
+                    console.error('Accept cancel error:', error);
+                    alert(error.response?.data?.message || 'İşlem başarısız.');
+                }
+            }
+        });
+    };
+
+    const handleRejectCancelRequest = async (e: React.MouseEvent, reservationId: string) => {
+        e.stopPropagation();
+        setConfirmModal({
+            isOpen: true,
+            title: 'İptal İsteğini Reddet',
+            message: 'İptal isteğini reddetmek istediğinize emin misiniz?',
+            isDangerous: false,
+            confirmText: 'Reddet',
+            onConfirm: async () => {
+                setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                try {
+                    await api.post(`/reservations/${reservationId}/reject-cancel-request`);
+                    alert('İptal talebi reddedildi.');
+                    fetchNotifications();
+                } catch (error: any) {
+                    console.error('Reject cancel error:', error);
+                    alert(error.response?.data?.message || 'İşlem başarısız.');
+                }
+            }
+        });
     };
 
     if (!isOpen) return null;
@@ -124,6 +178,24 @@ export const BusinessNotificationsPanel: React.FC<BusinessNotificationsPanelProp
                                             </div>
                                         </div>
                                     )}
+
+                                    {/* Action Buttons for CANCEL_REQUEST */}
+                                    {notif.type === 'CANCEL_REQUEST' && notif.metadata?.reservationId && !notif.read && (
+                                        <div className="mt-4 flex gap-2">
+                                            <button
+                                                onClick={(e) => handleAcceptCancelRequest(e, notif.metadata.reservationId)}
+                                                className="flex-1 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/30 py-2 rounded-lg font-bold text-sm transition-all"
+                                            >
+                                                İptali Onayla
+                                            </button>
+                                            <button
+                                                onClick={(e) => handleRejectCancelRequest(e, notif.metadata.reservationId)}
+                                                className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 py-2 rounded-lg font-bold text-sm transition-all"
+                                            >
+                                                Reddet
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <ChevronRight className={`w-5 h-5 absolute right-4 top-1/2 -translate-y-1/2 ${notif.read ? 'text-slate-700' : 'text-orange-500/50 group-hover:text-orange-500'} transition-all group-hover:translate-x-1`} />
@@ -149,6 +221,18 @@ export const BusinessNotificationsPanel: React.FC<BusinessNotificationsPanelProp
                     </button>
                 </div>
             </div>
+
+            {/* Confirm Modal */}
+            <ConfirmModal
+                isOpen={confirmModal.isOpen}
+                onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+                onConfirm={confirmModal.onConfirm}
+                title={confirmModal.title}
+                message={confirmModal.message}
+                isDangerous={confirmModal.isDangerous}
+                confirmText={confirmModal.confirmText}
+                cancelText={confirmModal.cancelText || "Vazgeç"}
+            />
         </div>
     );
 };

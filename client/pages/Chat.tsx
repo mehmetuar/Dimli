@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Bot, ChevronLeft, Users, Shield, Star, Phone, MessageSquare, UserPlus, ArrowDown, Swords, MoreVertical, X, ChevronRight, Trash2, XCircle, AlertTriangle } from 'lucide-react';
+import { Send, Bot, ChevronLeft, Users, Shield, Star, Phone, MessageSquare, UserPlus, ArrowDown, Swords, MoreVertical, X, ChevronRight, Trash2, XCircle, AlertTriangle, Undo2 } from 'lucide-react';
 import { getTacticalAdvice } from '../services/geminiService';
 import { SkillLevel, ChatChannel, Team } from '../types';
 import { MOCK_CHANNELS, MOCK_MESSAGES, MOCK_TEAMS, CURRENT_USER, MOCK_JOKERS } from '../constants';
@@ -517,6 +517,24 @@ export const Chat: React.FC = () => {
     setConfirmModalOpen(true);
   };
 
+  const handleUndoCancelRequest = async (reservationId: string) => {
+    setConfirmTitle('İptal İsteğini Geri Al');
+    setConfirmMessage('Gönderdiğiniz iptal isteğini geri almak istediğinize emin misiniz?');
+    setConfirmIsDangerous(false);
+    setConfirmButtonText('İsteği Geri Al');
+    setConfirmAction(() => async () => {
+      try {
+        await api.post(`/reservations/${reservationId}/undo-cancel-request`, { teamId: currentUser?.team?.id });
+        setSuccessModalMessage('İptal isteği başarıyla geri alındı.');
+        setSuccessModalOpen(true);
+        setRefreshTrigger(prev => prev + 1);
+      } catch (error: any) {
+        alert(error.response?.data?.message || 'İşlem başarısız.');
+      }
+    });
+    setConfirmModalOpen(true);
+  };
+
   const handleAcceptProposal = async (reservationId: string) => {
     setConfirmTitle('Saat Önerisini Kabul Et');
     setConfirmMessage('Bu saat önerisini kabul etmek istediğinize emin misiniz?');
@@ -953,23 +971,25 @@ export const Chat: React.FC = () => {
                   return (
                     <button
                       onClick={() => {
-                        if (isCancelRequested) return;
                         setIsChatMenuOpen(false);
-                        handleCancelRequest(activeChannel.reservation.id);
+                        if (isCancelRequested) {
+                          handleUndoCancelRequest(activeChannel.reservation.id);
+                        } else {
+                          handleCancelRequest(activeChannel.reservation.id);
+                        }
                       }}
-                      disabled={isCancelRequested}
-                      className={`w-full text-left p-4 rounded-2xl text-md font-bold flex items-center justify-between transition-colors shadow-sm ${isCancelRequested ? 'text-slate-500 cursor-not-allowed bg-slate-800/50' : 'text-orange-500 hover:bg-orange-500/10'}`}
+                      className={`w-full text-left p-4 rounded-2xl text-md font-bold flex items-center justify-between transition-colors shadow-sm ${isCancelRequested ? 'text-blue-500 hover:bg-blue-500/10' : 'text-orange-500 hover:bg-orange-500/10'}`}
                     >
                       <div className="flex items-center gap-4">
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center border ${isCancelRequested ? 'bg-slate-700 border-slate-600 text-slate-400' : 'bg-orange-500/10 border-orange-500/20 text-orange-500'}`}>
-                          {isCancelRequested ? <XCircle className="w-6 h-6" /> : <AlertTriangle className="w-6 h-6" />}
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center border ${isCancelRequested ? 'bg-blue-500/10 border-blue-500/20 text-blue-500' : 'bg-orange-500/10 border-orange-500/20 text-orange-500'}`}>
+                          {isCancelRequested ? <Undo2 className="w-6 h-6" /> : <AlertTriangle className="w-6 h-6" />}
                         </div>
                         <div className="flex flex-col">
-                          <span>{isCancelRequested ? 'İptal İsteği Gönderildi' : 'İptal Etme İsteği Gönder'}</span>
+                          <span>{isCancelRequested ? 'İptal İsteğini Geri Al' : 'İptal Etme İsteği Gönder'}</span>
                           {!isCancelRequested && <span className="text-xs font-normal text-orange-500/70 mt-0.5">İşletme onayı gerektirir</span>}
                         </div>
                       </div>
-                      <ChevronRight className={`w-5 h-5 ${isCancelRequested ? 'opacity-0' : 'opacity-50'}`} />
+                      <ChevronRight className={`w-5 h-5 opacity-50`} />
                     </button>
                   );
                 }
@@ -991,7 +1011,7 @@ export const Chat: React.FC = () => {
         title={confirmTitle}
         message={confirmMessage}
         confirmText={confirmButtonText}
-        cancelText="İptal"
+        cancelText="Vazgeç"
         isDangerous={confirmIsDangerous}
       />
 

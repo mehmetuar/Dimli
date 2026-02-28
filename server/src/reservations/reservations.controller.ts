@@ -66,6 +66,11 @@ export class ReservationsController {
         return this.reservationsService.requestCancel(id, body.teamId);
     }
 
+    @Post(':id/undo-cancel-request')
+    undoCancelRequest(@Param('id') id: string, @Body() body: { teamId: string }) {
+        return this.reservationsService.undoCancelRequest(id, body.teamId);
+    }
+
     @Post(':id/accept-cancel-request')
     acceptCancelRequest(@Param('id') id: string) {
         return this.reservationsService.acceptCancelRequest(id);

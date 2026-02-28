@@ -4,6 +4,7 @@ import { DataSource, Repository, In, LessThan, MoreThan, Between, MoreThanOrEqua
 import { Reservation, ReservationStatus } from './entities/reservation.entity';
 import { ChatService } from '../chat/chat.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { Notification } from '../notifications/notification.entity';
 import { ChatChannel } from '../chat/chat-channel.entity';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { Pitch } from '../pitches/entities/pitch.entity';
@@ -154,6 +155,7 @@ export class ReservationsService {
             .where('reservation.pitchId = :pitchId', { pitchId })
             .andWhere('reservation.slotTime >= :start', { start })
             .andWhere('reservation.slotTime <= :end', { end })
+            .andWhere('reservation.status != :status', { status: ReservationStatus.CANCELLED })
             .orderBy('reservation.slotTime', 'ASC')
             .getMany();
     }
@@ -377,7 +379,15 @@ export class ReservationsService {
 
             // 1. Change status back to PENDING (Business Initiative)
             reservation.status = ReservationStatus.PENDING;
+            reservation.cancelRequested = false;
+            reservation.cancelRequestedByTeamId = null as unknown as string;
             await manager.save(reservation);
+
+            // Clear related CANCEL_REQUEST notifications
+            await manager.update(Notification,
+                { type: 'CANCEL_REQUEST', relatedId: reservation.id },
+                { read: true }
+            );
 
             // 2. Notify the team
             if (reservation.matchAnnouncementId) {
@@ -748,6 +758,89 @@ export class ReservationsService {
         return reservation;
     }
 
+    async undoCancelRequest(id: string, teamId: string) {
+        const reservation = await this.reservationRepository.findOne({
+            where: { id, team: { id: teamId } },
+            relations: ['team', 'pitch', 'pitch.business']
+        });
+
+        if (!reservation) {
+            throw new Error('Reservation not found or unauthorized');
+        }
+
+        if (!reservation.cancelRequested) {
+            throw new Error('İptal isteği bulunmuyor.');
+        }
+
+        // Revert cancelRequested
+        reservation.cancelRequested = false;
+        reservation.cancelRequestedByTeamId = null as unknown as string;
+        await this.reservationRepository.save(reservation);
+
+        // Clear related CANCEL_REQUEST notifications
+        await this.dataSource.manager.update(Notification,
+            { type: 'CANCEL_REQUEST', relatedId: reservation.id },
+            { read: true }
+        );
+
+        // Notify chat
+        if (reservation.matchAnnouncementId) {
+            const slotTime = new Date(reservation.slotTime);
+            const dateStr = slotTime.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', weekday: 'long' });
+            const timeStr = slotTime.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+            const endTimeStr = new Date(slotTime.getTime() + 60 * 60 * 1000).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+            const businessName = reservation.pitch?.business?.name || 'İşletme';
+            const pitchName = reservation.pitch?.name || 'Saha';
+
+            await this.sendSystemMessage(
+                this.dataSource.manager,
+                reservation.matchAnnouncementId,
+                reservation.team,
+                `Takım kaptanı iptal isteğini geri aldı. Maçınız planlandığı gibi devam edecektir. ✅\n\n` +
+                `{{STADIUM}} ${businessName}\n` +
+                `{{PIN}} ${pitchName}\n` +
+                `{{CALENDAR}} ${dateStr}\n` +
+                `{{CLOCK}} ${timeStr} - ${endTimeStr}`,
+                { type: 'CANCEL_REQUEST_UNDONE', reservationId: reservation.id }
+            );
+        }
+
+        // Notify Business Owner
+        try {
+            if (reservation.pitch?.business) {
+                const owner = await this.businessOwnerRepository.findOne({
+                    where: { business: { id: reservation.pitch.business.id } }
+                });
+
+                if (owner) {
+                    const slotTime = new Date(reservation.slotTime);
+                    const dateStr = slotTime.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
+                    const timeStr = slotTime.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+
+                    await this.notificationsService.create({
+                        userId: owner.id,
+                        type: 'CANCEL_REQUEST_UNDONE',
+                        title: 'İptal İsteği Geri Alındı',
+                        message: `${reservation.pitch.name} için ${dateStr} saat ${timeStr} dilimindeki maçın iptal isteği takım tarafından geri çekildi. Maç devam ediyor.`,
+                        relatedId: reservation.id,
+                        read: false,
+                        metadata: {
+                            reservationId: reservation.id,
+                            pitchName: reservation.pitch.name,
+                            date: dateStr,
+                            time: timeStr,
+                            role: 'BUSINESS_OWNER'
+                        }
+                    });
+                }
+            }
+        } catch (error) {
+            this.logger.error('Failed to send business owner cancel request undone notification', error);
+        }
+
+        return reservation;
+    }
+
     async acceptCancelRequest(id: string) {
         this.logger.log(`Accepting cancel request for reservation: ${id}`);
 
@@ -764,6 +857,12 @@ export class ReservationsService {
             reservation.status = ReservationStatus.CANCELLED;
             reservation.cancelRequested = false;
             await manager.save(reservation);
+
+            // Clear related CANCEL_REQUEST notifications
+            await manager.update(Notification,
+                { type: 'CANCEL_REQUEST', relatedId: reservation.id },
+                { read: true }
+            );
 
             // Notify chat and update Announcement status
             if (reservation.matchAnnouncement) {
@@ -828,6 +927,12 @@ export class ReservationsService {
 
             reservation.cancelRequested = false;
             await manager.save(reservation);
+
+            // Clear related CANCEL_REQUEST notifications
+            await manager.update(Notification,
+                { type: 'CANCEL_REQUEST', relatedId: reservation.id },
+                { read: true }
+            );
 
             // Notify chat
             if (reservation.matchAnnouncementId) {

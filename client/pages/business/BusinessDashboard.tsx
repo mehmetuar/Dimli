@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
-import { Calendar, Check, X, Clock, Users, Phone, MessageSquare } from 'lucide-react';
+import { Calendar, Check, X, Clock, Users, Phone, MessageSquare, AlertTriangle } from 'lucide-react';
 import { BusinessNavbar } from '../../components/BusinessNavbar';
 import { ConfirmModal } from '../../components/ConfirmModal';
 import { SuccessModal, SuccessType } from '../../components/SuccessModal';
@@ -26,6 +26,18 @@ export const BusinessDashboard: React.FC = () => {
         message: '',
         type: 'DEFAULT'
     });
+
+    const [confirmModal, setConfirmModal] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        onConfirm: () => void;
+        isDangerous?: boolean;
+        confirmText?: string;
+        cancelText?: string;
+    }>({ isOpen: false, title: '', message: '', onConfirm: () => { } });
+
+    // Existing specifically for Revoke, will keep for minimal disruption or use generic.
     const [cancelReservationId, setCancelReservationId] = useState<string | null>(null);
 
     const navigate = useNavigate();
@@ -77,17 +89,69 @@ export const BusinessDashboard: React.FC = () => {
             await api.post(`/reservations/${cancelReservationId}/revoke`);
             setSuccessModal({
                 isOpen: true,
-                message: 'Maç başarıyla iptal edildi ve takımlara bildirildi.',
-                type: 'MATCH_CANCELLED'
+                message: 'Maç onayı geri alındı ve takımlara bildirildi.',
+                type: 'DEFAULT'
             });
             setSelectedSlot(null); // Close slot detail modal
             fetchDashboard(); // Refresh data
         } catch (error) {
             console.error('Cancel error:', error);
-            alert('İptal işlemi başarısız.');
+            alert('İşlem başarısız.');
         } finally {
             setCancelReservationId(null);
         }
+    };
+
+    const handleAcceptCancelRequest = async (reservationId: string) => {
+        setConfirmModal({
+            isOpen: true,
+            title: 'İptal İsteğini Onayla',
+            message: 'İptal isteğini onaylamak istediğinize emin misiniz? Maç iptal edilecektir.',
+            isDangerous: true,
+            confirmText: 'İptali Onayla',
+            onConfirm: async () => {
+                setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                try {
+                    await api.post(`/reservations/${reservationId}/accept-cancel-request`);
+                    setSuccessModal({
+                        isOpen: true,
+                        message: 'İptal talebi onaylandı. Maç iptal edildi.',
+                        type: 'MATCH_CANCELLED'
+                    });
+                    setSelectedSlot(null);
+                    fetchDashboard();
+                } catch (error: any) {
+                    console.error('Accept cancel error:', error);
+                    alert(error.response?.data?.message || 'İşlem başarısız.');
+                }
+            }
+        });
+    };
+
+    const handleRejectCancelRequest = async (reservationId: string) => {
+        setConfirmModal({
+            isOpen: true,
+            title: 'İptal İsteğini Reddet',
+            message: 'İptal isteğini reddetmek istediğinize emin misiniz?',
+            isDangerous: false,
+            confirmText: 'Reddet',
+            onConfirm: async () => {
+                setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                try {
+                    await api.post(`/reservations/${reservationId}/reject-cancel-request`);
+                    setSuccessModal({
+                        isOpen: true,
+                        message: 'İptal talebi reddedildi.',
+                        type: 'DEFAULT'
+                    });
+                    setSelectedSlot(null);
+                    fetchDashboard();
+                } catch (error: any) {
+                    console.error('Reject cancel error:', error);
+                    alert(error.response?.data?.message || 'İşlem başarısız.');
+                }
+            }
+        });
     };
 
     const handleTransaction = async () => {
@@ -318,10 +382,35 @@ export const BusinessDashboard: React.FC = () => {
                                         <div className="mt-4 pt-4 border-t border-slate-700/50">
                                             {res.status === 'APPROVED' ? (
                                                 <div className="space-y-3">
-                                                    <div className="flex items-center justify-center gap-2 text-green-400 font-bold bg-green-500/10 py-3 rounded-xl border border-green-500/20">
-                                                        <Check className="w-5 h-5" />
-                                                        <span>Kesinleşmiş Rezervasyon</span>
-                                                    </div>
+                                                    {res.cancelRequested ? (
+                                                        <div className="flex flex-col gap-3 p-4 bg-orange-500/10 border border-orange-500/30 rounded-xl relative overflow-hidden">
+                                                            <div className="absolute top-0 right-0 p-1 px-2 bg-orange-500 text-white text-[10px] font-bold rounded-bl-lg uppercase">Talep</div>
+                                                            <div className="flex items-center gap-2 text-orange-400 font-bold">
+                                                                <AlertTriangle className="w-5 h-5" />
+                                                                <span>Maç İptal İsteği!</span>
+                                                            </div>
+                                                            <p className="text-xs text-slate-300">Bu maç takım tarafından iptal edilmek isteniyor.</p>
+                                                            <div className="flex gap-2 mt-2">
+                                                                <button
+                                                                    onClick={() => handleAcceptCancelRequest(res.id)}
+                                                                    className="flex-1 bg-red-500/20 hover:bg-red-500/30 text-red-500 border border-red-500/30 py-2 rounded-lg font-bold text-sm transition-all"
+                                                                >
+                                                                    İptali Onayla
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleRejectCancelRequest(res.id)}
+                                                                    className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-2 rounded-lg font-bold text-sm transition-all"
+                                                                >
+                                                                    Reddet
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex items-center justify-center gap-2 text-green-400 font-bold bg-green-500/10 py-3 rounded-xl border border-green-500/20">
+                                                            <Check className="w-5 h-5" />
+                                                            <span>Kesinleşmiş Rezervasyon</span>
+                                                        </div>
+                                                    )}
                                                     <div className="flex gap-2">
                                                         <button
                                                             onClick={() => openActionModal('SEND_NOTE', res.id)}
@@ -333,7 +422,7 @@ export const BusinessDashboard: React.FC = () => {
                                                         <button
                                                             onClick={() => handleCancelClick(res.id)}
                                                             className="bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 hover:border-red-500/50 p-2 rounded-xl transition-all"
-                                                            title="Maçı İptal Et"
+                                                            title="Onayı Geri Al"
                                                         >
                                                             <X className="w-5 h-5" />
                                                         </button>
@@ -376,11 +465,23 @@ export const BusinessDashboard: React.FC = () => {
                 isOpen={!!cancelReservationId}
                 onClose={() => setCancelReservationId(null)}
                 onConfirm={handleConfirmCancel}
-                title="Maçı İptal Et"
-                message="Bu kesinleşmiş maçı iptal etmek istediğinize emin misiniz? Bu işlem geri alınamaz ve takımlara bildirilir."
-                confirmText="Evet, İptal Et"
+                title="Onayı Geri Al"
+                message="Bu kesinleşmiş maçın onayını geri almak istediğinize emin misiniz? Maç onay bekliyor durumuna dönecek ve takımlara bildirilecektir."
+                confirmText="Evet, Onayı Geri Al"
                 cancelText="Vazgeç"
                 isDangerous={true}
+            />
+
+            {/* Generic State-Driven Confirm Modal */}
+            <ConfirmModal
+                isOpen={confirmModal.isOpen}
+                onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+                onConfirm={confirmModal.onConfirm}
+                title={confirmModal.title}
+                message={confirmModal.message}
+                isDangerous={confirmModal.isDangerous}
+                confirmText={confirmModal.confirmText}
+                cancelText={confirmModal.cancelText || "Vazgeç"}
             />
 
             {/* Success Modal */}
