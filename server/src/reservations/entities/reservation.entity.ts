@@ -70,6 +70,12 @@ export class Reservation {
     proposedByUserId: string; // Who proposed the new time?
 
     @Column({ default: false })
+    cancelRequested: boolean;
+
+    @Column({ nullable: true })
+    cancelRequestedByTeamId: string;
+
+    @Column({ default: false })
     reminderSent: boolean;
 
     @CreateDateColumn()

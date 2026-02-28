@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Bot, ChevronLeft, Users, Shield, Star, Phone, MessageSquare, UserPlus, ArrowDown, Swords } from 'lucide-react';
+import { Send, Bot, ChevronLeft, Users, Shield, Star, Phone, MessageSquare, UserPlus, ArrowDown, Swords, MoreVertical, X, ChevronRight, Trash2, XCircle, AlertTriangle } from 'lucide-react';
 import { getTacticalAdvice } from '../services/geminiService';
 import { SkillLevel, ChatChannel, Team } from '../types';
 import { MOCK_CHANNELS, MOCK_MESSAGES, MOCK_TEAMS, CURRENT_USER, MOCK_JOKERS } from '../constants';
@@ -86,8 +86,8 @@ const getMatchStatusInfo = (reservation?: { status: string; slotTime: string }):
   const slotDate = new Date(reservation.slotTime);
   const matchEndTime = new Date(slotDate.getTime() + 60 * 60 * 1000);
 
-  // REJECTED: her zaman Oynanmamış Maç (zaman bağımsız — işletme başkasını onayladı)
-  if (reservation.status === 'REJECTED') {
+  // REJECTED veya CANCELLED: her zaman Oynanmamış Maç (zaman bağımsız)
+  if (reservation.status === 'REJECTED' || reservation.status === 'CANCELLED') {
     return { label: 'Oynanmamış Maç', borderColor: 'border-red-500/60', badgeColor: '#ef4444', textColor: 'text-red-400', bgTint: 'bg-red-500/5', type: 'unplayed' };
   }
   if (now > slotDate && reservation.status !== 'APPROVED') {
@@ -160,6 +160,7 @@ export const Chat: React.FC = () => {
   // Chat Options Modal State
   const [optionsModalChannel, setOptionsModalChannel] = useState<any | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isChatMenuOpen, setIsChatMenuOpen] = useState(false);
 
   // Rematch Proposal Modal State
   const [isRematchModalOpen, setIsRematchModalOpen] = useState(false);
@@ -170,8 +171,16 @@ export const Chat: React.FC = () => {
   // Confirm & Success Modal States
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null);
+  const [confirmTitle, setConfirmTitle] = useState('Onay');
+  const [confirmMessage, setConfirmMessage] = useState('Bu işlemi onaylıyor musunuz?');
+  const [confirmIsDangerous, setConfirmIsDangerous] = useState(false);
+  const [confirmButtonText, setConfirmButtonText] = useState('Onayla');
+
   const [successModalOpen, setSuccessModalOpen] = useState(false);
   const [successModalMessage, setSuccessModalMessage] = useState('');
+
+  // Refresh Trigger State for Auto-reloading data
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Scroll State
   const [showScrollButton, setShowScrollButton] = useState(false);
@@ -209,7 +218,7 @@ export const Chat: React.FC = () => {
     // Poll for new channels every 10 seconds
     const interval = setInterval(fetchChannels, 10000);
     return () => clearInterval(interval);
-  }, []);
+  }, [refreshTrigger]);
 
   // Auto-open channel from navigation state
   useEffect(() => {
@@ -262,7 +271,7 @@ export const Chat: React.FC = () => {
     // Poll for new messages every 3 seconds
     const interval = setInterval(fetchMessages, 3000);
     return () => clearInterval(interval);
-  }, [selectedChannelId, currentUser]);
+  }, [selectedChannelId, currentUser, refreshTrigger]);
 
   // Get current active channel object
   const activeChannel = channels.find(c => c.id === selectedChannelId);
@@ -369,8 +378,9 @@ export const Chat: React.FC = () => {
     }
   }, [messages, tactic]);
 
-  // Reset scroll on channel change
+  // Reset scroll and menu on channel change
   useEffect(() => {
+    setIsChatMenuOpen(false);
     isUserAtBottomRef.current = true;
     setShowScrollButton(false);
     // Use timeout to ensure content is rendered before scrolling
@@ -471,20 +481,66 @@ export const Chat: React.FC = () => {
   }
 
   // --- ACTION HANDLERS ---
-  const handleAcceptProposal = async (reservationId: string) => {
-    if (!window.confirm('Bu saat önerisini kabul etmek istediğinize emin misiniz?')) return;
+  const handleCancelMatch = async (reservationId: string) => {
+    setConfirmTitle('Maçı İptal Et');
+    setConfirmMessage('Maçı iptal etmek istediğinize emin misiniz? Bu işlem geri alınamaz ve tüm oyunculara bildirim gider.');
+    setConfirmIsDangerous(true);
+    setConfirmButtonText('İptal Et');
+    setConfirmAction(() => async () => {
+      try {
+        await api.post(`/reservations/${reservationId}/cancel`, { teamId: currentUser?.team?.id });
+        setSuccessModalMessage('Maç başarıyla iptal edildi.');
+        setSuccessModalOpen(true);
+        setRefreshTrigger(prev => prev + 1);
+      } catch (error: any) {
+        alert(error.response?.data?.message || 'İptal işlemi başarısız.');
+      }
+    });
+    setConfirmModalOpen(true);
+  };
 
-    try {
-      await api.post(`/reservations/${reservationId}/accept-proposal`, { userId: currentUser?.id });
-      alert('Teklif kabul edildi! Maç saati güncellendi.');
-      // Polling will update the messages
-    } catch (error: any) {
-      console.error('Failed to accept proposal:', error);
-      alert(error.response?.data?.message || 'İşlem başarısız.');
-    }
+  const handleCancelRequest = async (reservationId: string) => {
+    setConfirmTitle('İptal İsteği Gönder');
+    setConfirmMessage('İşletmeye iptal isteği göndermek istediğinize emin misiniz? İşletme onaylayana kadar maçınız kesinleşmiş statüde kalacaktır.');
+    setConfirmIsDangerous(true);
+    setConfirmButtonText('İstek Gönder');
+    setConfirmAction(() => async () => {
+      try {
+        await api.post(`/reservations/${reservationId}/request-cancel`, { teamId: currentUser?.team?.id });
+        setSuccessModalMessage('İptal isteği işletmeye gönderildi.');
+        setSuccessModalOpen(true);
+        setRefreshTrigger(prev => prev + 1);
+      } catch (error: any) {
+        alert(error.response?.data?.message || 'İstek gönderilemedi.');
+      }
+    });
+    setConfirmModalOpen(true);
+  };
+
+  const handleAcceptProposal = async (reservationId: string) => {
+    setConfirmTitle('Saat Önerisini Kabul Et');
+    setConfirmMessage('Bu saat önerisini kabul etmek istediğinize emin misiniz?');
+    setConfirmIsDangerous(false);
+    setConfirmButtonText('Onayla');
+    setConfirmAction(() => async () => {
+      try {
+        await api.post(`/reservations/${reservationId}/accept-proposal`, { userId: currentUser?.id });
+        setSuccessModalMessage('Teklif kabul edildi! Maç saati güncellendi.');
+        setSuccessModalOpen(true);
+        setRefreshTrigger(prev => prev + 1);
+      } catch (error: any) {
+        console.error('Failed to accept proposal:', error);
+        alert(error.response?.data?.message || 'İşlem başarısız.');
+      }
+    });
+    setConfirmModalOpen(true);
   };
 
   const handleAcceptRematch = async (matchAnnouncementId: string) => {
+    setConfirmTitle('Rövanş Teklifi');
+    setConfirmMessage('Bu rövanş teklifini kabul etmek istediğinize emin misiniz?');
+    setConfirmIsDangerous(false);
+    setConfirmButtonText('Onayla');
     setConfirmAction(() => async () => {
       try {
         const result = await api.post(`/chat/channels/${selectedChannelId}/accept-rematch`, {
@@ -597,21 +653,16 @@ export const Chat: React.FC = () => {
               </button>
             )}
 
-            {/* <button
-              onClick={handleGetTactics}
-              className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-lg shadow-purple-500/20"
-            >
-              <Bot className="w-4 h-4" />
-              <span className="text-xs font-bold hidden sm:inline">Koç'a Sor</span>
-            </button> */}
-
-            <a
-              href="tel:05555555555"
-              className="bg-turf-600 hover:bg-turf-500 text-white px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-lg shadow-turf-600/20 transition-colors"
-            >
-              <Phone className="w-4 h-4" />
-              <span className="text-xs font-bold hidden sm:inline">Sahayı Ara</span>
-            </a>
+            {/* Chat Menu Options */}
+            <div className="relative">
+              <button
+                onClick={() => setIsChatMenuOpen(true)}
+                className="p-2 text-slate-400 hover:text-white rounded-full hover:bg-slate-800 transition-colors"
+                title="Seçenekler"
+              >
+                <MoreVertical className="w-6 h-6" />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -839,7 +890,97 @@ export const Chat: React.FC = () => {
           </div>
         );
       })()}
-      {/* Confirm Modal for Rematch Acceptance */}
+
+      {/* Chat Options Modal */}
+      {isChatMenuOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div className="bg-slate-800 w-full max-w-sm rounded-3xl border border-slate-700 shadow-2xl overflow-hidden animate-scale-in flex flex-col relative">
+            {/* Header */}
+            <div className="flex justify-between items-center p-5 border-b border-slate-700/50 bg-slate-800/80">
+              <h3 className="text-white font-bold text-xl">Seçenekler</h3>
+              <button
+                onClick={() => setIsChatMenuOpen(false)}
+                className="bg-slate-700/50 hover:bg-slate-700 text-slate-400 hover:text-white rounded-full p-2 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Action List */}
+            <div className="flex flex-col p-3 gap-2">
+              <a
+                href={`tel:${activeChannel?.reservation?.pitch?.business?.phone || activeChannel?.pitch?.business?.phone || '05555555555'}`}
+                className="w-full text-left p-4 rounded-2xl text-md font-bold text-white hover:bg-slate-700 flex items-center justify-between transition-colors shadow-sm"
+                onClick={() => setIsChatMenuOpen(false)}
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-full bg-turf-500/10 flex items-center justify-center text-turf-500 border border-turf-500/20">
+                    <Phone className="w-6 h-6" />
+                  </div>
+                  <span>Sahayı Ara</span>
+                </div>
+                <ChevronRight className="w-5 h-5 text-slate-500" />
+              </a>
+
+              {(() => {
+                const isCaptain = currentUser?.team?.captainId === currentUser?.id;
+                const isViceCaptain = currentUser?.team?.viceCaptainIds?.includes(currentUser?.id);
+                if (!isCaptain && !isViceCaptain) return null;
+
+                const statusInfo = getMatchStatusInfo(activeChannel?.reservation);
+                if (statusInfo?.type === 'pending') {
+                  return (
+                    <button
+                      onClick={() => {
+                        setIsChatMenuOpen(false);
+                        handleCancelMatch(activeChannel.reservation.id);
+                      }}
+                      className="w-full text-left p-4 rounded-2xl text-md font-bold text-red-500 hover:bg-red-500/10 flex items-center justify-between transition-colors shadow-sm"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center text-red-500 border border-red-500/20">
+                          <Trash2 className="w-6 h-6" />
+                        </div>
+                        <div className="flex flex-col">
+                          <span>Maçı İptal Et</span>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-5 h-5 opacity-50" />
+                    </button>
+                  );
+                } else if (statusInfo?.type === 'confirmed') {
+                  const isCancelRequested = activeChannel?.reservation?.cancelRequested;
+                  return (
+                    <button
+                      onClick={() => {
+                        if (isCancelRequested) return;
+                        setIsChatMenuOpen(false);
+                        handleCancelRequest(activeChannel.reservation.id);
+                      }}
+                      disabled={isCancelRequested}
+                      className={`w-full text-left p-4 rounded-2xl text-md font-bold flex items-center justify-between transition-colors shadow-sm ${isCancelRequested ? 'text-slate-500 cursor-not-allowed bg-slate-800/50' : 'text-orange-500 hover:bg-orange-500/10'}`}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center border ${isCancelRequested ? 'bg-slate-700 border-slate-600 text-slate-400' : 'bg-orange-500/10 border-orange-500/20 text-orange-500'}`}>
+                          {isCancelRequested ? <XCircle className="w-6 h-6" /> : <AlertTriangle className="w-6 h-6" />}
+                        </div>
+                        <div className="flex flex-col">
+                          <span>{isCancelRequested ? 'İptal İsteği Gönderildi' : 'İptal Etme İsteği Gönder'}</span>
+                          {!isCancelRequested && <span className="text-xs font-normal text-orange-500/70 mt-0.5">İşletme onayı gerektirir</span>}
+                        </div>
+                      </div>
+                      <ChevronRight className={`w-5 h-5 ${isCancelRequested ? 'opacity-0' : 'opacity-50'}`} />
+                    </button>
+                  );
+                }
+                return null;
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Generic Confirm Modal */}
       <ConfirmModal
         isOpen={confirmModalOpen}
         onClose={() => setConfirmModalOpen(false)}
@@ -847,10 +988,11 @@ export const Chat: React.FC = () => {
           setConfirmModalOpen(false);
           if (confirmAction) confirmAction();
         }}
-        title="Rövanş Teklifi"
-        message="Bu rövanş teklifini kabul etmek istediğinize emin misiniz?"
-        confirmText="Onayla"
+        title={confirmTitle}
+        message={confirmMessage}
+        confirmText={confirmButtonText}
         cancelText="İptal"
+        isDangerous={confirmIsDangerous}
       />
 
       {/* Success/Error Modal */}

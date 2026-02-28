@@ -78,7 +78,7 @@ export class ChatService {
 
             const lastMessage = channel.messages.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
 
-            let reservationData: { status: string; slotTime: Date } | null = null;
+            let reservationData: { id?: string; status: string; slotTime: Date; cancelRequested?: boolean } | null = null;
             if (channel.relatedMatchId) {
                 // Find reservation linked to this match announcement
                 let reservation = await this.reservationRepository.findOne({
@@ -116,8 +116,10 @@ export class ChatService {
 
                 if (reservation) {
                     reservationData = {
+                        id: reservation.id,
                         status: reservation.status,
-                        slotTime: reservation.slotTime
+                        slotTime: reservation.slotTime,
+                        cancelRequested: reservation.cancelRequested
                     };
                 }
             }

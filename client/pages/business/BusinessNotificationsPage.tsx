@@ -29,6 +29,34 @@ export const BusinessNotificationsPage: React.FC = () => {
         }
     };
 
+    const handleAcceptCancel = async (e: React.MouseEvent, reservationId: string, notifId: string) => {
+        e.stopPropagation();
+        if (!window.confirm('Takımın iptal isteğini onaylıyor musunuz? Bu işlem maçı iptal edecek ve saati boşaltacaktır.')) return;
+        try {
+            await api.post(`/reservations/${reservationId}/accept-cancel-request`);
+            await api.delete(`/notifications/${notifId}`);
+            // Refresh
+            fetchNotifications();
+            alert('İptal işlemi başarıyla onaylandı.');
+        } catch (error: any) {
+            alert(error.response?.data?.message || 'İşlem başarısız.');
+        }
+    };
+
+    const handleRejectCancel = async (e: React.MouseEvent, reservationId: string, notifId: string) => {
+        e.stopPropagation();
+        if (!window.confirm('İşlemi reddetmek istediğinize emin misiniz?')) return;
+        try {
+            await api.post(`/reservations/${reservationId}/reject-cancel-request`);
+            await api.delete(`/notifications/${notifId}`);
+            // Refresh
+            fetchNotifications();
+            alert('İptal talebi reddedildi, takıma bildirildi.');
+        } catch (error: any) {
+            alert(error.response?.data?.message || 'İşlem başarısız.');
+        }
+    };
+
     const handleNotificationClick = (notif: any) => {
         if (notif.metadata?.date) {
             // For now, let's navigate to dashboard with that date
@@ -82,6 +110,23 @@ export const BusinessNotificationsPage: React.FC = () => {
                                 <p className="text-sm text-slate-400 leading-relaxed line-clamp-2">
                                     {notif.message}
                                 </p>
+
+                                {notif.type === 'CANCEL_REQUEST' && (
+                                    <div className="flex gap-2 mt-3 pt-3 border-t border-slate-700/50 relative z-10" onClick={e => e.stopPropagation()}>
+                                        <button
+                                            onClick={(e) => handleAcceptCancel(e, notif.metadata?.reservationId, notif.id)}
+                                            className="flex-1 py-1.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-500 text-xs font-bold rounded-lg transition-colors"
+                                        >
+                                            İptali Onayla
+                                        </button>
+                                        <button
+                                            onClick={(e) => handleRejectCancel(e, notif.metadata?.reservationId, notif.id)}
+                                            className="flex-1 py-1.5 bg-slate-700/50 hover:bg-slate-700 border border-slate-600 text-slate-300 text-xs font-bold rounded-lg transition-colors"
+                                        >
+                                            Reddet
+                                        </button>
+                                    </div>
+                                )}
                             </div>
 
                             <ChevronRight className="w-5 h-5 absolute right-5 top-1/2 -translate-y-1/2 text-slate-600 transition-all group-hover:text-orange-500 group-hover:translate-x-1" />

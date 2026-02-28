@@ -8,6 +8,7 @@ import { ChatChannel } from '../chat/chat-channel.entity';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { Pitch } from '../pitches/entities/pitch.entity';
 import { BusinessOwner } from '../business-owner/entities/business-owner.entity';
+import { MatchAnnouncement } from '../match-announcements/match-announcement.entity';
 
 @Injectable()
 export class ReservationsService {
@@ -20,6 +21,8 @@ export class ReservationsService {
         private pitchRepository: Repository<Pitch>,
         @InjectRepository(BusinessOwner)
         private businessOwnerRepository: Repository<BusinessOwner>,
+        @InjectRepository(MatchAnnouncement)
+        private matchAnnouncementRepository: Repository<MatchAnnouncement>,
         private chatService: ChatService,
         private notificationsService: NotificationsService,
         @InjectRepository(ChatChannel)
@@ -590,7 +593,7 @@ export class ReservationsService {
     async cancel(id: string, teamId: string) {
         const reservation = await this.reservationRepository.findOne({
             where: { id, team: { id: teamId } },
-            relations: ['team', 'team.captain']
+            relations: ['team', 'team.captain', 'pitch', 'pitch.business', 'matchAnnouncement']
         });
 
         if (!reservation) {
@@ -607,13 +610,29 @@ export class ReservationsService {
         reservation.status = ReservationStatus.CANCELLED;
         await this.reservationRepository.save(reservation);
 
-        // Notify chat if it was an approved match
-        if (reservation.matchAnnouncementId) {
+        // Notify chat if it was an approved match and update announcement status
+        if (reservation.matchAnnouncement) {
+            await this.matchAnnouncementRepository.update(
+                reservation.matchAnnouncement.id,
+                { status: 'CANCELLED' }
+            );
+
+            const slotTime = new Date(reservation.slotTime);
+            const dateStr = slotTime.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', weekday: 'long' });
+            const timeStr = slotTime.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+            const endTimeStr = new Date(slotTime.getTime() + 60 * 60 * 1000).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+            const businessName = reservation.pitch?.business?.name || 'İşletme';
+            const pitchName = reservation.pitch?.name || 'Saha';
+
             await this.sendSystemMessage(
                 this.dataSource.manager,
-                reservation.matchAnnouncementId,
+                reservation.matchAnnouncement.id,
                 reservation.team, // Sender context (Captain)
-                `Takım kaptanı maçı iptal etti. {{CANCEL}}`,
+                `Takım kaptanı maçı iptal etti. {{CANCEL}}\n\n` +
+                `{{STADIUM}} ${businessName}\n` +
+                `{{PIN}} ${pitchName}\n` +
+                `{{CALENDAR}} ${dateStr}\n` +
+                `{{CLOCK}} ${timeStr} - ${endTimeStr}`,
                 { type: 'MATCH_CANCELLED_BY_CAPTAIN', reservationId: reservation.id }
             );
 
@@ -635,7 +654,7 @@ export class ReservationsService {
                         userId: player.id,
                         type: 'SYSTEM',
                         title: '🚫 Maç İptal Edildi',
-                        message: `Takım kaptanı maçı iptal etti.`,
+                        message: `${businessName} - ${pitchName}\n${dateStr} ${timeStr}\n\nTakım kaptanı maçı iptal etti.`,
                         relatedId: reservation.id,
                         read: false,
                         metadata: { type: 'MATCH_CANCELLED_BY_CAPTAIN', reservationId: reservation.id }
@@ -647,6 +666,193 @@ export class ReservationsService {
         }
 
         return reservation;
+    }
+    async requestCancel(id: string, teamId: string) {
+        const reservation = await this.reservationRepository.findOne({
+            where: { id, team: { id: teamId } },
+            relations: ['team', 'pitch', 'pitch.business']
+        });
+
+        if (!reservation) {
+            throw new Error('Reservation not found or unauthorized');
+        }
+
+        if (reservation.status !== ReservationStatus.APPROVED) {
+            throw new Error('Sadece onaylanmış maçlar için iptal isteği gönderilebilir.');
+        }
+
+        if (reservation.cancelRequested) {
+            throw new Error('Zaten bir iptal isteği gönderilmiş.');
+        }
+
+        // Update reservation
+        reservation.cancelRequested = true;
+        reservation.cancelRequestedByTeamId = teamId;
+        await this.reservationRepository.save(reservation);
+
+        // Notify chat
+        if (reservation.matchAnnouncementId) {
+            const slotTime = new Date(reservation.slotTime);
+            const dateStr = slotTime.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', weekday: 'long' });
+            const timeStr = slotTime.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+            const endTimeStr = new Date(slotTime.getTime() + 60 * 60 * 1000).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+            const businessName = reservation.pitch?.business?.name || 'İşletme';
+            const pitchName = reservation.pitch?.name || 'Saha';
+
+            await this.sendSystemMessage(
+                this.dataSource.manager,
+                reservation.matchAnnouncementId,
+                reservation.team,
+                `Maç iptal etme isteği işletmeye gönderildi. Hızlandırmak için işletmeyle iletişime geçebilirsiniz.\n\n` +
+                `{{STADIUM}} ${businessName}\n` +
+                `{{PIN}} ${pitchName}\n` +
+                `{{CALENDAR}} ${dateStr}\n` +
+                `{{CLOCK}} ${timeStr} - ${endTimeStr}`,
+                { type: 'CANCEL_REQUEST_SENT', reservationId: reservation.id }
+            );
+        }
+
+        // Notify Business Owner
+        try {
+            if (reservation.pitch?.business) {
+                const owner = await this.businessOwnerRepository.findOne({
+                    where: { business: { id: reservation.pitch.business.id } }
+                });
+
+                if (owner) {
+                    const slotTime = new Date(reservation.slotTime);
+                    const dateStr = slotTime.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
+                    const timeStr = slotTime.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+
+                    await this.notificationsService.create({
+                        userId: owner.id,
+                        type: 'CANCEL_REQUEST',
+                        title: 'Talebe Dikkat: Maç İptal İsteği!',
+                        message: `${reservation.pitch.name} için ${dateStr} saat ${timeStr} dilimindeki maç takımı tarafından iptal edilmek isteniyor.`,
+                        relatedId: reservation.id,
+                        read: false,
+                        metadata: {
+                            reservationId: reservation.id,
+                            pitchName: reservation.pitch.name,
+                            date: dateStr,
+                            time: timeStr,
+                            role: 'BUSINESS_OWNER'
+                        }
+                    });
+                }
+            }
+        } catch (error) {
+            this.logger.error('Failed to send business owner cancel request notification', error);
+        }
+
+        return reservation;
+    }
+
+    async acceptCancelRequest(id: string) {
+        this.logger.log(`Accepting cancel request for reservation: ${id}`);
+
+        return this.dataSource.transaction(async (manager) => {
+            const reservation = await manager.findOne(Reservation, {
+                where: { id, cancelRequested: true },
+                relations: ['team', 'team.players', 'opponentTeam', 'opponentTeam.players', 'pitch', 'pitch.business', 'matchAnnouncement']
+            });
+
+            if (!reservation) {
+                throw new Error('Reservation not found or no active cancel request.');
+            }
+
+            reservation.status = ReservationStatus.CANCELLED;
+            reservation.cancelRequested = false;
+            await manager.save(reservation);
+
+            // Notify chat and update Announcement status
+            if (reservation.matchAnnouncement) {
+                await manager.update(MatchAnnouncement, reservation.matchAnnouncement.id, { status: 'CANCELLED' });
+
+                const slotTime = new Date(reservation.slotTime);
+                const dateStr = slotTime.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', weekday: 'long' });
+                const timeStr = slotTime.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+                const endTimeStr = new Date(slotTime.getTime() + 60 * 60 * 1000).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+                const businessName = reservation.pitch?.business?.name || 'İşletme';
+                const pitchName = reservation.pitch?.name || 'Saha';
+
+                await this.sendSystemMessage(
+                    manager,
+                    reservation.matchAnnouncement.id,
+                    reservation.team,
+                    `İşletme iptal isteğini onayladı. Maç iptal edildi. {{CANCEL}}\n\n` +
+                    `{{STADIUM}} ${businessName}\n` +
+                    `{{PIN}} ${pitchName}\n` +
+                    `{{CALENDAR}} ${dateStr}\n` +
+                    `{{CLOCK}} ${timeStr} - ${endTimeStr}`,
+                    { type: 'MATCH_CANCELLED_BY_BUSINESS_APPROVAL', reservationId: reservation.id }
+                );
+
+                try {
+                    const playersToNotify: any[] = [];
+                    if (reservation.team?.players) playersToNotify.push(...reservation.team.players);
+                    if (reservation.opponentTeam?.players) playersToNotify.push(...reservation.opponentTeam.players);
+
+                    for (const player of playersToNotify) {
+                        await this.notificationsService.create({
+                            userId: player.id,
+                            type: 'SYSTEM',
+                            title: '🚫 Maç İptal Edildi',
+                            message: `${businessName} - ${pitchName}\n${dateStr} ${timeStr}\n\nİşletme iptal isteğini onayladı.`,
+                            relatedId: reservation.id,
+                            read: false,
+                            metadata: { type: 'MATCH_CANCELLED_BY_BUSINESS_APPROVAL', reservationId: reservation.id }
+                        });
+                    }
+                } catch (error) {
+                    this.logger.error('Failed to send player cancellation notifications:', error);
+                }
+            }
+
+            return reservation;
+        });
+    }
+
+    async rejectCancelRequest(id: string) {
+        this.logger.log(`Rejecting cancel request for reservation: ${id}`);
+
+        return this.dataSource.transaction(async (manager) => {
+            const reservation = await manager.findOne(Reservation, {
+                where: { id, cancelRequested: true },
+                relations: ['team', 'pitch', 'pitch.business']
+            });
+
+            if (!reservation) {
+                throw new Error('Reservation not found or no active cancel request.');
+            }
+
+            reservation.cancelRequested = false;
+            await manager.save(reservation);
+
+            // Notify chat
+            if (reservation.matchAnnouncementId) {
+                const slotTime = new Date(reservation.slotTime);
+                const dateStr = slotTime.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', weekday: 'long' });
+                const timeStr = slotTime.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+                const endTimeStr = new Date(slotTime.getTime() + 60 * 60 * 1000).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+                const businessName = reservation.pitch?.business?.name || 'İşletme';
+                const pitchName = reservation.pitch?.name || 'Saha';
+
+                await this.sendSystemMessage(
+                    manager,
+                    reservation.matchAnnouncementId,
+                    reservation.team,
+                    `İşletme iptal talebini reddetti. İşletme ile iletişime geçmenizi öneririz.\n\n` +
+                    `{{STADIUM}} ${businessName}\n` +
+                    `{{PIN}} ${pitchName}\n` +
+                    `{{CALENDAR}} ${dateStr}\n` +
+                    `{{CLOCK}} ${timeStr} - ${endTimeStr}`,
+                    { type: 'CANCEL_REQUEST_REJECTED', reservationId: reservation.id }
+                );
+            }
+
+            return reservation;
+        });
     }
 
     async findByPitchAndDateRange(pitchId: string, date: string) {

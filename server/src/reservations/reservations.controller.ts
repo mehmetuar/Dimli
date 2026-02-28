@@ -60,4 +60,19 @@ export class ReservationsController {
     acceptProposal(@Param('id') id: string, @Body() body: { userId: string }) {
         return this.reservationsService.acceptProposal(id, body.userId);
     }
+
+    @Post(':id/request-cancel')
+    requestCancel(@Param('id') id: string, @Body() body: { teamId: string }) {
+        return this.reservationsService.requestCancel(id, body.teamId);
+    }
+
+    @Post(':id/accept-cancel-request')
+    acceptCancelRequest(@Param('id') id: string) {
+        return this.reservationsService.acceptCancelRequest(id);
+    }
+
+    @Post(':id/reject-cancel-request')
+    rejectCancelRequest(@Param('id') id: string) {
+        return this.reservationsService.rejectCancelRequest(id);
+    }
 }

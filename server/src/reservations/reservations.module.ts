@@ -8,10 +8,11 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { ChatChannel } from '../chat/chat-channel.entity';
 import { Pitch } from '../pitches/entities/pitch.entity';
 import { BusinessOwner } from '../business-owner/entities/business-owner.entity';
+import { MatchAnnouncement } from '../match-announcements/match-announcement.entity';
 
 @Module({
     imports: [
-        TypeOrmModule.forFeature([Reservation, ChatChannel, Pitch, BusinessOwner]),
+        TypeOrmModule.forFeature([Reservation, ChatChannel, Pitch, BusinessOwner, MatchAnnouncement]),
         ChatModule,
         NotificationsModule
     ],

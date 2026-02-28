@@ -9,7 +9,7 @@ export class Notification {
     userId: string;
 
     @Column()
-    type: 'JOIN_REQUEST' | 'CHALLENGE' | 'MATCH_RESULT' | 'SYSTEM' | 'MATCH_REMINDER' | 'RESERVATION_REQUEST' | 'REMATCH_PROPOSAL';
+    type: 'JOIN_REQUEST' | 'CHALLENGE' | 'MATCH_RESULT' | 'SYSTEM' | 'MATCH_REMINDER' | 'RESERVATION_REQUEST' | 'REMATCH_PROPOSAL' | 'CANCEL_REQUEST';
 
     @Column({ nullable: true })
     title: string;
