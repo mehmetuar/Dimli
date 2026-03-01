@@ -10,6 +10,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { Pitch } from '../pitches/entities/pitch.entity';
 import { BusinessOwner } from '../business-owner/entities/business-owner.entity';
 import { MatchAnnouncement } from '../match-announcements/match-announcement.entity';
+import { User } from '../users/user.entity';
 
 @Injectable()
 export class ReservationsService {
@@ -24,6 +25,8 @@ export class ReservationsService {
         private businessOwnerRepository: Repository<BusinessOwner>,
         @InjectRepository(MatchAnnouncement)
         private matchAnnouncementRepository: Repository<MatchAnnouncement>,
+        @InjectRepository(User)
+        private userRepository: Repository<User>,
         private chatService: ChatService,
         private notificationsService: NotificationsService,
         @InjectRepository(ChatChannel)
@@ -677,7 +680,7 @@ export class ReservationsService {
 
         return reservation;
     }
-    async requestCancel(id: string, teamId: string) {
+    async requestCancel(id: string, teamId: string, userId: string) {
         const reservation = await this.reservationRepository.findOne({
             where: { id, team: { id: teamId } },
             relations: ['team', 'pitch', 'pitch.business']
@@ -709,11 +712,15 @@ export class ReservationsService {
             const businessName = reservation.pitch?.business?.name || 'İşletme';
             const pitchName = reservation.pitch?.name || 'Saha';
 
+            // Fetch user name
+            const requestingUser = await this.userRepository.findOne({ where: { id: userId } });
+            const userName = requestingUser?.full_name || 'Bir kullanıcı';
+
             await this.sendSystemMessage(
                 this.dataSource.manager,
                 reservation.matchAnnouncementId,
                 reservation.team,
-                `Maç iptal etme isteği işletmeye gönderildi. Hızlandırmak için işletmeyle iletişime geçebilirsiniz.\n\n` +
+                `${userName} maç iptal etme isteği gönderdi. Hızlandırmak için işletmeyle iletişime geçebilirsiniz.\n\n` +
                 `{{STADIUM}} ${businessName}\n` +
                 `{{PIN}} ${pitchName}\n` +
                 `{{CALENDAR}} ${dateStr}\n` +
@@ -758,7 +765,7 @@ export class ReservationsService {
         return reservation;
     }
 
-    async undoCancelRequest(id: string, teamId: string) {
+    async undoCancelRequest(id: string, teamId: string, userId: string) {
         const reservation = await this.reservationRepository.findOne({
             where: { id, team: { id: teamId } },
             relations: ['team', 'pitch', 'pitch.business']
@@ -783,6 +790,10 @@ export class ReservationsService {
             { read: true }
         );
 
+        // Fetch user name
+        const requestingUser = await this.userRepository.findOne({ where: { id: userId } });
+        const userName = requestingUser?.full_name || 'Bir kullanıcı';
+
         // Notify chat
         if (reservation.matchAnnouncementId) {
             const slotTime = new Date(reservation.slotTime);
@@ -796,12 +807,12 @@ export class ReservationsService {
                 this.dataSource.manager,
                 reservation.matchAnnouncementId,
                 reservation.team,
-                `Takım kaptanı iptal isteğini geri aldı. Maçınız planlandığı gibi devam edecektir. ✅\n\n` +
+                `${userName} iptal isteğini geri aldı. Maçınız planlandığı gibi devam edecektir. \n\n` +
                 `{{STADIUM}} ${businessName}\n` +
                 `{{PIN}} ${pitchName}\n` +
                 `{{CALENDAR}} ${dateStr}\n` +
                 `{{CLOCK}} ${timeStr} - ${endTimeStr}`,
-                { type: 'CANCEL_REQUEST_UNDONE', reservationId: reservation.id }
+                { type: 'UNDO_CANCEL_REQUEST', reservationId: reservation.id }
             );
         }
 

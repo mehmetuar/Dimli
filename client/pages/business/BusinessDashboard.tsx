@@ -270,6 +270,13 @@ export const BusinessDashboard: React.FC = () => {
                                                     slot.status === 'PENDING' ? 'Onay Bekliyor' : 'DOLU'}
                                         </span>
 
+                                        {/* Cancellation Request Indicator */}
+                                        {!isPast && slot.status === 'FULL' && slot.reservations?.some((r: any) => r.cancelRequested) && (
+                                            <span className="text-[8px] font-black text-orange-500 uppercase tracking-tighter mt-0.5 animate-pulse">
+                                                İptal İsteği
+                                            </span>
+                                        )}
+
                                         {/* Status Indicator Dot */}
                                         {!isPast && slot.status !== 'EMPTY' && (
                                             <div className={`absolute top-2 right-2 w-1.5 h-1.5 rounded-full ${slot.status === 'PENDING' ? 'bg-orange-500 animate-pulse' : 'bg-red-500'}`} />

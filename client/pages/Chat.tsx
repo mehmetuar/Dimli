@@ -178,6 +178,7 @@ export const Chat: React.FC = () => {
 
   const [successModalOpen, setSuccessModalOpen] = useState(false);
   const [successModalMessage, setSuccessModalMessage] = useState('');
+  const [successModalType, setSuccessModalType] = useState<any>('DEFAULT');
 
   // Refresh Trigger State for Auto-reloading data
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -319,15 +320,17 @@ export const Chat: React.FC = () => {
     setTactic(advice);
   };
 
-  const handleDeleteChannel = async () => {
-    if (!optionsModalChannel) return;
-
+  const handleDeleteChannel = async (channelId: string) => {
     setIsDeleting(true);
     try {
-      await api.delete(`/chat/channels/${optionsModalChannel.id}`);
+      await api.delete(`/chat/channels/${channelId}`);
       // Remove from list locally
-      setChannels(prev => prev.filter(c => c.id !== optionsModalChannel.id));
+      setChannels(prev => prev.filter(c => c.id !== channelId));
       setOptionsModalChannel(null); // Close modal
+      if (selectedChannelId === channelId) setSelectedChannelId(null);
+      setSuccessModalMessage('Sohbet başarıyla silindi.');
+      setSuccessModalType('MATCH_CANCELLED');
+      setSuccessModalOpen(true);
     } catch (error: any) {
       console.error('Failed to delete channel:', error);
       // Extract message from error response if available
@@ -456,7 +459,7 @@ export const Chat: React.FC = () => {
 
                   {canDelete && (
                     <button
-                      onClick={handleDeleteChannel}
+                      onClick={() => handleDeleteChannel(optionsModalChannel.id)}
                       disabled={isDeleting}
                       className="w-full bg-slate-900 border border-slate-700 text-slate-400 hover:text-red-400 hover:border-red-900/50 font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2"
                     >
@@ -490,6 +493,7 @@ export const Chat: React.FC = () => {
       try {
         await api.post(`/reservations/${reservationId}/cancel`, { teamId: currentUser?.team?.id });
         setSuccessModalMessage('Maç başarıyla iptal edildi.');
+        setSuccessModalType('MATCH_CANCELLED');
         setSuccessModalOpen(true);
         setRefreshTrigger(prev => prev + 1);
       } catch (error: any) {
@@ -506,8 +510,9 @@ export const Chat: React.FC = () => {
     setConfirmButtonText('İstek Gönder');
     setConfirmAction(() => async () => {
       try {
-        await api.post(`/reservations/${reservationId}/request-cancel`, { teamId: currentUser?.team?.id });
+        await api.post(`/reservations/${reservationId}/request-cancel`, { teamId: currentUser?.team?.id, userId: currentUser?.id });
         setSuccessModalMessage('İptal isteği işletmeye gönderildi.');
+        setSuccessModalType('MESSAGE_SENT');
         setSuccessModalOpen(true);
         setRefreshTrigger(prev => prev + 1);
       } catch (error: any) {
@@ -524,8 +529,9 @@ export const Chat: React.FC = () => {
     setConfirmButtonText('İsteği Geri Al');
     setConfirmAction(() => async () => {
       try {
-        await api.post(`/reservations/${reservationId}/undo-cancel-request`, { teamId: currentUser?.team?.id });
+        await api.post(`/reservations/${reservationId}/undo-cancel-request`, { teamId: currentUser?.team?.id, userId: currentUser?.id });
         setSuccessModalMessage('İptal isteği başarıyla geri alındı.');
+        setSuccessModalType('MESSAGE_SENT');
         setSuccessModalOpen(true);
         setRefreshTrigger(prev => prev + 1);
       } catch (error: any) {
@@ -544,6 +550,7 @@ export const Chat: React.FC = () => {
       try {
         await api.post(`/reservations/${reservationId}/accept-proposal`, { userId: currentUser?.id });
         setSuccessModalMessage('Teklif kabul edildi! Maç saati güncellendi.');
+        setSuccessModalType('MATCH_APPROVED');
         setSuccessModalOpen(true);
         setRefreshTrigger(prev => prev + 1);
       } catch (error: any) {
@@ -565,6 +572,7 @@ export const Chat: React.FC = () => {
           matchAnnouncementId
         });
         setSuccessModalMessage('Teklif kabul edildi! Yeni sohbet kanalı oluşturuldu.');
+        setSuccessModalType('CHALLENGE_ACCEPTED');
         setSuccessModalOpen(true);
         setTimeout(() => {
           if (result.data?.newChannelId) {
@@ -993,6 +1001,37 @@ export const Chat: React.FC = () => {
                     </button>
                   );
                 }
+
+                // Add Delete Chat Button for Played/Unplayed matches
+                if (statusInfo?.type === 'played' || statusInfo?.type === 'unplayed') {
+                  return (
+                    <button
+                      onClick={() => {
+                        if (!activeChannel) return;
+                        setIsChatMenuOpen(false);
+                        setConfirmTitle('Sohbeti Sil');
+                        setConfirmMessage('Bu sohbeti silmek istediğinize emin misiniz? Bu işlem geri alınamaz.');
+                        setConfirmIsDangerous(true);
+                        setConfirmButtonText('Sil');
+                        setConfirmAction(() => () => handleDeleteChannel(activeChannel.id));
+                        setConfirmModalOpen(true);
+                      }}
+                      disabled={isDeleting}
+                      className="w-full text-left p-4 rounded-2xl text-md font-bold text-slate-400 hover:text-red-400 hover:bg-red-500/10 flex items-center justify-between transition-colors shadow-sm"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-full bg-slate-900 border border-slate-700 flex items-center justify-center">
+                          <Trash2 className="w-6 h-6" />
+                        </div>
+                        <div className="flex flex-col">
+                          <span>{isDeleting ? 'Siliniyor...' : 'Sohbeti Sil'}</span>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-5 h-5 opacity-50" />
+                    </button>
+                  );
+                }
+
                 return null;
               })()}
             </div>
@@ -1020,7 +1059,7 @@ export const Chat: React.FC = () => {
         isOpen={successModalOpen}
         onClose={() => setSuccessModalOpen(false)}
         message={successModalMessage}
-        type="CHALLENGE_ACCEPTED"
+        type={successModalType}
       />
     </div>
   );
