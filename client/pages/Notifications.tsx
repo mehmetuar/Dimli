@@ -29,7 +29,7 @@ interface JoinRequest {
 
 interface Notification {
    id: string;
-   type: 'JOIN_REQUEST' | 'CHALLENGE' | 'MATCH_RESULT' | 'REMATCH_PROPOSAL' | 'SYSTEM' | 'MATCH_REMINDER' | 'RESERVATION_REQUEST';
+   type: 'JOIN_REQUEST' | 'CHALLENGE' | 'MATCH_RESULT' | 'REMATCH_PROPOSAL' | 'SYSTEM' | 'MATCH_REMINDER' | 'RESERVATION_REQUEST' | 'JOKER_INVITE';
    relatedId: string;
    metadata: any;
    read: boolean;
@@ -211,6 +211,14 @@ export const Notifications: React.FC = () => {
       return true;
    });
 
+   const jokerInvites = notifications.filter(n => {
+      if (n.type !== 'JOKER_INVITE') return false;
+      if (n.metadata?.matchDate && n.metadata?.matchTime) {
+         return !isMatchExpired(n.metadata.matchDate, n.metadata.matchTime);
+      }
+      return true;
+   });
+
    const handleAcceptRematchFromNotif = async (notification: Notification) => {
       const channelId = notification.metadata?.channelId;
       const matchAnnouncementId = notification.metadata?.matchAnnouncementId;
@@ -228,6 +236,34 @@ export const Notifications: React.FC = () => {
       } catch (error: any) {
          console.error('Rövanş teklifi kabul edilemedi:', error);
          setErrorMessage(error.response?.data?.message || 'Kabul edilemedi.');
+      }
+   };
+
+   const handleAcceptJokerInvite = async (notification: Notification) => {
+      try {
+         const result = await api.post(`/chat/joker-negotiation`, {
+            notificationId: notification.id,
+            matchId: notification.relatedId,
+            inviterId: notification.metadata?.inviterId
+         });
+         setSuccessMessage('Joker daveti kabul edildi! Davet sahibi ile özel sohbet oluşturuldu.');
+         setErrorMessage('');
+         setTimeout(() => navigate('/chat', { state: { channelId: result.data.id } }), 1500);
+      } catch (error: any) {
+         console.error('Joker daveti kabul edilemedi:', error);
+         setErrorMessage(error.response?.data?.message || 'Kabul edilemedi.');
+      }
+   };
+
+   const handleRejectJokerInvite = async (notification: Notification) => {
+      try {
+         await api.delete(`/notifications/${notification.id}`);
+         await fetchData();
+         setSuccessMessage('Joker daveti reddedildi.');
+         setErrorMessage('');
+      } catch (error: any) {
+         console.error('Joker daveti reddedilemedi:', error);
+         setErrorMessage(error.response?.data?.message || 'Reddedilemedi.');
       }
    };
 
@@ -273,7 +309,7 @@ export const Notifications: React.FC = () => {
                   : 'text-slate-400 hover:text-white'
                   }`}
             >
-               MAÇ{`\nİSTEKLERİ (${filteredMatchRequests.length + rematchProposals.length})`}
+               MAÇ{`\nİSTEKLERİ (${filteredMatchRequests.length + rematchProposals.length + jokerInvites.length})`}
             </button>
             <button
                onClick={() => setActiveTab('JOIN_REQUESTS')}
@@ -432,6 +468,60 @@ export const Notifications: React.FC = () => {
                            ))}
                         </>
                      )}
+
+                     {/* Joker Davetleri */}
+                     {jokerInvites.length > 0 && (
+                        <>
+                           {(filteredMatchRequests.length > 0 || rematchProposals.length > 0) && (
+                              <div className="border-t border-slate-700 my-4 pt-2">
+                                 <p className="text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-2">
+                                    <ShieldCheck className="w-4 h-4 text-turf-500" /> Joker Kartı Daveti (Tek Maçlık)
+                                 </p>
+                              </div>
+                           )}
+                           {jokerInvites.map(notif => (
+                              <div key={notif.id} className="p-4 rounded-2xl border flex gap-4 items-start transition-all relative overflow-hidden bg-slate-800 border-turf-500/50 shadow-[0_0_15px_rgba(34,197,94,0.1)]">
+                                 <div className="absolute right-0 top-0 w-20 h-full bg-gradient-to-l from-turf-600/10 to-transparent pointer-events-none"></div>
+                                 <div className="w-12 h-12 rounded-full bg-gradient-to-br from-turf-400 to-green-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-turf-500/30">
+                                    <UserPlus className="w-6 h-6 text-white" />
+                                 </div>
+                                 <div className="flex-1 min-w-0 relative z-10">
+                                    <div className="flex justify-between items-start">
+                                       <h3 className="font-bold text-white text-base">{notif.metadata?.teamName || 'Bilinmeyen Takım'}</h3>
+                                       <span className="text-[10px] font-bold text-slate-500 uppercase">{new Date(notif.createdAt).toLocaleDateString('tr-TR')}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-xs text-slate-400 mt-1">
+                                       <Calendar className="w-3 h-3 text-turf-500" />
+                                       <span className="text-white font-bold">
+                                          {notif.metadata?.matchDate && notif.metadata?.matchTime
+                                             ? `${new Date(notif.metadata.matchDate).toLocaleDateString('tr-TR')} ${notif.metadata.matchTime}`
+                                             : 'Tarih Bilinmiyor'}
+                                       </span>
+                                    </div>
+                                    {(notif.metadata?.businessName || notif.metadata?.pitchName) && (
+                                       <div className="flex items-center gap-1 text-xs text-turf-400 mt-1 mb-2">
+                                          <MapPin className="w-3 h-3 flex-shrink-0" />
+                                          <span className="font-semibold truncate">
+                                             {notif.metadata.businessName ? `${notif.metadata.businessName} · ` : ''}{notif.metadata.pitchName}
+                                          </span>
+                                       </div>
+                                    )}
+                                    {notif.metadata?.note && (
+                                       <p className="text-xs text-slate-300 italic mb-2 line-clamp-1">"{notif.metadata.note}"</p>
+                                    )}
+                                    <div className="flex gap-2 mt-2">
+                                       <button onClick={() => handleAcceptJokerInvite(notif)} className="flex-1 py-2 bg-gradient-to-r from-turf-600 to-green-500 text-white rounded-lg text-xs font-black uppercase italic flex items-center justify-center gap-1 hover:scale-[1.02] transition-transform shadow-lg shadow-turf-600/20">
+                                          <Check className="w-3 h-3" /> Kabul Et
+                                       </button>
+                                       <button onClick={() => handleRejectJokerInvite(notif)} className="flex-1 py-2 bg-slate-700 text-slate-300 rounded-lg text-xs font-bold flex items-center justify-center gap-1 hover:bg-red-900/50 hover:text-red-400 transition-colors">
+                                          <X className="w-3 h-3" /> Reddet
+                                       </button>
+                                    </div>
+                                 </div>
+                              </div>
+                           ))}
+                        </>
+                     )}
                   </>
                )}
 
@@ -549,6 +639,7 @@ export const Notifications: React.FC = () => {
                                                                'bg-slate-700 text-slate-400'
                                           }`}>
                                           {notif.type === 'JOIN_REQUEST' && <UserPlus className="w-4 h-4" />}
+                                          {notif.type === 'JOKER_INVITE' && <UserPlus className="w-4 h-4 text-turf-500" />}
                                           {(notif.type === 'CHALLENGE' || notif.metadata?.type === 'MATCH_APPROVED') && <ShieldCheck className="w-4 h-4" />}
                                           {notif.type === 'REMATCH_PROPOSAL' && <Swords className="w-4 h-4" />}
                                           {notif.type === 'MATCH_REMINDER' && <Clock className="w-4 h-4" />}
@@ -561,6 +652,7 @@ export const Notifications: React.FC = () => {
 
                                        <h3 className="font-bold text-white text-base">
                                           {notif.type === 'JOIN_REQUEST' && 'Yeni Katılma İsteği'}
+                                          {notif.type === 'JOKER_INVITE' && 'Yeni Joker Daveti'}
                                           {notif.type === 'CHALLENGE' && 'Yeni Meydan Okuma'}
                                           {notif.type === 'MATCH_RESULT' && 'Maç Sonucu'}
                                           {notif.type === 'REMATCH_PROPOSAL' && 'Yeni Maç Teklifi'}

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Bot, ChevronLeft, Users, Shield, Star, Phone, MessageSquare, UserPlus, ArrowDown, Swords, MoreVertical, X, ChevronRight, Trash2, XCircle, AlertTriangle, Undo2 } from 'lucide-react';
+import { Send, Bot, ChevronLeft, Users, Shield, Star, Phone, MessageSquare, UserPlus, ArrowDown, Swords, MoreVertical, X, ChevronRight, Trash2, XCircle, AlertTriangle, Undo2, UserMinus } from 'lucide-react';
 import { getTacticalAdvice } from '../services/geminiService';
 import { SkillLevel, ChatChannel, Team } from '../types';
 import { MOCK_CHANNELS, MOCK_MESSAGES, MOCK_TEAMS, CURRENT_USER, MOCK_JOKERS } from '../constants';
@@ -13,6 +13,7 @@ import { ConfirmModal } from '../components/ConfirmModal';
 import { SuccessModal } from '../components/SuccessModal';
 import { SystemMessageRenderer, stripSystemMessageMarkers } from '../components/SystemMessageRenderer';
 import { KendiAramizdaNewMatchModal } from '../components/KendiAramizdaNewMatchModal';
+import { ManageJokersModal } from '../components/ManageJokersModal';
 import api from '../services/api';
 
 // Utility Hook for Long Press
@@ -167,6 +168,9 @@ export const Chat: React.FC = () => {
 
   // Kendi Aramızda Yeni Maç Modal State
   const [isKendiAramizdaNewMatchOpen, setIsKendiAramizdaNewMatchOpen] = useState(false);
+
+  // Joker Management Modal State
+  const [isManageJokersModalOpen, setIsManageJokersModalOpen] = useState(false);
 
   // Confirm & Success Modal States
   const [confirmModalOpen, setConfirmModalOpen] = useState(false);
@@ -588,6 +592,55 @@ export const Chat: React.FC = () => {
     setConfirmModalOpen(true);
   };
 
+  const handleInviteJokerToMatch = async () => {
+    if (!selectedChannelId) return;
+    setConfirmTitle('Jokeri Maça Dahil Et');
+    setConfirmMessage('Jokeri asıl maç grubuna dahil etmek istediğinize emin misiniz? Joker, takımınızın maç saatini ve sahasını görebilecek, maç sohbetine katılabilecektir.');
+    setConfirmIsDangerous(false);
+    setConfirmButtonText('Dahil Et');
+    setConfirmAction(() => async () => {
+      try {
+        const result = await api.post(`/chat/channels/${selectedChannelId}/invite-joker`);
+        setSuccessModalMessage('Joker maça başarıyla eklendi! Genel sohbete yönlendiriliyorsunuz.');
+        setSuccessModalType('CHALLENGE_ACCEPTED');
+        setSuccessModalOpen(true);
+        setTimeout(() => {
+          if (result.data?.matchChannelId) {
+            setSelectedChannelId(result.data.matchChannelId);
+          } else {
+            window.location.reload();
+          }
+        }, 1500);
+      } catch (error: any) {
+        console.error('Failed to invite joker:', error);
+        alert(error.response?.data?.message || 'İşlem başarısız.');
+      }
+    });
+    setConfirmModalOpen(true);
+  };
+
+  const handleCancelJokerNegotiation = async () => {
+    if (!selectedChannelId) return;
+    setConfirmTitle('Anlaşmayı İptal Et');
+    setConfirmMessage('Bu joker ile olan anlaşmayı iptal etmek istediğinize emin misiniz? Sohbet kalıcı olarak silinecektir.');
+    setConfirmIsDangerous(true);
+    setConfirmButtonText('Anlaşmayı İptal Et');
+    setConfirmAction(() => async () => {
+      try {
+        await api.delete(`/chat/channels/${selectedChannelId}`);
+        setChannels(prev => prev.filter(c => c.id !== selectedChannelId));
+        setSelectedChannelId(null);
+        setSuccessModalMessage('Joker anlaşması iptal edildi.');
+        setSuccessModalType('MATCH_CANCELLED');
+        setSuccessModalOpen(true);
+      } catch (error: any) {
+        console.error('Failed to cancel joker negotiation:', error);
+        alert(error.response?.data?.message || 'İşlem başarısız.');
+      }
+    });
+    setConfirmModalOpen(true);
+  };
+
   // --- COMPONENT: ACTIVE CHAT VIEW ---
   return (
     <div className="fixed inset-0 z-[60] flex flex-col bg-pitch-surface">
@@ -650,7 +703,7 @@ export const Chat: React.FC = () => {
           />
           <div className="flex-1" onClick={handleOpenMatchDetail} style={{ cursor: activeChannel?.relatedMatchId ? 'pointer' : 'default' }}>
             <h2 className="text-white font-bold leading-tight flex items-center">{activeChannel?.name}<MatchStatusBadge reservation={activeChannel?.reservation} size="md" /></h2>
-            <div className="flex items-center gap-2 text-xs text-slate-400">
+            <div className="flex items-center gap-2 text-xs text-slate-400 mt-1">
               {activeChannel?.type === 'MATCH_GROUP' ? (
                 <div className="flex flex-col">
                   <span className="flex items-center gap-1 text-turf-500"><Users className="w-3 h-3" /> {activeChannel.participants?.length || 14} Oyuncu Aktif</span>
@@ -660,6 +713,8 @@ export const Chat: React.FC = () => {
                     return null;
                   })()}
                 </div>
+              ) : activeChannel?.type === 'JOKER_NEGOTIATION' ? (
+                <span className="flex items-center gap-1 text-yellow-500 bg-yellow-500/10 px-2 py-0.5 rounded-full border border-yellow-500/20"><Star className="w-3 h-3 fill-yellow-500 text-yellow-500" /> Joker Müzakere Odası</span>
               ) : (
                 <span className="flex items-center gap-1 text-green-500"><span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span> Çevrimiçi</span>
               )}
@@ -682,7 +737,10 @@ export const Chat: React.FC = () => {
             {/* Chat Menu Options */}
             <div className="relative">
               <button
-                onClick={() => setIsChatMenuOpen(true)}
+                onClick={() => {
+                  handleOpenMatchDetail(); // Ensure match data is loaded for menu options
+                  setIsChatMenuOpen(true);
+                }}
                 className="p-2 text-slate-400 hover:text-white rounded-full hover:bg-slate-800 transition-colors"
                 title="Seçenekler"
               >
@@ -852,67 +910,99 @@ export const Chat: React.FC = () => {
         const activeStatusInfo = getMatchStatusInfo(activeChannel?.reservation);
         const isMatchFinished = activeStatusInfo?.type === 'played' || activeStatusInfo?.type === 'unplayed';
 
+        const isJokerNegotiation = activeChannel?.type === 'JOKER_NEGOTIATION';
+        const startMsg = messages.find(m => m.metadata?.type === 'JOKER_NEGOTIATION_STARTED');
+        const isInviter = startMsg?.metadata?.jokerId && startMsg?.metadata?.jokerId !== currentUser?.id;
+        // Once joker is added to match, lock both the action buttons and the chat input
+        const isJokerAddedToMatch = messages.some(m => m.metadata?.type === 'JOKER_ADDED_TO_MATCH');
+
         return (
-          <div className="p-3 bg-slate-900 border-t border-slate-800 pb-safe-bottom">
-            {isMatchFinished ? (
-              <div className="flex flex-col items-center py-3 gap-3">
-                <div className="flex items-center text-slate-500 text-sm font-medium">
-                  <Shield className="w-4 h-4 mr-2" />
-                  Bu sohbette artık mesaj gönderilemez.
-                </div>
-                {/* Rövanş / Yeni Maç butonu: sadece kaptan ve yardımcılara */}
-                {(() => {
-                  const isCaptain = currentUser?.team?.captainId === currentUser?.id;
-                  const isViceCaptain = currentUser?.team?.viceCaptainIds?.includes(currentUser?.id);
-                  const isKendiAramizda = activeChannel?.name?.includes('(Kendi Aramızda)');
-                  if (isCaptain || isViceCaptain) {
-                    if (isKendiAramizda) {
-                      // Kendi Aramızda: doğrudan yeni maç oluştur (teklif yok)
-                      return (
-                        <button
-                          onClick={() => setIsKendiAramizdaNewMatchOpen(true)}
-                          className="bg-turf-600 hover:bg-turf-700 text-white font-bold py-2.5 px-6 rounded-xl text-sm transition-all flex items-center gap-2 shadow-lg shadow-turf-600/20 hover:scale-[1.02] active:scale-95"
-                        >
-                          <Swords className="w-4 h-4" />
-                          Yeni Maç Ayarla
-                        </button>
-                      );
-                    } else {
-                      // Normal maç: rövanş teklifi gönder
-                      return (
-                        <button
-                          onClick={() => setIsRematchModalOpen(true)}
-                          className="bg-turf-600 hover:bg-turf-700 text-white font-bold py-2.5 px-6 rounded-xl text-sm transition-all flex items-center gap-2 shadow-lg shadow-turf-600/20 hover:scale-[1.02] active:scale-95"
-                        >
-                          <Swords className="w-4 h-4" />
-                          {activeStatusInfo?.type === 'played' ? 'Rövanş İste' : 'Yeni Maç Ayarla'}
-                        </button>
-                      );
-                    }
-                  }
-                  return null;
-                })()}
-              </div>
-            ) : (
-              <div className="flex gap-2 items-end">
-                <div className="flex-1 bg-slate-800 rounded-xl flex items-center border border-slate-700 focus-within:border-turf-500 transition-colors">
-                  <input
-                    type="text"
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                    placeholder="Mesaj yaz..."
-                    className="w-full bg-transparent px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none"
-                  />
-                </div>
+          <div className="flex flex-col bg-slate-900 border-t border-slate-800 pb-safe-bottom">
+            {isJokerNegotiation && !isMatchFinished && !isJokerAddedToMatch && (
+              <div className="p-3 bg-slate-800/50 flex gap-2 justify-center shadow-inner">
+                {isInviter && (
+                  <button
+                    onClick={handleInviteJokerToMatch}
+                    className="bg-turf-600 font-bold text-white text-xs py-2.5 px-4 rounded-xl flex-1 flex justify-center items-center gap-2 hover:bg-turf-500 transition-colors shadow-lg shadow-turf-600/20"
+                  >
+                    <UserPlus className="w-4 h-4" /> Maça Dahil Et
+                  </button>
+                )}
                 <button
-                  onClick={handleSend}
-                  className={`p-3 rounded-xl transition-all ${input.trim() ? 'bg-turf-600 text-white shadow-lg shadow-turf-600/20 scale-100' : 'bg-slate-800 text-slate-500 scale-95'}`}
+                  onClick={handleCancelJokerNegotiation}
+                  className="bg-slate-700 font-bold text-slate-300 text-xs py-2.5 px-4 rounded-xl flex-1 flex justify-center items-center gap-2 hover:bg-red-900/50 hover:text-red-400 transition-colors"
                 >
-                  <Send className="w-5 h-5" />
+                  <X className="w-4 h-4" /> Anlaşmayı İptal Et
                 </button>
               </div>
             )}
+            <div className="p-3">
+              {isMatchFinished ? (
+                <div className="flex flex-col items-center py-3 gap-3">
+                  <div className="flex items-center text-slate-500 text-sm font-medium">
+                    <Shield className="w-4 h-4 mr-2" />
+                    Bu sohbette artık mesaj gönderilemez.
+                  </div>
+                  {/* Rövanş / Yeni Maç butonu: sadece kaptan ve yardımcılara */}
+                  {(() => {
+                    const isCaptain = currentUser?.team?.captainId === currentUser?.id;
+                    const isViceCaptain = currentUser?.team?.viceCaptainIds?.includes(currentUser?.id);
+                    const isKendiAramizda = activeChannel?.name?.includes('(Kendi Aramızda)');
+                    if (isCaptain || isViceCaptain) {
+                      if (isKendiAramizda) {
+                        // Kendi Aramızda: doğrudan yeni maç oluştur (teklif yok)
+                        return (
+                          <button
+                            onClick={() => setIsKendiAramizdaNewMatchOpen(true)}
+                            className="bg-turf-600 hover:bg-turf-700 text-white font-bold py-2.5 px-6 rounded-xl text-sm transition-all flex items-center gap-2 shadow-lg shadow-turf-600/20 hover:scale-[1.02] active:scale-95"
+                          >
+                            <Swords className="w-4 h-4" />
+                            Yeni Maç Ayarla
+                          </button>
+                        );
+                      } else {
+                        // Normal maç: rövanş teklifi gönder
+                        return (
+                          <button
+                            onClick={() => setIsRematchModalOpen(true)}
+                            className="bg-turf-600 hover:bg-turf-700 text-white font-bold py-2.5 px-6 rounded-xl text-sm transition-all flex items-center gap-2 shadow-lg shadow-turf-600/20 hover:scale-[1.02] active:scale-95"
+                          >
+                            <Swords className="w-4 h-4" />
+                            {activeStatusInfo?.type === 'played' ? 'Rövanş İste' : 'Yeni Maç Ayarla'}
+                          </button>
+                        );
+                      }
+                    }
+                    return null;
+                  })()}
+                </div>
+              ) : isJokerNegotiation && isJokerAddedToMatch ? (
+                <div className="p-4 flex items-center justify-center gap-2 text-slate-500 text-sm font-medium">
+                  <Shield className="w-4 h-4" />
+                  Joker maça dahil edildi. Sohbet kapatıldı.
+                </div>
+              ) : (
+                <div className="flex gap-2 items-end">
+                  <div className="flex-1 bg-slate-800 rounded-xl flex items-center border border-slate-700 focus-within:border-turf-500 transition-colors">
+                    <input
+                      type="text"
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                      placeholder="Mesaj yaz..."
+                      className="w-full bg-transparent px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none"
+                    />
+                  </div>
+                  <button
+                    onClick={handleSend}
+                    className={`p-3 rounded-xl transition-all ${input.trim() ? 'bg-turf-600 text-white shadow-lg shadow-turf-600/20 scale-100' : 'bg-slate-800 text-slate-500 scale-95'}`}
+                  >
+                    <Send className="w-5 h-5" />
+                  </button>
+                </div>
+              )}
+
+            </div>
           </div>
         );
       })()}
@@ -949,90 +1039,183 @@ export const Chat: React.FC = () => {
               </a>
 
               {(() => {
+                const statusInfo = getMatchStatusInfo(activeChannel?.reservation);
+                const isMatchFinished = statusInfo?.type === 'played' || statusInfo?.type === 'unplayed';
                 const isCaptain = currentUser?.team?.captainId === currentUser?.id;
                 const isViceCaptain = currentUser?.team?.viceCaptainIds?.includes(currentUser?.id);
-                if (!isCaptain && !isViceCaptain) return null;
 
-                const statusInfo = getMatchStatusInfo(activeChannel?.reservation);
-                if (statusInfo?.type === 'pending') {
-                  return (
-                    <button
-                      onClick={() => {
-                        setIsChatMenuOpen(false);
-                        handleCancelMatch(activeChannel.reservation.id);
-                      }}
-                      className="w-full text-left p-4 rounded-2xl text-md font-bold text-red-500 hover:bg-red-500/10 flex items-center justify-between transition-colors shadow-sm"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center text-red-500 border border-red-500/20">
-                          <Trash2 className="w-6 h-6" />
-                        </div>
-                        <div className="flex flex-col">
-                          <span>Maçı İptal Et</span>
-                        </div>
-                      </div>
-                      <ChevronRight className="w-5 h-5 opacity-50" />
-                    </button>
-                  );
-                } else if (statusInfo?.type === 'confirmed') {
-                  const isCancelRequested = activeChannel?.reservation?.cancelRequested;
-                  return (
-                    <button
-                      onClick={() => {
-                        setIsChatMenuOpen(false);
-                        if (isCancelRequested) {
-                          handleUndoCancelRequest(activeChannel.reservation.id);
-                        } else {
-                          handleCancelRequest(activeChannel.reservation.id);
-                        }
-                      }}
-                      className={`w-full text-left p-4 rounded-2xl text-md font-bold flex items-center justify-between transition-colors shadow-sm ${isCancelRequested ? 'text-blue-500 hover:bg-blue-500/10' : 'text-orange-500 hover:bg-orange-500/10'}`}
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center border ${isCancelRequested ? 'bg-blue-500/10 border-blue-500/20 text-blue-500' : 'bg-orange-500/10 border-orange-500/20 text-orange-500'}`}>
-                          {isCancelRequested ? <Undo2 className="w-6 h-6" /> : <AlertTriangle className="w-6 h-6" />}
-                        </div>
-                        <div className="flex flex-col">
-                          <span>{isCancelRequested ? 'İptal İsteğini Geri Al' : 'İptal Etme İsteği Gönder'}</span>
-                          {!isCancelRequested && <span className="text-xs font-normal text-orange-500/70 mt-0.5">İşletme onayı gerektirir</span>}
-                        </div>
-                      </div>
-                      <ChevronRight className={`w-5 h-5 opacity-50`} />
-                    </button>
-                  );
-                }
+                // For JOKER Self-Leave
+                const isJokerInMatch = activeChannel?.type === 'MATCH_GROUP' &&
+                  matchDetailData &&
+                  currentUser?.team?.id !== matchDetailData?.homeTeam?.id &&
+                  currentUser?.team?.id !== matchDetailData?.awayTeam?.id;
 
-                // Add Delete Chat Button for Played/Unplayed matches
-                if (statusInfo?.type === 'played' || statusInfo?.type === 'unplayed') {
-                  return (
-                    <button
-                      onClick={() => {
-                        if (!activeChannel) return;
-                        setIsChatMenuOpen(false);
-                        setConfirmTitle('Sohbeti Sil');
-                        setConfirmMessage('Bu sohbeti silmek istediğinize emin misiniz? Bu işlem geri alınamaz.');
-                        setConfirmIsDangerous(true);
-                        setConfirmButtonText('Sil');
-                        setConfirmAction(() => () => handleDeleteChannel(activeChannel.id));
-                        setConfirmModalOpen(true);
-                      }}
-                      disabled={isDeleting}
-                      className="w-full text-left p-4 rounded-2xl text-md font-bold text-slate-400 hover:text-red-400 hover:bg-red-500/10 flex items-center justify-between transition-colors shadow-sm"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-slate-900 border border-slate-700 flex items-center justify-center">
-                          <Trash2 className="w-6 h-6" />
-                        </div>
-                        <div className="flex flex-col">
-                          <span>{isDeleting ? 'Siliniyor...' : 'Sohbeti Sil'}</span>
-                        </div>
-                      </div>
-                      <ChevronRight className="w-5 h-5 opacity-50" />
-                    </button>
-                  );
-                }
+                // For Joker Management - Must be captain/vice-captain of HOME or AWAY team
+                // While data is loading, we can show a placeholder or wait for matchDetailData
+                const isCaptainOfPlayingTeam = (isCaptain || isViceCaptain) &&
+                  matchDetailData &&
+                  (currentUser?.team?.id === matchDetailData?.homeTeam?.id ||
+                    currentUser?.team?.id === matchDetailData?.awayTeam?.id);
 
-                return null;
+                const isJokerNegotiation = activeChannel?.type === 'JOKER_NEGOTIATION';
+                const isJokerAddedToMatch = messages.some(m => m.metadata?.type === 'JOKER_ADDED_TO_MATCH');
+                const isJokerNegotiationBlocked = isJokerNegotiation && isJokerAddedToMatch;
+
+                return (
+                  <>
+                    {/* LEAVE MATCH FOR JOKER */}
+                    {isJokerInMatch && !isMatchFinished && (
+                      <button
+                        onClick={() => {
+                          setIsChatMenuOpen(false);
+                          setConfirmTitle('Maçtan Ayrıl');
+                          setConfirmMessage('Joker olarak katıldığınız bu maçtan ayrılmak istediğinize emin misiniz? Sohbetten çıkarılacaksınız.');
+                          setConfirmIsDangerous(true);
+                          setConfirmButtonText('Ayrıl');
+                          setConfirmAction(() => async () => {
+                            try {
+                              await api.delete(`/chat/channels/${activeChannel.id}/jokers/${currentUser.id}`);
+                              window.location.reload();
+                            } catch (err: any) {
+                              alert(err.response?.data?.message || 'Çıkış başarısız.');
+                            }
+                          });
+                          setConfirmModalOpen(true);
+                        }}
+                        className="w-full text-left p-4 rounded-2xl text-md font-bold text-red-500 hover:bg-red-500/10 flex items-center justify-between transition-colors shadow-sm"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center text-red-500 border border-red-500/20">
+                            <UserMinus className="w-6 h-6" />
+                          </div>
+                          <span>Maçtan Ayrıl</span>
+                        </div>
+                        <ChevronRight className="w-5 h-5 opacity-50" />
+                      </button>
+                    )}
+
+                    {/* JOKER MANAGEMENT FOR CAPTAIN/VICE OF PLAYING TEAMS */}
+                    {isCaptainOfPlayingTeam && activeChannel?.type === 'MATCH_GROUP' && !isMatchFinished && (
+                      <button
+                        onClick={() => {
+                          setIsChatMenuOpen(false);
+                          setIsManageJokersModalOpen(true);
+                        }}
+                        className="w-full text-left p-4 rounded-2xl text-md font-bold text-white hover:bg-slate-700 flex items-center justify-between transition-colors shadow-sm"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-full bg-purple-500/10 flex items-center justify-center text-purple-400 border border-purple-500/20">
+                            <Shield className="w-6 h-6" />
+                          </div>
+                          <div className="flex flex-col">
+                            <span>Jokerleri Yönet</span>
+                            <span className="text-xs font-normal text-purple-400/70 mt-0.5">Maç kadrosunu düzenle</span>
+                          </div>
+                        </div>
+                        <ChevronRight className="w-5 h-5 opacity-50" />
+                      </button>
+                    )}
+
+                    {/* MATCH REFUSAL / CANCELLATION */}
+                    {(isCaptain || isViceCaptain) && statusInfo?.type === 'pending' && (
+                      <button
+                        onClick={() => {
+                          if (isJokerNegotiationBlocked) return;
+                          setIsChatMenuOpen(false);
+                          handleCancelMatch(activeChannel.reservation.id);
+                        }}
+                        disabled={isJokerNegotiationBlocked}
+                        className={`w-full text-left p-4 rounded-2xl text-md font-bold flex items-center justify-between transition-colors shadow-sm ${isJokerNegotiationBlocked
+                          ? 'text-slate-500 bg-slate-800/30 cursor-not-allowed opacity-50'
+                          : 'text-red-500 hover:bg-red-500/10'
+                          }`}
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className={`w-12 h-12 rounded-full flex items-center justify-center border ${isJokerNegotiationBlocked
+                            ? 'bg-slate-800 border-slate-700 text-slate-500'
+                            : 'bg-red-500/10 border-red-500/20 text-red-500'
+                            }`}>
+                            <Trash2 className="w-6 h-6" />
+                          </div>
+                          <div className="flex flex-col">
+                            <span>Maçı İptal Et</span>
+                            {isJokerNegotiationBlocked && (
+                              <span className="text-[10px] font-normal text-slate-500 mt-1">Sohbet kapalı</span>
+                            )}
+                          </div>
+                        </div>
+                        <ChevronRight className="w-5 h-5 opacity-50" />
+                      </button>
+                    )}
+
+                    {(isCaptain || isViceCaptain) && statusInfo?.type === 'confirmed' && (() => {
+                      const isCancelRequested = activeChannel?.reservation?.cancelRequested;
+                      const isDisabled = isJokerNegotiationBlocked;
+
+                      return (
+                        <button
+                          onClick={() => {
+                            if (isDisabled) return;
+                            setIsChatMenuOpen(false);
+                            if (isCancelRequested) {
+                              handleUndoCancelRequest(activeChannel.reservation.id);
+                            } else {
+                              handleCancelRequest(activeChannel.reservation.id);
+                            }
+                          }}
+                          disabled={isDisabled}
+                          className={`w-full text-left p-4 rounded-2xl text-md font-bold flex items-center justify-between transition-colors shadow-sm ${isDisabled
+                            ? 'text-slate-500 bg-slate-800/30 cursor-not-allowed opacity-50'
+                            : isCancelRequested ? 'text-blue-500 hover:bg-blue-500/10' : 'text-orange-500 hover:bg-orange-500/10'
+                            }`}
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className={`w-12 h-12 rounded-full flex items-center justify-center border ${isDisabled
+                              ? 'bg-slate-800 border-slate-700 text-slate-500'
+                              : isCancelRequested ? 'bg-blue-500/10 border-blue-500/20 text-blue-500' : 'bg-orange-500/10 border-orange-500/20 text-orange-500'
+                              }`}>
+                              {isCancelRequested ? <Undo2 className="w-6 h-6" /> : <AlertTriangle className="w-6 h-6" />}
+                            </div>
+                            <div className="flex flex-col">
+                              <span>{isCancelRequested ? 'İptal İsteğini Geri Al' : 'İptal Etme İsteği Gönder'}</span>
+                              {!isCancelRequested && !isDisabled && <span className="text-xs font-normal text-orange-500/70 mt-0.5">İşletme onayı gerektirir</span>}
+                              {isDisabled && <span className="text-[10px] font-normal text-slate-500 mt-1">Sohbet kapalı</span>}
+                            </div>
+                          </div>
+                          <ChevronRight className="w-5 h-5 opacity-50" />
+                        </button>
+                      );
+                    })()}
+
+                    {/* Add Delete Chat Button for Played/Unplayed matches */}
+                    {(statusInfo?.type === 'played' || statusInfo?.type === 'unplayed') && (
+                      <button
+                        onClick={() => {
+                          if (!activeChannel) return;
+                          setIsChatMenuOpen(false);
+                          setConfirmTitle('Sohbeti Sil');
+                          setConfirmMessage('Bu sohbeti silmek istediğinize emin misiniz? Bu işlem geri alınamaz.');
+                          setConfirmIsDangerous(true);
+                          setConfirmButtonText('Sil');
+                          setConfirmAction(() => () => handleDeleteChannel(activeChannel.id));
+                          setConfirmModalOpen(true);
+                        }}
+                        disabled={isDeleting}
+                        className="w-full text-left p-4 rounded-2xl text-md font-bold text-slate-400 hover:text-red-400 hover:bg-red-500/10 flex items-center justify-between transition-colors shadow-sm"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-full bg-slate-900 border border-slate-700 flex items-center justify-center">
+                            <Trash2 className="w-6 h-6" />
+                          </div>
+                          <div className="flex flex-col">
+                            <span>{isDeleting ? 'Siliniyor...' : 'Sohbeti Sil'}</span>
+                          </div>
+                        </div>
+                        <ChevronRight className="w-5 h-5 opacity-50" />
+                      </button>
+                    )}
+                  </>
+                );
               })()}
             </div>
           </div>
@@ -1060,6 +1243,13 @@ export const Chat: React.FC = () => {
         onClose={() => setSuccessModalOpen(false)}
         message={successModalMessage}
         type={successModalType}
+      />
+
+      {/* Joker Management Modal */}
+      <ManageJokersModal
+        isOpen={isManageJokersModalOpen}
+        onClose={() => setIsManageJokersModalOpen(false)}
+        channelId={activeChannel?.id}
       />
     </div>
   );
@@ -1114,7 +1304,10 @@ const ChannelItem: React.FC<ChannelItemProps> = ({ channel, onClick, onLongPress
 
   const statusInfo = getMatchStatusInfo(channel.reservation);
   const borderClass = statusInfo ? statusInfo.borderColor : 'border-slate-700';
-  const bgClass = statusInfo ? statusInfo.bgTint : '';
+  let bgClass = statusInfo ? statusInfo.bgTint : '';
+  if (channel.type === 'JOKER_NEGOTIATION') {
+    bgClass = 'bg-yellow-500/5';
+  }
 
   return (
     <div
@@ -1133,10 +1326,19 @@ const ChannelItem: React.FC<ChannelItemProps> = ({ channel, onClick, onLongPress
             <Users className="w-3 h-3 text-white" />
           </div>
         )}
+        {channel.type === 'JOKER_NEGOTIATION' && (
+          <div className="absolute -bottom-1 -right-1 bg-yellow-500 p-1 rounded-lg border border-slate-800 shadow-lg shadow-yellow-500/20">
+            <Star className="w-3 h-3 text-slate-900 fill-slate-900" />
+          </div>
+        )}
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex justify-between items-start">
-          <h4 className="text-white font-bold truncate pr-2 flex items-center">{channel.name}<MatchStatusBadge reservation={channel.reservation} /></h4>
+          <h4 className="text-white font-bold truncate pr-2 flex items-center">
+            {channel.type === 'JOKER_NEGOTIATION' && <span className="text-yellow-500 text-xs font-black uppercase tracking-wider mr-2 bg-yellow-500/10 px-2 py-0.5 rounded-full border border-yellow-500/20">Joker DM</span>}
+            {channel.name}
+            <MatchStatusBadge reservation={channel.reservation} />
+          </h4>
           <div className="flex flex-col items-end gap-1">
             <span className={`text-[10px] whitespace-nowrap ${channel.unreadCount > 0 ? 'text-blue-500 font-bold' : 'text-slate-500'}`}>
               {formatMessageDate(channel.lastActivityAt)}

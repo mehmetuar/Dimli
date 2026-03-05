@@ -47,6 +47,12 @@ export class User {
     @Column({ nullable: true, name: 'team_id' })
     teamId: string;
 
+    @Column({ default: false })
+    isJoker: boolean;
+
+    @Column({ default: true })
+    sharesFee: boolean;
+
     @ManyToOne('Team', (team: any) => team.players, { nullable: true })
     @JoinColumn({ name: 'team_id' })
     team: any; // Using 'any' or import Team to avoid circular dependency issues for now, or use forwardRef

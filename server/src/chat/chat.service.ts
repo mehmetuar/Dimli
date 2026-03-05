@@ -41,7 +41,7 @@ export class ChatService {
         private teamsService: TeamsService,
     ) { }
 
-    async createChannel(type: 'DM' | 'MATCH_GROUP' | 'TEAM_INTERNAL', name: string, participants: User[], relatedMatchId?: string): Promise<ChatChannel> {
+    async createChannel(type: 'DM' | 'MATCH_GROUP' | 'TEAM_INTERNAL' | 'JOKER_NEGOTIATION', name: string, participants: User[], relatedMatchId?: string): Promise<ChatChannel> {
         const channel = this.chatChannelRepository.create({
             type,
             name,
@@ -734,5 +734,255 @@ export class ChatService {
         }
 
         return { success: true, newChannelId: newChannel.id };
+    }
+
+    /**
+     * Create a Joker Negotiation channel when a joker accepts an invite
+     */
+    async createJokerNegotiation(
+        userId: string,
+        data: { matchId: string; inviterId: string; notificationId: string }
+    ): Promise<any> {
+        const logger = new Logger('ChatService');
+        logger.log(`Creating Joker negotiation channel for user ${userId} and match ${data.matchId}`);
+
+        // 1. Validate users
+        const joker = await this.userRepository.findOne({ where: { id: userId } });
+        const inviter = await this.userRepository.findOne({ where: { id: data.inviterId } });
+
+        if (!joker || !inviter) {
+            throw new NotFoundException('Kullanıcı bulunamadı.');
+        }
+
+        // 2. Fetch Match Announcement
+        const match = await this.matchAnnouncementRepository.findOne({
+            where: { id: data.matchId },
+            relations: ['team', 'pitch', 'pitch.business']
+        });
+
+        if (!match) {
+            throw new NotFoundException('Maç ilanı bulunamadı.');
+        }
+
+        // 3. Create a JOKER_NEGOTIATION channel
+        const newChannel = await this.createChannel(
+            'JOKER_NEGOTIATION',
+            `Joker DM: ${joker.full_name || joker.username}`,
+            [joker, inviter],
+            match.id
+        );
+
+        // 4. Send Initial System Message
+        const dayName = new Date(match.date).toLocaleDateString('tr-TR', { weekday: 'long' });
+        const formattedDate = new Date(match.date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
+        const businessName = match.pitch?.business?.name || 'İşletme';
+        const pitchName = match.pitch?.name || 'Saha';
+
+        await this.sendMessage(
+            newChannel.id,
+            inviter.id,
+            `[ICON:joker_joined] Joker Daveti Kabul Edildi!\n\n` +
+            `${joker.full_name || joker.username}, maça katılmayı kabul etti. Oyuncuyu genel sohbete davet edebilirsiniz veya anlaşmayı iptal edebilirsiniz.\n\n` +
+            `{{STADIUM}} ${businessName}\n` +
+            `{{PIN}} ${pitchName}\n` +
+            `{{CALENDAR}} ${formattedDate} ${dayName.charAt(0).toUpperCase() + dayName.slice(1)}\n` +
+            `{{CLOCK}} ${match.time}`,
+            true, // isSystemMessage
+            { type: 'JOKER_NEGOTIATION_STARTED', matchId: match.id, jokerId: joker.id }
+        );
+
+        // 5. Delete the notification
+        try {
+            await this.notificationsService.delete(data.notificationId);
+        } catch (e) {
+            logger.error(`Failed to delete Joker invite notification:`, e);
+        }
+
+        return newChannel;
+    }
+
+    /**
+     * Invite Joker to the main MATCH_GROUP channel
+     */
+    async inviteJokerToMatchGroup(negotiationChannelId: string, inviterId: string): Promise<any> {
+        const logger = new Logger('ChatService');
+
+        // 1. Find the negotiation channel
+        const negotiationChannel = await this.chatChannelRepository.findOne({
+            where: { id: negotiationChannelId },
+            relations: ['participants', 'participants.user']
+        });
+
+        if (!negotiationChannel) throw new NotFoundException('Sohbet kanalı bulunamadı.');
+        if (negotiationChannel.type !== 'JOKER_NEGOTIATION') {
+            throw new BadRequestException('Bu kanal bir Joker anlaşma kanalı değil.');
+        }
+
+        // 2. Identify inviter and joker
+        const inviterParticipant = negotiationChannel.participants.find(p => p.userId === inviterId);
+        if (!inviterParticipant) throw new ForbiddenException('Bu işlem için yetkiniz yok.');
+
+        const jokerParticipant = negotiationChannel.participants.find(p => p.userId !== inviterId);
+        if (!jokerParticipant) throw new BadRequestException('Joker oyuncu bulunamadı.');
+        const joker = jokerParticipant.user;
+
+        // 3. Find the main MATCH_GROUP channel
+        const matchChannel = await this.chatChannelRepository.findOne({
+            where: {
+                relatedMatchId: negotiationChannel.relatedMatchId,
+                type: 'MATCH_GROUP'
+            }
+        });
+
+        if (!matchChannel) throw new NotFoundException('Bağlı maç veya etkinlik grubu bulunamadı.');
+
+        // 4. Check if joker is already in the main channel
+        const existingMainParticipant = await this.chatParticipantRepository.findOne({
+            where: { channelId: matchChannel.id, userId: joker.id }
+        });
+
+        if (existingMainParticipant) {
+            if (existingMainParticipant.deletedAt) {
+                // Restore participation
+                await this.chatParticipantRepository.update(
+                    { id: existingMainParticipant.id },
+                    { deletedAt: null }
+                );
+            } else {
+                throw new BadRequestException('Joker oyuncu zaten genel sohbette bulunuyor.');
+            }
+        } else {
+            // Add joker to main channel
+            const newParticipant = this.chatParticipantRepository.create({
+                channelId: matchChannel.id,
+                userId: joker.id
+            });
+            await this.chatParticipantRepository.save(newParticipant);
+        }
+
+        // 5. Send system messages
+        const jokerName = joker.full_name || joker.username;
+        // In the main match group
+        await this.sendMessage(
+            matchChannel.id,
+            inviterId,
+            `[ICON:joker_added] Takımımıza ${jokerName} isimli joker oyuncu dahil olmuştur. Hoş geldin!`,
+            true, // system message
+            { type: 'JOKER_JOINED', jokerId: joker.id }
+        );
+
+        // In the negotiation channel
+        await this.sendMessage(
+            negotiationChannel.id,
+            inviterId,
+            `[ICON:joker_success] Oyuncu genel maça ve sohbete başarıyla eklendi!`,
+            true,
+            { type: 'JOKER_ADDED_TO_MATCH' }
+        );
+
+        // Update the metadata of the starting message or something?
+        // Let's just return success
+        return { success: true, matchChannelId: matchChannel.id };
+    }
+
+    /**
+     * Get all Jokers in a match group channel
+     */
+    async getJokersInChannel(channelId: string): Promise<any[]> {
+        const channel = await this.chatChannelRepository.findOne({
+            where: { id: channelId },
+            relations: ['participants', 'participants.user']
+        });
+
+        if (!channel || channel.type !== 'MATCH_GROUP') {
+            throw new BadRequestException('Bu işlem sadece maç gruplarında yapılabilir.');
+        }
+
+        const matchDetails = await this.getChannelMatchDetails(channelId);
+        if (!matchDetails || matchDetails.error) return [];
+
+        const validTeamIds = [
+            matchDetails.homeTeam?.id,
+            matchDetails.awayTeam?.id
+        ].filter(Boolean);
+
+        const jokers = channel.participants
+            .filter(p => !p.deletedAt && !validTeamIds.includes(p.user.teamId))
+            .map(p => ({
+                id: p.user.id,
+                name: p.user.full_name || p.user.username,
+                position: p.user.position,
+                rating: p.user.rating
+            }));
+
+        return jokers;
+    }
+
+    /**
+     * Remove or Leave Joker from a match group channel
+     */
+    async removeJokerFromChannel(channelId: string, jokerId: string, requesterId: string): Promise<any> {
+        const logger = new Logger('ChatService');
+
+        const channel = await this.chatChannelRepository.findOne({
+            where: { id: channelId },
+            relations: ['participants', 'participants.user']
+        });
+
+        if (!channel || channel.type !== 'MATCH_GROUP') {
+            throw new BadRequestException('Geçersiz kanal.');
+        }
+
+        // Validate requester logic
+        // 1. Is Requester the Joker? (Self-leave)
+        let isKicking = true;
+
+        if (jokerId === requesterId) {
+            isKicking = false;
+        } else {
+            // Requester must be a captain or vice-captain of a team in the match
+            const matchDetails = await this.getChannelMatchDetails(channelId);
+            const user = await this.userRepository.findOne({ where: { id: requesterId }, relations: ['team'] });
+
+            if (!user?.team) throw new ForbiddenException('Takım yetkisi yok.');
+
+            const teamId = user.team.id;
+            const validTeamIds = [matchDetails.homeTeam?.id, matchDetails.awayTeam?.id].filter(Boolean);
+
+            if (!validTeamIds.includes(teamId)) {
+                throw new ForbiddenException('Bu maçta yetkili değilsiniz.');
+            }
+
+            const team = await this.teamRepository.findOne({ where: { id: teamId } });
+            if (team?.captainId !== requesterId && !team?.viceCaptainIds?.includes(requesterId)) {
+                throw new ForbiddenException('Joker çıkarmak için kaptan veya yardımcı kaptan olmalısınız.');
+            }
+        }
+
+        // Find the joker participant
+        const jokerParticipant = channel.participants.find(p => p.userId === jokerId && !p.deletedAt);
+        if (!jokerParticipant) throw new NotFoundException('Joker bu sohbette bulunamadı.');
+
+        // Soft delete the participant
+        await this.chatParticipantRepository.update(
+            { id: jokerParticipant.id },
+            { deletedAt: new Date() }
+        );
+
+        // Send system message
+        const jokerName = jokerParticipant.user.full_name || jokerParticipant.user.username;
+        const msg = isKicking
+            ? `[ICON:joker_kicked] Takım kaptanı tarafından ${jokerName} adlı oyuncu maç kadrosundan çıkarıldı.`
+            : `[ICON:joker_left] ${jokerName} isimli joker oyuncu maçtan kendi isteğiyle ayrıldı.`;
+
+        await this.sendMessage(
+            channelId,
+            requesterId,
+            msg,
+            true, // system message
+            { type: 'JOKER_LEFT', jokerId }
+        );
+
+        return { success: true };
     }
 }

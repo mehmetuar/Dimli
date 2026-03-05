@@ -9,7 +9,7 @@ export class ChatChannel {
     id: string;
 
     @Column()
-    type: 'DM' | 'MATCH_GROUP' | 'TEAM_INTERNAL';
+    type: 'DM' | 'MATCH_GROUP' | 'TEAM_INTERNAL' | 'JOKER_NEGOTIATION';
 
     @Column({ nullable: true })
     name: string; // e.g., "Match: Team A vs Team B"

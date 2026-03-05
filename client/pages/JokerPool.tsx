@@ -1,18 +1,19 @@
 
-
-import React, { useState } from 'react';
-import { MOCK_JOKERS, MOCK_PITCHES, CURRENT_USER, MOCK_CHANNELS } from '../constants';
-import { Position, Player, ChatChannel } from '../types';
-import { MapPin, MessageCircle, X, TrendingUp, Star, Shield, UserPlus, Zap, Handshake, Edit } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Position } from '../types';
+import { MapPin, X, Star, Shield, UserPlus, Handshake, Edit, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { InviteJokerModal } from '../components/InviteJokerModal';
 import { JokerProfileModal } from '../components/JokerProfileModal';
-
 import { LocationFilter, LocationFilterModal } from '../components/LocationFilterModal';
 import { calculateDistance } from '../utils/location';
+import api from '../services/api';
 
 export const JokerPool: React.FC = () => {
-   const [selectedJoker, setSelectedJoker] = useState<Player | null>(null);
+   const [jokers, setJokers] = useState<any[]>([]);
+   const [currentUser, setCurrentUser] = useState<any>(null);
+   const [isLoading, setIsLoading] = useState(true);
+   const [selectedJoker, setSelectedJoker] = useState<any | null>(null);
    const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
    const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
@@ -20,98 +21,66 @@ export const JokerPool: React.FC = () => {
    const [isLocationFilterOpen, setIsLocationFilterOpen] = useState(false);
    const [locationFilter, setLocationFilter] = useState<LocationFilter>({ type: 'ALL' });
 
-   // Local state to simulate live updates for the current user in this session
-   const [currentUserData, setCurrentUserData] = useState<Player>(CURRENT_USER);
-
    const navigate = useNavigate();
 
-   const handleSendMessage = (joker: Player) => {
-      // 1. Check if a channel with this Joker already exists
-      let channel = MOCK_CHANNELS.find(c => c.type === 'DM' && c.participantId === joker.id);
+   // Fetch current user
+   useEffect(() => {
+      api.get('/users/me').then(res => setCurrentUser(res.data)).catch(console.error);
+   }, []);
 
-      // 2. If not, simulate creating one (in memory)
-      if (!channel) {
-         channel = {
-            id: `dm-joker-${joker.id}`,
-            type: 'DM',
-            name: joker.name,
-            avatarUrl: joker.avatarUrl,
-            lastMessage: 'Sohbet başlatıldı',
-            timestamp: 'Şimdi',
-            unreadCount: 0,
-            participantId: joker.id
-         };
-         MOCK_CHANNELS.unshift(channel); // Add to top
+   // Fetch jokers from backend
+   const fetchJokers = async () => {
+      setIsLoading(true);
+      try {
+         const params: Record<string, string> = {};
+         if (locationFilter.type === 'DISTRICT' && locationFilter.value) {
+            params.district = locationFilter.value;
+         }
+         const res = await api.get('/users/jokers', { params });
+         setJokers(res.data);
+      } catch (err) {
+         console.error('Failed to fetch jokers:', err);
+      } finally {
+         setIsLoading(false);
       }
-
-      // 3. Navigate to Chat page with the channel ID in state
-      navigate('/chat', { state: { channelId: channel.id } });
    };
 
-   const openInviteModal = () => {
-      setIsInviteModalOpen(true);
-   };
+   useEffect(() => {
+      fetchJokers();
+   }, [locationFilter]);
 
-   const handleSaveProfile = (data: any) => {
-      // Simulate API update
-      const updatedUser = {
-         ...currentUserData,
-         ...data
-      };
-      setCurrentUserData(updatedUser);
-      // Update global mock for consistency in this session
-      Object.assign(CURRENT_USER, updatedUser);
+   // Client-side nearby filter when NEARBY location type is selected
+   const visibleJokers = locationFilter.type === 'NEARBY' && locationFilter.coords
+      ? jokers.filter(j => {
+         if (!j.coordinates) return false;
+         const dist = calculateDistance(
+            locationFilter.coords!.lat,
+            locationFilter.coords!.lng,
+            j.coordinates.lat,
+            j.coordinates.lng
+         );
+         return dist <= (locationFilter.radius || 60);
+      })
+      : jokers;
 
-      setIsProfileModalOpen(false);
-   };
-
-   // Combine Mock Jokers with Current User if they are active
-   const allJokers = [...MOCK_JOKERS];
-
-   // Check if current user is already in the list (mock prevention)
-   const isUserInList = allJokers.some(j => j.id === currentUserData.id);
-
-   // If user is active and not in list, add them temporarily for display
-   if (currentUserData.isJoker && !isUserInList) {
-      allJokers.unshift(currentUserData);
-   } else if (!currentUserData.isJoker && isUserInList) {
-      // If user turned off joker mode, ensure they are removed from display list
-      // (For this mock we just filter below)
-   }
-
-   // Filter: Only show Active Jokers
-   const getFilteredJokers = () => {
-      let filtered = allJokers.filter(j => j.isJoker);
-
-      if (locationFilter.type === 'DISTRICT' && locationFilter.value) {
-         filtered = filtered.filter(j => j.location.includes(locationFilter.value!));
-      } else if (locationFilter.type === 'NEARBY' && locationFilter.coords) {
-         filtered = filtered.filter(j => {
-            if (!j.coordinates) return false;
-            const dist = calculateDistance(
-               locationFilter.coords!.lat,
-               locationFilter.coords!.lng,
-               j.coordinates.lat,
-               j.coordinates.lng
-            );
-            return dist <= (locationFilter.radius || 60);
-         });
+   const handleSaveProfile = async (data: any) => {
+      try {
+         const res = await api.patch('/users/me', data);
+         setCurrentUser(res.data);
+         setIsProfileModalOpen(false);
+         // Re-fetch the list so the user's card appears/disappears from pool
+         fetchJokers();
+      } catch (err) {
+         console.error('Failed to update profile:', err);
+         alert('Profil güncellenemedi.');
       }
-      return filtered;
    };
 
-   const visibleJokers = getFilteredJokers();
-
-   // --- SUB-COMPONENT: JOKER DETAIL MODAL (FUT CARD STYLE) ---
+   // --- SUB-COMPONENT: JOKER DETAIL MODAL ---
    const JokerDetailModal = () => {
       if (!selectedJoker) return null;
 
-      // Resolve favorite pitches
-      const favoritePitches = selectedJoker.favoritePitchIds?.map(id =>
-         MOCK_PITCHES.find(p => p.id === id)
-      ).filter(Boolean);
-
-      const isMe = selectedJoker.id === currentUserData.id;
+      const isMe = currentUser && selectedJoker.id === currentUser.id;
 
       return (
          <div className="fixed inset-0 z-[60] flex items-center justify-center px-4 bg-black/95 backdrop-blur-md animate-fade-in overflow-y-auto py-10">
@@ -141,9 +110,9 @@ export const JokerPool: React.FC = () => {
                      </div>
                      <div className="w-40 h-40 relative -mr-4 -mt-2">
                         <img
-                           src={selectedJoker.avatarUrl}
+                           src={selectedJoker.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedJoker.full_name || selectedJoker.username)}&background=1a2e35&color=4ade80&size=160`}
                            className="w-full h-full object-cover rounded-full border-4 border-slate-800/50 shadow-2xl drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)]"
-                           alt={selectedJoker.name}
+                           alt={selectedJoker.full_name}
                         />
                      </div>
                   </div>
@@ -151,10 +120,10 @@ export const JokerPool: React.FC = () => {
                   {/* Name */}
                   <div className="relative z-10 text-center mt-6 mb-4">
                      <h2 className="font-sport font-black text-4xl text-white uppercase italic tracking-tighter drop-shadow-md">
-                        {selectedJoker.name}
+                        {selectedJoker.full_name || selectedJoker.username}
                      </h2>
                      <div className="flex justify-center items-center gap-2 text-slate-400 text-xs font-bold uppercase tracking-wide">
-                        <MapPin className="w-3 h-3 text-turf-500" /> {selectedJoker.location}
+                        <MapPin className="w-3 h-3 text-turf-500" /> {selectedJoker.location || 'Konum belirtilmemiş'}
                      </div>
                   </div>
 
@@ -176,7 +145,7 @@ export const JokerPool: React.FC = () => {
                         {/* Position */}
                         <div className="bg-white/5 rounded-xl p-3 border border-white/10 flex flex-col items-center justify-center">
                            <span className="text-[10px] text-slate-400 font-bold uppercase mb-1">MEVKİ</span>
-                           <span className="font-sport text-lg font-black text-white uppercase">{selectedJoker.position}</span>
+                           <span className="font-sport text-lg font-black text-white uppercase">{selectedJoker.position || '-'}</span>
                         </div>
                         {/* Secondary Position */}
                         <div className="bg-white/5 rounded-xl p-3 border border-white/10 flex flex-col items-center justify-center">
@@ -185,58 +154,22 @@ export const JokerPool: React.FC = () => {
                         </div>
                      </div>
 
-                     {/* Extra Info: Form & Sharing Status */}
+                     {/* Extra Info: Sharing Status */}
                      <div className="flex gap-3 mb-6">
-                        <div className="flex-1 bg-black/40 rounded-xl p-3 border border-white/5">
-                           <div className="text-[10px] text-slate-400 uppercase font-bold mb-1">Son 5 Maç</div>
-                           <div className="flex gap-1">
-                              {selectedJoker.form?.map((result, i) => (
-                                 <span key={i} className={`w-4 h-4 rounded flex items-center justify-center text-[8px] font-black ${result === 'W' ? 'bg-green-500 text-black' :
-                                    result === 'L' ? 'bg-red-500 text-white' : 'bg-gray-500 text-white'
-                                    }`}>
-                                    {result}
-                                 </span>
-                              ))}
-                           </div>
-                        </div>
-                        <div className={`flex-1 rounded-xl p-3 border flex flex-col justify-center items-center ${selectedJoker.sharesFee ? 'bg-turf-900/30 border-turf-500/30' : 'bg-slate-800 border-slate-700'}`}>
+                        <div className={`w-full rounded-xl p-3 border flex flex-col justify-center items-center ${selectedJoker.sharesFee ? 'bg-turf-900/30 border-turf-500/30' : 'bg-slate-800 border-slate-700'}`}>
                            <Handshake className={`w-5 h-5 mb-1 ${selectedJoker.sharesFee ? 'text-turf-500' : 'text-slate-500'}`} />
                            <div className={`text-[10px] uppercase font-bold text-center leading-none ${selectedJoker.sharesFee ? 'text-turf-300' : 'text-slate-500'}`}>
-                              {selectedJoker.sharesFee ? 'Ücrete Ortak' : 'Misafir'}
+                              {selectedJoker.sharesFee ? 'Ücrete Ortak' : 'Ücrete Ortak Değil'}
                            </div>
-                        </div>
-                     </div>
-
-                     {/* Favorite Pitches */}
-                     <div className="mb-6">
-                        <h3 className="text-[10px] font-bold text-slate-500 uppercase mb-2 flex items-center gap-1">
-                           <Star className="w-3 h-3 text-yellow-500" /> Oynadığı Sahalar
-                        </h3>
-                        <div className="flex flex-wrap gap-2">
-                           {favoritePitches && favoritePitches.length > 0 ? (
-                              favoritePitches.map(pitch => (
-                                 <span key={pitch?.id} className="text-xs font-bold text-slate-300 bg-white/5 px-2 py-1 rounded border border-white/10">
-                                    {pitch?.name}
-                                 </span>
-                              ))
-                           ) : (
-                              <span className="text-xs text-slate-500 italic">Saha tercihi yok.</span>
-                           )}
                         </div>
                      </div>
 
                      {/* Action Buttons */}
                      {!isMe && (
-                        <div className="grid grid-cols-5 gap-2">
+                        <div className="flex gap-2">
                            <button
-                              onClick={() => handleSendMessage(selectedJoker)}
-                              className="col-span-1 bg-slate-700 hover:bg-slate-600 text-white rounded-xl flex items-center justify-center transition-colors"
-                           >
-                              <MessageCircle className="w-6 h-6" />
-                           </button>
-                           <button
-                              onClick={openInviteModal}
-                              className="col-span-4 bg-gradient-to-r from-turf-600 to-green-500 text-white font-black text-lg uppercase italic py-3 rounded-xl hover:scale-[1.02] transition-transform shadow-lg shadow-turf-500/30 flex items-center justify-center gap-2"
+                              onClick={() => { setIsInviteModalOpen(true); }}
+                              className="w-full bg-gradient-to-r from-turf-600 to-green-500 text-white font-black text-lg uppercase italic py-3 rounded-xl hover:scale-[1.02] transition-transform shadow-lg shadow-turf-500/30 flex items-center justify-center gap-2"
                            >
                               <UserPlus className="w-5 h-5" /> Maça Davet Et
                            </button>
@@ -272,6 +205,7 @@ export const JokerPool: React.FC = () => {
             isOpen={isProfileModalOpen}
             onClose={() => setIsProfileModalOpen(false)}
             onSave={handleSaveProfile}
+            currentUser={currentUser}
          />
 
          <LocationFilterModal
@@ -288,9 +222,9 @@ export const JokerPool: React.FC = () => {
             </div>
             <button
                onClick={() => setIsProfileModalOpen(true)}
-               className={`${currentUserData.isJoker ? 'bg-slate-800 border-slate-600' : 'bg-turf-600 border-turf-500 shadow-neon'} border text-white px-4 py-2 rounded-xl text-xs font-bold transition-all hover:scale-105`}
+               className={`${currentUser?.isJoker ? 'bg-slate-800 border-slate-600' : 'bg-turf-600 border-turf-500 shadow-neon'} border text-white px-4 py-2 rounded-xl text-xs font-bold transition-all hover:scale-105`}
             >
-               {currentUserData.isJoker ? 'Profilini Düzenle' : 'Profilini Ekle'}
+               {currentUser?.isJoker ? 'Profilini Düzenle' : 'Profilini Ekle'}
             </button>
          </header>
 
@@ -314,48 +248,61 @@ export const JokerPool: React.FC = () => {
             )}
          </div>
 
-         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {visibleJokers.map((player) => (
-               <div
-                  key={player.id}
-                  onClick={() => setSelectedJoker(player)}
-                  className={`p-4 rounded-2xl border flex gap-4 items-center transition-all cursor-pointer group relative overflow-hidden ${player.id === currentUserData.id ? 'bg-slate-800/80 border-turf-500/50' : 'bg-slate-800 border-slate-700 hover:border-turf-500/50 hover:bg-slate-800/80'}`}
-               >
-                  {/* Highlight Effect */}
-                  <div className="absolute right-0 top-0 w-20 h-full bg-gradient-to-l from-black/20 to-transparent pointer-events-none"></div>
+         {/* Joker List */}
+         {isLoading ? (
+            <div className="flex justify-center items-center py-20">
+               <Loader2 className="w-8 h-8 text-turf-500 animate-spin" />
+            </div>
+         ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+               {visibleJokers.map((player) => {
+                  const isMe = currentUser && player.id === currentUser.id;
+                  const displayName = player.full_name || player.username;
+                  const avatarSrc = player.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=1a2e35&color=4ade80&size=128`;
 
-                  <div className="relative">
-                     <img src={player.avatarUrl} alt={player.name} className="w-16 h-16 rounded-full object-cover border-2 border-slate-600 group-hover:border-turf-500 transition-colors" />
-                  </div>
-                  <div className="flex-1 min-w-0 relative z-10">
-                     <h3 className="font-bold text-white text-lg truncate group-hover:text-turf-400 transition-colors">
-                        {player.name} {player.id === currentUserData.id && '(Sen)'}
-                     </h3>
-                     <div className="flex items-center gap-1 text-xs text-slate-400 mt-0.5 mb-2">
-                        <MapPin className="w-3 h-3 text-turf-600" /> {player.location}
-                     </div>
-                     <div className="flex justify-between items-center">
-                        <span className={`text-xs px-2 py-1 rounded font-bold uppercase ${player.position === Position.GK ? 'bg-yellow-500/20 text-yellow-500' : 'bg-slate-700 text-slate-300'}`}>
-                           {player.position}
-                        </span>
+                  return (
+                     <div
+                        key={player.id}
+                        onClick={() => setSelectedJoker(player)}
+                        className={`p-4 rounded-2xl border flex gap-4 items-center transition-all cursor-pointer group relative overflow-hidden ${isMe ? 'bg-slate-800/80 border-turf-500/50' : 'bg-slate-800 border-slate-700 hover:border-turf-500/50 hover:bg-slate-800/80'}`}
+                     >
+                        {/* Highlight Effect */}
+                        <div className="absolute right-0 top-0 w-20 h-full bg-gradient-to-l from-black/20 to-transparent pointer-events-none"></div>
 
-                        {player.sharesFee && (
-                           <div className="flex items-center gap-1 text-[10px] font-bold text-turf-500 bg-turf-900/20 px-2 py-1 rounded-full">
-                              <Handshake className="w-3 h-3" /> Ortak
+                        <div className="relative">
+                           <img src={avatarSrc} alt={displayName} className="w-16 h-16 rounded-full object-cover border-2 border-slate-600 group-hover:border-turf-500 transition-colors" />
+                        </div>
+                        <div className="flex-1 min-w-0 relative z-10">
+                           <h3 className="font-bold text-white text-lg truncate group-hover:text-turf-400 transition-colors">
+                              {displayName} {isMe && '(Sen)'}
+                           </h3>
+                           <div className="flex items-center gap-1 text-xs text-slate-400 mt-0.5 mb-2">
+                              <MapPin className="w-3 h-3 text-turf-600" /> {player.location || 'Konum yok'}
                            </div>
-                        )}
+                           <div className="flex justify-between items-center">
+                              <span className={`text-xs px-2 py-1 rounded font-bold uppercase ${player.position === 'KALECİ' || player.position === 'GK' ? 'bg-yellow-500/20 text-yellow-500' : 'bg-slate-700 text-slate-300'}`}>
+                                 {player.position || 'Belirsiz'}
+                              </span>
+
+                              {player.sharesFee && (
+                                 <div className="flex items-center gap-1 text-[10px] font-bold text-turf-500 bg-turf-900/20 px-2 py-1 rounded-full">
+                                    <Handshake className="w-3 h-3" /> Ortak
+                                 </div>
+                              )}
+                           </div>
+                        </div>
                      </div>
+                  );
+               })}
+               {visibleJokers.length === 0 && (
+                  <div className="col-span-2 text-center py-10 text-slate-500">
+                     {locationFilter.type === 'NEARBY'
+                        ? "Yakınınızda Joker bulunamadı."
+                        : "Şu an aktif Joker bulunmuyor. İlk sen ol!"}
                   </div>
-               </div>
-            ))}
-            {visibleJokers.length === 0 && (
-               <div className="col-span-2 text-center py-10 text-slate-500">
-                  {locationFilter.type === 'NEARBY'
-                     ? "Yakınınızda (İstanbul) Joker bulunamadı."
-                     : "Şu an aktif Joker bulunmuyor. İlk sen ol!"}
-               </div>
-            )}
-         </div>
+               )}
+            </div>
+         )}
       </div>
    );
 };

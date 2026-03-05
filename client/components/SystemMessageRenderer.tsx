@@ -119,12 +119,38 @@ const icons: Record<string, React.ReactNode> = {
             <polyline points="2,4 12,13 22,4" stroke="#60a5fa" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
     ),
+
+    JOKER_JOINED: (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="inline-block align-middle mr-1">
+            <path d="M16 21v-2a4 4 0 00-4-4H5c-1.1 0-2 .9-2 2v2M8.5 3a4 4 0 100 8 4 4 0 000-8zM20 8v6M23 11h-6" stroke="#fbbf24" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+    ),
+    JOKER_ADDED: (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="inline-block align-middle mr-1">
+            <path d="M16 21v-2a4 4 0 00-4-4H5c-1.1 0-2 .9-2 2v2M8.5 3a4 4 0 100 8 4 4 0 000-8zM20 8v6M23 11h-6" stroke="#4ade80" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+    ),
+    JOKER_SUCCESS: (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="inline-block align-middle mr-1">
+            <path d="M16 21v-2a4 4 0 00-4-4H5c-1.1 0-2 .9-2 2v2M8.5 3a4 4 0 100 8 4 4 0 000-8zM20 8v6M23 11h-6" stroke="#4ade80" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+    ),
+    JOKER_LEFT: (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="inline-block align-middle mr-1">
+            <path d="M16 21v-2a4 4 0 00-4-4H5c-1.1 0-2 .9-2 2v2M8.5 3a4 4 0 100 8 4 4 0 000-8zM18 8l4 4-4 4M22 12H12" stroke="#f87171" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+    ),
+    JOKER_KICKED: (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="inline-block align-middle mr-1">
+            <path d="M16 21v-2a4 4 0 00-4-4H5c-1.1 0-2 .9-2 2v2M8.5 3a4 4 0 100 8 4 4 0 000-8zM18 8l4 4-4 4M22 12H12" stroke="#f87171" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+    ),
 };
 
-// Parse text and replace {{ICON}} markers with SVG components
+// Parse text and replace {{ICON}} or [ICON:name] markers with SVG components
 const parseSystemMessage = (text: string): React.ReactNode[] => {
     const parts: React.ReactNode[] = [];
-    const regex = /\{\{(\w+)\}\}/g;
+    const regex = /(\{\{(\w+)\}\}|\[ICON:(\w+)\])/g;
     let lastIndex = 0;
     let match;
 
@@ -135,7 +161,7 @@ const parseSystemMessage = (text: string): React.ReactNode[] => {
         }
 
         // Add the icon
-        const iconName = match[1];
+        const iconName = (match[2] || match[3]).toUpperCase();
         if (icons[iconName]) {
             parts.push(
                 <span key={`icon-${match.index}`} className="inline-flex items-center">
@@ -161,7 +187,7 @@ const parseSystemMessage = (text: string): React.ReactNode[] => {
 // Utility to get plain text without markers for previews
 export const stripSystemMessageMarkers = (text: string): string => {
     if (!text) return '';
-    return text.replace(/\{\{\w+\}\}/g, '').replace(/\s+/g, ' ').trim();
+    return text.replace(/(\{\{\w+\}\}|\[ICON:\w+\])/g, '').replace(/\s+/g, ' ').trim();
 };
 
 interface SystemMessageRendererProps {

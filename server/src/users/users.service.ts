@@ -53,6 +53,21 @@ export class UsersService {
             .getMany();
     }
 
+    async getJokers(district?: string): Promise<Partial<User>[]> {
+        const qb = this.usersRepository.createQueryBuilder('user')
+            .where('user.isJoker = :isJoker', { isJoker: true })
+            .leftJoinAndSelect('user.team', 'team');
+
+        if (district) {
+            qb.andWhere('user.location ILIKE :district', { district: `%${district}%` });
+        }
+
+        const jokers = await qb.getMany();
+
+        return jokers.map(({ password, pushToken, ...safe }) => safe);
+    }
+
+
     async update(id: string, updateUserDto: UpdateUserDto): Promise<User | null> {
         await this.usersRepository.update(id, updateUserDto);
         return this.usersRepository.findOne({ where: { id }, relations: ['team'] });

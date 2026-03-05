@@ -28,6 +28,13 @@ export class UsersController {
         return this.usersService.search(query);
     }
 
+    @UseGuards(JwtAuthGuard)
+    @Get('jokers')
+    async getJokers(@Request() req) {
+        const district = req.query.district as string | undefined;
+        return this.usersService.getJokers(district);
+    }
+
 
     @UseGuards(JwtAuthGuard)
     @Patch('me')

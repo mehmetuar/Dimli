@@ -63,5 +63,32 @@ export class ChatController {
     ) {
         return this.chatService.acceptRematchProposal(channelId, req.user.id, body);
     }
+
+    @Post('joker-negotiation')
+    createJokerNegotiation(
+        @Body() body: { matchId: string; inviterId: string; notificationId: string },
+        @Request() req
+    ) {
+        return this.chatService.createJokerNegotiation(req.user.id, body);
+    }
+
+    @Post('channels/:id/invite-joker')
+    inviteJokerToMatchGroup(@Param('id') channelId: string, @Request() req) {
+        return this.chatService.inviteJokerToMatchGroup(channelId, req.user.id);
+    }
+
+    @Get('channels/:id/jokers')
+    getJokersInChannel(@Param('id') channelId: string) {
+        return this.chatService.getJokersInChannel(channelId);
+    }
+
+    @Delete('channels/:id/jokers/:jokerId')
+    removeJokerFromChannel(
+        @Param('id') channelId: string,
+        @Param('jokerId') jokerId: string,
+        @Request() req
+    ) {
+        return this.chatService.removeJokerFromChannel(channelId, jokerId, req.user.id);
+    }
 }
 

@@ -42,6 +42,35 @@ export class NotificationsService {
         return this.notificationsRepository.save(notification);
     }
 
+    async sendJokerInvite(jokerId: string, matchId: string, inviterId: string, note?: string): Promise<Notification> {
+        const match = await this.matchAnnouncementsRepository.findOne({
+            where: { id: matchId },
+            relations: ['team', 'pitch', 'pitch.business'],
+        });
+
+        if (!match) throw new Error('Match not found');
+
+        const notification = this.notificationsRepository.create({
+            userId: jokerId,
+            type: 'JOKER_INVITE',
+            relatedId: matchId,
+            read: false,
+            message: `${match.team?.name} seni maça joker olarak davet ediyor!`,
+            metadata: {
+                inviterId,
+                teamId: match.teamId,
+                teamName: match.team?.name,
+                matchDate: match.date,
+                matchTime: match.time,
+                pitchName: match.pitch?.name,
+                businessName: match.pitch?.business?.name,
+                note: note
+            }
+        });
+
+        return this.notificationsRepository.save(notification);
+    }
+
     async findByUser(userId: string): Promise<Notification[]> {
         const notifications = await this.notificationsRepository.find({
             where: { userId },

@@ -255,7 +255,7 @@ export const MOCK_MATCHES: MatchListing[] = [
     pitchName: 'Mega Halı Saha',
     location: 'Üsküdar',
     requiredLevel: SkillLevel.INTERMEDIATE,
-    status: 'OPEN',
+    status: 'CONFIRMED',
     priceShare: 400,
     message: 'Eksiksiz kadro geliyoruz, iddialı rakip aranıyor.',
     incomingOffers: MOCK_OFFERS
