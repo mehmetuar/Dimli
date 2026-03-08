@@ -78,8 +78,8 @@ export class ChatController {
     }
 
     @Get('channels/:id/jokers')
-    getJokersInChannel(@Param('id') channelId: string) {
-        return this.chatService.getJokersInChannel(channelId);
+    getJokersInChannel(@Param('id') channelId: string, @Request() req) {
+        return this.chatService.getJokersInChannel(channelId, req.user.id);
     }
 
     @Delete('channels/:id/jokers/:jokerId')

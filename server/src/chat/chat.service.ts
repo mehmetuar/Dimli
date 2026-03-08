@@ -62,6 +62,9 @@ export class ChatService {
     }
 
     async getUserChannels(userId: string): Promise<any[]> {
+        const currentUser = await this.userRepository.findOne({ where: { id: userId }, relations: ['team'] });
+        const userTeamId = currentUser?.team?.id || null;
+
         // Find channels where user is a participant and hasn't soft-deleted
         const participations = await this.chatParticipantRepository.find({
             where: { userId, deletedAt: IsNull() },
@@ -78,7 +81,8 @@ export class ChatService {
 
             const lastMessage = channel.messages.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
 
-            let reservationData: { id?: string; status: string; slotTime: Date; cancelRequested?: boolean } | null = null;
+            let reservationData: { id?: string; status: string; slotTime: Date; cancelRequested?: boolean; teamId?: string; opponentTeamId?: string } | null = null;
+            let isJoker = false;
             if (channel.relatedMatchId) {
                 // Find reservation linked to this match announcement
                 let reservation = await this.reservationRepository.findOne({
@@ -105,8 +109,9 @@ export class ChatService {
                                 // If no reservation, just map the match status
                                 reservationData = {
                                     status: match.status === 'CONFIRMED' ? 'APPROVED' : 'PENDING',
-                                    slotTime: slotDateTime
-                                };
+                                    slotTime: slotDateTime,
+                                    teamId: match.teamId
+                                } as any;
                             }
                         } catch (e) {
                             // ignore date parse errors
@@ -119,8 +124,21 @@ export class ChatService {
                         id: reservation.id,
                         status: reservation.status,
                         slotTime: reservation.slotTime,
-                        cancelRequested: reservation.cancelRequested
-                    };
+                        cancelRequested: reservation.cancelRequested,
+                        teamId: reservation.teamId,
+                        opponentTeamId: reservation.opponentTeamId
+                    } as any;
+                }
+
+                // Determine if current user is a joker
+                if (channel.type === 'MATCH_GROUP') {
+                    if (userTeamId && reservationData) {
+                        if (userTeamId !== (reservationData as any).teamId && userTeamId !== (reservationData as any).opponentTeamId) {
+                            isJoker = true;
+                        }
+                    } else if (!userTeamId) {
+                        isJoker = true; // Without a team, definitely a joker in a MATCH_GROUP
+                    }
                 }
             }
 
@@ -128,7 +146,8 @@ export class ChatService {
                 ...channel,
                 lastMessage,
                 unreadCount,
-                reservation: reservationData
+                reservation: reservationData,
+                isJoker
             };
         }));
 
@@ -280,6 +299,36 @@ export class ChatService {
         }
 
         // Check match status — only allow deletion for 'played' or 'unplayed'
+        // EXCEPT FOR JOKER NEGOTIATIONS! Joker negotiations can be cancelled anytime.
+        if (channel.type === 'JOKER_NEGOTIATION') {
+            const allParticipants = await this.chatParticipantRepository.find({
+                where: { channelId, deletedAt: IsNull() },
+                relations: ['user']
+            });
+
+            const otherParticipant = allParticipants.find(p => p.userId !== userId);
+            const thisParticipant = allParticipants.find(p => p.userId === userId);
+
+            // Soft-delete for everyone
+            await this.chatParticipantRepository.update(
+                { channelId },
+                { deletedAt: new Date() }
+            );
+
+            if (otherParticipant && thisParticipant) {
+                await this.notificationsService.create({
+                    userId: otherParticipant.userId,
+                    type: 'SYSTEM',
+                    title: 'Joker Anlaşması İptal Edildi',
+                    message: `${thisParticipant.user.full_name || thisParticipant.user.username} ile olan joker anlaşmanız iptal edildi.`,
+                    read: false,
+                });
+            }
+
+            logger.log(`Joker negotiation channel ${channelId} cancelled and soft-deleted for all participants.`);
+            return;
+        }
+
         const statusType = await this.getChannelMatchStatusType(channelId);
         logger.debug(`Channel ${channelId} match status: ${statusType}`);
 
@@ -888,7 +937,7 @@ export class ChatService {
     /**
      * Get all Jokers in a match group channel
      */
-    async getJokersInChannel(channelId: string): Promise<any[]> {
+    async getJokersInChannel(channelId: string, requesterId: string): Promise<any[]> {
         const channel = await this.chatChannelRepository.findOne({
             where: { id: channelId },
             relations: ['participants', 'participants.user']
@@ -898,6 +947,11 @@ export class ChatService {
             throw new BadRequestException('Bu işlem sadece maç gruplarında yapılabilir.');
         }
 
+        const requester = await this.userRepository.findOne({ where: { id: requesterId }, relations: ['team'] });
+        const requesterTeamId = requester?.team?.id;
+
+        if (!requesterTeamId) return [];
+
         const matchDetails = await this.getChannelMatchDetails(channelId);
         if (!matchDetails || matchDetails.error) return [];
 
@@ -906,16 +960,32 @@ export class ChatService {
             matchDetails.awayTeam?.id
         ].filter(Boolean);
 
-        const jokers = channel.participants
+        const allJokers = channel.participants
             .filter(p => !p.deletedAt && !validTeamIds.includes(p.user.teamId))
             .map(p => ({
                 id: p.user.id,
                 name: p.user.full_name || p.user.username,
                 position: p.user.position,
-                rating: p.user.rating
+                rating: p.user.rating,
+                avatarUrl: (p.user as any).avatarUrl
             }));
 
-        return jokers;
+        // Find all JOKER_JOINED messages in this channel
+        const joinMessages = await this.chatMessageRepository.find({
+            where: { channelId, isSystemMessage: true },
+            relations: ['sender', 'sender.team']
+        });
+
+        const allowedJokerIds = new Set<string>();
+        for (const msg of joinMessages) {
+            if (msg.metadata?.type === 'JOKER_JOINED' && msg.metadata?.jokerId) {
+                if (msg.sender?.team?.id === requesterTeamId) {
+                    allowedJokerIds.add(msg.metadata.jokerId);
+                }
+            }
+        }
+
+        return allJokers.filter(j => allowedJokerIds.has(j.id));
     }
 
     /**
@@ -957,6 +1027,21 @@ export class ChatService {
             if (team?.captainId !== requesterId && !team?.viceCaptainIds?.includes(requesterId)) {
                 throw new ForbiddenException('Joker çıkarmak için kaptan veya yardımcı kaptan olmalısınız.');
             }
+
+            // Verify this team actually invited this joker
+            const joinMessages = await this.chatMessageRepository.find({
+                where: { channelId, isSystemMessage: true },
+                relations: ['sender', 'sender.team']
+            });
+            const wasInvitedByMyTeam = joinMessages.some(msg =>
+                msg.metadata?.type === 'JOKER_JOINED' &&
+                msg.metadata?.jokerId === jokerId &&
+                msg.sender?.team?.id === teamId
+            );
+
+            if (!wasInvitedByMyTeam) {
+                throw new ForbiddenException('Sadece kendi takımınızın davet ettiği jokerleri çıkarabilirsiniz.');
+            }
         }
 
         // Find the joker participant
@@ -982,6 +1067,31 @@ export class ChatService {
             true, // system message
             { type: 'JOKER_LEFT', jokerId }
         );
+
+        // EXTRA: Find and delete the related JOKER_NEGOTIATION channel
+        // since the Joker left or was kicked, we no longer need the inbox DM for this match.
+        try {
+            const negotiationChannels = await this.chatChannelRepository.find({
+                where: { type: 'JOKER_NEGOTIATION', relatedMatchId: channel.relatedMatchId },
+                relations: ['participants']
+            });
+
+            // Find the specific negotiation channel that includes this joker
+            const myNegotiationChannel = negotiationChannels.find(nc =>
+                nc.participants.some(p => p.userId === jokerId && !p.deletedAt)
+            );
+
+            if (myNegotiationChannel) {
+                // Soft delete the channel for all participants
+                await this.chatParticipantRepository.update(
+                    { channelId: myNegotiationChannel.id },
+                    { deletedAt: new Date() }
+                );
+                logger.log(`Related Joker Negotiation channel ${myNegotiationChannel.id} deleted as Joker left the match.`);
+            }
+        } catch (e) {
+            logger.error('Failed to delete related Joker Negotiation channel:', e);
+        }
 
         return { success: true };
     }

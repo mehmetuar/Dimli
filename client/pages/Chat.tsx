@@ -14,6 +14,7 @@ import { SuccessModal } from '../components/SuccessModal';
 import { SystemMessageRenderer, stripSystemMessageMarkers } from '../components/SystemMessageRenderer';
 import { KendiAramizdaNewMatchModal } from '../components/KendiAramizdaNewMatchModal';
 import { ManageJokersModal } from '../components/ManageJokersModal';
+import { JokerDMChatInfoModal } from '../components/JokerDMChatInfoModal';
 import api from '../services/api';
 
 // Utility Hook for Long Press
@@ -154,6 +155,7 @@ export const Chat: React.FC = () => {
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [matchDetailData, setMatchDetailData] = useState<any>(null);
   const [isMatchDetailOpen, setIsMatchDetailOpen] = useState(false);
+  const [isJokerDMInfoOpen, setIsJokerDMInfoOpen] = useState(false);
   const [isMatchDetailLoading, setIsMatchDetailLoading] = useState(false);
 
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -351,7 +353,14 @@ export const Chat: React.FC = () => {
 
   const handleOpenMatchDetail = async () => {
     if (!selectedChannelId || !activeChannel?.relatedMatchId) return;
-    setIsMatchDetailOpen(true);
+
+    // Branch logic: if it's a Joker DM, open the JokerDM modal instead of MatchDetail modal
+    if (activeChannel.type === 'JOKER_NEGOTIATION') {
+      setIsJokerDMInfoOpen(true);
+    } else {
+      setIsMatchDetailOpen(true);
+    }
+
     setIsMatchDetailLoading(true);
     try {
       const response = await api.get(`/chat/channels/${selectedChannelId}/match-details`);
@@ -683,6 +692,15 @@ export const Chat: React.FC = () => {
         />
       )}
 
+      {/* Joker DM Info Modal */}
+      <JokerDMChatInfoModal
+        isOpen={isJokerDMInfoOpen}
+        onClose={() => setIsJokerDMInfoOpen(false)}
+        channel={activeChannel}
+        matchData={matchDetailData}
+        currentUser={currentUser}
+      />
+
       {/* Safe-area spacer — status bar arka planını header rengiyle örtüyor */}
       <div className="bg-slate-900 w-full flex-shrink-0" style={{ height: 'env(safe-area-inset-top, 0px)' }} />
 
@@ -737,8 +755,10 @@ export const Chat: React.FC = () => {
             {/* Chat Menu Options */}
             <div className="relative">
               <button
-                onClick={() => {
-                  handleOpenMatchDetail(); // Ensure match data is loaded for menu options
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // DO NOT call handleOpenMatchDetail() here, it forces the second modal to open behind the options menu.
+                  // The data will be loaded naturally if needed by specific options via their own clicks or if user clicks the avatar.
                   setIsChatMenuOpen(true);
                 }}
                 className="p-2 text-slate-400 hover:text-white rounded-full hover:bg-slate-800 transition-colors"
@@ -943,12 +963,13 @@ export const Chat: React.FC = () => {
                     <Shield className="w-4 h-4 mr-2" />
                     Bu sohbette artık mesaj gönderilemez.
                   </div>
-                  {/* Rövanş / Yeni Maç butonu: sadece kaptan ve yardımcılara */}
+                  {/* Rövanş / Yeni Maç butonu: sadece kaptan ve yardımcılara, JokerDM hariç */}
                   {(() => {
                     const isCaptain = currentUser?.team?.captainId === currentUser?.id;
                     const isViceCaptain = currentUser?.team?.viceCaptainIds?.includes(currentUser?.id);
                     const isKendiAramizda = activeChannel?.name?.includes('(Kendi Aramızda)');
-                    if (isCaptain || isViceCaptain) {
+
+                    if ((isCaptain || isViceCaptain) && !isJokerNegotiation) {
                       if (isKendiAramizda) {
                         // Kendi Aramızda: doğrudan yeni maç oluştur (teklif yok)
                         return (
@@ -1044,18 +1065,15 @@ export const Chat: React.FC = () => {
                 const isCaptain = currentUser?.team?.captainId === currentUser?.id;
                 const isViceCaptain = currentUser?.team?.viceCaptainIds?.includes(currentUser?.id);
 
-                // For JOKER Self-Leave
-                const isJokerInMatch = activeChannel?.type === 'MATCH_GROUP' &&
-                  matchDetailData &&
-                  currentUser?.team?.id !== matchDetailData?.homeTeam?.id &&
-                  currentUser?.team?.id !== matchDetailData?.awayTeam?.id;
+                // For JOKER Self-Leave and hiding features
+                const isJokerInMatch = activeChannel?.isJoker;
 
                 // For Joker Management - Must be captain/vice-captain of HOME or AWAY team
-                // While data is loading, we can show a placeholder or wait for matchDetailData
+                // We use activeChannel.reservation instead of matchDetailData to avoid async loading issues
                 const isCaptainOfPlayingTeam = (isCaptain || isViceCaptain) &&
-                  matchDetailData &&
-                  (currentUser?.team?.id === matchDetailData?.homeTeam?.id ||
-                    currentUser?.team?.id === matchDetailData?.awayTeam?.id);
+                  activeChannel?.reservation &&
+                  (currentUser?.team?.id === activeChannel.reservation.teamId ||
+                    currentUser?.team?.id === activeChannel.reservation.opponentTeamId);
 
                 const isJokerNegotiation = activeChannel?.type === 'JOKER_NEGOTIATION';
                 const isJokerAddedToMatch = messages.some(m => m.metadata?.type === 'JOKER_ADDED_TO_MATCH');
@@ -1117,7 +1135,7 @@ export const Chat: React.FC = () => {
                     )}
 
                     {/* MATCH REFUSAL / CANCELLATION */}
-                    {(isCaptain || isViceCaptain) && statusInfo?.type === 'pending' && (
+                    {(isCaptain || isViceCaptain) && statusInfo?.type === 'pending' && !isJokerNegotiation && !isJokerInMatch && (
                       <button
                         onClick={() => {
                           if (isJokerNegotiationBlocked) return;
@@ -1148,7 +1166,7 @@ export const Chat: React.FC = () => {
                       </button>
                     )}
 
-                    {(isCaptain || isViceCaptain) && statusInfo?.type === 'confirmed' && (() => {
+                    {(isCaptain || isViceCaptain) && statusInfo?.type === 'confirmed' && !isJokerNegotiation && !isJokerInMatch && (() => {
                       const isCancelRequested = activeChannel?.reservation?.cancelRequested;
                       const isDisabled = isJokerNegotiationBlocked;
 
@@ -1188,7 +1206,7 @@ export const Chat: React.FC = () => {
                     })()}
 
                     {/* Add Delete Chat Button for Played/Unplayed matches */}
-                    {(statusInfo?.type === 'played' || statusInfo?.type === 'unplayed') && (
+                    {(statusInfo?.type === 'played' || statusInfo?.type === 'unplayed') && !isJokerInMatch && (
                       <button
                         onClick={() => {
                           if (!activeChannel) return;

@@ -330,7 +330,7 @@ export const Notifications: React.FC = () => {
                {/* MAÇ İSTEKLERİ TAB */}
                {activeTab === 'MATCH_REQUESTS' && (
                   <>
-                     {filteredMatchRequests.length === 0 && rematchProposals.length === 0 ? (
+                     {filteredMatchRequests.length === 0 && rematchProposals.length === 0 && jokerInvites.length === 0 ? (
                         <div className="text-center py-12 opacity-50">
                            <Handshake className="w-12 h-12 text-slate-600 mx-auto mb-3" />
                            <p className="text-slate-400 text-sm">Bekleyen maç isteği yok.</p>
@@ -472,22 +472,40 @@ export const Notifications: React.FC = () => {
                      {/* Joker Davetleri */}
                      {jokerInvites.length > 0 && (
                         <>
-                           {(filteredMatchRequests.length > 0 || rematchProposals.length > 0) && (
-                              <div className="border-t border-slate-700 my-4 pt-2">
-                                 <p className="text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-2">
-                                    <ShieldCheck className="w-4 h-4 text-turf-500" /> Joker Kartı Daveti (Tek Maçlık)
-                                 </p>
-                              </div>
-                           )}
+                           <div className={`${(filteredMatchRequests.length > 0 || rematchProposals.length > 0) ? "border-t border-slate-700 pt-2 my-4" : "mb-4"}`}>
+                              <p className="text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-2">
+                                 <ShieldCheck className="w-4 h-4 text-turf-500" /> Joker Kartı Daveti (Tek Maçlık)
+                              </p>
+                           </div>
                            {jokerInvites.map(notif => (
                               <div key={notif.id} className="p-4 rounded-2xl border flex gap-4 items-start transition-all relative overflow-hidden bg-slate-800 border-turf-500/50 shadow-[0_0_15px_rgba(34,197,94,0.1)]">
                                  <div className="absolute right-0 top-0 w-20 h-full bg-gradient-to-l from-turf-600/10 to-transparent pointer-events-none"></div>
-                                 <div className="w-12 h-12 rounded-full bg-gradient-to-br from-turf-400 to-green-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-turf-500/30">
-                                    <UserPlus className="w-6 h-6 text-white" />
+                                 <div
+                                    className={`relative flex-shrink-0 z-20 ${notif.metadata?.teamId ? 'cursor-pointer hover:scale-105 transition-transform' : ''}`}
+                                    onClick={(e) => {
+                                       if (notif.metadata?.teamId) {
+                                          e.stopPropagation();
+                                          setSelectedTeamId(notif.metadata.teamId);
+                                       }
+                                    }}
+                                 >
+                                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-turf-400 to-green-600 flex items-center justify-center shadow-lg shadow-turf-500/30">
+                                       <UserPlus className="w-6 h-6 text-white" />
+                                    </div>
                                  </div>
                                  <div className="flex-1 min-w-0 relative z-10">
                                     <div className="flex justify-between items-start">
-                                       <h3 className="font-bold text-white text-base">{notif.metadata?.teamName || 'Bilinmeyen Takım'}</h3>
+                                       <h3
+                                          className={`font-bold text-white text-base ${notif.metadata?.teamId ? 'cursor-pointer hover:text-turf-400 transition-colors z-20' : ''}`}
+                                          onClick={(e) => {
+                                             if (notif.metadata?.teamId) {
+                                                e.stopPropagation();
+                                                setSelectedTeamId(notif.metadata.teamId);
+                                             }
+                                          }}
+                                       >
+                                          {notif.metadata?.teamName || 'Bilinmeyen Takım'}
+                                       </h3>
                                        <span className="text-[10px] font-bold text-slate-500 uppercase">{new Date(notif.createdAt).toLocaleDateString('tr-TR')}</span>
                                     </div>
                                     <div className="flex items-center gap-2 text-xs text-slate-400 mt-1">

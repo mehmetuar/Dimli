@@ -540,9 +540,9 @@ export class ReservationsService {
     // Helper to send system message with robust sender fallback and metadata
     private async sendSystemMessage(manager: any, matchId: string, team: any, content: string, metadata?: any) {
         try {
-            // Find channel by relatedMatchId
+            // Find channel by relatedMatchId and type MATCH_GROUP
             const channel = await manager.findOne(ChatChannel, {
-                where: { relatedMatchId: matchId }
+                where: { relatedMatchId: matchId, type: 'MATCH_GROUP' }
             });
 
             if (channel) {

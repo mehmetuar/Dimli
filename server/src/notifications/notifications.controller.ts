@@ -45,4 +45,24 @@ export class NotificationsController {
             body.note
         );
     }
+
+    @UseGuards(JwtAuthGuard)
+    @Get('sent-joker-invites/:jokerId')
+    async getSentJokerInvites(
+        @Request() req,
+        @Param('jokerId') jokerId: string
+    ) {
+        return this.notificationsService.getSentJokerInvites(req.user.id, jokerId);
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Delete('joker-invite/:jokerId/:matchId')
+    async cancelJokerInvite(
+        @Request() req,
+        @Param('jokerId') jokerId: string,
+        @Param('matchId') matchId: string
+    ) {
+        await this.notificationsService.cancelJokerInvite(req.user.id, jokerId, matchId);
+        return { success: true };
+    }
 }

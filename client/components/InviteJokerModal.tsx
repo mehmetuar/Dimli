@@ -21,36 +21,71 @@ export const InviteJokerModal: React.FC<Props> = ({ isOpen, onClose, joker }) =>
    const [isLoading, setIsLoading] = useState(true);
    const [sentMatchIds, setSentMatchIds] = useState<Set<string>>(new Set());
 
+   // Confirmation Modal State
+   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+
    useEffect(() => {
-      if (!isOpen) return;
+      if (!isOpen || !joker) return;
       setIsLoading(true);
-      api.get('/chat/channels')
-         .then(res => {
-            const channels: any[] = res.data || [];
+
+      Promise.all([
+         api.get('/chat/channels'),
+         api.get(`/notifications/sent-joker-invites/${joker.id}`)
+      ])
+         .then(([channelsRes, invitesRes]) => {
+            const channels: any[] = channelsRes.data || [];
+            const now = new Date();
             // Filter MATCH_GROUP channels where reservation is APPROVED (Kesinleşti) or PENDING
-            const matchChannels = channels.filter((c: any) =>
-               c.type === 'MATCH_GROUP' &&
-               c.relatedMatchId && // must have a match announcement
-               c.reservation &&
-               (c.reservation.status === 'APPROVED' || c.reservation.status === 'PENDING')
-            );
+            // and the match date is in the future
+            const matchChannels = channels.filter((c: any) => {
+               if (
+                  c.type !== 'MATCH_GROUP' ||
+                  !c.relatedMatchId ||
+                  !c.reservation
+               ) return false;
+
+               const isStatusValid = c.reservation.status === 'APPROVED' || c.reservation.status === 'PENDING';
+               const isFutureMatch = new Date(c.reservation.slotTime) > now;
+
+               return isStatusValid && isFutureMatch;
+            });
             setMyMatches(matchChannels);
+
+            const sentIds = invitesRes.data || [];
+            setSentMatchIds(new Set(sentIds));
          })
          .catch(console.error)
          .finally(() => setIsLoading(false));
-   }, [isOpen]);
+   }, [isOpen, joker]);
 
-   const handleSendInvite = async () => {
-      if (!selectedMatchId || isSending) return;
+   const executeCancelInvite = async () => {
+      if (!selectedMatchId) return;
+      setIsSending(true);
+      try {
+         await api.delete(`/notifications/joker-invite/${joker?.id}/${selectedMatchId}`);
+         setSentMatchIds(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(selectedMatchId);
+            return newSet;
+         });
+         setShowCancelConfirm(false);
+      } catch (error: any) {
+         console.error('Failed to cancel joker invite:', error);
+         alert(error.response?.data?.message || 'İptal işlemi başarısız.');
+      } finally {
+         setIsSending(false);
+      }
+   };
+
+   const executeSendInvite = async () => {
+      if (!selectedMatchId) return;
       setIsSending(true);
       try {
          await api.post('/notifications/joker-invite', {
             jokerId: joker?.id,
-            // Use the MatchAnnouncement ID, not the chat channel ID
             matchId: selectedMatchId,
             note: inviteNote
          });
-         // Mark as sent so the button stays disabled
          setSentMatchIds(prev => new Set(prev).add(selectedMatchId));
          setIsSent(true);
          setTimeout(() => {
@@ -60,11 +95,24 @@ export const InviteJokerModal: React.FC<Props> = ({ isOpen, onClose, joker }) =>
             setSelectedMatchId(null);
          }, 2000);
       } catch (error: any) {
-         console.error('Failed to send joker invite:', error);
-         alert(error.response?.data?.message || 'Davet gönderilemedi.');
+         console.error('Failed to toggle joker invite:', error);
+         alert(error.response?.data?.message || 'İşlem başarısız.');
       } finally {
          setIsSending(false);
       }
+   };
+
+   const handleToggleInvite = async () => {
+      if (!selectedMatchId || isSending) return;
+
+      const isCanceling = sentMatchIds.has(selectedMatchId);
+
+      if (isCanceling) {
+         setShowCancelConfirm(true);
+         return;
+      }
+
+      executeSendInvite();
    };
 
    const jokerName = joker?.full_name || joker?.username || joker?.name || 'Joker';
@@ -159,14 +207,17 @@ export const InviteJokerModal: React.FC<Props> = ({ isOpen, onClose, joker }) =>
                   </div>
 
                   <button
-                     onClick={handleSendInvite}
-                     disabled={!selectedMatchId || isSending || (selectedMatchId !== null && sentMatchIds.has(selectedMatchId))}
-                     className="w-full bg-turf-600 disabled:bg-slate-700 disabled:text-slate-500 text-white font-bold py-3.5 rounded-xl hover:bg-turf-500 transition-colors shadow-lg shadow-turf-600/20 flex items-center justify-center gap-2"
+                     onClick={handleToggleInvite}
+                     disabled={!selectedMatchId || isSending}
+                     className={`w-full font-bold py-3.5 rounded-xl transition-colors shadow-lg flex items-center justify-center gap-2 text-white ${selectedMatchId && sentMatchIds.has(selectedMatchId)
+                        ? 'bg-slate-700 hover:bg-red-900/50 hover:text-red-400 shadow-slate-900/20 text-slate-300'
+                        : 'bg-turf-600 hover:bg-turf-500 shadow-turf-600/20 disabled:bg-slate-700 disabled:text-slate-500 text-white'
+                        }`}
                   >
                      {isSending ? (
-                        <><Loader2 className="w-4 h-4 animate-spin" /> Gönderiliyor...</>
+                        <><Loader2 className="w-4 h-4 animate-spin" /> Bekleyiniz...</>
                      ) : selectedMatchId && sentMatchIds.has(selectedMatchId) ? (
-                        <><CheckCircle className="w-4 h-4" /> İstek Gönderildi</>
+                        <><X className="w-4 h-4" /> İsteği İptal Et</>
                      ) : (
                         <><Send className="w-4 h-4" /> Davet Gönder</>
                      )}
@@ -174,6 +225,35 @@ export const InviteJokerModal: React.FC<Props> = ({ isOpen, onClose, joker }) =>
                </>
             )}
          </div>
+
+         {/* Cancel Confirmation Modal */}
+         {showCancelConfirm && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+               <div className="bg-slate-800 rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-slate-700">
+                  <h3 className="text-xl font-bold text-white text-center mb-2">Daveti İptal Et</h3>
+                  <p className="text-slate-400 text-center text-sm mb-6">
+                     Bu maça gönderdiğiniz daveti iptal etmek istediğinize emin misiniz?
+                  </p>
+
+                  <div className="flex gap-3">
+                     <button
+                        onClick={() => setShowCancelConfirm(false)}
+                        disabled={isSending}
+                        className="flex-1 px-4 py-3 bg-slate-700 text-white rounded-xl font-medium hover:bg-slate-600 transition disabled:opacity-50"
+                     >
+                        Vazgeç
+                     </button>
+                     <button
+                        onClick={executeCancelInvite}
+                        disabled={isSending}
+                        className="flex-1 px-4 py-3 bg-red-500 text-white rounded-xl font-bold shadow-lg shadow-red-500/30 hover:bg-red-600 hover:shadow-red-600/40 transition flex items-center justify-center disabled:opacity-50"
+                     >
+                        {isSending ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Evet, İptal Et'}
+                     </button>
+                  </div>
+               </div>
+            </div>
+         )}
       </div>
    );
 };

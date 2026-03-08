@@ -50,6 +50,19 @@ export class NotificationsService {
 
         if (!match) throw new Error('Match not found');
 
+        // Prevent duplicate invites
+        const existingInvite = await this.notificationsRepository.findOne({
+            where: {
+                userId: jokerId,
+                type: 'JOKER_INVITE',
+                relatedId: matchId,
+            }
+        });
+
+        if (existingInvite) {
+            throw new Error('Joker için bu maça zaten bir davet gönderilmiş.');
+        }
+
         const notification = this.notificationsRepository.create({
             userId: jokerId,
             type: 'JOKER_INVITE',
@@ -69,6 +82,29 @@ export class NotificationsService {
         });
 
         return this.notificationsRepository.save(notification);
+    }
+
+    async getSentJokerInvites(inviterId: string, jokerId: string): Promise<string[]> {
+        // Find all JOKER_INVITE notifications sent to jokerId where metadata.inviterId matches
+        // It's a bit tricky to query JSONB directly for inviterId in TypeORM without exact Postgres syntax,
+        // so we'll fetch notifications for the joker and filter by inviterId.
+        const invites = await this.notificationsRepository.find({
+            where: { userId: jokerId, type: 'JOKER_INVITE' }
+        });
+
+        const sentByMe = invites.filter(n => n.metadata?.inviterId === inviterId);
+        return sentByMe.map(n => n.relatedId).filter(Boolean) as string[];
+    }
+
+    async cancelJokerInvite(inviterId: string, jokerId: string, matchId: string): Promise<void> {
+        const invites = await this.notificationsRepository.find({
+            where: { userId: jokerId, type: 'JOKER_INVITE', relatedId: matchId }
+        });
+
+        const toCancel = invites.find(n => n.metadata?.inviterId === inviterId);
+        if (toCancel) {
+            await this.notificationsRepository.delete(toCancel.id);
+        }
     }
 
     async findByUser(userId: string): Promise<Notification[]> {
