@@ -1,0 +1,196 @@
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import api, { getPitches, getBusinesses } from '../../../../services/api';
+import { generateTeamBio } from '../../../../services/geminiService';
+import { Team, Player, Pitch, Business } from '../../../../types';
+import { SuccessType } from '../../../../components/Modals/SuccessModal';
+
+export const useMyTeam = (modals: any) => {
+    const navigate = useNavigate();
+    const [currentUser, setCurrentUser] = useState<any>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [myTeam, setMyTeam] = useState<Team | undefined>(undefined);
+    const [roster, setRoster] = useState<Partial<Player>[]>([]);
+    const [pitches, setPitches] = useState<Pitch[]>([]);
+    const [businesses, setBusinesses] = useState<Business[]>([]);
+    const [bio, setBio] = useState('');
+    const [isEditingBio, setIsEditingBio] = useState(false);
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [upcomingMatches, setUpcomingMatches] = useState<any[]>([]);
+    const [isUpcomingLoading, setIsUpcomingLoading] = useState(false);
+
+    // Success/Error messages
+    const [successMessage, setSuccessMessage] = useState('');
+    const [successType, setSuccessType] = useState<SuccessType | null>(null);
+    const [errorMessage, setErrorMessage] = useState('');
+
+    useEffect(() => {
+        if (successMessage || errorMessage) {
+            const timer = setTimeout(() => {
+                setSuccessMessage('');
+                setErrorMessage('');
+                setSuccessType(null);
+            }, 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [successMessage, errorMessage]);
+
+    useEffect(() => {
+        const fetchUser = async () => {
+            try {
+                const response = await api.get('/users/me');
+                const user = response.data;
+                setCurrentUser(user);
+
+                const pitchesData = await getPitches();
+                setPitches(pitchesData);
+
+                const businessesData = await getBusinesses();
+                setBusinesses(businessesData);
+
+                if (user.team) {
+                    const teamResponse = await api.get(`/teams/${user.team.id}`);
+                    const fullTeam = teamResponse.data;
+
+                    setMyTeam(fullTeam);
+                    setBio(fullTeam.description || '');
+
+                    if (fullTeam.players) {
+                        const mappedRoster = fullTeam.players.map((p: any) => ({
+                            id: p.id,
+                            name: p.full_name || p.username,
+                            position: p.position || 'Orta Saha',
+                            avatarUrl: 'https://picsum.photos/100/100?random=' + p.id,
+                            rating: p.rating || 0
+                        }));
+                        setRoster(mappedRoster);
+                    }
+                }
+            } catch (error) {
+                console.error("Failed to fetch user profile", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchUser();
+    }, []);
+
+    const fetchUpcomingMatches = async () => {
+        if (!myTeam?.id) return;
+        setIsUpcomingLoading(true);
+        try {
+            const response = await api.get(`/reservations/upcoming?teamId=${myTeam.id}`);
+            setUpcomingMatches(response.data);
+        } catch (error) {
+            console.error('Failed to fetch upcoming matches:', error);
+        } finally {
+            setIsUpcomingLoading(false);
+        }
+    };
+
+    const handleGenerateBio = async () => {
+        if (!myTeam) return;
+        setIsGenerating(true);
+        const newBio = await generateTeamBio(myTeam.name, myTeam.level, myTeam.location);
+        setBio(newBio);
+        const updatedTeam = { ...myTeam, description: newBio };
+        setMyTeam(updatedTeam as any);
+        setIsGenerating(false);
+    };
+
+    const handleSaveBio = async () => {
+        if (!myTeam) return;
+        try {
+            const response = await api.patch(`/teams/${myTeam.id}/description`, { description: bio });
+            setMyTeam(response.data);
+            setIsEditingBio(false);
+        } catch (error) {
+            setErrorMessage('Takım ruhu kaydedilemedi.');
+        }
+    };
+
+    const handleSetHomeBusiness = async (businessId: string) => {
+        if (!myTeam) return;
+        try {
+            const response = await api.patch(`/teams/${myTeam.id}/home-business`, { homeBusinessId: businessId });
+            setMyTeam(response.data);
+            modals.setIsEditingPitch(false);
+            setSuccessMessage('Favori işletme başarıyla güncellendi!');
+        } catch (error) {
+            setErrorMessage('İşletme seçilemedi.');
+        }
+    };
+
+    const handleCreateTeam = async (teamData: Partial<Team>) => {
+        try {
+            const response = await api.post('/teams', teamData);
+            setMyTeam(response.data);
+            modals.setIsCreateTeamModalOpen(false);
+            setSuccessMessage('Takım başarıyla oluşturuldu!');
+            setSuccessType('TEAM_CREATED');
+        } catch (error: any) {
+            setErrorMessage(error.response?.data?.message || 'Takım oluşturulamadı.');
+        }
+    };
+
+    const handleLeaveTeam = () => {
+        if (!myTeam) return;
+        const isCaptain = (myTeam.captain && (myTeam.captain as any).id === currentUser.id) || myTeam.captainId === currentUser.id;
+
+        if (isCaptain) {
+            if (roster.length <= 1) {
+                modals.setConfirmModal({
+                    isOpen: true,
+                    title: '⚠️ Takımı Sil',
+                    message: `Takımda sadece sen varsın. Ayrılırsan "${myTeam.name}" takımı tamamen silinecek. Bunu onaylıyor musun?`,
+                    onConfirm: async () => {
+                        try {
+                            await api.delete(`/teams/${myTeam.id}`);
+                            setMyTeam(undefined);
+                            setRoster([]);
+                            navigate('/team');
+                        } catch (err: any) {
+                            setErrorMessage(err.response?.data?.message || 'Takım silinemedi.');
+                        }
+                    },
+                    isDangerous: true
+                });
+                return;
+            }
+
+            modals.setConfirmModal({
+                isOpen: true,
+                title: 'Uyarı',
+                message: 'Takım kaptanısın. Ayrılmadan önce kaptanlığı başka bir oyuncuya devretmelisin.',
+                onConfirm: () => { },
+                isDangerous: false
+            });
+            return;
+        }
+
+        modals.setConfirmModal({
+            isOpen: true,
+            title: 'Takımdan Ayrıl',
+            message: `${myTeam.name} takımından ayrılmak istediğine emin misin?`,
+            onConfirm: async () => {
+                try {
+                    await api.delete(`/teams/${myTeam.id}/leave`);
+                    setMyTeam(undefined);
+                    setRoster([]);
+                    navigate('/team');
+                } catch (err: any) {
+                    setErrorMessage(err.response?.data?.message || 'Takımdan ayrılınamadı.');
+                }
+            },
+            isDangerous: true
+        });
+    };
+
+    return {
+        currentUser, isLoading, myTeam, setMyTeam, roster, setRoster,
+        pitches, businesses, bio, setBio, isEditingBio, setIsEditingBio,
+        isGenerating, upcomingMatches, isUpcomingLoading, fetchUpcomingMatches,
+        successMessage, setSuccessMessage, successType, setSuccessType, errorMessage, setErrorMessage,
+        handleGenerateBio, handleSaveBio, handleSetHomeBusiness, handleCreateTeam, handleLeaveTeam
+    };
+};
