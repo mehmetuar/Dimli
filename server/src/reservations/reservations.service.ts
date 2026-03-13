@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository, In, LessThan, MoreThan, Between, MoreThanOrEqual } from 'typeorm';
+import { DataSource, Repository, In, LessThan, MoreThan, Between, MoreThanOrEqual, Not, Equal } from 'typeorm';
 import { Reservation, ReservationStatus } from './entities/reservation.entity';
 import { ChatService } from '../chat/chat.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -357,6 +357,86 @@ export class ReservationsService {
                         }
                     }
                 }
+            }
+
+            // 6. Cancel conflicting match announcements (rakip_araniyor) for the same pitch + slot
+            try {
+                // Build date/time strings matching MatchAnnouncement.date (YYYY-MM-DD) and .time (HH:MM)
+                const pad = (n: number) => String(n).padStart(2, '0');
+                const approvedDateStr = `${approvalTime.getFullYear()}-${pad(approvalTime.getMonth() + 1)}-${pad(approvalTime.getDate())}`;
+                const approvedTimeStr = `${pad(approvalTime.getHours())}:${pad(approvalTime.getMinutes())}`;
+
+                const conflictingAnnouncements = await manager.find(MatchAnnouncement, {
+                    where: {
+                        pitchId: reservation.pitchId,
+                        date: approvedDateStr,
+                        time: approvedTimeStr,
+                        status: 'PENDING',
+                        teamId: Not(Equal(reservation.teamId))
+                    },
+                    relations: ['team', 'team.captain', 'team.players']
+                });
+
+                if (conflictingAnnouncements.length > 0) {
+                    this.logger.log(`Found ${conflictingAnnouncements.length} conflicting match announcement(s) for ${approvedDateStr} ${approvedTimeStr}. Cancelling...`);
+
+                    const businessName = reservation.pitch?.business?.name || 'İşletme';
+                    const notifTitle = '⚠️ İlan Saat Dolduğu İçin Kaldırıldı';
+                    const notifMessage = `${businessName}, bu saat için farklı bir maçı kesinleştirdi. ${approvedDateStr} - ${approvedTimeStr} saatindeki rakip arama ilanınız kaldırıldı.`;
+
+                    for (const ann of conflictingAnnouncements) {
+                        ann.status = 'CANCELLED';
+                        await manager.save(ann);
+                        this.logger.log(`MatchAnnouncement ${ann.id} set to CANCELLED due to slot being taken.`);
+
+                        const notifiedPlayerIds = new Set<string>();
+
+                        // Notify captain first
+                        const captainId = (ann.team?.captain as any)?.id || ann.team?.captainId;
+                        if (captainId) {
+                            notifiedPlayerIds.add(captainId);
+                            await this.notificationsService.create({
+                                userId: captainId,
+                                type: 'SYSTEM',
+                                title: notifTitle,
+                                message: notifMessage,
+                                relatedId: ann.id,
+                                read: false,
+                                metadata: {
+                                    type: 'ANNOUNCEMENT_SLOT_TAKEN',
+                                    announcementId: ann.id,
+                                    reservationId: reservation.id
+                                }
+                            });
+                        }
+
+                        // Notify remaining team players
+                        if (ann.team?.players) {
+                            for (const player of ann.team.players) {
+                                const playerId = (player as any).id;
+                                if (!playerId || notifiedPlayerIds.has(playerId)) continue;
+                                notifiedPlayerIds.add(playerId);
+                                await this.notificationsService.create({
+                                    userId: playerId,
+                                    type: 'SYSTEM',
+                                    title: notifTitle,
+                                    message: notifMessage,
+                                    relatedId: ann.id,
+                                    read: false,
+                                    metadata: {
+                                        type: 'ANNOUNCEMENT_SLOT_TAKEN',
+                                        announcementId: ann.id,
+                                        reservationId: reservation.id
+                                    }
+                                });
+                            }
+                        }
+
+                        this.logger.log(`Sent ANNOUNCEMENT_SLOT_TAKEN notifications to ${notifiedPlayerIds.size} user(s) for announcement ${ann.id}.`);
+                    }
+                }
+            } catch (error) {
+                this.logger.error('Failed to cancel conflicting match announcements:', error);
             }
 
             return reservation;
