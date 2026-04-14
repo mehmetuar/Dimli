@@ -44,7 +44,8 @@ export const BusinessDashboard: React.FC = () => {
         handleConfirmCancel,
         handleAcceptCancelRequest,
         handleRejectCancelRequest,
-        handleTransaction
+        handleTransaction,
+        handleManualFillSlot
     } = useBusinessDashboard();
 
     if (loading) return <BusinessLoadingSpinner fullScreen />;
@@ -70,12 +71,14 @@ export const BusinessDashboard: React.FC = () => {
 
             {/* Modal for Slot Details */}
             <SlotDetailModal
+                selectedDate={selectedDate}
                 selectedSlot={selectedSlot}
                 setSelectedSlot={setSelectedSlot}
                 handleAcceptCancelRequest={handleAcceptCancelRequest}
                 handleRejectCancelRequest={handleRejectCancelRequest}
                 openActionModal={openActionModal}
                 handleCancelClick={handleCancelClick}
+                handleManualFillSlot={handleManualFillSlot}
             />
 
             {/* General Action Modal (Approve or Note) */}

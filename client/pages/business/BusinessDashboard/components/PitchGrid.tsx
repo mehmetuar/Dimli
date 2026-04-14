@@ -38,8 +38,8 @@ export const PitchGrid: React.FC<PitchGridProps> = ({
                                 <button
                                     key={slotIdx}
                                     onClick={() => {
-                                        if (slot.status !== 'EMPTY' && !isPast) {
-                                            setSelectedSlot(slot);
+                                        if (!isPast) {
+                                            setSelectedSlot({ ...slot, pitchId: pitch.pitchId });
                                         }
                                     }}
                                     disabled={isPast}

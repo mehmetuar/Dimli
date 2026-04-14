@@ -96,6 +96,143 @@ export class ReservationsService {
     }
 
 
+    async manualFill(pitchId: string, slotTime: Date) {
+        this.logger.log(`Manual fill initiated for pitch: ${pitchId}, time: ${slotTime}`);
+
+        return this.dataSource.transaction(async (manager) => {
+            const pitch = await manager.findOne(Pitch, { where: { id: pitchId }, relations: ['business'] });
+            if (!pitch) throw new Error('Saha bulunamadı');
+
+            const approvalTime = new Date(slotTime);
+            const windowStart = new Date(approvalTime.getTime() - 15 * 60000);
+            const windowEnd = new Date(approvalTime.getTime() + 15 * 60000);
+
+            // 1. Check if already FULL
+            const existingApproved = await manager.findOne(Reservation, {
+                where: {
+                    pitchId: pitchId,
+                    status: ReservationStatus.APPROVED,
+                    slotTime: Between(windowStart, windowEnd)
+                }
+            });
+            if (existingApproved) {
+                throw new Error('Bu saat zaten dolu.');
+            }
+
+            // 2. Reject all pending reservations
+            const pendingReservations = await manager.find(Reservation, {
+                where: {
+                    pitchId: pitchId,
+                    slotTime: Between(windowStart, windowEnd),
+                    status: ReservationStatus.PENDING
+                },
+                relations: ['team', 'team.captain']
+            });
+
+            if (pendingReservations.length > 0) {
+                for (const pending of pendingReservations) {
+                    pending.status = ReservationStatus.REJECTED;
+                    await manager.save(pending);
+
+                    if (pending.matchAnnouncementId) {
+                        try {
+                            await this.sendSystemMessage(
+                                manager,
+                                pending.matchAnnouncementId,
+                                pending.team,
+                                `{{SHIELD}} Bu saat için saha ayrılmış durumda.\n\nİşletme sahibi saati doluya geçirdi. Yeni bir maç ayarlamak için sitemizdeki diğer saatlere göz atabilirsiniz.\n\nEğer bir sorun olduğunu düşünüyorsanız lütfen işletme ile iletişime geçin.`,
+                                { type: 'MANUAL_FILL_REJECTED', reservationId: pending.id }
+                            );
+                        } catch (e) {
+                            this.logger.error('Failed to send system message for pending reservation on manual fill', e);
+                        }
+                    }
+
+                    // Notifications to players
+                    try {
+                        const playersToNotify: any[] = [];
+                        if (pending.team?.players) playersToNotify.push(...pending.team.players);
+
+                        for (const player of playersToNotify) {
+                            await this.notificationsService.create({
+                                userId: player.id,
+                                type: 'SYSTEM',
+                                title: '❌ Maç Yapılacak Saat Doldu',
+                                message: `⚠️ Bu saat için saha ayrılmış durumda. İşletme sahibi saati doluya geçirdi.`,
+                                relatedId: pending.id,
+                                read: false,
+                                metadata: { type: 'MANUAL_FILL_REJECTED', reservationId: pending.id }
+                            });
+                        }
+                    } catch (e) {
+                        this.logger.error('Failed to send notifications to pending reservation players on manual fill', e);
+                    }
+                }
+            }
+
+            // 3. Cancel all pending rakip araniyor announcements
+            const pad = (n: number) => String(n).padStart(2, '0');
+            const approvedDateStr = `${approvalTime.getFullYear()}-${pad(approvalTime.getMonth() + 1)}-${pad(approvalTime.getDate())}`;
+            const approvedTimeStr = `${pad(approvalTime.getHours())}:${pad(approvalTime.getMinutes())}`;
+
+            const pendingAnnouncements = await manager.find(MatchAnnouncement, {
+                where: {
+                    pitchId: pitchId,
+                    date: approvedDateStr,
+                    time: approvedTimeStr,
+                    status: 'PENDING'
+                },
+                relations: ['team', 'team.captain', 'team.players']
+            });
+
+            if (pendingAnnouncements.length > 0) {
+                for (const ann of pendingAnnouncements) {
+                    ann.status = 'CANCELLED';
+                    await manager.save(ann);
+
+                    const notifiedPlayerIds = new Set<string>();
+
+                    const notifyUser = async (userId: string) => {
+                        if (!userId || notifiedPlayerIds.has(userId)) return;
+                        notifiedPlayerIds.add(userId);
+                        await this.notificationsService.create({
+                            userId: userId,
+                            type: 'SYSTEM',
+                            title: '⚠️ İlan Saat Dolduğu İçin Kaldırıldı',
+                            message: `⚠️ Bu saat için saha ayrılmış durumda. İşletme sahibi saati doluya geçirdi.`,
+                            relatedId: ann.id,
+                            read: false,
+                            metadata: { type: 'ANNOUNCEMENT_SLOT_TAKEN', announcementId: ann.id }
+                        });
+                    };
+
+                    const captainId = (ann.team?.captain as any)?.id || ann.team?.captainId;
+                    if (captainId) await notifyUser(captainId);
+
+                    if (ann.team?.players) {
+                        for (const player of ann.team.players) {
+                            await notifyUser((player as any).id);
+                        }
+                    }
+                }
+            }
+
+            // 4. Create DIRECT reservation to block the slot
+            const manualRes = manager.create(Reservation, {
+                pitchId: pitchId,
+                slotTime: approvalTime,
+                status: ReservationStatus.APPROVED,
+                type: 'DIRECT',
+                teamId: null as unknown as string
+            });
+
+            await manager.save(manualRes);
+            this.logger.log(`Manual block successfully created for pitch ${pitchId} at ${slotTime}`);
+
+            return { success: true, reservation: manualRes };
+        });
+    }
+
     async create(createReservationDto: any) {
         const reservation = this.reservationRepository.create(createReservationDto);
         const savedReservation = await this.reservationRepository.save(reservation) as unknown as Reservation;
@@ -458,6 +595,65 @@ export class ReservationsService {
 
             if (reservation.status !== ReservationStatus.APPROVED) {
                 throw new Error('Sadece onaylanmış maçların onayı kaldırılabilir.');
+            }
+
+            // If it's a manual fill (no team), simply delete it and return
+            if (!reservation.team) {
+                const approvalTime = new Date(reservation.slotTime);
+                const windowStart = new Date(approvalTime.getTime() - 15 * 60000);
+                const windowEnd = new Date(approvalTime.getTime() + 15 * 60000);
+
+                // Restore REJECTED reservations to PENDING
+                const rejectedReservations = await manager.find(Reservation, {
+                    where: {
+                        pitchId: reservation.pitchId,
+                        slotTime: Between(windowStart, windowEnd),
+                        status: ReservationStatus.REJECTED
+                    },
+                    relations: ['team', 'team.captain', 'team.players']
+                });
+
+                for (const rej of rejectedReservations) {
+                    rej.status = ReservationStatus.PENDING;
+                    await manager.save(rej);
+
+                    if (rej.matchAnnouncementId) {
+                        try {
+                            await this.sendSystemMessage(
+                                manager,
+                                rej.matchAnnouncementId,
+                                rej.team,
+                                `{{CHECK}} İşletme saati tekrar boşa çevirdi!\n\nTalebiniz yeniden 'Onay Bekliyor' durumuna alındı. Yerinizi ayırtmak (onaylatmak) için saha ile iletişime geçebilirsiniz.`,
+                                { type: 'MANUAL_FILL_REVOKED', reservationId: rej.id }
+                            );
+                        } catch (e) {
+                            this.logger.error('Failed to send system message for restored reservation', e);
+                        }
+                    }
+
+                    // Notifications to players
+                    try {
+                        const playersToNotify: any[] = [];
+                        if (rej.team?.players) playersToNotify.push(...rej.team.players);
+
+                        for (const player of playersToNotify) {
+                            await this.notificationsService.create({
+                                userId: player.id,
+                                type: 'SYSTEM',
+                                title: '✅ Saat Yeniden Boşaldı!',
+                                message: `İşletme saati tekrar boşa çevirdi. Yerinizi ayırtmak için saha ile iletişime geçin.`,
+                                relatedId: rej.id,
+                                read: false,
+                                metadata: { type: 'MANUAL_FILL_REVOKED', reservationId: rej.id }
+                            });
+                        }
+                    } catch (e) {
+                        this.logger.error('Failed to send notifications for restored reservation', e);
+                    }
+                }
+
+                await manager.remove(reservation);
+                return { success: true, message: 'Manuel blokaj kaldırıldı ve önceki istekler aktifleştirildi.' };
             }
 
             // 1. Change status back to PENDING (Business Initiative)

@@ -140,8 +140,8 @@ export class AuthService {
                     const savedPitch = await queryRunner.manager.save(pitch);
 
                     // 4b. Create TimeSlots for this pitch
-                    if ((pitchData as any).timeSlots && Array.isArray((pitchData as any).timeSlots)) {
-                        for (const slotData of (pitchData as any).timeSlots) {
+                    if (pitchData.timeSlots && Array.isArray(pitchData.timeSlots)) {
+                        for (const slotData of pitchData.timeSlots) {
                             const timeSlot = new TimeSlot();
                             timeSlot.pitchId = savedPitch.id;
                             timeSlot.startTime = slotData.startTime;

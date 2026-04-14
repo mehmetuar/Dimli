@@ -188,15 +188,80 @@ export class MatchAnnouncementsService {
 
     }
 
-    async findAll(filters?: { date?: string; pitchId?: string }): Promise<MatchAnnouncement[]> {
+    async findAll(filters?: {
+        date?: string;
+        pitchId?: string;
+        geoFilter?: { lat: number; lng: number; radius: number };
+    }): Promise<(MatchAnnouncement & { distanceKm?: number })[]> {
         // Clean up expired announcements first
         await this.deleteExpired();
 
+        // ── Geospatial (proximity) query ──────────────────────────────────────
+        if (filters?.geoFilter) {
+            const { lat, lng, radius } = filters.geoFilter;
+            console.log(`🌍 Geo filter: lat=${lat}, lng=${lng}, radius=${radius}km`);
+
+            // Raw SQL with Haversine formula — joins through pitch → business
+            const raw: any[] = await this.matchAnnouncementsRepository.query(
+                `SELECT
+                    ma.*,
+                    (6371 * acos(
+                        cos(radians($1)) * cos(radians(b.latitude))
+                        * cos(radians(b.longitude) - radians($2))
+                        + sin(radians($1)) * sin(radians(b.latitude))
+                    )) AS distance_km
+                 FROM match_announcements ma
+                 JOIN pitches p      ON ma.pitch_id    = p.id
+                 JOIN businesses b   ON p.business_id  = b.id
+                 WHERE ma.status  = 'PENDING'
+                   AND b.latitude  IS NOT NULL
+                   AND b.longitude IS NOT NULL
+                   AND (
+                     6371 * acos(
+                         cos(radians($1)) * cos(radians(b.latitude))
+                         * cos(radians(b.longitude) - radians($2))
+                         + sin(radians($1)) * sin(radians(b.latitude))
+                     )
+                   ) <= $3
+                 ORDER BY distance_km ASC`,
+                [lat, lng, radius],
+            );
+
+            if (raw.length === 0) {
+                console.log(`📢 No announcements within ${radius}km`);
+                return [];
+            }
+
+            // Fetch the full entity rows (with relations) for matched ids
+            const ids = raw.map((r) => r.id);
+            const distanceMap = new Map<string, number>(
+                raw.map((r) => [r.id, parseFloat(Number(r.distance_km).toFixed(1))]),
+            );
+
+            const announcements = await this.matchAnnouncementsRepository
+                .createQueryBuilder('announcement')
+                .leftJoinAndSelect('announcement.team', 'team')
+                .leftJoinAndSelect('team.captain', 'captain')
+                .leftJoinAndSelect('team.players', 'players')
+                .where('announcement.id IN (:...ids)', { ids })
+                .andWhere('announcement.status = :status', { status: 'PENDING' })
+                .getMany();
+
+            // Attach distanceKm and re-sort by distance
+            const result = announcements
+                .map((a) => ({ ...a, distanceKm: distanceMap.get(a.id) ?? 0 }))
+                .sort((a, b) => (a.distanceKm ?? 0) - (b.distanceKm ?? 0));
+
+            console.log(`📢 Found ${result.length} announcements within ${radius}km`);
+            return result;
+        }
+
+        // ── Standard (non-geo) query ──────────────────────────────────────────
         const query = this.matchAnnouncementsRepository
             .createQueryBuilder('announcement')
             .leftJoinAndSelect('announcement.team', 'team')
             .leftJoinAndSelect('team.captain', 'captain')
-            .leftJoinAndSelect('team.players', 'players') // Added to load all players
+            .leftJoinAndSelect('team.players', 'players')
             .where('announcement.status = :status', { status: 'PENDING' });
 
         if (filters?.date) {
@@ -207,12 +272,16 @@ export class MatchAnnouncementsService {
             query.andWhere('announcement.pitchId = :pitchId', { pitchId: filters.pitchId });
         }
 
-        const announcements = await query.orderBy('announcement.date', 'ASC').addOrderBy('announcement.time', 'ASC').getMany();
+        const announcements = await query
+            .orderBy('announcement.date', 'ASC')
+            .addOrderBy('announcement.time', 'ASC')
+            .getMany();
+
         console.log(`📢 Found ${announcements.length} announcements`);
         if (announcements.length > 0) {
             console.log('First announcement team:', {
                 name: announcements[0].team?.name,
-                playersCount: announcements[0].team?.players?.length
+                playersCount: announcements[0].team?.players?.length,
             });
         }
         return announcements;

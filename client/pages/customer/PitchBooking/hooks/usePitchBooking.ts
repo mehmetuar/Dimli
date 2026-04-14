@@ -1,7 +1,31 @@
 import { useState, useEffect } from 'react';
+import { Geolocation } from '@capacitor/geolocation';
 import api from '../../../../services/api';
 import { Business, Team } from '../../../../types';
 import { LocationFilter } from '../../../../components/Modals/LocationFilterModal';
+
+// ── Haversine distance (km) ─────────────────────────────────────────────────
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) ** 2 +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLng / 2) ** 2;
+    return parseFloat((R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))).toFixed(1));
+}
+
+// ── Coord cache shared with Marketplace ────────────────────────────────────
+const COORD_CACHE_KEY = 'marketplace_user_coords';
+const getCachedCoords = (): { lat: number; lng: number } | null => {
+    try { const r = sessionStorage.getItem(COORD_CACHE_KEY); return r ? JSON.parse(r) : null; }
+    catch { return null; }
+};
+const setCachedCoords = (c: { lat: number; lng: number }) => {
+    try { sessionStorage.setItem(COORD_CACHE_KEY, JSON.stringify(c)); } catch { /* ignore */ }
+};
+// ───────────────────────────────────────────────────────────────────────────
+
 export const usePitchBooking = () => {
     const [businesses, setBusinesses] = useState<Business[]>([]);
     const [expandedBusinessId, setExpandedBusinessId] = useState<string | null>(null);
@@ -46,6 +70,7 @@ export const usePitchBooking = () => {
 
     const [currentUser, setCurrentUser] = useState<any>(null);
     const [pitchAnnouncements, setPitchAnnouncements] = useState<any[]>([]);
+    const [businessDistances, setBusinessDistances] = useState<Record<string, number>>({});
 
     const isAuthorized = () => {
         if (!currentUser?.team) return false;
@@ -64,7 +89,38 @@ export const usePitchBooking = () => {
                 }
 
                 const businessRes = await api.get('/businesses');
-                setBusinesses(businessRes.data);
+                const bList: Business[] = businessRes.data;
+                setBusinesses(bList);
+
+                // ── Compute distances ─────────────────────────────────────
+                const computeDistances = (coords: { lat: number; lng: number }) => {
+                    const map: Record<string, number> = {};
+                    bList.forEach(b => {
+                        if (b.latitude && b.longitude) {
+                            map[b.id] = haversineKm(coords.lat, coords.lng, b.latitude, b.longitude);
+                        }
+                    });
+                    setBusinessDistances(map);
+                };
+
+                // Use cached coords first (instant), then refresh GPS
+                const cached = getCachedCoords();
+                if (cached) computeDistances(cached);
+
+                try {
+                    let permStatus = await Geolocation.checkPermissions();
+                    if (permStatus.location === 'prompt' || permStatus.location === 'prompt-with-rationale') {
+                        permStatus = await Geolocation.requestPermissions();
+                    }
+                    if (permStatus.location !== 'denied') {
+                        const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 10000 });
+                        const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                        setCachedCoords(coords);
+                        computeDistances(coords);
+                    }
+                } catch (gpsErr) {
+                    console.warn('Sahalar GPS unavailable:', gpsErr);
+                }
             } catch (error) {
                 console.error('Failed to fetch data:', error);
             }
@@ -225,6 +281,7 @@ export const usePitchBooking = () => {
         selectedDate, setSelectedDate,
         reservations, slotDetailModal, setSlotDetailModal,
         currentUser, pitchAnnouncements,
+        businessDistances,
         isAuthorized, getFilteredBusinesses,
         handleSendOffer, handleConfirmCancel, handleConfirmDeleteAd,
         handleCreateAd, handleReserve, handleReservationSuccess, openSlotDetail,

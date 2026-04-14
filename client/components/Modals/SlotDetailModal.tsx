@@ -69,7 +69,15 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                                 <p className="text-slate-400 text-sm mb-6">Bu saat için saha ayrılmış durumda.</p>
 
                                 <div className="flex items-center justify-center gap-4">
-                                    {!approvedReservation.opponentTeam ? (
+                                    {approvedReservation.type === 'DIRECT' && !approvedReservation.team ? (
+                                        <div className="flex flex-col items-center justify-center gap-2 w-full pt-4 pb-2">
+                                            <div className="w-20 h-20 bg-slate-800/80 rounded-full mx-auto mb-3 border-2 border-slate-600/50 flex items-center justify-center shadow-[0_0_15px_rgba(255,255,255,0.05)] relative overflow-hidden">
+                                                <Shield className="w-8 h-8 text-slate-400" />
+                                            </div>
+                                            <div className="font-bold text-white text-lg uppercase tracking-wider text-center">İşletme Tarafından Kapalı</div>
+                                            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-700/50 px-3 py-1 rounded-full mt-1 border border-slate-600/50">Diğer Sahanızı veya Saati Seçin</div>
+                                        </div>
+                                    ) : !approvedReservation.opponentTeam ? (
                                         <div className="flex flex-col items-center justify-center gap-2">
                                             <div className="w-20 h-20 bg-slate-800 rounded-full mx-auto mb-2 border-2 border-orange-500/50 flex items-center justify-center shadow-[0_0_15px_rgba(249,115,22,0.15)] relative overflow-hidden">
                                                 {approvedReservation.team?.logoUrl ? (

@@ -140,6 +140,32 @@ export const useBusinessDashboard = () => {
         });
     };
 
+    const handleManualFillSlot = async (pitchId: string, slotTime: string) => {
+        setConfirmModal({
+            isOpen: true,
+            title: 'Saati Doluya Çevir',
+            message: 'Bu saati doluya çevirmek istediğinize emin misiniz? Bekleyen tüm onay talepleri reddedilecek ve rakip arayan ilanlar kaldırılacaktır.',
+            isDangerous: true,
+            confirmText: 'Saati Kapat',
+            onConfirm: async () => {
+                setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                try {
+                    await api.post(`/reservations/manual-fill`, { pitchId, slotTime });
+                    setSuccessModal({
+                        isOpen: true,
+                        message: 'Saat başarıyla işletme tarafından kapatıldı.',
+                        type: 'DEFAULT'
+                    });
+                    setSelectedSlot(null);
+                    fetchDashboard();
+                } catch (error: any) {
+                    console.error('Manual fill error:', error);
+                    alert(error.response?.data?.message || 'İşlem başarısız.');
+                }
+            }
+        });
+    };
+
     const handleTransaction = async () => {
         if (!targetReservationId || !actionType) return;
 
@@ -199,6 +225,7 @@ export const useBusinessDashboard = () => {
         handleConfirmCancel,
         handleAcceptCancelRequest,
         handleRejectCancelRequest,
-        handleTransaction
+        handleTransaction,
+        handleManualFillSlot
     };
 };

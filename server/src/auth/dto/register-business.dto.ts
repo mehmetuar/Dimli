@@ -19,6 +19,16 @@ class RegisterBusinessOwnerDto {
     phone?: string;
 }
 
+class RegisterTimeSlotDto {
+    @IsString()
+    @IsNotEmpty()
+    startTime: string;
+
+    @IsString()
+    @IsNotEmpty()
+    endTime: string;
+}
+
 class RegisterBusinessDetailsDto {
     @IsString()
     @IsNotEmpty()
@@ -82,6 +92,12 @@ class RegisterPitchDto {
     @IsString({ each: true })
     @IsOptional()
     facilities?: string[];
+
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => RegisterTimeSlotDto)
+    @IsOptional()
+    timeSlots?: RegisterTimeSlotDto[];
 }
 
 export class RegisterBusinessDto {

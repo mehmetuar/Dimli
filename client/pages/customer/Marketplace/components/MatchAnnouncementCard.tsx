@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, Clock, MapPin, Shield, X, Lock, TurkishLira, ChevronRight } from 'lucide-react';
+import { Calendar, Clock, MapPin, Navigation, Shield, X, Lock, TurkishLira, ChevronRight } from 'lucide-react';
 import { LevelBadge } from '../../../../components/UI/LevelBadge';
 import { FairPlayScore } from '../../../../components/UI/FairPlayScore';
 import { Pitch, Business } from '../../../../types';
@@ -95,9 +95,11 @@ export const MatchAnnouncementCard: React.FC<MatchAnnouncementCardProps> = ({
                         </div>
                     </div>
 
-                    <div className="text-center bg-slate-900/50 p-2 rounded-lg border border-slate-700/50 backdrop-blur-sm min-w-[80px]">
-                        <span className="block text-[10px] text-slate-500 uppercase font-bold">Oyuncu</span>
-                        <span className="block text-lg font-bold text-white">{announcement.playerCount}v{announcement.playerCount}</span>
+                    <div className="flex flex-col items-center gap-2">
+                        <div className="text-center bg-slate-900/50 p-2 rounded-lg border border-slate-700/50 backdrop-blur-sm min-w-[80px]">
+                            <span className="block text-[10px] text-slate-500 uppercase font-bold">Oyuncu</span>
+                            <span className="block text-lg font-bold text-white">{announcement.playerCount}v{announcement.playerCount}</span>
+                        </div>
                     </div>
                 </div>
 
@@ -122,27 +124,44 @@ export const MatchAnnouncementCard: React.FC<MatchAnnouncementCardProps> = ({
                             </div>
                         </div>
                     </div>
-                    <div className="col-span-2 flex items-center gap-3 bg-slate-900/50 p-3 rounded-xl border border-slate-700/50">
-                        <div className="bg-slate-800 p-2 rounded-lg">
-                            <MapPin className="w-4 h-4 text-turf-500" />
-                        </div>
-                        <div className="overflow-hidden">
-                            <div className="text-[10px] text-slate-500 font-bold uppercase">Saha & Konum</div>
-                            <div className="text-sm font-bold text-slate-200 truncate flex flex-wrap gap-x-2 items-center">
-                                {pitch ? (
-                                    <>
-                                        <span className="text-turf-400">{business?.name}</span>
-                                        <span className="text-slate-500">-</span>
-                                        <span>{pitch.name}</span>
-                                        <span className="flex items-center gap-1 text-xs text-turf-400 bg-turf-900/40 px-2 py-0.5 rounded-md border border-turf-500/20 whitespace-nowrap">
-                                            <MapPin className="w-3 h-3" />
-                                            {business?.district}
-                                        </span>
-                                    </>
-                                ) : (
-                                    'Saha Bilgisi Yükleniyor'
-                                )}
+                    {/* Saha & Konum — Distance Integrated */}
+                    <div className="col-span-2 bg-slate-900/50 rounded-xl border border-slate-700/50 overflow-hidden">
+                        {/* Header row: label + km badge */}
+                        <div className="flex items-center gap-2 px-3 pt-2.5 pb-1.5 border-b border-slate-700/40">
+                            <div className="bg-slate-800 p-1.5 rounded-lg flex-shrink-0">
+                                <MapPin className="w-3.5 h-3.5 text-turf-500" />
                             </div>
+                            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider flex-1">Saha &amp; Konum</span>
+                            {announcement.distanceKm !== undefined && (
+                                <div className="flex items-center gap-1.5 bg-turf-600/25 border border-turf-500/50 px-2.5 py-1 rounded-full">
+                                    <Navigation className="w-2.5 h-2.5 text-turf-400" />
+                                    <span className="text-[11px] font-black text-white tracking-wide">{announcement.distanceKm} km</span>
+                                </div>
+                            )}
+                        </div>
+                        {/* Content row: business / pitch / district */}
+                        <div className="px-3 py-2.5">
+                            {pitch ? (
+                                <div className="space-y-1">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="text-sm font-black text-white">{business?.name}</span>
+                                        <span className="w-1 h-1 rounded-full bg-slate-600 flex-shrink-0" />
+                                        <span className="text-sm font-semibold text-slate-300">{pitch.name}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                        <MapPin className="w-3 h-3 text-turf-500 flex-shrink-0" />
+                                        <span className="text-xs font-semibold text-turf-400">{business?.district}</span>
+                                        {business?.city && business.city !== business.district && (
+                                            <>
+                                                <span className="text-slate-600 text-xs">·</span>
+                                                <span className="text-xs text-slate-500">{business.city}</span>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+                            ) : (
+                                <span className="text-xs text-slate-500 italic">Saha bilgisi yükleniyor...</span>
+                            )}
                         </div>
                     </div>
 

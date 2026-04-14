@@ -15,8 +15,22 @@ export class MatchAnnouncementsController {
     }
 
     @Get()
-    findAll(@Query('date') date?: string, @Query('pitchId') pitchId?: string) {
-        return this.matchAnnouncementsService.findAll({ date, pitchId });
+    findAll(
+        @Query('date') date?: string,
+        @Query('pitchId') pitchId?: string,
+        @Query('lat') lat?: string,
+        @Query('lng') lng?: string,
+        @Query('radius') radius?: string,
+    ) {
+        const geoFilter = lat && lng
+            ? {
+                lat: parseFloat(lat),
+                lng: parseFloat(lng),
+                radius: radius ? parseFloat(radius) : 20,
+            }
+            : undefined;
+
+        return this.matchAnnouncementsService.findAll({ date, pitchId, geoFilter });
     }
 
     @Get('pitch/:pitchId')

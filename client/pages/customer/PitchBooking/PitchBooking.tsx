@@ -32,7 +32,7 @@ export const PitchBooking: React.FC = () => {
       reservationPitchId, reservationStartTime,
       selectedDate, setSelectedDate,
       reservations, slotDetailModal, setSlotDetailModal,
-      currentUser, pitchAnnouncements,
+      currentUser, pitchAnnouncements, businessDistances,
       isAuthorized, getFilteredBusinesses,
       handleSendOffer, handleConfirmCancel, handleConfirmDeleteAd,
       handleCreateAd, handleReserve, handleReservationSuccess, openSlotDetail,
@@ -173,6 +173,7 @@ export const PitchBooking: React.FC = () => {
                   setOfferMode={setOfferMode}
                   handleDeleteAdClick={handleDeleteAdClick}
                   handleCancelClick={handleCancelClick}
+                  distanceKm={businessDistances[business.id]}
                />
             ))}
          </div>

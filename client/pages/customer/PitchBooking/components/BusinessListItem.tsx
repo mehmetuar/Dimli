@@ -1,5 +1,5 @@
 import React from 'react';
-import { MapPin, Star, ChevronDown, Trophy } from 'lucide-react';
+import { MapPin, Star, ChevronDown, Trophy, Navigation } from 'lucide-react';
 import { Business } from '../../../../types';
 import { PitchSchedule } from './PitchSchedule';
 import { ActiveMatchesList } from './ActiveMatchesList';
@@ -24,13 +24,14 @@ interface BusinessListItemProps {
     setOfferMode: (mode: { matchId: string, teamName: string }) => void;
     handleDeleteAdClick: (adId: string) => void;
     handleCancelClick: (challengeId: string) => void;
+    distanceKm?: number;
 }
 
 export const BusinessListItem: React.FC<BusinessListItemProps> = ({
     business, isExpanded, setExpandedBusinessId, selectedPitchIdInBusiness, setSelectedPitchIdInBusiness,
     selectedDate, pitchAnnouncements, reservations, isAuthorized, currentUser, myChallenges,
     openSlotDetail, handleCreateAd, handleReserve, setViewingTeam, setOfferMode,
-    handleDeleteAdClick, handleCancelClick
+    handleDeleteAdClick, handleCancelClick, distanceKm
 }) => {
     const selectedPitchId = selectedPitchIdInBusiness[business.id];
     const selectedPitch = business.pitches?.find(p => p.id === selectedPitchId);
@@ -60,10 +61,18 @@ export const BusinessListItem: React.FC<BusinessListItemProps> = ({
                     </div>
                 )}
 
-                <div className="absolute bottom-4 left-4">
+                <div className="absolute bottom-4 left-4 pr-16 border-r-transparent">
                     <h2 className="text-3xl font-sport font-black text-white italic uppercase drop-shadow-md">{business.name}</h2>
-                    <div className="flex items-center gap-1 text-slate-200 text-sm font-medium">
-                        <MapPin className="w-4 h-4 text-turf-500" /> {business.district}, {business.city}
+                    <div className="flex items-center gap-2 mt-1">
+                        <div className="flex items-center gap-1 text-slate-200 text-sm font-medium">
+                            <MapPin className="w-4 h-4 text-turf-500" /> {business.district}, {business.city}
+                        </div>
+                        {distanceKm !== undefined && (
+                            <div className="flex items-center gap-1 bg-turf-600/30 border border-turf-500/50 px-2 py-0.5 rounded-full ml-1 backdrop-blur-sm shadow-md">
+                                <Navigation className="w-3 h-3 text-turf-400" />
+                                <span className="text-[11px] font-black text-white">{distanceKm} km</span>
+                            </div>
+                        )}
                     </div>
                 </div>
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, MapPin, Navigation, Check } from 'lucide-react';
-import { ISTANBUL_DISTRICTS, getUserLocation, calculateDistance } from '../../utils/location';
+import { ISTANBUL_DISTRICTS } from '../../utils/location';
+import { Geolocation } from '@capacitor/geolocation';
 
 interface LocationFilterModalProps {
     isOpen: boolean;
@@ -19,7 +20,7 @@ export interface LocationFilter {
 export const LocationFilterModal: React.FC<LocationFilterModalProps> = ({ isOpen, onClose, currentFilter, onApply }) => {
     const [filterType, setFilterType] = useState<LocationFilter['type']>(currentFilter.type);
     const [selectedDistrict, setSelectedDistrict] = useState(currentFilter.value || '');
-    const [radius, setRadius] = useState(currentFilter.radius || 60);
+    const [radius, setRadius] = useState(currentFilter.radius || 20);
     const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(currentFilter.coords || null);
     const [isLocating, setIsLocating] = useState(false);
     const [locationError, setLocationError] = useState('');
@@ -37,8 +38,13 @@ export const LocationFilterModal: React.FC<LocationFilterModalProps> = ({ isOpen
         setIsLocating(true);
         setLocationError('');
         try {
-            const coords = await getUserLocation();
-            setUserCoords(coords);
+            const permission = await Geolocation.requestPermissions();
+            if (permission.location === 'denied') {
+                setLocationError('Konum izni reddedildi. Lütfen ayarlardan izin verin.');
+                return;
+            }
+            const position = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 10000 });
+            setUserCoords({ lat: position.coords.latitude, lng: position.coords.longitude });
             setFilterType('NEARBY');
         } catch (error) {
             setLocationError('Konum alınamadı. Lütfen izin verin.');
@@ -130,16 +136,16 @@ export const LocationFilterModal: React.FC<LocationFilterModalProps> = ({ isOpen
                                         <label className="text-xs text-slate-500 block mb-1">Mesafe: <span className="text-white font-bold">{radius} km</span></label>
                                         <input
                                             type="range"
-                                            min="1"
+                                            min="5"
                                             max="100"
-                                            step="1"
+                                            step="5"
                                             value={radius}
                                             onChange={(e) => setRadius(Number(e.target.value))}
                                             className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-turf-500"
                                             onClick={(e) => e.stopPropagation()}
                                         />
                                         <div className="flex justify-between text-[10px] text-slate-500 mt-1">
-                                            <span>1km</span>
+                                            <span>5km</span>
                                             <span>100km</span>
                                         </div>
                                     </div>

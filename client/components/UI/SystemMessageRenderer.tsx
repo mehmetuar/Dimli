@@ -2,6 +2,12 @@ import React from 'react';
 
 // Custom SVG Icon Components — 16x16, turf-themed
 const icons: Record<string, React.ReactNode> = {
+    SHIELD: (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="inline-block align-middle mr-1">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="#60a5fa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+            <path d="M12 18v-8" stroke="#60a5fa" strokeWidth="1.5" strokeLinecap="round" opacity="0.7" />
+        </svg>
+    ),
     CLIPBOARD: (
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="inline-block align-middle mr-1">
             <rect x="6" y="3" width="12" height="18" rx="2" stroke="#4ade80" strokeWidth="1.8" fill="none" />
@@ -58,6 +64,7 @@ const icons: Record<string, React.ReactNode> = {
             <path d="M7.5 12.5l3 3 6-6" stroke="#4ade80" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
     ),
+
 
     COMMENT: (
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="inline-block align-middle mr-1">
@@ -145,6 +152,7 @@ const icons: Record<string, React.ReactNode> = {
             <path d="M16 21v-2a4 4 0 00-4-4H5c-1.1 0-2 .9-2 2v2M8.5 3a4 4 0 100 8 4 4 0 000-8zM18 8l4 4-4 4M22 12H12" stroke="#f87171" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
     ),
+
 };
 
 // Parse text and replace {{ICON}} or [ICON:name] markers with SVG components

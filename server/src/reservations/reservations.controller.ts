@@ -5,6 +5,11 @@ import { ReservationsService } from './reservations.service';
 export class ReservationsController {
     constructor(private readonly reservationsService: ReservationsService) { }
 
+    @Post('manual-fill')
+    manualFill(@Body() body: { pitchId: string, slotTime: string }) {
+        return this.reservationsService.manualFill(body.pitchId, new Date(body.slotTime));
+    }
+
     @Post()
     create(@Body() createReservationDto: any) {
         return this.reservationsService.create(createReservationDto);

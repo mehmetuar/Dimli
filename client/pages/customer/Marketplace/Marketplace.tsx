@@ -33,6 +33,7 @@ export const Marketplace: React.FC = () => {
     setIsLocationFilterOpen,
     locationFilter,
     setLocationFilter,
+    locationPermissionDenied,
     isAuthorized,
     getPitchDetails,
     getFilteredMatches
@@ -128,6 +129,13 @@ export const Marketplace: React.FC = () => {
         setLocationFilter={setLocationFilter}
         setIsLocationFilterOpen={setIsLocationFilterOpen}
       />
+
+      {locationPermissionDenied && (
+        <div className="mx-1 mb-3 flex items-center gap-2 bg-amber-900/20 border border-amber-500/30 text-amber-400 text-xs px-3 py-2 rounded-xl">
+          <span>📍</span>
+          <span>Konum izni verilmedi. Tüm ilanlar gösteriliyor. Filtrelemek için <strong>Konum Filtresi</strong>'ni kullanın.</span>
+        </div>
+      )}
 
       <div className="space-y-5">
         {displayMatches.length === 0 && (
