@@ -179,7 +179,14 @@ export const usePitchBooking = () => {
     const getFilteredBusinesses = () => {
         let filtered = [...businesses];
         if (locationFilter.type === 'DISTRICT' && locationFilter.value) {
-            filtered = filtered.filter(b => (b.district || '').includes(locationFilter.value!) || (b.city || '').includes(locationFilter.value!));
+            filtered = filtered.filter(b => (b.district || '').toLowerCase().includes(locationFilter.value!.toLowerCase()) || (b.city || '').toLowerCase().includes(locationFilter.value!.toLowerCase()));
+        } else if (locationFilter.type === 'NEARBY' && locationFilter.radius) {
+            filtered = filtered.filter(b => {
+                const distance = businessDistances[b.id];
+                return distance !== undefined && distance <= locationFilter.radius!;
+            });
+            // Sort by distance
+            filtered.sort((a, b) => (businessDistances[a.id] || 999) - (businessDistances[b.id] || 999));
         }
         return filtered;
     };

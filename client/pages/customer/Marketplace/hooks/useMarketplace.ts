@@ -36,6 +36,10 @@ export const useMarketplace = () => {
   const [selectedMatch, setSelectedMatch] = useState<any>(null);
   const [myChallenges, setMyChallenges] = useState<any[]>([]);
 
+  // Date
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [isDateFilterOpen, setIsDateFilterOpen] = useState(false);
+
   // Location
   const [isLocationFilterOpen, setIsLocationFilterOpen] = useState(false);
   const [locationFilter, setLocationFilter] = useState<LocationFilter>({ type: 'ALL' });
@@ -199,7 +203,10 @@ export const useMarketplace = () => {
     return { pitch: null, business: null };
   };
 
-  const getFilteredMatches = () => matches;
+  const getFilteredMatches = () => {
+    if (!selectedDate) return matches;
+    return matches.filter(m => m.date === selectedDate);
+  };
 
   return {
     currentUser,
@@ -227,5 +234,9 @@ export const useMarketplace = () => {
     isAuthorized,
     getPitchDetails,
     getFilteredMatches,
+    selectedDate,
+    setSelectedDate,
+    isDateFilterOpen,
+    setIsDateFilterOpen
   };
 };

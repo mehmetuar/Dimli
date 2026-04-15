@@ -11,6 +11,7 @@ import { useMarketplace } from './hooks/useMarketplace';
 import { useMarketplaceActions } from './hooks/useMarketplaceActions';
 import { MarketplaceHeader } from './components/MarketplaceHeader';
 import { MatchAnnouncementCard } from './components/MatchAnnouncementCard';
+import { DateFilterModal } from '../PitchBooking/components/DateFilterModal';
 
 export const Marketplace: React.FC = () => {
   const {
@@ -36,7 +37,11 @@ export const Marketplace: React.FC = () => {
     locationPermissionDenied,
     isAuthorized,
     getPitchDetails,
-    getFilteredMatches
+    getFilteredMatches,
+    selectedDate,
+    setSelectedDate,
+    isDateFilterOpen,
+    setIsDateFilterOpen
   } = useMarketplace();
 
   const {
@@ -95,6 +100,13 @@ export const Marketplace: React.FC = () => {
         onApply={setLocationFilter}
       />
 
+      <DateFilterModal
+        isOpen={isDateFilterOpen}
+        onClose={() => setIsDateFilterOpen(false)}
+        selectedDate={selectedDate}
+        setSelectedDate={setSelectedDate}
+      />
+
       <SuccessModal
         isOpen={successModal.isOpen}
         onClose={() => setSuccessModal({ ...successModal, isOpen: false })}
@@ -128,6 +140,8 @@ export const Marketplace: React.FC = () => {
         locationFilter={locationFilter}
         setLocationFilter={setLocationFilter}
         setIsLocationFilterOpen={setIsLocationFilterOpen}
+        selectedDate={selectedDate}
+        onOpenDateFilter={() => setIsDateFilterOpen(true)}
       />
 
       {locationPermissionDenied && (

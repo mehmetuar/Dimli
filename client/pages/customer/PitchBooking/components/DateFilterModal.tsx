@@ -1,5 +1,6 @@
 import React from 'react';
 import { X } from 'lucide-react';
+import { CalendarPicker } from '../../../../components/UI/CalendarPicker';
 
 interface DateFilterModalProps {
     isOpen: boolean;
@@ -12,7 +13,7 @@ export const DateFilterModal: React.FC<DateFilterModalProps> = ({ isOpen, onClos
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/90 backdrop-blur-sm animate-fade-in" onClick={onClose}>
+        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/95 backdrop-blur-md animate-fade-in" onClick={onClose}>
             <div className="bg-slate-800 w-full max-w-md sm:rounded-3xl rounded-t-3xl border border-slate-700 shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
                 {/* Header */}
                 <div className="p-6 border-b border-slate-700 bg-slate-900 flex justify-between items-center">
@@ -20,7 +21,7 @@ export const DateFilterModal: React.FC<DateFilterModalProps> = ({ isOpen, onClos
                         <h2 className="font-sport font-black text-2xl text-white italic uppercase tracking-wide">
                             TARİH <span className="text-turf-500">SEÇ</span>
                         </h2>
-                        <p className="text-slate-400 text-xs">Max 30 gün ileriye kadar</p>
+                        <p className="text-slate-400 text-xs font-bold uppercase tracking-tighter">İleriye dönük 30 gün aktif</p>
                     </div>
                     <button onClick={onClose} className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white hover:bg-red-500 transition-colors">
                         <X className="w-5 h-5" />
@@ -28,42 +29,30 @@ export const DateFilterModal: React.FC<DateFilterModalProps> = ({ isOpen, onClos
                 </div>
 
                 {/* Body */}
-                <div className="p-6 space-y-4">
-                    {/* Tarih Input */}
-                    <div className="space-y-2">
-                        <label className="text-xs font-bold text-slate-400 uppercase">Tarih Seçin</label>
-                        <input
-                            type="date"
-                            value={selectedDate}
-                            min={new Date().toISOString().split('T')[0]}
-                            max={(() => {
-                                const maxDate = new Date();
-                                maxDate.setDate(maxDate.getDate() + 30);
-                                return maxDate.toISOString().split('T')[0];
-                            })()}
-                            onChange={(e) => setSelectedDate(e.target.value)}
-                            className="w-full bg-slate-900 border border-slate-600 text-white font-bold px-4 py-3 rounded-xl focus:outline-none focus:border-turf-500 transition-colors"
+                <div className="p-6 space-y-6">
+                    {/* Takvim */}
+                    <div className="space-y-4">
+                        <CalendarPicker
+                            selectedDate={selectedDate}
+                            onDateSelect={(date) => {
+                                setSelectedDate(date);
+                                // Optional: auto-close or keep open? Usually better to keep open for confirmation or close instantly.
+                                // Let's close it after a short delay for feedback.
+                                setTimeout(onClose, 200);
+                            }}
                         />
-                        <p className="text-sm text-slate-400 font-medium">
-                            {new Date(selectedDate).toLocaleDateString('tr-TR', {
-                                weekday: 'long',
-                                day: 'numeric',
-                                month: 'long',
-                                year: 'numeric'
-                            })}
-                        </p>
                     </div>
 
                     {/* Hızlı Seçim Butonları */}
-                    <div className="space-y-2">
-                        <label className="text-xs font-bold text-slate-400 uppercase">Hızlı Seçim</label>
-                        <div className="flex gap-2">
+                    <div className="space-y-3">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">Hızlı Seçim</label>
+                        <div className="flex gap-3">
                             <button
                                 onClick={() => {
                                     setSelectedDate(new Date().toISOString().split('T')[0]);
                                     onClose();
                                 }}
-                                className="flex-1 px-4 py-3 bg-slate-700 hover:bg-turf-600 text-white rounded-xl text-sm font-bold transition-colors"
+                                className="flex-1 px-4 py-4 bg-slate-900/50 hover:bg-turf-500 hover:text-slate-900 border border-slate-700 text-white rounded-2xl text-sm font-black uppercase italic transition-all"
                             >
                                 Bugün
                             </button>
@@ -74,12 +63,21 @@ export const DateFilterModal: React.FC<DateFilterModalProps> = ({ isOpen, onClos
                                     setSelectedDate(tomorrow.toISOString().split('T')[0]);
                                     onClose();
                                 }}
-                                className="flex-1 px-4 py-3 bg-slate-700 hover:bg-turf-600 text-white rounded-xl text-sm font-bold transition-colors"
+                                className="flex-1 px-4 py-4 bg-slate-900/50 hover:bg-turf-500 hover:text-slate-900 border border-slate-700 text-white rounded-2xl text-sm font-black uppercase italic transition-all"
                             >
                                 Yarın
                             </button>
                         </div>
                     </div>
+                </div>
+
+                <div className="p-6 bg-slate-900/50 border-t border-slate-700">
+                    <button
+                        onClick={onClose}
+                        className="w-full py-4 bg-slate-700 hover:bg-slate-600 text-white font-black uppercase italic rounded-2xl transition-colors"
+                    >
+                        KAPAT
+                    </button>
                 </div>
             </div>
         </div>

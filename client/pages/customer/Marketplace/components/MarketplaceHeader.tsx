@@ -1,17 +1,21 @@
 import React from 'react';
-import { Filter, MapPin } from 'lucide-react';
+import { Filter, MapPin, Calendar } from 'lucide-react';
 import { LocationFilter } from '../../../../components/Modals/LocationFilterModal';
 
 interface MarketplaceHeaderProps {
     locationFilter: LocationFilter;
     setLocationFilter: (filter: LocationFilter) => void;
     setIsLocationFilterOpen: (isOpen: boolean) => void;
+    selectedDate: string;
+    onOpenDateFilter: () => void;
 }
 
 export const MarketplaceHeader: React.FC<MarketplaceHeaderProps> = ({
     locationFilter,
     setLocationFilter,
-    setIsLocationFilterOpen
+    setIsLocationFilterOpen,
+    selectedDate,
+    onOpenDateFilter
 }) => {
     return (
         <>
@@ -29,6 +33,16 @@ export const MarketplaceHeader: React.FC<MarketplaceHeaderProps> = ({
                     className={`flex items-center gap-2 px-5 py-2.5 text-white rounded-xl text-sm font-bold shadow-lg shadow-turf-600/20 whitespace-nowrap transform hover:-translate-y-1 transition-transform skew-x-[-6deg] ${locationFilter.type === 'ALL' ? 'bg-turf-600' : 'bg-slate-800'}`}
                 >
                     <span className="skew-x-[6deg] flex items-center gap-2"><Filter className="w-4 h-4" /> İstanbul (Tümü)</span>
+                </button>
+
+                <button
+                    onClick={onOpenDateFilter}
+                    className="px-5 py-2.5 border border-turf-500/50 bg-turf-900/20 text-white rounded-xl text-sm font-bold whitespace-nowrap hover:bg-turf-800 transition-colors skew-x-[-6deg]"
+                >
+                    <span className="skew-x-[6deg] flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-turf-500" />
+                        {new Date(selectedDate).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })}
+                    </span>
                 </button>
 
                 <button
