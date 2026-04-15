@@ -41,8 +41,11 @@ export class Business {
     @Column({ nullable: true })
     closeTime: string;
 
-    @Column('float', { default: 0 })
+    @Column('float', { default: 5.0 })
     rating: number;
+
+    @Column('int', { default: 0 })
+    ratingCount: number;
 
     @OneToMany(() => Pitch, (pitch) => pitch.business)
     pitches: Pitch[];

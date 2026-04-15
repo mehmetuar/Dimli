@@ -15,6 +15,7 @@ import { BusinessModule } from './business/business.module';
 import { PitchesModule } from './pitches/pitches.module';
 import { BusinessOwnerModule } from './business-owner/business-owner.module';
 import { ReservationsModule } from './reservations/reservations.module';
+import { RatingsModule } from './ratings/ratings.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { ReservationsModule } from './reservations/reservations.module';
     PitchesModule,
     BusinessOwnerModule,
     ReservationsModule,
+    RatingsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

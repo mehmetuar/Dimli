@@ -75,7 +75,7 @@ export const TeamHeaderCard: React.FC<TeamHeaderCardProps> = ({
                         <h2 className="font-sport font-black text-3xl text-white italic tracking-wide uppercase">{myTeam.name}</h2>
                         <div className="flex items-center gap-2 mt-1">
                             <LevelBadge level={myTeam.level} />
-                            <FairPlayScore score={myTeam.fairPlayScore} />
+                            <FairPlayScore score={myTeam.fairPlayScore} count={myTeam.fairPlayRatingCount} />
                         </div>
                         {myTeam.location && (
                             <div className="flex items-center gap-1 mt-1 text-slate-400 text-xs">

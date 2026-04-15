@@ -31,7 +31,7 @@ export const TeamDetailModal: React.FC<TeamDetailModalProps> = ({ viewingTeam, o
                     <h2 className="font-sport font-black text-3xl text-white uppercase italic">{viewingTeam.name}</h2>
                     <div className="flex justify-center items-center gap-2 mt-2 mb-4">
                         <LevelBadge level={viewingTeam.level} />
-                        <FairPlayScore score={viewingTeam.fairPlayScore} />
+                        <FairPlayScore score={viewingTeam.fairPlayScore} count={viewingTeam.fairPlayRatingCount} />
                     </div>
 
                     <p className="text-slate-300 italic text-sm mb-6 bg-slate-900/50 p-3 rounded-xl border border-slate-700/50">"{viewingTeam.description || 'Açıklama bulunmuyor.'}"</p>

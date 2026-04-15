@@ -86,7 +86,7 @@ export const MatchAnnouncementCard: React.FC<MatchAnnouncementCardProps> = ({
                         >
                             <div className="flex items-center gap-2">
                                 <h3 className="font-sport font-bold text-2xl text-white uppercase italic tracking-wide group-hover/team:text-turf-500 transition-colors">{announcement.team?.name}</h3>
-                                <FairPlayScore score={announcement.team?.fairPlayScore || 0} />
+                                <FairPlayScore score={announcement.team?.fairPlayScore || 0} count={announcement.team?.fairPlayRatingCount} />
                             </div>
                             <div className="flex items-center gap-2 mt-1">
                                 <LevelBadge level={announcement.team?.level || 'INTERMEDIATE'} />

@@ -76,9 +76,14 @@ export const BusinessListItem: React.FC<BusinessListItemProps> = ({
                     </div>
                 </div>
 
-                <div className="absolute top-4 right-4 bg-slate-900/80 backdrop-blur px-3 py-1 rounded-lg flex items-center gap-1 border border-slate-700">
+                <div className="absolute top-4 right-4 bg-slate-900/80 backdrop-blur px-3 py-1 rounded-lg flex items-center gap-1.5 border border-slate-700">
                     <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                    <span className="font-bold text-white">{business.rating}</span>
+                    <span className="font-bold text-white">
+                        {(business.ratingCount ?? 0) > 0 ? business.rating.toFixed(1) : '5.0'}
+                    </span>
+                    {(business.ratingCount ?? 0) > 0 && (
+                        <span className="text-slate-400 text-xs">({business.ratingCount})</span>
+                    )}
                 </div>
 
                 <div className={`absolute bottom-4 right-4 bg-white/10 p-2 rounded-full backdrop-blur transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}>

@@ -116,7 +116,7 @@ export const TeamDetailModal: React.FC<TeamDetailModalProps> = ({ isOpen, onClos
                             <div className="grid grid-cols-3 gap-3 mb-6">
                                 <div className="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 flex flex-col items-center">
                                     <span className="text-[10px] text-slate-500 font-bold uppercase mb-1">Fair Play</span>
-                                    <FairPlayScore score={team.fairPlayScore} />
+                                    <FairPlayScore score={team.fairPlayScore} count={team.fairPlayRatingCount} />
                                 </div>
                                 <div className="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 flex flex-col items-center">
                                     <span className="text-[10px] text-slate-500 font-bold uppercase mb-1">Maç</span>

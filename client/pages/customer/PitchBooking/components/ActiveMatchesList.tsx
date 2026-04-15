@@ -77,7 +77,7 @@ export const ActiveMatchesList: React.FC<ActiveMatchesListProps> = ({
                                                         </div>
                                                     </div>
                                                 </div>
-                                                {team && <FairPlayScore score={team.fairPlayScore || 0} />}
+                                                {team && <FairPlayScore score={team.fairPlayScore || 0} count={team.fairPlayRatingCount} />}
                                             </div>
 
                                             <div className="grid grid-cols-2 gap-2 mt-2 pt-3 border-t border-slate-700/50 relative z-10">

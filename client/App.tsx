@@ -27,11 +27,65 @@ import { BusinessNotificationsPage } from './pages/business/BusinessNotification
 import { ProtectedRoute } from './components/Layout/ProtectedRoute';
 import { ProfileSettings } from './pages/customer/ProfileSettings/ProfileSettings';
 import { TeamSettings } from './pages/customer/TeamSettings/TeamSettings';
+import { RatingModal } from './components/Modals/RatingModal';
+import { PendingRating } from './types';
 
 function AppContent() {
   const location = useLocation();
   const isAuthPage = location.pathname === '/login' || location.pathname === '/register' || location.pathname.startsWith('/business');
   const [watchId, setWatchId] = useState<string | null>(null);
+  const [pendingRatings, setPendingRatings] = useState<PendingRating[]>([]);
+
+  const getHandledRatings = (): string[] => {
+    try { return JSON.parse(localStorage.getItem('handled_ratings') || '[]'); } catch { return []; }
+  };
+
+  const markRatingHandled = (reservationId: string) => {
+    const handled = getHandledRatings();
+    if (!handled.includes(reservationId)) {
+      handled.push(reservationId);
+      localStorage.setItem('handled_ratings', JSON.stringify(handled));
+    }
+  };
+
+  const handleSubmitRating = async (
+    reservationId: string,
+    businessScore: number,
+    fairPlayScore: number | null
+  ) => {
+    const current = pendingRatings[0];
+    if (!current) return;
+    // Mark as handled immediately so it never shows again regardless of API success
+    markRatingHandled(current.reservationId);
+    try {
+      if (current.needsBusinessRating && businessScore > 0) {
+        await api.post('/ratings', {
+          reservationId,
+          type: 'BUSINESS',
+          targetBusinessId: current.businessId,
+          score: businessScore,
+        });
+      }
+      if (fairPlayScore !== null && current.needsFairPlayRating && current.opponentTeamId) {
+        await api.post('/ratings', {
+          reservationId,
+          type: 'FAIRPLAY',
+          targetTeamId: current.opponentTeamId,
+          score: fairPlayScore,
+        });
+      }
+    } catch (e) {
+      // Ignore duplicate/conflict errors (409) — rating already saved
+    } finally {
+      setPendingRatings((prev: PendingRating[]) => prev.slice(1));
+    }
+  };
+
+  const handleSkipRating = () => {
+    const current = pendingRatings[0];
+    if (current) markRatingHandled(current.reservationId);
+    setPendingRatings((prev: PendingRating[]) => prev.slice(1));
+  };
 
   useEffect(() => {
     let currentWatchId: string | null = null;
@@ -42,6 +96,20 @@ function AppContent() {
 
       // Initialize Push Notifications
       await initializePushNotifications();
+
+      // Check for pending match ratings (filter out ones already handled/dismissed)
+      try {
+        const res = await api.get('/ratings/pending');
+        if (res.data && res.data.length > 0) {
+          const handled = getHandledRatings();
+          const filtered = (res.data as PendingRating[]).filter(
+            (r: PendingRating) => !handled.includes(r.reservationId)
+          );
+          if (filtered.length > 0) setPendingRatings(filtered);
+        }
+      } catch (e) {
+        // Non-blocking
+      }
 
       // Initialize Background Location Tracking
       startWatching();
@@ -118,6 +186,13 @@ function AppContent() {
           </Route>
         </Routes>
       </div>
+      {pendingRatings.length > 0 && (
+        <RatingModal
+          pending={pendingRatings[0]}
+          onSubmit={handleSubmitRating}
+          onSkip={handleSkipRating}
+        />
+      )}
       {!isAuthPage && <Navbar />}
     </div>
   );

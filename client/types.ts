@@ -61,6 +61,7 @@ export interface Team {
   homePitchId?: string; // The ID of their favorite pitch
   homeBusinessId?: string; // The ID of their favorite business
   fairPlayScore: number; // 1-5
+  fairPlayRatingCount?: number;
   description: string;
   wins: number;
   losses: number;
@@ -156,6 +157,7 @@ export interface Business {
   latitude?: number;
   longitude?: number;
   rating: number;
+  ratingCount?: number;
   phone: string;
   coverImageUrl?: string;
   logoUrl?: string;
@@ -235,4 +237,16 @@ export enum ReservationStatus {
   APPROVED = 'APPROVED',
   REJECTED = 'REJECTED',
   CANCELLED = 'CANCELLED'
+}
+
+export interface PendingRating {
+  reservationId: string;
+  slotTime: string;
+  pitchName: string;
+  businessName: string;
+  businessId: string;
+  needsBusinessRating: boolean;
+  needsFairPlayRating: boolean;
+  opponentTeamId: string | null;
+  opponentTeamName: string | null;
 }

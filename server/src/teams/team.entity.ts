@@ -30,6 +30,9 @@ export class Team {
     @Column('float', { name: 'fair_play_score', default: 5.0 })
     fairPlayScore: number;
 
+    @Column('int', { name: 'fair_play_rating_count', default: 0 })
+    fairPlayRatingCount: number;
+
     @Column('int', { default: 0 })
     wins: number;
 
