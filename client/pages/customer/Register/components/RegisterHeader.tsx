@@ -1,5 +1,4 @@
 import React from 'react';
-import { Trophy } from 'lucide-react';
 
 interface RegisterHeaderProps {
     step: number;
@@ -18,9 +17,7 @@ export const RegisterHeader: React.FC<RegisterHeaderProps> = ({ step, totalSteps
             </div>
 
             <div className="text-center mb-6 mt-4">
-                <div className="inline-block bg-turf-600 p-3 rounded-xl skew-x-[-12deg] mb-2">
-                    <Trophy className="w-6 h-6 text-white skew-x-[12deg]" />
-                </div>
+                <img src="/logo.png" alt="DIMLİ" className="h-12 w-auto object-contain mx-auto mb-2" />
                 <h1 className="font-sport font-black text-2xl text-white italic">KAYIT OL</h1>
             </div>
         </>

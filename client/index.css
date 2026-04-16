@@ -68,5 +68,89 @@
 }
 
 .animate-slide-up {
-  animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  /* Android WebView GPU hızlandırma */
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+/* ── Android WebView Modal Düzeltmeleri ────────────────────────────────── */
+
+/* Modal açıkken body scroll kilitle */
+body.modal-open {
+  overflow: hidden !important;
+  position: fixed;
+  width: 100%;
+  /* Android çift scroll engellemek için */
+  touch-action: none;
+}
+
+/* Modal overlay — Android'de çift tap zoom engelle */
+.modal-overlay {
+  touch-action: none;
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: auto;
+}
+
+/* Modal içi scroll — Android inertial scroll düzelt */
+.modal-scroll {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: auto;
+  /* Android keyboard'da içeriğin görünmesi için */
+  max-height: 80svh;
+}
+
+/* Tüm fixed modal'lar için Android z-index koruması */
+[class*="fixed inset-0"][class*="z-"] {
+  isolation: isolate;
+}
+
+/* Android'de küçük font render düzeltmesi */
+* {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* Tüm interactive elementlerde double-tap zoom engelle */
+button, a, [role="button"], input, select, textarea {
+  touch-action: manipulation;
+}
+
+/* Scrollbar gizle — Android'de zaten görünmez ama iOS/web için */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── Android WebView: backdrop-filter desteklenmez — blur'u devre dışı bırak ── */
+.backdrop-blur,
+.backdrop-blur-sm,
+.backdrop-blur-md,
+.backdrop-blur-lg,
+.backdrop-blur-xl,
+.backdrop-blur-2xl,
+.backdrop-blur-3xl {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* ── animate-scale-in: 8+ modal bunu kullanıyor ama tanımsızdı ── */
+@keyframes scaleIn {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.2s ease-out forwards;
+  will-change: transform, opacity;
 }

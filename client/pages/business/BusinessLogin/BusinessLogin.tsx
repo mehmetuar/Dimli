@@ -27,11 +27,9 @@ export const BusinessLogin: React.FC = () => {
         <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center px-4 pt-20 pb-28">
             <div className="w-full max-w-md bg-slate-800 p-8 rounded-3xl border border-orange-500/30 shadow-2xl shadow-orange-900/20">
                 <div className="text-center mb-8">
-                    <div className="inline-block bg-orange-600 p-3 rounded-xl skew-x-[-12deg] mb-4">
-                        <Briefcase className="w-8 h-8 text-white skew-x-[12deg]" />
-                    </div>
+                    <img src="/logo.png" alt="DIMLİ" className="h-14 w-auto object-contain mx-auto mb-3" />
                     <h1 className="font-sport font-black text-4xl text-white italic">İŞLETME PANELİ</h1>
-                    <p className="text-slate-400 mt-2">SahaPro Business</p>
+                    <p className="text-slate-400 mt-2">DIMLİ Business</p>
                 </div>
 
                 {error && (

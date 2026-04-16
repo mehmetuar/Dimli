@@ -1,7 +1,17 @@
 import axios from 'axios';
+import { Capacitor } from '@capacitor/core';
+
+const getBaseURL = (): string => {
+  if (Capacitor.getPlatform() === 'android') {
+    // Android emülatörde 10.0.2.2 → Mac localhost'u işaret eder
+    // Gerçek Android cihazda Mac'in LAN IP'sini kullan (ör: 192.168.1.x:3000)
+    return 'http://10.0.2.2:3000';
+  }
+  return 'http://Mehmet-MacBook-Air-2.local:3000';
+};
 
 const api = axios.create({
-    baseURL: 'http://Mehmet-MacBook-Air-2.local:3000',
+    baseURL: getBaseURL(),
 });
 
 // Request interceptor to add token

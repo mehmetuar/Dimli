@@ -15,7 +15,14 @@ export default {
                     500: '#22c55e',
                     600: '#16a34a',
                 },
-                pitch: '#0f172a', // Slate 900
+                pitch: {
+                    DEFAULT: '#0f172a', // Slate 900
+                    surface: '#1e293b', // Slate 800
+                },
+            },
+            boxShadow: {
+                neon: '0 0 12px rgba(34, 197, 94, 0.5), 0 0 24px rgba(34, 197, 94, 0.25)',
+                'neon-sm': '0 0 6px rgba(34, 197, 94, 0.4)',
             },
             fontFamily: {
                 sport: ['Inter', 'sans-serif'], // Fallback

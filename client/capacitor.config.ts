@@ -17,7 +17,25 @@ const config: CapacitorConfig = {
       smallIcon: "ic_stat_icon_config_sample",
       iconColor: "#488AFF",
       sound: "beep.wav",
+    },
+    StatusBar: {
+      style: 'dark',
+      backgroundColor: '#0f172a',
+    },
+    SplashScreen: {
+      launchShowDuration: 2000,
+      launchAutoHide: true,
+      backgroundColor: '#0f172a',
+      showSpinner: false,
+    },
+    Keyboard: {
+      resize: 'body',
+      style: 'dark',
+      resizeOnFullScreen: true,
     }
+  },
+  android: {
+    allowMixedContent: true,
   }
 };
 

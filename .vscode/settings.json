@@ -3,5 +3,16 @@
   "tailwindCSS.emmetCompletions": true,
   "editor.quickSuggestions": {
     "strings": true
-  }
+  },
+  "java.configuration.updateBuildConfiguration": "automatic",
+  "java.import.gradle.java.home": "/Users/mehmetucar/Library/Java/JavaVirtualMachines/jbr-17.0.14/Contents/Home",
+  "java.jdt.ls.java.home": "/Users/mehmetucar/Library/Java/JavaVirtualMachines/jbr-17.0.14/Contents/Home",
+  "java.project.sourcePaths": [],
+  "java.import.exclusions": [
+    "**/node_modules/**",
+    "**/.metadata/**",
+    "**/archetype-resources/**",
+    "**/META-INF/maven/**",
+    "client/android/**"
+  ]
 }

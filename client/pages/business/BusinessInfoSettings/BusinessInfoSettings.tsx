@@ -4,6 +4,7 @@ import api from '../../../services/api';
 import { Save, ArrowLeft, MapPin, AlertTriangle, Loader2, Navigation, X } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { Geolocation } from '@capacitor/geolocation';
 import { BusinessNavbar } from '../../../components/Business/BusinessNavbar';
 import { LocationSelectionModal } from '../../../components/Modals/LocationSelectionModal';

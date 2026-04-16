@@ -98,6 +98,9 @@ export const useMarketplace = () => {
 
   // ── Mount effect (runs every time user enters this screen) ────────────────
   useEffect(() => {
+    // Güvenlik ağı: 12 saniye içinde yükleme bitmezse zorla kapat
+    const safetyTimer = setTimeout(() => setIsLoading(false), 12000);
+
     const fetchData = async () => {
       try {
         const [userResponse, businessResponse] = await Promise.all([
@@ -110,15 +113,13 @@ export const useMarketplace = () => {
         if (userResponse.data?.team) {
           api.get(`/challenges/team/${userResponse.data.team.id}`)
             .then(r => setMyChallenges(r.data))
-            .catch(err => console.error('Failed to fetch challenges', err));
+            .catch(() => {});
         }
 
         // ── Check for cached coords from this session ────────────────────────
         const cached = getCachedCoords();
 
         if (cached) {
-          // We have coords from a previous load in this session:
-          // → immediately fetch with proximity so distanceKm shows from the start
           const nearbyFilter: LocationFilter = { type: 'NEARBY', radius: 20, coords: cached };
           setUserCoords(cached);
           setLocationFilter(nearbyFilter);
@@ -131,19 +132,19 @@ export const useMarketplace = () => {
           resolveGPS().then(freshCoords => {
             if (!freshCoords) return;
             setCachedCoords(freshCoords);
-            if (JSON.stringify(freshCoords) === JSON.stringify(cached)) return; // no change
+            if (JSON.stringify(freshCoords) === JSON.stringify(cached)) return;
             setUserCoords(freshCoords);
             const updatedFilter: LocationFilter = { type: 'NEARBY', radius: 20, coords: freshCoords };
             setLocationFilter(updatedFilter);
-            fetchAnnouncements(updatedFilter, freshCoords).then(setMatches);
-          });
+            fetchAnnouncements(updatedFilter, freshCoords).then(setMatches).catch(() => {});
+          }).catch(() => {});
         } else {
           // No cached coords — show all results instantly, then try GPS
           const allAnnouncements = await fetchAnnouncements({ type: 'ALL' }, null);
           setMatches(allAnnouncements);
           setIsLoading(false);
 
-          // Try GPS in background
+          // Try GPS in background (non-blocking)
           const coords = await resolveGPS();
           if (coords) {
             setCachedCoords(coords);
@@ -157,10 +158,13 @@ export const useMarketplace = () => {
       } catch (error) {
         console.error('Failed to fetch marketplace data:', error);
         setIsLoading(false);
+      } finally {
+        clearTimeout(safetyTimer);
       }
     };
 
     fetchData();
+    return () => clearTimeout(safetyTimer);
   }, []);
 
   // ── Manual filter change ──────────────────────────────────────────────────

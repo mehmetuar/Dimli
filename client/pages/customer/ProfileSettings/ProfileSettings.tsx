@@ -36,7 +36,7 @@ export const ProfileSettings: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-pitch pt-safe-top px-4 pb-20 overflow-x-hidden w-full max-w-[100vw]">
+        <div className="min-h-screen bg-pitch pt-safe-top px-4 pb-20 overflow-x-hidden w-full max-w-full">
             <header className="flex items-center gap-4 py-4 mb-6">
                 <button
                     onClick={() => navigate(-1)}

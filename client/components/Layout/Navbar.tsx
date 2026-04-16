@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { Trophy, Users, Search, Zap, MessageSquare, User, Bell } from 'lucide-react';
+import { Search, Zap, MessageSquare, User, Bell, Trophy } from 'lucide-react';
 import api from '../../services/api';
 
 export const Navbar: React.FC = () => {
@@ -46,9 +46,10 @@ export const Navbar: React.FC = () => {
     }
   };
 
+  // Active nav: scale-110 only — removed -translate-y-1 (Android transform stacking bug)
   const navClass = ({ isActive }: { isActive: boolean }) =>
     `flex flex-col items-center justify-center w-full h-full transition-all duration-300 relative group ${isActive
-      ? 'text-turf-500 scale-110 -translate-y-1'
+      ? 'text-turf-500 scale-110'
       : 'text-gray-400 hover:text-gray-200'
     }`;
 
@@ -56,12 +57,7 @@ export const Navbar: React.FC = () => {
     <>
       {/* Desktop Logo (Top Left Absolute) */}
       <div className="hidden md:flex fixed top-6 left-8 items-center gap-2 z-50 cursor-pointer" onClick={() => navigate('/')}>
-        <div className="bg-turf-600 p-2 rounded skew-x-[-12deg]">
-          <Trophy className="w-6 h-6 text-white skew-x-[12deg]" />
-        </div>
-        <span className="font-sport font-black text-3xl tracking-tighter text-white italic">
-          SAHA<span className="text-turf-500">PRO</span>
-        </span>
+        <img src="/logo.png" alt="DIMLİ" className="h-10 w-auto object-contain" />
       </div>
 
       {/* Notification Bell (Top Right - Visible Mobile & Desktop) - Conditioned */}
@@ -71,7 +67,7 @@ export const Navbar: React.FC = () => {
             onClick={handleNotificationClick}
             className={`relative p-2 rounded-full border transition-all group ${location.pathname === '/notifications'
               ? 'bg-turf-600 border-turf-400 text-white shadow-neon'
-              : 'bg-slate-800/80 backdrop-blur border-slate-700 text-white hover:border-turf-500'
+              : 'bg-slate-800/80 border-slate-700 text-white hover:border-turf-500'
               }`}
           >
             <Bell className="w-6 h-6" />
@@ -84,8 +80,8 @@ export const Navbar: React.FC = () => {
         </div>
       )}
 
-      {/* Bottom Navigation Bar */}
-      <nav className="fixed bottom-0 left-0 right-0 h-20 bg-pitch-surface/95 backdrop-blur-xl border-t border-white/10 rounded-t-3xl shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.5)] z-50 pb-safe-bottom box-content">
+      {/* Bottom Navigation Bar — solid bg, no backdrop-blur (Android WebView compat) */}
+      <nav className="fixed bottom-0 left-0 right-0 h-20 bg-pitch-surface border-t border-white/10 rounded-t-3xl shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.5)] z-50 pb-safe-bottom box-content">
         <div className="flex justify-around items-center h-full px-2">
 
           <NavLink to="/" className={navClass}>
@@ -106,10 +102,10 @@ export const Navbar: React.FC = () => {
             )}
           </NavLink>
 
-          {/* Center Action Button (Joker) */}
-          <NavLink to="/jokers" className="relative -top-6">
-            <div className="bg-gradient-to-tr from-turf-600 to-turf-400 p-4 rounded-xl shadow-lg shadow-turf-500/30 border-4 border-pitch transform rotate-45 hover:scale-110 transition-transform group">
-              <Zap className="w-6 h-6 text-slate-900 transform -rotate-45 fill-current" />
+          {/* Center Action Button (Joker) — marginTop replaces -top-6 class (Android transform fix) */}
+          <NavLink to="/jokers" className="relative flex items-center justify-center" style={{ marginTop: '-24px' }}>
+            <div className="bg-gradient-to-tr from-turf-600 to-turf-400 p-4 rounded-xl shadow-lg shadow-turf-500/30 border-4 border-pitch rotate-45 hover:scale-110 transition-transform group">
+              <Zap className="w-6 h-6 text-slate-900 -rotate-45 fill-current" />
             </div>
           </NavLink>
 

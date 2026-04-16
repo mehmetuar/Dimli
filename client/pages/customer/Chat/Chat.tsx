@@ -207,7 +207,7 @@ export const Chat: React.FC = () => {
       />
 
       {/* Spacer */}
-      <div className="bg-slate-900 w-full flex-shrink-0" style={{ height: 'env(safe-area-inset-top, 0px)' }} />
+      <div className="bg-slate-900 w-full flex-shrink-0 pt-safe-top" />
 
       {/* HEADER */}
       <div className="bg-slate-900/90 backdrop-blur p-4 border-b border-slate-800 flex flex-col gap-3 sticky top-0 z-50 shadow-lg">

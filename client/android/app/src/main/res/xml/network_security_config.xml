@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <!-- Android emülatörde Mac localhost'u işaret eder -->
+        <domain includeSubdomains="false">10.0.2.2</domain>
+        <!-- Gerçek cihazda aynı Wi-Fi'deki Mac (mDNS) -->
+        <domain includeSubdomains="false">Mehmet-MacBook-Air-2.local</domain>
+    </domain-config>
+    <!-- Diğer tüm trafikte HTTP'yi engelle (güvenlik) -->
+    <base-config cleartextTrafficPermitted="false" />
+</network-security-config>

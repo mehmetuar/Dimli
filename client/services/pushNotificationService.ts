@@ -3,9 +3,17 @@ import { LocalNotifications, ScheduleOptions, LocalNotificationSchema } from '@c
 import { Capacitor } from '@capacitor/core';
 import api from './api';
 
+// Listeners'ın birden fazla kez eklenmesini önle
+let _initialized = false;
+
 export const initializePushNotifications = async () => {
     if (!Capacitor.isNativePlatform()) {
         console.log('Push notifications are only available on native platforms.');
+        return;
+    }
+
+    if (_initialized) {
+        console.log('Push notifications already initialized, skipping.');
         return;
     }
 
@@ -24,6 +32,7 @@ export const initializePushNotifications = async () => {
             return;
         }
 
+        _initialized = true;
         await PushNotifications.register();
 
         PushNotifications.addListener('registration', async (token: Token) => {
@@ -88,11 +97,10 @@ export const showLocalNotification = async (title: string, body: string, data?: 
 const handleNotificationClick = (data: any) => {
     if (!data) return;
 
-    // Navigate to the relevant page based on metadata
-    // Using simple window.location for now, but ideally uses React Router's navigate
+    // HashRouter kullandığımız için window.location.hash kullanıyoruz
     if (data.type === 'CHAT' || data.isChatRedirect) {
-        window.location.href = data.channelId ? `/chat/${data.channelId}` : '/chat';
+        window.location.hash = '#/chat';
     } else {
-        window.location.href = '/notifications';
+        window.location.hash = '#/notifications';
     }
 };
