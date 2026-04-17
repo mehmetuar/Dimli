@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.sahapro.app',
-  appName: 'DIMLİ',
+  appId: 'com.dimli.app',
+  appName: 'Dimli',
   webDir: 'dist',
   server: {
     allowNavigation: [

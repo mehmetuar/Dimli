@@ -1,4 +1,4 @@
-package com.sahapro.app;
+package com.dimli.app;
 
 import com.getcapacitor.BridgeActivity;
 

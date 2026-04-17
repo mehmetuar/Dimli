@@ -1,7 +1,7 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace "com.sahapro.app"
+    namespace "com.dimli.app"
     compileSdk rootProject.ext.compileSdkVersion
     androidResources {
         // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -9,7 +9,7 @@ android {
         ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
     }
     defaultConfig {
-        applicationId "com.sahapro.app"
+        applicationId "com.dimli.app"
         minSdk rootProject.ext.minSdkVersion
         targetSdk rootProject.ext.targetSdkVersion
         versionCode 1
