@@ -62,7 +62,7 @@ export const Navbar: React.FC = () => {
 
       {/* Notification Bell (Top Right - Visible Mobile & Desktop) - Conditioned */}
       {showBell && isLoggedIn && location.pathname !== '/chat' && location.pathname !== '/team' && (
-        <div className="fixed top-6 top-safe-top right-6 z-50 pt-2">
+        <div className="fixed top-bell-safe right-4 z-50">
           <button
             onClick={handleNotificationClick}
             className={`relative p-2 rounded-full border transition-all group ${location.pathname === '/notifications'

@@ -56,7 +56,20 @@ export class MatchAnnouncementsService {
             );
         }
 
+        // Max 8 aktif ilan limiti (yalnızca PENDING — CONFIRMED/CANCELLED/EXPIRED dahil değil)
+        const activeCount = await this.matchAnnouncementsRepository.count({
+            where: {
+                teamId: user.team.id,
+                status: 'PENDING'
+            }
+        });
 
+        if (activeCount >= 8) {
+            throw new HttpException(
+                'Bir takım en fazla 8 aktif ilan açabilir. Mevcut ilanlarınızdan birini kaldırarak yeni ilan açabilirsiniz.',
+                HttpStatus.BAD_REQUEST
+            );
+        }
 
         // Validate date and time - 🆕 IMPROVED: Reject past times strictly
         if (!data.date || !data.time) {

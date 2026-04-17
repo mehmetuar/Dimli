@@ -48,7 +48,7 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                     {selectedSlot.reservations.length > 0 ? (
                         selectedSlot.reservations.map((res: any) => (
                             <div key={res.id} className={`p-5 rounded-2xl border transition-all ${res.status === 'APPROVED'
-                                ? 'bg-gradient-to-br from-slate-800 to-slate-900 border-green-500/30 ring-1 ring-green-500/20'
+                                ? 'bg-gradient-to-br from-slate-800 to-slate-900 border-orange-500/30 ring-1 ring-orange-500/20'
                                 : res.status === 'REJECTED'
                                     ? 'bg-slate-800/50 border-red-900/30 opacity-75'
                                     : 'bg-slate-800 border-slate-700'

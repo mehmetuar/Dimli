@@ -61,8 +61,8 @@ export const BusinessListItem: React.FC<BusinessListItemProps> = ({
                     </div>
                 )}
 
-                <div className="absolute bottom-4 left-4 pr-16 border-r-transparent">
-                    <h2 className="text-3xl font-sport font-black text-white italic uppercase drop-shadow-md">{business.name}</h2>
+                <div className="absolute bottom-4 left-4 right-16 overflow-hidden">
+                    <h2 className="text-3xl font-sport font-black text-white italic uppercase drop-shadow-md truncate">{business.name}</h2>
                     <div className="flex items-center gap-2 mt-1">
                         <div className="flex items-center gap-1 text-slate-200 text-sm font-medium">
                             <MapPin className="w-4 h-4 text-turf-500" /> {business.district}, {business.city}

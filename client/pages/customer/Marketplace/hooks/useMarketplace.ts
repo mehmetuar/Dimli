@@ -208,8 +208,18 @@ export const useMarketplace = () => {
   };
 
   const getFilteredMatches = () => {
-    if (!selectedDate) return matches;
-    return matches.filter(m => m.date === selectedDate);
+    const filtered = !selectedDate
+      ? matches
+      : matches.filter(m => m.date === selectedDate);
+
+    const myTeamId = myTeam?.id;
+    if (!myTeamId) return filtered;
+
+    return [...filtered].sort((a, b) => {
+      const aOwn = a.teamId === myTeamId ? 0 : 1;
+      const bOwn = b.teamId === myTeamId ? 0 : 1;
+      return aOwn - bOwn;
+    });
   };
 
   return {

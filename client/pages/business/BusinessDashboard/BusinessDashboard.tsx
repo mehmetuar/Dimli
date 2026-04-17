@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { BusinessNavbar } from '../../../components/Business/BusinessNavbar';
 import { ConfirmModal } from '../../../components/Modals/ConfirmModal';
 import { SuccessModal } from '../../../components/Modals/SuccessModal';
-import { DateSelectionModal } from '../../../components/Modals/DateSelectionModal';
+import { BusinessDateFilterModal } from './components/BusinessDateFilterModal';
 import { BusinessLoadingSpinner } from '../../../components/Business/BusinessLoadingSpinner';
 
 // Hooks
@@ -114,6 +114,7 @@ export const BusinessDashboard: React.FC = () => {
                 isDangerous={confirmModal.isDangerous}
                 confirmText={confirmModal.confirmText}
                 cancelText={confirmModal.cancelText || "Vazgeç"}
+                accentColor="orange"
             />
 
             {/* Success Modal */}
@@ -125,12 +126,11 @@ export const BusinessDashboard: React.FC = () => {
             />
 
             {/* Date Selection Modal */}
-            <DateSelectionModal
+            <BusinessDateFilterModal
                 isOpen={showDatePicker}
                 onClose={() => setShowDatePicker(false)}
                 onSelect={(date) => setSelectedDate(date)}
                 selectedDate={selectedDate}
-                allowPastDates={true}
             />
 
             {/* Business Navbar */}

@@ -83,8 +83,9 @@ export const PitchSchedule: React.FC<PitchScheduleProps> = ({
                         action = () => openSlotDetail(slot.startTime, slot.endTime || '', pendingReservations, announcements);
                     }
                     else if (approvedReservation) {
+                        const isBusinessClosed = approvedReservation.type === 'DIRECT' && !approvedReservation.team;
                         slotClass = 'bg-red-900/20 border-red-900/50 text-red-700 cursor-pointer hover:opacity-80';
-                        label = 'DOLU';
+                        label = isBusinessClosed ? 'KAPALI' : 'DOLU';
                         action = () => openSlotDetail(slot.startTime, slot.endTime || '', [], [], approvedReservation);
                     } else if (hasPending) {
                         slotClass = 'bg-orange-900/20 border-orange-500/50 text-orange-400 cursor-pointer hover:border-turf-500';

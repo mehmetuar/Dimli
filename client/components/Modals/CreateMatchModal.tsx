@@ -76,7 +76,14 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
                 console.log('📝 Current User:', userRes.data);
                 setCurrentUser(userRes.data);
                 if (userRes.data.team?.level) {
-                    setLevel(userRes.data.team.level);
+                    const rawLevel = userRes.data.team.level;
+                    const levelMap: Record<string, SkillLevel> = {
+                        BEGINNER: SkillLevel.BEGINNER,
+                        INTERMEDIATE: SkillLevel.INTERMEDIATE,
+                        ADVANCED: SkillLevel.ADVANCED,
+                        EXPERT: SkillLevel.EXPERT,
+                    };
+                    setLevel(levelMap[rawLevel] ?? (rawLevel as SkillLevel));
                 }
 
                 // 2. Fetch Businesses (with Pitches)

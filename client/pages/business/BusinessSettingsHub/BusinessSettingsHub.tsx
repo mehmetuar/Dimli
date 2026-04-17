@@ -94,6 +94,7 @@ export const BusinessSettingsHub: React.FC = () => {
                 confirmText="Çıkış Yap"
                 cancelText="İptal"
                 isDangerous={false}
+                accentColor="orange"
             />
 
             <BusinessNavbar />

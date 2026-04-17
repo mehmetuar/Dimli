@@ -36,6 +36,7 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
     if (!isOpen) return null;
 
     const isFull = !!approvedReservation;
+    const isClosed = approvedReservation?.type === 'DIRECT' && !approvedReservation?.team;
 
     return (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in" onClick={onClose}>
@@ -65,8 +66,14 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                         /* FULL STATE */
                         <div className="text-center py-4">
                             <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-6 mb-4">
-                                <h3 className="text-red-400 font-black text-xl italic uppercase mb-2">DOLU - MAÇ VAR</h3>
-                                <p className="text-slate-400 text-sm mb-6">Bu saat için saha ayrılmış durumda.</p>
+                                {isClosed ? (
+                                    <h3 className="text-red-400 font-black text-xl italic uppercase mb-2">KAPALI</h3>
+                                ) : (
+                                    <>
+                                        <h3 className="text-red-400 font-black text-xl italic uppercase mb-2">DOLU - MAÇ VAR</h3>
+                                        <p className="text-slate-400 text-sm mb-6">Bu saat için saha ayrılmış durumda.</p>
+                                    </>
+                                )}
 
                                 <div className="flex items-center justify-center gap-4">
                                     {approvedReservation.type === 'DIRECT' && !approvedReservation.team ? (
@@ -75,7 +82,7 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                                                 <Shield className="w-8 h-8 text-slate-400" />
                                             </div>
                                             <div className="font-bold text-white text-lg uppercase tracking-wider text-center">İşletme Tarafından Kapalı</div>
-                                            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-700/50 px-3 py-1 rounded-full mt-1 border border-slate-600/50">Diğer Sahanızı veya Saati Seçin</div>
+                                            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-700/50 px-3 py-1 rounded-full mt-1 border border-slate-600/50">Farklı saha veya saat seçin</div>
                                         </div>
                                     ) : !approvedReservation.opponentTeam ? (
                                         <div className="flex flex-col items-center justify-center gap-2">

@@ -43,6 +43,12 @@
       padding-bottom: env(safe-area-inset-bottom);
     }
 
+    /* Notification bell — sits below status bar on both iOS and Android.
+       On iOS env(safe-area-inset-top) ≈ 47px; on Android it falls back to 24px. */
+    .top-bell-safe {
+      top: calc(max(env(safe-area-inset-top), 24px) + 12px);
+    }
+
     /* Hide Navbar when modal is open */
     body.modal-open nav {
       display: none !important;

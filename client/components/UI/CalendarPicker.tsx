@@ -6,6 +6,7 @@ interface CalendarPickerProps {
     onDateSelect: (date: string) => void;
     minDate?: Date;
     maxDate?: Date;
+    variant?: 'default' | 'orange';
 }
 
 export const CalendarPicker: React.FC<CalendarPickerProps> = ({
@@ -16,8 +17,22 @@ export const CalendarPicker: React.FC<CalendarPickerProps> = ({
         const d = new Date();
         d.setDate(d.getDate() + 30);
         return d;
-    })()
+    })(),
+    variant = 'default'
 }) => {
+    const accent = variant === 'orange'
+        ? {
+            hover: 'hover:bg-orange-500/20',
+            selected: 'bg-orange-500 text-white ring-4 ring-orange-500/20 scale-110 z-10',
+            todayBorder: 'border border-orange-500/50 text-orange-400',
+            dot: 'bg-orange-500',
+        }
+        : {
+            hover: 'hover:bg-turf-500/20',
+            selected: 'bg-turf-500 text-slate-900 ring-4 ring-turf-500/20 scale-110 z-10',
+            todayBorder: 'border border-turf-500/50 text-turf-400',
+            dot: 'bg-turf-500',
+        };
     const [viewDate, setViewDate] = useState(new Date(selectedDate || new Date()));
 
     const daysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
@@ -98,14 +113,14 @@ export const CalendarPicker: React.FC<CalendarPickerProps> = ({
                     }}
                     className={`
                         h-10 w-10 rounded-xl flex items-center justify-center text-sm font-bold transition-all relative
-                        ${disabled ? 'text-slate-700 cursor-not-allowed' : 'text-white hover:bg-turf-500/20'}
-                        ${selected ? 'bg-turf-500 text-slate-900 ring-4 ring-turf-500/20 scale-110 z-10' : ''}
-                        ${isToday && !selected ? 'border border-turf-500/50 text-turf-400' : ''}
+                        ${disabled ? 'text-slate-700 cursor-not-allowed' : `text-white ${accent.hover}`}
+                        ${selected ? accent.selected : ''}
+                        ${isToday && !selected ? accent.todayBorder : ''}
                     `}
                 >
                     {day}
                     {isToday && !selected && (
-                        <span className="absolute bottom-1 w-1 h-1 bg-turf-500 rounded-full"></span>
+                        <span className={`absolute bottom-1 w-1 h-1 ${accent.dot} rounded-full`}></span>
                     )}
                 </button>
             );

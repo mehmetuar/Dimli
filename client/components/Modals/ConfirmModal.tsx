@@ -10,6 +10,7 @@ interface ConfirmModalProps {
     confirmText?: string;
     cancelText?: string;
     isDangerous?: boolean;
+    accentColor?: 'green' | 'orange';
 }
 
 export const ConfirmModal: React.FC<ConfirmModalProps> = ({
@@ -21,7 +22,9 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
     confirmText = 'Onayla',
     cancelText = 'İptal',
     isDangerous = false,
+    accentColor = 'green',
 }) => {
+    const isOrange = !isDangerous && accentColor === 'orange';
     if (!isOpen) return null;
 
     const handleConfirm = () => {
@@ -42,10 +45,12 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
 
                 <div className="p-6">
                     {/* Icon */}
-                    <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${isDangerous ? 'bg-red-500/10' : 'bg-turf-500/10'
-                        }`}>
-                        <AlertTriangle className={`w-8 h-8 ${isDangerous ? 'text-red-500' : 'text-turf-500'
-                            }`} />
+                    <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
+                        isDangerous ? 'bg-red-500/10' : isOrange ? 'bg-orange-500/10' : 'bg-turf-500/10'
+                    }`}>
+                        <AlertTriangle className={`w-8 h-8 ${
+                            isDangerous ? 'text-red-500' : isOrange ? 'text-orange-500' : 'text-turf-500'
+                        }`} />
                     </div>
 
                     {/* Title */}
@@ -68,10 +73,13 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
                         </button>
                         <button
                             onClick={handleConfirm}
-                            className={`flex-1 font-bold py-3 rounded-xl transition-colors shadow-lg ${isDangerous
-                                ? 'bg-red-600 text-white hover:bg-red-500 shadow-red-600/20'
-                                : 'bg-turf-600 text-white hover:bg-turf-500 shadow-turf-600/20'
-                                }`}
+                            className={`flex-1 font-bold py-3 rounded-xl transition-colors shadow-lg ${
+                                isDangerous
+                                    ? 'bg-red-600 text-white hover:bg-red-500 shadow-red-600/20'
+                                    : isOrange
+                                        ? 'bg-orange-600 text-white hover:bg-orange-500 shadow-orange-600/20'
+                                        : 'bg-turf-600 text-white hover:bg-turf-500 shadow-turf-600/20'
+                            }`}
                         >
                             {confirmText}
                         </button>
