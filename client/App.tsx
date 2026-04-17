@@ -126,8 +126,8 @@ function AppContent() {
   };
 
   const handleSkipRating = () => {
-    const current = pendingRatings[0];
-    if (current) markRatingHandled(current.reservationId);
+    // Sadece bu oturumda kapat; localStorage'a yazma. Böylece bir sonraki açılışta tekrar gelir.
+    // Kullanıcı Geçmiş Maçlar'dan değerlendirme yapabilir.
     setPendingRatings((prev: PendingRating[]) => prev.slice(1));
   };
 
@@ -241,6 +241,7 @@ function AppContent() {
       </div>
       {pendingRatings.length > 0 && (
         <RatingModal
+          key={pendingRatings[0].reservationId}
           pending={pendingRatings[0]}
           onSubmit={handleSubmitRating}
           onSkip={handleSkipRating}

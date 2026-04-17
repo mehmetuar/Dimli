@@ -221,15 +221,20 @@ export interface ChatMessage {
   isMe?: boolean;
 }
 
-export interface MatchHistory {
-  id: string;
-  opponentId: string;
-  opponentName: string;
-  opponentLogo: string;
-  date: string;
-  result: 'WIN' | 'LOSS' | 'DRAW';
-  fairPlayScore: number; // 1-5  
-  location: string;
+export interface MatchHistoryItem {
+  reservationId: string;
+  slotTime: string;
+  pitchName: string;
+  businessName: string;
+  businessId: string;
+  opponentTeamId: string | null;
+  opponentTeamName: string | null;
+  isBusinessRated: boolean;
+  isFairPlayRated: boolean;
+  businessScore: number | null;
+  fairPlayScore: number | null;
+  needsBusinessRating: boolean;
+  needsFairPlayRating: boolean;
 }
 
 export enum ReservationStatus {

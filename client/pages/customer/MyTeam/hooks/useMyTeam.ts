@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api, { getPitches, getBusinesses } from '../../../../services/api';
 import { generateTeamBio } from '../../../../services/geminiService';
-import { Team, Player, Pitch, Business } from '../../../../types';
+import { Team, Player, Pitch, Business, MatchHistoryItem } from '../../../../types';
 import { SuccessType } from '../../../../components/Modals/SuccessModal';
 
 export const useMyTeam = (modals: any) => {
@@ -18,6 +18,8 @@ export const useMyTeam = (modals: any) => {
     const [isGenerating, setIsGenerating] = useState(false);
     const [upcomingMatches, setUpcomingMatches] = useState<any[]>([]);
     const [isUpcomingLoading, setIsUpcomingLoading] = useState(false);
+    const [matchHistory, setMatchHistory] = useState<MatchHistoryItem[]>([]);
+    const [isMatchHistoryLoading, setIsMatchHistoryLoading] = useState(false);
 
     // Success/Error messages
     const [successMessage, setSuccessMessage] = useState('');
@@ -85,6 +87,18 @@ export const useMyTeam = (modals: any) => {
             console.error('Failed to fetch upcoming matches:', error);
         } finally {
             setIsUpcomingLoading(false);
+        }
+    };
+
+    const fetchMatchHistory = async () => {
+        setIsMatchHistoryLoading(true);
+        try {
+            const response = await api.get('/ratings/history');
+            setMatchHistory(response.data || []);
+        } catch (error) {
+            console.error('Failed to fetch match history:', error);
+        } finally {
+            setIsMatchHistoryLoading(false);
         }
     };
 
@@ -190,6 +204,7 @@ export const useMyTeam = (modals: any) => {
         currentUser, isLoading, myTeam, setMyTeam, roster, setRoster,
         pitches, businesses, bio, setBio, isEditingBio, setIsEditingBio,
         isGenerating, upcomingMatches, isUpcomingLoading, fetchUpcomingMatches,
+        matchHistory, isMatchHistoryLoading, fetchMatchHistory,
         successMessage, setSuccessMessage, successType, setSuccessType, errorMessage, setErrorMessage,
         handleGenerateBio, handleSaveBio, handleSetHomeBusiness, handleCreateTeam, handleLeaveTeam
     };

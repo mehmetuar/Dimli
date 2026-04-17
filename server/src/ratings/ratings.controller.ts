@@ -14,6 +14,12 @@ export class RatingsController {
     }
 
     @UseGuards(JwtAuthGuard)
+    @Get('history')
+    getHistory(@Request() req: any) {
+        return this.ratingsService.getMatchHistory(req.user.id);
+    }
+
+    @UseGuards(JwtAuthGuard)
     @Post()
     submit(@Request() req: any, @Body() dto: CreateRatingDto) {
         return this.ratingsService.submitRating(req.user.id, dto);

@@ -20,6 +20,22 @@ export interface PendingRating {
     opponentTeamName: string | null;
 }
 
+export interface MatchHistoryItem {
+    reservationId: string;
+    slotTime: string;
+    pitchName: string;
+    businessName: string;
+    businessId: string;
+    opponentTeamId: string | null;
+    opponentTeamName: string | null;
+    isBusinessRated: boolean;
+    isFairPlayRated: boolean;
+    businessScore: number | null;
+    fairPlayScore: number | null;
+    needsBusinessRating: boolean;
+    needsFairPlayRating: boolean;
+}
+
 @Injectable()
 export class RatingsService {
     constructor(
@@ -174,5 +190,95 @@ export class RatingsService {
                 });
             }
         }
+    }
+
+    async getMatchHistory(userId: string): Promise<MatchHistoryItem[]> {
+        const user = await this.userRepo.findOne({ where: { id: userId } });
+        if (!user || !user.teamId) return [];
+
+        const now = new Date();
+
+        // Geçmiş tüm APPROVED rezervasyonları getir (hem ev sahibi hem misafir olarak)
+        const played = await this.reservationRepo.find({
+            where: [
+                { status: ReservationStatus.APPROVED, teamId: user.teamId, slotTime: LessThan(now) },
+                { status: ReservationStatus.APPROVED, opponentTeamId: user.teamId, slotTime: LessThan(now) },
+            ],
+            relations: ['pitch', 'pitch.business', 'opponentTeam'],
+        });
+
+        if (played.length === 0) return [];
+
+        // Duplikatları temizle
+        const seen = new Set<string>();
+        const uniquePlayed = played.filter(r => {
+            if (seen.has(r.id)) return false;
+            seen.add(r.id);
+            return true;
+        });
+
+        const reservationIds = uniquePlayed.map(r => r.id);
+
+        // Bu kullanıcının bu rezervasyonlar için yaptığı tüm rating'leri getir
+        const existingRatings = await this.ratingRepo.find({
+            where: {
+                ratedByUserId: userId,
+                reservationId: In(reservationIds),
+            },
+        });
+
+        const ratingMap = new Map<string, { type: string; score: number }[]>();
+        for (const r of existingRatings) {
+            if (!ratingMap.has(r.reservationId)) ratingMap.set(r.reservationId, []);
+            ratingMap.get(r.reservationId)!.push({ type: r.type, score: r.score });
+        }
+
+        const results: MatchHistoryItem[] = [];
+
+        for (const reservation of uniquePlayed) {
+            if (!reservation.pitch?.business) continue;
+
+            const hasOpponent = !!reservation.opponentTeamId;
+            const ratings = ratingMap.get(reservation.id) || [];
+            const businessRating = ratings.find(r => r.type === 'BUSINESS');
+            const fairPlayRating = ratings.find(r => r.type === 'FAIRPLAY');
+
+            const isBusinessRated = !!businessRating;
+            const isFairPlayRated = !!fairPlayRating;
+
+            // Rakip perspektifini belirle
+            let opponentTeamId: string | null = null;
+            let opponentTeamName: string | null = null;
+            if (hasOpponent) {
+                if (reservation.opponentTeamId === user.teamId) {
+                    const mainTeam = await this.teamRepo.findOne({ where: { id: reservation.teamId } });
+                    opponentTeamId = reservation.teamId;
+                    opponentTeamName = mainTeam?.name || null;
+                } else {
+                    opponentTeamId = reservation.opponentTeamId;
+                    opponentTeamName = reservation.opponentTeam?.name || null;
+                }
+            }
+
+            results.push({
+                reservationId: reservation.id,
+                slotTime: reservation.slotTime.toISOString(),
+                pitchName: reservation.pitch.name,
+                businessName: reservation.pitch.business.name,
+                businessId: reservation.pitch.business.id,
+                opponentTeamId,
+                opponentTeamName,
+                isBusinessRated,
+                isFairPlayRated,
+                businessScore: businessRating?.score ?? null,
+                fairPlayScore: fairPlayRating?.score ?? null,
+                needsBusinessRating: !isBusinessRated,
+                needsFairPlayRating: hasOpponent && !isFairPlayRated,
+            });
+        }
+
+        // En yeniden eskiye sırala
+        results.sort((a, b) => new Date(b.slotTime).getTime() - new Date(a.slotTime).getTime());
+        return results;
     }
 }

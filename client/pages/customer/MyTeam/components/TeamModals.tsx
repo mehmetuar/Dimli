@@ -7,6 +7,7 @@ import { MatchHistoryModal } from '../../../../components/Modals/MatchHistoryMod
 import { UpcomingMatchesModal } from '../../../../components/Modals/UpcomingMatchesModal';
 import { CreateMatchModal } from '../../../../components/Modals/CreateMatchModal';
 import { SuccessModal, SuccessType } from '../../../../components/Modals/SuccessModal';
+import { MatchHistoryItem } from '../../../../types';
 
 interface TeamModalsProps {
     modals: any;
@@ -15,7 +16,8 @@ interface TeamModalsProps {
     upcomingMatches: any[];
     isUpcomingLoading: boolean;
     handleCreateTeam: (data: any) => void;
-    MOCK_MATCH_HISTORY: any[];
+    matchHistory: MatchHistoryItem[];
+    isMatchHistoryLoading: boolean;
     successMessage: string;
     successType: SuccessType | null;
     setSuccessMessage: (msg: string) => void;
@@ -24,7 +26,8 @@ interface TeamModalsProps {
 
 export const TeamModals: React.FC<TeamModalsProps> = ({
     modals, myTeam, roster, upcomingMatches, isUpcomingLoading, handleCreateTeam,
-    MOCK_MATCH_HISTORY, successMessage, successType, setSuccessMessage, setSuccessType
+    matchHistory, isMatchHistoryLoading,
+    successMessage, successType, setSuccessMessage, setSuccessType
 }) => {
     return (
         <>
@@ -59,7 +62,9 @@ export const TeamModals: React.FC<TeamModalsProps> = ({
             <MatchHistoryModal
                 isOpen={modals.isMatchHistoryOpen}
                 onClose={() => modals.setIsMatchHistoryOpen(false)}
-                matches={MOCK_MATCH_HISTORY}
+                matches={matchHistory}
+                isLoading={isMatchHistoryLoading}
+                teamFairPlayScore={myTeam?.fairPlayScore || 5.0}
             />
 
             <UpcomingMatchesModal

@@ -179,7 +179,7 @@ export const RatingModal: React.FC<RatingModalProps> = ({ pending, onSubmit, onS
                         onClick={onSkip}
                         className="mt-3 w-full py-2 text-slate-500 text-xs font-medium hover:text-slate-400 transition-colors"
                     >
-                        Geç
+                        Sonra Yap
                     </button>
                 </div>
             </div>

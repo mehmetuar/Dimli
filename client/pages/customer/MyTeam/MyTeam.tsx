@@ -1,6 +1,6 @@
 import React from 'react';
 import { LoadingSpinner } from '../../../components/UI/LoadingSpinner';
-import { MOCK_JOKERS, MOCK_MATCH_HISTORY } from '../../../constants';
+import { MOCK_JOKERS } from '../../../constants';
 import { Check, X, Shield, Crown, Trash2, ShieldX, ChevronRight, MoreVertical } from 'lucide-react';
 
 import { useTeamModals } from './hooks/useTeamModals';
@@ -22,6 +22,7 @@ export const MyTeam: React.FC = () => {
         currentUser, isLoading, myTeam, setMyTeam, roster, setRoster,
         businesses, bio, setBio, isEditingBio, setIsEditingBio,
         isGenerating, upcomingMatches, isUpcomingLoading, fetchUpcomingMatches,
+        matchHistory, isMatchHistoryLoading, fetchMatchHistory,
         successMessage, setSuccessMessage, successType, setSuccessType, errorMessage, setErrorMessage,
         handleGenerateBio, handleSaveBio, handleSetHomeBusiness, handleCreateTeam, handleLeaveTeam
     } = useMyTeam(modals);
@@ -91,7 +92,8 @@ export const MyTeam: React.FC = () => {
                 upcomingMatches={upcomingMatches}
                 isUpcomingLoading={isUpcomingLoading}
                 handleCreateTeam={handleCreateTeam}
-                MOCK_MATCH_HISTORY={MOCK_MATCH_HISTORY}
+                matchHistory={matchHistory}
+                isMatchHistoryLoading={isMatchHistoryLoading}
                 successMessage={successMessage}
                 successType={successType}
                 setSuccessMessage={setSuccessMessage}
@@ -119,11 +121,12 @@ export const MyTeam: React.FC = () => {
                         handleLeaveTeam={handleLeaveTeam}
                     />
 
-                    <TeamStatsRow myTeam={myTeam} />
+                    <TeamStatsRow myTeam={myTeam} matchCount={matchHistory.length} />
 
                     <TeamActionButtons
                         fetchUpcomingMatches={fetchUpcomingMatches}
                         setIsUpcomingMatchesOpen={modals.setIsUpcomingMatchesOpen}
+                        fetchMatchHistory={fetchMatchHistory}
                         setIsMatchHistoryOpen={modals.setIsMatchHistoryOpen}
                     />
 

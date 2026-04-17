@@ -1,41 +1,120 @@
-import React from 'react';
-import { X, Trophy, TrendingUp, Star } from 'lucide-react';
-import { MatchHistory } from '../../types';
+import React, { useState } from 'react';
+import { X, Trophy, Star, CheckCircle, Building2, Shield, MapPin, Users } from 'lucide-react';
+import { MatchHistoryItem, PendingRating } from '../../types';
+import { RatingModal } from './RatingModal';
+import api from '../../services/api';
 
 interface MatchHistoryModalProps {
     isOpen: boolean;
     onClose: () => void;
-    matches: MatchHistory[];
+    matches: MatchHistoryItem[];
+    isLoading: boolean;
+    teamFairPlayScore: number;
 }
 
 export const MatchHistoryModal: React.FC<MatchHistoryModalProps> = ({
     isOpen,
     onClose,
-    matches
+    matches,
+    isLoading,
+    teamFairPlayScore,
 }) => {
+    const [localMatches, setLocalMatches] = useState<MatchHistoryItem[]>([]);
+    const [selectedForRating, setSelectedForRating] = useState<PendingRating | null>(null);
+
+    // matches prop değişince local kopyayı güncelle
+    React.useEffect(() => {
+        setLocalMatches(matches);
+    }, [matches]);
+
     if (!isOpen) return null;
 
-    const getResultBadge = (result: 'WIN' | 'LOSS' | 'DRAW') => {
-        switch (result) {
-            case 'WIN':
-                return <span className="bg-green-500/20 text-green-400 px-2 py-1 rounded-lg text-xs font-bold">GALİBİYET</span>;
-            case 'LOSS':
-                return <span className="bg-red-500/20 text-red-400 px-2 py-1 rounded-lg text-xs font-bold">MAĞLUBİYET</span>;
-            case 'DRAW':
-                return <span className="bg-slate-500/20 text-slate-400 px-2 py-1 rounded-lg text-xs font-bold">BERABERE</span>;
-        }
+    const totalMatches = localMatches.length;
+    const ratedCount = localMatches.filter(m => m.isBusinessRated).length;
+
+    const formatDate = (isoStr: string) => {
+        const d = new Date(isoStr);
+        return {
+            day: d.toLocaleDateString('tr-TR', { day: '2-digit' }),
+            month: d.toLocaleDateString('tr-TR', { month: 'short' }).toUpperCase(),
+            time: d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
+            full: d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' }),
+        };
     };
 
-    const wins = matches.filter(m => m.result === 'WIN').length;
-    const losses = matches.filter(m => m.result === 'LOSS').length;
-    const draws = matches.filter(m => m.result === 'DRAW').length;
-    const avgFairPlay = (matches.reduce((sum, m) => sum + m.fairPlayScore, 0) / matches.length).toFixed(1);
+    const openRatingForMatch = (match: MatchHistoryItem) => {
+        const pending: PendingRating = {
+            reservationId: match.reservationId,
+            slotTime: match.slotTime,
+            pitchName: match.pitchName,
+            businessName: match.businessName,
+            businessId: match.businessId,
+            needsBusinessRating: match.needsBusinessRating,
+            needsFairPlayRating: match.needsFairPlayRating,
+            opponentTeamId: match.opponentTeamId,
+            opponentTeamName: match.opponentTeamName,
+        };
+        setSelectedForRating(pending);
+    };
+
+    const handleRatingSubmit = async (
+        reservationId: string,
+        businessScore: number,
+        fairPlayScore: number | null
+    ) => {
+        const current = selectedForRating;
+        if (!current) return;
+
+        try {
+            if (current.needsBusinessRating && businessScore > 0) {
+                await api.post('/ratings', {
+                    reservationId,
+                    type: 'BUSINESS',
+                    targetBusinessId: current.businessId,
+                    score: businessScore,
+                });
+            }
+            if (fairPlayScore !== null && current.needsFairPlayRating && current.opponentTeamId) {
+                await api.post('/ratings', {
+                    reservationId,
+                    type: 'FAIRPLAY',
+                    targetTeamId: current.opponentTeamId,
+                    score: fairPlayScore,
+                });
+            }
+        } catch {
+            // 409 duplicate ise zaten yapılmış, sessizce geç
+        }
+
+        // Yerel state'i güncelle
+        setLocalMatches(prev =>
+            prev.map(m =>
+                m.reservationId === reservationId
+                    ? {
+                          ...m,
+                          isBusinessRated: true,
+                          isFairPlayRated: m.needsFairPlayRating ? true : m.isFairPlayRated,
+                          businessScore: businessScore > 0 ? businessScore : m.businessScore,
+                          fairPlayScore: fairPlayScore ?? m.fairPlayScore,
+                          needsBusinessRating: false,
+                          needsFairPlayRating: false,
+                      }
+                    : m
+            )
+        );
+        setSelectedForRating(null);
+    };
+
+    const handleRatingSkip = () => {
+        setSelectedForRating(null);
+    };
 
     return (
         <div className="fixed inset-0 z-[70] flex items-center justify-center px-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-            <div className="bg-slate-800 w-full max-w-2xl max-h-[80vh] rounded-3xl border border-slate-700 overflow-hidden relative shadow-2xl animate-scale-in flex flex-col">
+            <div className="bg-slate-800 w-full max-w-2xl max-h-[85vh] rounded-3xl border border-slate-700 overflow-hidden relative shadow-2xl animate-scale-in flex flex-col">
+
                 {/* Header */}
-                <div className="p-6 border-b border-slate-700 bg-gradient-to-br from-slate-800 to-slate-900">
+                <div className="p-5 border-b border-slate-700 bg-gradient-to-br from-slate-800 to-slate-900">
                     <button
                         onClick={onClose}
                         className="absolute top-4 right-4 bg-slate-900/50 p-2 rounded-full text-slate-400 hover:text-white hover:bg-slate-700 transition-colors z-10"
@@ -44,93 +123,153 @@ export const MatchHistoryModal: React.FC<MatchHistoryModalProps> = ({
                     </button>
 
                     <div className="flex items-center gap-3 mb-4">
-                        <div className="bg-turf-500/10 p-3 rounded-xl">
-                            <Trophy className="w-6 h-6 text-turf-500" />
+                        <div className="bg-purple-500/10 p-3 rounded-xl border border-purple-500/20">
+                            <Trophy className="w-6 h-6 text-purple-400" />
                         </div>
                         <div>
-                            <h3 className="text-2xl font-sport font-bold text-white uppercase italic tracking-wide">
+                            <h3 className="text-xl font-sport font-bold text-white uppercase italic tracking-wide">
                                 Geçmiş Maçlar
                             </h3>
-                            <p className="text-sm text-slate-400">Son {matches.length} maç performansı</p>
+                            <p className="text-sm text-slate-400">{totalMatches} maç oynandı</p>
                         </div>
                     </div>
 
-                    {/* Stats Summary */}
-                    <div className="grid grid-cols-4 gap-3">
-                        <div className="bg-slate-900/50 p-3 rounded-xl text-center">
-                            <div className="text-green-400 font-sport font-bold text-2xl">{wins}</div>
-                            <div className="text-xs text-slate-500 font-bold uppercase">Galibiyet</div>
+                    {/* İki istatistik kartı */}
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-slate-900/60 p-3 rounded-xl text-center border border-slate-700/50">
+                            <div className="text-white font-sport font-bold text-2xl">{totalMatches}</div>
+                            <div className="text-xs text-slate-500 font-bold uppercase mt-0.5">Toplam Maç</div>
                         </div>
-                        <div className="bg-slate-900/50 p-3 rounded-xl text-center">
-                            <div className="text-slate-400 font-sport font-bold text-2xl">{draws}</div>
-                            <div className="text-xs text-slate-500 font-bold uppercase">Berabere</div>
-                        </div>
-                        <div className="bg-slate-900/50 p-3 rounded-xl text-center">
-                            <div className="text-red-400 font-sport font-bold text-2xl">{losses}</div>
-                            <div className="text-xs text-slate-500 font-bold uppercase">Mağlubiyet</div>
-                        </div>
-                        <div className="bg-slate-900/50 p-3 rounded-xl text-center">
-                            <div className="text-turf-500 font-sport font-bold text-2xl">{avgFairPlay}</div>
-                            <div className="text-xs text-slate-500 font-bold uppercase">Ort. FP</div>
+                        <div className="bg-slate-900/60 p-3 rounded-xl text-center border border-slate-700/50">
+                            <div className="flex items-center justify-center gap-1">
+                                <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                                <span className="text-yellow-400 font-sport font-bold text-2xl">
+                                    {(teamFairPlayScore || 5.0).toFixed(1)}
+                                </span>
+                            </div>
+                            <div className="text-xs text-slate-500 font-bold uppercase mt-0.5">Fair Play Puanı</div>
                         </div>
                     </div>
                 </div>
 
-                {/* Matches List */}
-                <div className="flex-1 overflow-y-auto p-6 space-y-3">
-                    {matches.map((match) => (
-                        <div
-                            key={match.id}
-                            className={`bg-slate-900/50 border rounded-2xl p-4 hover:bg-slate-900 transition-colors ${match.result === 'WIN' ? 'border-green-500/20' :
-                                match.result === 'LOSS' ? 'border-red-500/20' :
-                                    'border-slate-700'
-                                }`}
-                        >
-                            {/* Top Row: Logo, Name, Result Badge */}
-                            <div className="flex items-center justify-between mb-3">
-                                <div className="flex items-center gap-3">
-                                    <img
-                                        src={match.opponentLogo}
-                                        alt={match.opponentName}
-                                        className="w-12 h-12 rounded-full border-2 border-slate-700 bg-slate-800 object-cover"
-                                    />
-                                    <div>
-                                        <h4 className="text-white font-bold text-sm">{match.opponentName}</h4>
-                                        <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
-                                            <span>{match.date}</span>
-                                            <span>•</span>
-                                            <span className="truncate max-w-[120px]">{match.location}</span>
+                {/* Maç Listesi */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                    {isLoading ? (
+                        <div className="flex items-center justify-center py-16">
+                            <div className="text-slate-500 text-sm animate-pulse">Maçlar yükleniyor...</div>
+                        </div>
+                    ) : localMatches.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-16 gap-3">
+                            <div className="bg-slate-700/50 p-4 rounded-2xl">
+                                <Trophy className="w-10 h-10 text-slate-600" />
+                            </div>
+                            <p className="text-slate-500 text-sm font-medium">Henüz oynanan maç bulunmuyor</p>
+                        </div>
+                    ) : (
+                        localMatches.map((match) => {
+                            const dt = formatDate(match.slotTime);
+                            const isFullyRated = match.isBusinessRated && (!match.needsFairPlayRating || match.isFairPlayRated);
+                            const needsRating = match.needsBusinessRating || match.needsFairPlayRating;
+
+                            return (
+                                <div
+                                    key={match.reservationId}
+                                    className={`bg-slate-900/50 border rounded-2xl overflow-hidden transition-colors ${
+                                        isFullyRated
+                                            ? 'border-turf-500/20'
+                                            : needsRating
+                                            ? 'border-indigo-500/30'
+                                            : 'border-slate-700'
+                                    }`}
+                                >
+                                    <div className="flex items-stretch">
+                                        {/* Sol: Tarih bloğu */}
+                                        <div className="bg-turf-700/30 flex flex-col items-center justify-center px-4 py-4 min-w-[60px] border-r border-turf-700/20">
+                                            <span className="text-turf-300 font-sport font-bold text-2xl leading-none">{dt.day}</span>
+                                            <span className="text-turf-400 text-xs font-bold uppercase mt-0.5">{dt.month}</span>
+                                            <span className="text-slate-500 text-[10px] mt-1">{dt.time}</span>
+                                        </div>
+
+                                        {/* Orta: Maç bilgileri */}
+                                        <div className="flex-1 p-3 min-w-0">
+                                            <div className="flex items-center gap-1.5 mb-1">
+                                                <MapPin className="w-3 h-3 text-slate-500 flex-shrink-0" />
+                                                <span className="text-slate-300 text-xs font-semibold truncate">
+                                                    {match.pitchName}
+                                                </span>
+                                                <span className="text-slate-600 text-xs">·</span>
+                                                <span className="text-slate-500 text-xs truncate">{match.businessName}</span>
+                                            </div>
+
+                                            <div className="flex items-center gap-1.5 mb-2">
+                                                <Users className="w-3 h-3 text-slate-500 flex-shrink-0" />
+                                                <span className="text-slate-400 text-xs">
+                                                    {match.opponentTeamName
+                                                        ? `vs ${match.opponentTeamName}`
+                                                        : 'Kendi Aramızda'}
+                                                </span>
+                                            </div>
+
+                                            {/* Rating bilgisi - Yapıldıysa göster */}
+                                            {isFullyRated && (
+                                                <div className="flex items-center gap-3">
+                                                    {match.businessScore !== null && (
+                                                        <div className="flex items-center gap-1">
+                                                            <Building2 className="w-3 h-3 text-yellow-500" />
+                                                            <div className="flex gap-0.5">
+                                                                {[1,2,3,4,5].map(s => (
+                                                                    <Star
+                                                                        key={s}
+                                                                        className={`w-2.5 h-2.5 ${s <= (match.businessScore || 0) ? 'text-yellow-400 fill-yellow-400' : 'text-slate-600'}`}
+                                                                    />
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                    {match.fairPlayScore !== null && (
+                                                        <div className="flex items-center gap-1">
+                                                            <Shield className="w-3 h-3 text-indigo-400" />
+                                                            <div className="flex gap-0.5">
+                                                                {[1,2,3,4,5].map(s => (
+                                                                    <Star
+                                                                        key={s}
+                                                                        className={`w-2.5 h-2.5 ${s <= (match.fairPlayScore || 0) ? 'text-indigo-400 fill-indigo-400' : 'text-slate-600'}`}
+                                                                    />
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Sağ: Durum */}
+                                        <div className="flex items-center justify-center px-3">
+                                            {isFullyRated ? (
+                                                <div className="flex flex-col items-center gap-1">
+                                                    <CheckCircle className="w-5 h-5 text-turf-400" />
+                                                    <span className="text-[9px] text-turf-400 font-bold uppercase text-center leading-tight">
+                                                        Değer<br/>lendirildi
+                                                    </span>
+                                                </div>
+                                            ) : needsRating ? (
+                                                <button
+                                                    onClick={() => openRatingForMatch(match)}
+                                                    className="bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-[10px] font-bold px-2.5 py-2 rounded-xl transition-all text-center leading-tight"
+                                                >
+                                                    Değer<br/>lendir
+                                                </button>
+                                            ) : (
+                                                <span className="text-[9px] text-slate-600 font-bold uppercase text-center leading-tight">
+                                                    Rakip<br/>Yok
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
-                                {getResultBadge(match.result)}
-                            </div>
-
-                            {/* Bottom Row: Score and Fair Play */}
-                            <div className="flex items-center justify-between">
-                                {/* Result Text */}
-                                <div className="flex-1">
-                                    <div className="text-xs text-slate-500 font-bold uppercase mb-1">Sonuç</div>
-                                    <div className={`font-sport font-bold text-2xl ${match.result === 'WIN' ? 'text-green-400' :
-                                        match.result === 'LOSS' ? 'text-red-400' :
-                                            'text-slate-400'
-                                        }`}>
-                                        {match.result === 'WIN' ? 'KAZANDI' :
-                                            match.result === 'LOSS' ? 'KAYBETTİ' : 'BERABERE'}
-                                    </div>
-                                </div>
-
-                                {/* Fair Play Score */}
-                                <div className="flex flex-col items-center bg-slate-800 px-4 py-3 rounded-xl border border-slate-700">
-                                    <div className="flex items-center gap-1 mb-1">
-                                        <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                                        <span className="text-yellow-500 font-bold text-lg">{match.fairPlayScore.toFixed(1)}</span>
-                                    </div>
-                                    <span className="text-[9px] text-slate-500 font-bold uppercase">Fair Play</span>
-                                </div>
-                            </div>
-                        </div>
-                    ))}
+                            );
+                        })
+                    )}
                 </div>
 
                 {/* Footer */}
@@ -143,6 +282,16 @@ export const MatchHistoryModal: React.FC<MatchHistoryModalProps> = ({
                     </button>
                 </div>
             </div>
+
+            {/* Inline Rating Modal — Geçmiş maçtan değerlendirme */}
+            {selectedForRating && (
+                <RatingModal
+                    key={selectedForRating.reservationId}
+                    pending={selectedForRating}
+                    onSubmit={handleRatingSubmit}
+                    onSkip={handleRatingSkip}
+                />
+            )}
         </div>
     );
 };
