@@ -89,6 +89,17 @@ export class MatchAnnouncementsService {
             );
         }
 
+        // Kesinleşmiş maç saati çakışma kontrolü
+        const conflictingMatch = await this.reservationsService.hasConflictingApprovedMatch(
+            user.team.id,
+            announcementDate
+        );
+        if (conflictingMatch) {
+            throw new HttpException(
+                'Bu saatte zaten kesinleşmiş bir maçınız var. Çakışan saatler için ilan oluşturamazsınız.',
+                HttpStatus.CONFLICT
+            );
+        }
 
         // Optional: Also ensure a minimum buffer (e.g., at least 15 minutes from now)
         // const minAllowedTime = new Date(now.getTime() + 15 * 60 * 1000); // 15 min buffer

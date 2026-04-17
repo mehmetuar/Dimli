@@ -25,7 +25,7 @@ import { RatingsModule } from './ratings/ratings.module';
       port: 5432,
       username: 'postgres',
       password: 'postgrespassword',
-      database: 'sahapro',
+      database: 'dimli',
       entities: [__dirname + '/**/*.entity{.ts,.js}'],
       autoLoadEntities: true,
       synchronize: true, // Auto-create tables (dev only)

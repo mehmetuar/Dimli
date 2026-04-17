@@ -14,7 +14,7 @@ import { Pitch } from './pitches/entities/pitch.entity';
             port: 5432,
             username: 'postgres',
             password: 'postgrespassword',
-            database: 'sahapro',
+            database: 'dimli',
             entities: [__dirname + '/**/*.entity{.ts,.js}'],
             autoLoadEntities: true,
             synchronize: false, // We assume schema is already synced

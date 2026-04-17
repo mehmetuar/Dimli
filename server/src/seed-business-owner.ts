@@ -15,7 +15,7 @@ import * as bcrypt from 'bcrypt';
             port: 5432,
             username: 'postgres',
             password: 'postgrespassword',
-            database: 'sahapro',
+            database: 'dimli',
             entities: [__dirname + '/**/*.entity{.ts,.js}'],
             autoLoadEntities: true,
             synchronize: false,
@@ -61,7 +61,7 @@ async function bootstrap() {
             .replace(/\s+/g, '')
             .replace(/[^a-z0-9]/g, '');
 
-        const email = `${emailSlug}@sahapro.com`;
+        const email = `${emailSlug}@dimli.app`;
 
         try {
             // Create password hash

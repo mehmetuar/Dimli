@@ -6,6 +6,7 @@ import { Reservation } from './entities/reservation.entity';
 import { ChatModule } from '../chat/chat.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { ChatChannel } from '../chat/chat-channel.entity';
+import { ChatParticipant } from '../chat/chat-participant.entity';
 import { Pitch } from '../pitches/entities/pitch.entity';
 import { BusinessOwner } from '../business-owner/entities/business-owner.entity';
 import { MatchAnnouncement } from '../match-announcements/match-announcement.entity';
@@ -13,7 +14,7 @@ import { User } from '../users/user.entity';
 
 @Module({
     imports: [
-        TypeOrmModule.forFeature([Reservation, ChatChannel, Pitch, BusinessOwner, MatchAnnouncement, User]),
+        TypeOrmModule.forFeature([Reservation, ChatChannel, ChatParticipant, Pitch, BusinessOwner, MatchAnnouncement, User]),
         ChatModule,
         NotificationsModule
     ],

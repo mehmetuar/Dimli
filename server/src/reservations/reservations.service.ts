@@ -1,11 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository, In, LessThan, MoreThan, Between, MoreThanOrEqual, Not, Equal } from 'typeorm';
+import { DataSource, Repository, In, LessThan, MoreThan, Between, MoreThanOrEqual, Not, Equal, IsNull } from 'typeorm';
 import { Reservation, ReservationStatus } from './entities/reservation.entity';
 import { ChatService } from '../chat/chat.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { Notification } from '../notifications/notification.entity';
 import { ChatChannel } from '../chat/chat-channel.entity';
+import { ChatParticipant } from '../chat/chat-participant.entity';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { Pitch } from '../pitches/entities/pitch.entity';
 import { BusinessOwner } from '../business-owner/entities/business-owner.entity';
@@ -441,6 +442,133 @@ export class ReservationsService {
                 this.logger.log(`Sent MATCH_APPROVED notifications to ${playersToNotify.length} players.`);
             } catch (error) {
                 this.logger.error('Failed to send player notifications:', error);
+            }
+
+            // 4.6. Aynı takımın farklı sahalardaki çakışan PENDING rezervasyonlarını iptal et
+            try {
+                const teamWindowStart = new Date(approvalTime.getTime() - 59 * 60000);
+                const teamWindowEnd   = new Date(approvalTime.getTime() + 59 * 60000);
+
+                const conflictingReservations = await manager.find(Reservation, {
+                    where: [
+                        { teamId: reservation.teamId, status: ReservationStatus.PENDING, slotTime: Between(teamWindowStart, teamWindowEnd) },
+                        { opponentTeamId: reservation.teamId, status: ReservationStatus.PENDING, slotTime: Between(teamWindowStart, teamWindowEnd) }
+                    ],
+                    relations: ['team', 'team.players', 'opponentTeam', 'opponentTeam.players', 'matchAnnouncement']
+                });
+
+                for (const conflict of conflictingReservations) {
+                    if (conflict.id === id) continue;
+
+                    const conflictTimeStr    = approvalTime.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+                    const conflictEndTimeStr = new Date(approvalTime.getTime() + 60 * 60000).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+
+                    conflict.status = ReservationStatus.CANCELLED;
+                    await manager.save(conflict);
+
+                    if (conflict.matchAnnouncementId) {
+                        await this.sendSystemMessage(
+                            manager,
+                            conflict.matchAnnouncementId,
+                            conflict.teamId === reservation.teamId ? conflict.team : conflict.opponentTeam,
+                            `⚠️ Maç İptal Edildi - Saat Çakışması\n\nFarklı bir sahadaki maçınız onaylandı, maç saatleri çakışıyor.\n{{CLOCK}} Onaylanan maç: ${conflictTimeStr} - ${conflictEndTimeStr}\n\nBu rezervasyon iptal edildi.`,
+                            { type: 'TIME_CONFLICT_CANCELLED', reservationId: conflict.id }
+                        );
+
+                        if (conflict.matchAnnouncement?.matchType === 'rakip_araniyor') {
+                            conflict.matchAnnouncement.status = 'CANCELLED';
+                            await manager.save(conflict.matchAnnouncement);
+                        }
+
+                        const conflictChannel = await manager.findOne(ChatChannel, {
+                            where: { relatedMatchId: conflict.matchAnnouncementId, type: 'MATCH_GROUP' }
+                        });
+                        if (conflictChannel) {
+                            const conflictParticipants = await manager.find(ChatParticipant, {
+                                where: { channelId: conflictChannel.id, deletedAt: IsNull() }
+                            });
+                            for (const p of conflictParticipants) {
+                                await manager.update(ChatParticipant, { id: p.id }, { deletedAt: new Date() });
+                            }
+                        }
+                    }
+
+                    const conflictPlayerIds = new Set<string>();
+                    if (conflict.team?.players)         conflict.team.players.forEach(p => conflictPlayerIds.add((p as any).id));
+                    if (conflict.opponentTeam?.players) conflict.opponentTeam.players.forEach(p => conflictPlayerIds.add((p as any).id));
+                    for (const playerId of conflictPlayerIds) {
+                        await this.notificationsService.create({
+                            userId: playerId,
+                            type: 'SYSTEM',
+                            title: '⚠️ Maç İptal - Saat Çakışması',
+                            message: `Aynı saatte farklı bir sahadaki maçınız onaylandığı için bu rezervasyon iptal edildi.`,
+                            relatedId: conflict.id,
+                            read: false,
+                            metadata: { type: 'TIME_CONFLICT_CANCELLED', reservationId: conflict.id }
+                        });
+                    }
+                }
+            } catch (error) {
+                this.logger.error('Failed to cancel conflicting team reservations:', error);
+            }
+
+            // 4.7. Aynı takımın aynı gün çakışan PENDING rakip_araniyor ilanlarını iptal et (rezervasyonsuz olanlar)
+            try {
+                const pad = (n: number) => String(n).padStart(2, '0');
+                const approvedDateStr = `${approvalTime.getFullYear()}-${pad(approvalTime.getMonth() + 1)}-${pad(approvalTime.getDate())}`;
+
+                const teamAnnouncements = await manager.find(MatchAnnouncement, {
+                    where: {
+                        teamId: reservation.teamId,
+                        date: approvedDateStr,
+                        status: 'PENDING',
+                        matchType: 'rakip_araniyor'
+                    },
+                    relations: ['team', 'team.captain', 'team.players']
+                });
+
+                for (const ann of teamAnnouncements) {
+                    if (ann.id === reservation.matchAnnouncementId) continue;
+
+                    const [h, m] = ann.time.split(':').map(Number);
+                    const annStart = new Date(approvedDateStr);
+                    annStart.setHours(h, m, 0, 0);
+
+                    const diffMs = Math.abs(annStart.getTime() - approvalTime.getTime());
+                    if (diffMs >= 60 * 60000) continue; // tam bitişik veya daha uzak → çakışma yok
+
+                    ann.status = 'CANCELLED';
+                    await manager.save(ann);
+
+                    const annNotifiedIds = new Set<string>();
+                    const captainId = (ann.team?.captain as any)?.id || (ann.team as any)?.captainId;
+                    if (captainId) {
+                        annNotifiedIds.add(captainId);
+                        await this.notificationsService.create({
+                            userId: captainId, type: 'SYSTEM',
+                            title: '⚠️ İlan Kaldırıldı - Saat Çakışması',
+                            message: `Aynı saatte başka bir sahadaki maçınız onaylandığı için ${ann.date} - ${ann.time} saatindeki ilanınız kaldırıldı.`,
+                            relatedId: ann.id, read: false,
+                            metadata: { type: 'ANNOUNCEMENT_TIME_CONFLICT', announcementId: ann.id }
+                        });
+                    }
+                    if (ann.team?.players) {
+                        for (const player of ann.team.players) {
+                            const pId = (player as any).id;
+                            if (!pId || annNotifiedIds.has(pId)) continue;
+                            annNotifiedIds.add(pId);
+                            await this.notificationsService.create({
+                                userId: pId, type: 'SYSTEM',
+                                title: '⚠️ İlan Kaldırıldı - Saat Çakışması',
+                                message: `Aynı saatte başka bir sahadaki maçınız onaylandığı için ${ann.date} - ${ann.time} saatindeki ilanınız kaldırıldı.`,
+                                relatedId: ann.id, read: false,
+                                metadata: { type: 'ANNOUNCEMENT_TIME_CONFLICT', announcementId: ann.id }
+                            });
+                        }
+                    }
+                }
+            } catch (error) {
+                this.logger.error('Failed to cancel conflicting team announcements:', error);
             }
 
             // 5. Reject others for the same slot (PASSIVE STATE)
@@ -1379,6 +1507,20 @@ export class ReservationsService {
             }
 
             return reservation;
+        });
+    }
+
+    // Bir takımın belirtilen ilan başlangıç saatiyle çakışan onaylanmış (APPROVED) maçı var mı?
+    // Çakışma: |existingSlotTime - announcementStart| < 60 dakika
+    async hasConflictingApprovedMatch(teamId: string, announcementStart: Date): Promise<Reservation | null> {
+        const windowMs = 59 * 60 * 1000; // 59 dk — tam bitişik saatler çakışmaz
+        const windowStart = new Date(announcementStart.getTime() - windowMs);
+        const windowEnd   = new Date(announcementStart.getTime() + windowMs);
+        return this.reservationRepository.findOne({
+            where: [
+                { teamId,         status: ReservationStatus.APPROVED, slotTime: Between(windowStart, windowEnd) },
+                { opponentTeamId: teamId, status: ReservationStatus.APPROVED, slotTime: Between(windowStart, windowEnd) }
+            ]
         });
     }
 }

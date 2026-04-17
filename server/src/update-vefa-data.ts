@@ -7,7 +7,7 @@ async function updateVefaData() {
         port: 5432,
         username: 'postgres',
         password: '123456',
-        database: 'sahapro',
+        database: 'dimli',
         entities: ['src/**/*.entity.ts'],
         synchronize: false,
     });

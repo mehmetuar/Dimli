@@ -12,7 +12,7 @@ import { ReservationsService } from './reservations/reservations.service';
             port: 5432,
             username: 'postgres',
             password: 'postgrespassword',
-            database: 'sahapro',
+            database: 'dimli',
             entities: [__dirname + '/**/*.entity{.ts,.js}'],
             autoLoadEntities: true,
             synchronize: false,
@@ -88,7 +88,7 @@ async function bootstrap() {
     console.log('  - Tomorrow: 2 reservations (1 PENDING, 1 APPROVED)');
     console.log('');
     console.log('🎯 Test Dashboard:');
-    console.log('  1. Login as owner@sahapro.com');
+    console.log('  1. Login as owner@dimli.app');
     console.log('  2. Select today\'s date');
     console.log('  3. You should see:');
     console.log('     - Orange (blinking) slots: 10:00, 11:00, 18:00');

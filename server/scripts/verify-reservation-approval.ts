@@ -20,7 +20,7 @@ import { DataSource } from 'typeorm';
             port: 5432,
             username: 'postgres',
             password: 'postgrespassword',
-            database: 'sahapro',
+            database: 'dimli',
             entities: [__dirname + '/../src/**/*.entity{.ts,.js}'],
             autoLoadEntities: true,
             synchronize: false,
