@@ -146,7 +146,7 @@ export const AddPlayerModal: React.FC<Props> = ({ isOpen, onClose, currentRoster
                             </h4>
                             <div className="flex gap-2">
                                 <div className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-400 truncate">
-                                    https://sahapro.app/invite/team/t1...
+                                    https://dimli.app/invite/team/t1...
                                 </div>
                                 <button
                                     onClick={copyInviteLink}

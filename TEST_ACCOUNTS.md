@@ -1,4 +1,4 @@
-# 🔐 SahaPro - Test Hesapları
+# 🔐 Dimli - Test Hesapları
 
 **Tarih:** 13 Şubat 2026  
 **Oluşturulan Hesap Sayısı:** 7 (İşletme Sahipleri)
@@ -11,13 +11,13 @@ Tüm hesaplar için varsayılan şifre: **`test123`**
 
 | # | İşletme Adı | Email | Şifre | Durum |
 |---|-------------|-------|-------|-------|
-| 1 | Vefa Spor Tesisleri | vefasportesisleri@sahapro.com | test123 | ✅ Aktif |
-| 2 | Halı Saha Dünyası - Ümraniye | halisahadunyasiumraniye@sahapro.com | test123 | ✅ Aktif |
-| 3 | Yeldeğirmeni Spor Kompleksi | yeldegirmenisporkompleksi@sahapro.com | test123 | ✅ Aktif |
-| 4 | Beşiktaş Belediyesi Çilekli Tesisleri | besiktasbelediyesicileklitesisleri@sahapro.com | test123 | ✅ Aktif |
-| 5 | Mega Halı Saha | megahalisaha@sahapro.com | test123 | ✅ Aktif |
-| 6 | Kadıköy Arena | kadikoyarena@sahapro.com | test123 | ✅ Aktif |
-| 7 | Beşiktaş Çim Saha | besiktascimsaha@sahapro.com | test123 | ✅ Aktif |
+| 1 | Vefa Spor Tesisleri | vefasportesisleri@dimli.app | test123 | ✅ Aktif |
+| 2 | Halı Saha Dünyası - Ümraniye | halisahadunyasiumraniye@dimli.app | test123 | ✅ Aktif |
+| 3 | Yeldeğirmeni Spor Kompleksi | yeldegirmenisporkompleksi@dimli.app | test123 | ✅ Aktif |
+| 4 | Beşiktaş Belediyesi Çilekli Tesisleri | besiktasbelediyesicileklitesisleri@dimli.app | test123 | ✅ Aktif |
+| 5 | Mega Halı Saha | megahalisaha@dimli.app | test123 | ✅ Aktif |
+| 6 | Kadıköy Arena | kadikoyarena@dimli.app | test123 | ✅ Aktif |
+| 7 | Beşiktaş Çim Saha | besiktascimsaha@dimli.app | test123 | ✅ Aktif |
 
 ---
 
@@ -28,7 +28,7 @@ Tüm hesaplar için varsayılan şifre: **`test123`**
 # Vefa Spor Tesisleri ile login
 curl -X POST http://localhost:3000/auth/business/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"vefasportesisleri@sahapro.com","password":"test123"}' | jq
+  -d '{"email":"vefasportesisleri@dimli.app","password":"test123"}' | jq
 ```
 
 **Beklenen Sonuç:** 
@@ -104,7 +104,7 @@ Eğer bir işletmenin owner hesabını silip yeniden oluşturmak isterseniz:
 
 ```sql
 -- PostgreSQL'de
-DELETE FROM business_owner WHERE email = 'isletme@sahapro.com';
+DELETE FROM business_owner WHERE email = 'isletme@dimli.app';
 
 -- Sonra seed script'i tekrar çalıştır
 npx ts-node src/seed-business-owner.ts
