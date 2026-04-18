@@ -44,11 +44,14 @@ export const useMyTeam = (modals: any) => {
                 const user = response.data;
                 setCurrentUser(user);
 
-                const pitchesData = await getPitches();
+                const [pitchesData, businessesData, historyResponse] = await Promise.all([
+                    getPitches(),
+                    getBusinesses(),
+                    api.get('/ratings/history'),
+                ]);
                 setPitches(pitchesData);
-
-                const businessesData = await getBusinesses();
                 setBusinesses(businessesData);
+                setMatchHistory(historyResponse.data || []);
 
                 if (user.team) {
                     const teamResponse = await api.get(`/teams/${user.team.id}`);

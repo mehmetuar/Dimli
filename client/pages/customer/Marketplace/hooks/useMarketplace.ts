@@ -178,16 +178,6 @@ export const useMarketplace = () => {
       if (coords) setCachedCoords(coords);
     }
 
-    if (filter.type === 'DISTRICT' && filter.value) {
-      const all = await fetchAnnouncements({ type: 'ALL' }, null);
-      const district = filter.value.toLowerCase();
-      setMatches(all.filter((m: any) => {
-        const { business } = getPitchDetails(m.pitchId);
-        return `${business?.district || ''} ${business?.city || ''}`.toLowerCase().includes(district);
-      }));
-      return;
-    }
-
     const announcements = await fetchAnnouncements(filter, coords);
     setMatches(announcements);
   };

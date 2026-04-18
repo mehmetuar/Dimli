@@ -20,11 +20,7 @@ export const useJokerPool = () => {
     const fetchJokers = async () => {
         setIsLoading(true);
         try {
-            const params: Record<string, string> = {};
-            if (locationFilter.type === 'DISTRICT' && locationFilter.value) {
-                params.district = locationFilter.value;
-            }
-            const res = await api.get('/users/jokers', { params });
+            const res = await api.get('/users/jokers');
             setJokers(res.data);
         } catch (err) {
             console.error('Failed to fetch jokers:', err);

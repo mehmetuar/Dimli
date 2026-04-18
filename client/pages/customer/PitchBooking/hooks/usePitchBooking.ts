@@ -178,9 +178,7 @@ export const usePitchBooking = () => {
 
     const getFilteredBusinesses = () => {
         let filtered = [...businesses];
-        if (locationFilter.type === 'DISTRICT' && locationFilter.value) {
-            filtered = filtered.filter(b => (b.district || '').toLowerCase().includes(locationFilter.value!.toLowerCase()) || (b.city || '').toLowerCase().includes(locationFilter.value!.toLowerCase()));
-        } else if (locationFilter.type === 'NEARBY' && locationFilter.radius) {
+        if (locationFilter.type === 'NEARBY' && locationFilter.radius) {
             filtered = filtered.filter(b => {
                 const distance = businessDistances[b.id];
                 return distance !== undefined && distance <= locationFilter.radius!;
