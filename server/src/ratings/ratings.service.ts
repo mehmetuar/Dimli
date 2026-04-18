@@ -160,28 +160,32 @@ export class RatingsService {
         rating.score = dto.score;
         await this.ratingRepo.save(rating);
 
-        // Update the target entity's average score
+        // Update the target entity's average score using DB-level aggregation
         if (dto.type === 'BUSINESS' && dto.targetBusinessId) {
-            const allRatings = await this.ratingRepo.find({
-                where: { type: 'BUSINESS', targetBusinessId: dto.targetBusinessId },
-            });
-            const total = allRatings.reduce((sum, r) => sum + r.score, 0);
-            const avg = total / allRatings.length;
+            const { avg, count } = await this.ratingRepo
+                .createQueryBuilder('r')
+                .select('AVG(r.score)', 'avg')
+                .addSelect('COUNT(*)', 'count')
+                .where('r.type = :type', { type: 'BUSINESS' })
+                .andWhere('r.targetBusinessId = :id', { id: dto.targetBusinessId })
+                .getRawOne();
             await this.businessRepo.update(dto.targetBusinessId, {
-                rating: Math.round(avg * 10) / 10,
-                ratingCount: allRatings.length,
+                rating: Math.round(parseFloat(avg) * 10) / 10,
+                ratingCount: parseInt(count, 10),
             });
         }
 
         if (dto.type === 'FAIRPLAY' && dto.targetTeamId) {
-            const allRatings = await this.ratingRepo.find({
-                where: { type: 'FAIRPLAY', targetTeamId: dto.targetTeamId },
-            });
-            const total = allRatings.reduce((sum, r) => sum + r.score, 0);
-            const avg = total / allRatings.length;
+            const { avg, count } = await this.ratingRepo
+                .createQueryBuilder('r')
+                .select('AVG(r.score)', 'avg')
+                .addSelect('COUNT(*)', 'count')
+                .where('r.type = :type', { type: 'FAIRPLAY' })
+                .andWhere('r.targetTeamId = :id', { id: dto.targetTeamId })
+                .getRawOne()
             await this.teamRepo.update(dto.targetTeamId, {
-                fairPlayScore: Math.round(avg * 10) / 10,
-                fairPlayRatingCount: allRatings.length,
+                fairPlayScore: Math.round(parseFloat(avg) * 10) / 10,
+                fairPlayRatingCount: parseInt(count, 10),
             });
         }
     }
