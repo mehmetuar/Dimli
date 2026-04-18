@@ -162,33 +162,27 @@ export class RatingsService {
 
         // Update the target entity's average score
         if (dto.type === 'BUSINESS' && dto.targetBusinessId) {
-            const business = await this.businessRepo.findOne({ where: { id: dto.targetBusinessId } });
-            if (business) {
-                const currentCount = business.ratingCount || 0;
-                const newCount = currentCount + 1;
-                const newRating = currentCount === 0
-                    ? dto.score
-                    : (business.rating * currentCount + dto.score) / newCount;
-                await this.businessRepo.update(business.id, {
-                    rating: Math.round(newRating * 10) / 10,
-                    ratingCount: newCount,
-                });
-            }
+            const allRatings = await this.ratingRepo.find({
+                where: { type: 'BUSINESS', targetBusinessId: dto.targetBusinessId },
+            });
+            const total = allRatings.reduce((sum, r) => sum + r.score, 0);
+            const avg = total / allRatings.length;
+            await this.businessRepo.update(dto.targetBusinessId, {
+                rating: Math.round(avg * 10) / 10,
+                ratingCount: allRatings.length,
+            });
         }
 
         if (dto.type === 'FAIRPLAY' && dto.targetTeamId) {
-            const team = await this.teamRepo.findOne({ where: { id: dto.targetTeamId } });
-            if (team) {
-                const currentCount = team.fairPlayRatingCount || 0;
-                const newCount = currentCount + 1;
-                const newScore = currentCount === 0
-                    ? dto.score
-                    : (team.fairPlayScore * currentCount + dto.score) / newCount;
-                await this.teamRepo.update(team.id, {
-                    fairPlayScore: Math.round(newScore * 10) / 10,
-                    fairPlayRatingCount: newCount,
-                });
-            }
+            const allRatings = await this.ratingRepo.find({
+                where: { type: 'FAIRPLAY', targetTeamId: dto.targetTeamId },
+            });
+            const total = allRatings.reduce((sum, r) => sum + r.score, 0);
+            const avg = total / allRatings.length;
+            await this.teamRepo.update(dto.targetTeamId, {
+                fairPlayScore: Math.round(avg * 10) / 10,
+                fairPlayRatingCount: allRatings.length,
+            });
         }
     }
 

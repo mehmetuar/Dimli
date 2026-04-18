@@ -21,7 +21,7 @@ export class MatchAnnouncementsService {
         private chatService: ChatService,
     ) { }
 
-    async create(data: Partial<MatchAnnouncement>, userId: string): Promise<MatchAnnouncement> {
+    async create(data: Partial<MatchAnnouncement>, userId: string): Promise<MatchAnnouncement & { channelId: string | null }> {
         // Ensure user belongs to a team
         const user = await this.usersRepository.findOne({
             where: { id: userId },
@@ -132,6 +132,8 @@ export class MatchAnnouncementsService {
         const saved = await this.matchAnnouncementsRepository.save(announcement);
         console.log('💾 Saved announcement:', { id: saved.id, teamId: saved.teamId, matchType: saved.matchType });
 
+        let channelId: string | null = null;
+
         if (saved.matchType === 'kendi_aramizda') {
             console.log('⚽ Kendi aramızda match detected. Creating chat and pending reservation...');
             try {
@@ -151,6 +153,8 @@ export class MatchAnnouncementsService {
                     participants, // Add all team members
                     saved.id
                 );
+
+                channelId = channel.id;
 
                 // Load pitch with business and timeSlots for detailed message
                 const pitchData = await this.matchAnnouncementsRepository.manager.findOne(
@@ -208,7 +212,7 @@ export class MatchAnnouncementsService {
             }
         }
 
-        return saved;
+        return { ...saved, channelId };
 
     }
 

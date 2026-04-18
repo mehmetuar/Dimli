@@ -75,8 +75,9 @@ export class ChatService {
         const channels = await Promise.all(participations.map(async p => {
             const channel = p.channel;
             // Calculate unread count
+            // Sistem mesajları senderId ne olursa olsun tüm katılımcılar için okunmamış sayılır
             const unreadCount = channel.messages.filter(m =>
-                m.createdAt > p.lastReadAt && m.senderId !== userId
+                m.createdAt > p.lastReadAt && (m.isSystemMessage || m.senderId !== userId)
             ).length;
 
             const lastMessage = channel.messages.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
@@ -274,8 +275,9 @@ export class ChatService {
 
         let totalUnread = 0;
         for (const p of participations) {
+            // Sistem mesajları senderId ne olursa olsun tüm katılımcılar için okunmamış sayılır
             const count = p.channel.messages.filter(m =>
-                m.createdAt > p.lastReadAt && m.senderId !== userId
+                m.createdAt > p.lastReadAt && (m.isSystemMessage || m.senderId !== userId)
             ).length;
             totalUnread += count;
         }

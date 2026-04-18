@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { X, MapPin, Calendar, Clock, Shield, ChevronRight, CheckCircle, Trophy, Filter, Store, Info } from 'lucide-react';
 import { LoadingSpinner } from '../UI/LoadingSpinner';
 import { SkillLevel, Business, Pitch, ReservationStatus } from '../../types';
@@ -27,6 +28,7 @@ interface Props {
 export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelectedPitchId, preSelectedStartTime, preSelectedDate }) => {
     if (!isOpen) return null;
 
+    const navigate = useNavigate();
     const [businesses, setBusinesses] = useState<Business[]>([]);
 
     // Selection state
@@ -172,12 +174,15 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
             });
 
             console.log('✅ Announcement created:', response.data);
-            setSuccessMessage('İlan başarıyla oluşturuldu!');
+            onClose();
 
-            setTimeout(() => {
-                onClose();
-                window.location.reload();
-            }, 1500);
+            if (matchType === 'kendi_aramizda') {
+                // Oluşturulan chat kanalına direkt yönlendir
+                navigate('/chat', { state: { channelId: response.data.channelId || null } });
+            } else {
+                // Maç pazarına yönlendir — yayınlanan ilan görünsün
+                navigate('/');
+            }
         } catch (error: any) {
             console.error('❌ Failed to create announcement:', error);
             if (error.response?.status === 409) {

@@ -73,7 +73,7 @@ export const useChat = () => {
     useEffect(() => {
         if (location.state?.channelId) {
             setSelectedChannelId(location.state.channelId);
-            window.history.replaceState({}, document.title);
+            navigate('/chat', { replace: true, state: {} });
         }
     }, [location, channels]);
 
@@ -101,19 +101,28 @@ export const useChat = () => {
 
         fetchMessages();
 
-        const markRead = async () => {
+        const channelIdAtMount = selectedChannelId;
+
+        const markRead = async (channelId: string) => {
             try {
-                await api.post(`/chat/channels/${selectedChannelId}/read`);
+                await api.post(`/chat/channels/${channelId}/read`);
                 const response = await api.get('/chat/channels');
                 setChannels(response.data);
             } catch (error) {
                 console.error('Failed to mark as read:', error);
             }
         };
-        markRead();
+
+        // Kanala girildiğinde oku
+        markRead(channelIdAtMount);
 
         const interval = setInterval(fetchMessages, 3000);
-        return () => clearInterval(interval);
+
+        // Kanaldan çıkılırken de oku — kanalda görülen sistem mesajları okunmuş sayılsın
+        return () => {
+            clearInterval(interval);
+            markRead(channelIdAtMount);
+        };
     }, [selectedChannelId, currentUser, refreshTrigger]);
 
     const activeChannel = channels.find(c => c.id === selectedChannelId);
