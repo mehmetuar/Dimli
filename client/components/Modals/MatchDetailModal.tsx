@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Trophy, Shield, Users, MapPin, Clock, Calendar, Phone, Star, Swords } from 'lucide-react';
+import { X, Shield, Users, MapPin, Clock, Calendar, Phone, Star, Swords } from 'lucide-react';
 
 interface TeamData {
     id: string;
@@ -288,32 +288,35 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({ isOpen, onCl
                             <div className="bg-slate-800/60 rounded-2xl border border-slate-700/50 p-4 mb-4">
                                 <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest text-center mb-3">Takım Karşılaştırması</h4>
 
-                                {/* Wins */}
+                                {/* Oynanmış Maç */}
                                 <div className="flex items-center justify-between py-2 border-b border-slate-700/30">
-                                    <span className="text-sm font-bold text-white w-10 text-left">{data.homeTeam.wins}</span>
-                                    <span className="text-[11px] text-slate-400 flex items-center gap-1"><Trophy className="w-3 h-3" /> Galibiyet</span>
-                                    <span className="text-sm font-bold text-white w-10 text-right">{data.awayTeam.wins}</span>
-                                </div>
-
-                                {/* Losses */}
-                                <div className="flex items-center justify-between py-2 border-b border-slate-700/30">
-                                    <span className="text-sm font-bold text-white w-10 text-left">{data.homeTeam.losses}</span>
-                                    <span className="text-[11px] text-slate-400">Mağlubiyet</span>
-                                    <span className="text-sm font-bold text-white w-10 text-right">{data.awayTeam.losses}</span>
+                                    <span className="text-sm font-bold text-white w-16 text-left">{data.homeTeam.playedMatchCount ?? 0}</span>
+                                    <span className="text-[11px] text-slate-400 flex items-center gap-1"><Shield className="w-3 h-3" /> Oynanmış Maç</span>
+                                    <span className="text-sm font-bold text-white w-16 text-right">{data.awayTeam.playedMatchCount ?? 0}</span>
                                 </div>
 
                                 {/* Fair Play */}
                                 <div className="flex items-center justify-between py-2 border-b border-slate-700/30">
-                                    <span className="text-sm font-bold text-yellow-400 w-10 text-left">{data.homeTeam.fairPlayScore.toFixed(1)}</span>
+                                    <div className="flex items-center gap-1 w-16">
+                                        <span className="text-sm font-bold text-yellow-400">{data.homeTeam.fairPlayScore.toFixed(1)}</span>
+                                        {(data.homeTeam.fairPlayRatingCount ?? 0) > 0 && (
+                                            <span className="text-[10px] text-slate-500">({data.homeTeam.fairPlayRatingCount})</span>
+                                        )}
+                                    </div>
                                     <span className="text-[11px] text-slate-400 flex items-center gap-1"><Star className="w-3 h-3" /> Fair Play</span>
-                                    <span className="text-sm font-bold text-yellow-400 w-10 text-right">{data.awayTeam.fairPlayScore.toFixed(1)}</span>
+                                    <div className="flex items-center justify-end gap-1 w-16">
+                                        {(data.awayTeam.fairPlayRatingCount ?? 0) > 0 && (
+                                            <span className="text-[10px] text-slate-500">({data.awayTeam.fairPlayRatingCount})</span>
+                                        )}
+                                        <span className="text-sm font-bold text-yellow-400">{data.awayTeam.fairPlayScore.toFixed(1)}</span>
+                                    </div>
                                 </div>
 
                                 {/* Player Count */}
                                 <div className="flex items-center justify-between py-2">
-                                    <span className="text-sm font-bold text-white w-10 text-left">{data.homeTeam.playerCount}</span>
+                                    <span className="text-sm font-bold text-white w-16 text-left">{data.homeTeam.playerCount}</span>
                                     <span className="text-[11px] text-slate-400 flex items-center gap-1"><Users className="w-3 h-3" /> Kadro</span>
-                                    <span className="text-sm font-bold text-white w-10 text-right">{data.awayTeam.playerCount}</span>
+                                    <span className="text-sm font-bold text-white w-16 text-right">{data.awayTeam.playerCount}</span>
                                 </div>
                             </div>
                         )}

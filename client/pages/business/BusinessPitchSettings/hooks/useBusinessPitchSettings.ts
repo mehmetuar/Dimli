@@ -3,6 +3,29 @@ import { useNavigate, useParams } from 'react-router-dom';
 import api from '../../../../services/api';
 import { DEFAULT_FACILITIES } from '../../../../constants';
 
+// Gece yarısı geçen slotları doğru sıralamak için (ör. 23:30 → 00:30).
+// Hem geç gece (>=20:00) hem erken sabah (<06:00) slotları varsa,
+// erken sabah slotları "ertesi günün başı" olarak değerlendirilir.
+const sortTimeSlotsForDisplay = (slots: { startTime: string; endTime: string }[]) => {
+    const hasLateNight = slots.some(s => {
+        const [h] = s.startTime.split(':').map(Number);
+        return h >= 20;
+    });
+    const hasEarlyMorning = slots.some(s => {
+        const [h] = s.startTime.split(':').map(Number);
+        return h < 6;
+    });
+    const isCrossMidnight = hasLateNight && hasEarlyMorning;
+
+    const toMinutes = (time: string) => {
+        const [h, m] = time.split(':').map(Number);
+        const mins = h * 60 + m;
+        return (isCrossMidnight && h < 12) ? mins + 24 * 60 : mins;
+    };
+
+    return [...slots].sort((a, b) => toMinutes(a.startTime) - toMinutes(b.startTime));
+};
+
 interface TimePickerState {
     open: boolean;
     type: 'OPEN' | 'CLOSE' | 'SLOT_START' | 'SLOT_END';
@@ -114,11 +137,12 @@ export const useBusinessPitchSettings = () => {
     };
 
     const handleAddSlot = () => {
-        if (newSlotStart && newSlotEnd && newSlotStart < newSlotEnd) {
+        // newSlotStart !== newSlotEnd kontrolü yeterli.
+        // Bitiş saati başlangıçtan küçükse gece yarısını geçen slot demektir (ör. 23:30 → 00:30).
+        if (newSlotStart && newSlotEnd && newSlotStart !== newSlotEnd) {
             const exists = timeSlots.some(s => s.startTime === newSlotStart && s.endTime === newSlotEnd);
             if (!exists) {
-                setTimeSlots(prev => [...prev, { startTime: newSlotStart, endTime: newSlotEnd }]
-                    .sort((a, b) => a.startTime.localeCompare(b.startTime)));
+                setTimeSlots(prev => sortTimeSlotsForDisplay([...prev, { startTime: newSlotStart, endTime: newSlotEnd }]));
             }
         }
     };

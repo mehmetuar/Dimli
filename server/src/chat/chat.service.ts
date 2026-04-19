@@ -143,12 +143,67 @@ export class ChatService {
                 }
             }
 
+            // ── Avatar data: kanal tipine göre görsel için gerekli veriler ──────
+            let avatarData: {
+                matchType?: string;
+                homeTeamLogo?: string | null;
+                homeTeamName?: string;
+                homeTeamColor?: string | null;
+                awayTeamLogo?: string | null;
+                awayTeamName?: string;
+                awayTeamColor?: string | null;
+                otherUserAvatar?: string | null;
+                otherUserName?: string;
+            } | null = null;
+
+            if (channel.type === 'MATCH_GROUP' && channel.relatedMatchId) {
+                const matchForType = await this.matchAnnouncementRepository.findOne({
+                    where: { id: channel.relatedMatchId },
+                    select: ['teamId', 'matchType'] as any,
+                });
+                if (matchForType) {
+                    const homeTeamId = (reservationData as any)?.teamId || matchForType.teamId;
+                    const awayTeamId = (reservationData as any)?.opponentTeamId || null;
+
+                    const [homeTeam, awayTeam] = await Promise.all([
+                        homeTeamId
+                            ? this.teamRepository.findOne({ where: { id: homeTeamId }, select: ['id', 'name', 'logoUrl', 'primaryColor'] as any })
+                            : Promise.resolve(null),
+                        awayTeamId
+                            ? this.teamRepository.findOne({ where: { id: awayTeamId }, select: ['id', 'name', 'logoUrl', 'primaryColor'] as any })
+                            : Promise.resolve(null),
+                    ]);
+
+                    avatarData = {
+                        matchType: matchForType.matchType,
+                        homeTeamLogo: homeTeam?.logoUrl ?? null,
+                        homeTeamName: homeTeam?.name ?? '',
+                        homeTeamColor: homeTeam?.primaryColor ?? null,
+                        awayTeamLogo: awayTeam?.logoUrl ?? null,
+                        awayTeamName: awayTeam?.name ?? '',
+                        awayTeamColor: awayTeam?.primaryColor ?? null,
+                    };
+                }
+            } else if (channel.type === 'JOKER_NEGOTIATION') {
+                // channel.participants relation ile zaten yüklü — ekstra DB sorgusu yok
+                const other = channel.participants?.find(
+                    (p: any) => p.userId !== userId && !p.deletedAt
+                );
+                if (other?.user) {
+                    avatarData = {
+                        otherUserAvatar: other.user.avatarUrl ?? null,
+                        otherUserName: other.user.full_name || other.user.username || '',
+                    };
+                }
+            }
+
             return {
                 ...channel,
                 lastMessage,
                 unreadCount,
                 reservation: reservationData,
-                isJoker
+                isJoker,
+                avatarData,
             };
         }));
 
@@ -402,7 +457,23 @@ export class ChatService {
         }
 
         // 5. Build response
-        const buildTeamData = (team: any) => {
+        const now = new Date();
+        const countMatchesForTeam = async (teamId: string | null): Promise<number> => {
+            if (!teamId) return 0;
+            return this.reservationRepository
+                .createQueryBuilder('r')
+                .where('r.status = :status', { status: 'APPROVED' })
+                .andWhere('r.slotTime < :now', { now })
+                .andWhere('(r.teamId = :id OR r.opponentTeamId = :id)', { id: teamId })
+                .getCount();
+        };
+
+        const [homeMatchCount, awayMatchCount] = await Promise.all([
+            countMatchesForTeam(homeTeam?.id ?? null),
+            countMatchesForTeam(awayTeam?.id ?? null),
+        ]);
+
+        const buildTeamData = (team: any, matchCount: number) => {
             if (!team) return null;
             return {
                 id: team.id,
@@ -412,9 +483,11 @@ export class ChatService {
                 secondaryColor: team.secondaryColor,
                 level: team.level,
                 fairPlayScore: team.fairPlayScore,
+                fairPlayRatingCount: team.fairPlayRatingCount ?? 0,
                 wins: team.wins,
                 losses: team.losses,
                 playerCount: team.players?.length || 0,
+                playedMatchCount: matchCount,
                 captain: team.captain ? {
                     id: team.captain.id,
                     name: team.captain.full_name || team.captain.username,
@@ -424,8 +497,8 @@ export class ChatService {
         };
 
         return {
-            homeTeam: buildTeamData(homeTeam),
-            awayTeam: buildTeamData(awayTeam),
+            homeTeam: buildTeamData(homeTeam, homeMatchCount),
+            awayTeam: buildTeamData(awayTeam, awayMatchCount),
             match: {
                 id: match.id,
                 date: match.date,

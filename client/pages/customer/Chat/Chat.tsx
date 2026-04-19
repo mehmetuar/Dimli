@@ -3,7 +3,7 @@ import { Send, Bot, ChevronLeft, Users, Shield, Star, Phone, ArrowDown, Swords, 
 import { useChat } from './hooks/useChat';
 import { ChannelItem } from './components/ChannelItem';
 import { MatchStatusBadge } from './components/MatchStatusBadge';
-import { getMatchStatusInfo, formatMessageDate } from './utils/chatUtils';
+import { getMatchStatusInfo, formatMessageDate, teamAvatarFallback, userAvatarFallback } from './utils/chatUtils';
 import { SystemMessageRenderer } from '../../../components/UI/SystemMessageRenderer';
 import api from '../../../services/api';
 
@@ -219,11 +219,52 @@ export const Chat: React.FC = () => {
             <ChevronLeft className="w-6 h-6" />
           </button>
 
-          <img
-            src={activeChannel?.avatarUrl || 'https://picsum.photos/200'}
-            className="w-10 h-10 rounded-full bg-slate-800 object-cover cursor-pointer active:scale-90 transition-transform"
-            onClick={handleOpenMatchDetail}
-          />
+          {(() => {
+            const ad = activeChannel?.avatarData;
+            if (
+              activeChannel?.type === 'MATCH_GROUP' &&
+              ad?.matchType !== 'kendi_aramizda' &&
+              ad?.awayTeamLogo != null
+            ) {
+              return (
+                <div
+                  className="relative w-10 h-10 bg-slate-900 rounded-xl border border-slate-700 flex-shrink-0 cursor-pointer active:scale-90 transition-transform overflow-visible"
+                  onClick={handleOpenMatchDetail}
+                >
+                  <img src={ad.homeTeamLogo || teamAvatarFallback(ad.homeTeamName || '')} className="w-[22px] h-[22px] rounded-md object-cover absolute top-0.5 left-0.5 z-10" />
+                  <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+                    <span className="text-[6px] font-black text-orange-500 bg-slate-950/90 px-0.5 rounded leading-none">VS</span>
+                  </div>
+                  <img src={ad.awayTeamLogo || teamAvatarFallback(ad.awayTeamName || '')} className="w-[22px] h-[22px] rounded-md object-cover absolute bottom-0.5 right-0.5 z-10 border border-slate-900" />
+                </div>
+              );
+            }
+            if (activeChannel?.type === 'MATCH_GROUP') {
+              return (
+                <img
+                  src={ad?.homeTeamLogo || teamAvatarFallback(ad?.homeTeamName || activeChannel?.name || '')}
+                  className="w-10 h-10 rounded-xl bg-slate-800 object-cover cursor-pointer active:scale-90 transition-transform"
+                  onClick={handleOpenMatchDetail}
+                />
+              );
+            }
+            if (activeChannel?.type === 'JOKER_NEGOTIATION') {
+              return (
+                <img
+                  src={ad?.otherUserAvatar || userAvatarFallback(ad?.otherUserName || activeChannel?.name || '')}
+                  className="w-10 h-10 rounded-full bg-slate-800 object-cover cursor-pointer active:scale-90 transition-transform"
+                  onClick={handleOpenMatchDetail}
+                />
+              );
+            }
+            return (
+              <img
+                src={activeChannel?.avatarUrl || 'https://picsum.photos/200'}
+                className="w-10 h-10 rounded-full bg-slate-800 object-cover cursor-pointer active:scale-90 transition-transform"
+                onClick={handleOpenMatchDetail}
+              />
+            );
+          })()}
           <div className="flex-1" onClick={handleOpenMatchDetail} style={{ cursor: activeChannel?.relatedMatchId ? 'pointer' : 'default' }}>
             <h2 className="text-white font-bold leading-tight flex items-center">{activeChannel?.name}<MatchStatusBadge reservation={activeChannel?.reservation} size="md" /></h2>
             <div className="flex items-center gap-2 text-xs text-slate-400 mt-1">

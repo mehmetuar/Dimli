@@ -1,6 +1,7 @@
 import {
     Controller,
     Post,
+    Body,
     UseInterceptors,
     UploadedFile,
     UseGuards,
@@ -63,6 +64,24 @@ export class FilesController {
         } catch (err) {
             console.error('Cloudinary upload error:', err);
             throw new InternalServerErrorException('Görsel yüklenemedi');
+        }
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Post('delete-cloud')
+    async deleteCloudFile(@Body('url') url: string) {
+        if (!url) throw new BadRequestException('URL gerekli');
+        try {
+            // Extract public_id from Cloudinary URL
+            // e.g. https://res.cloudinary.com/cloud/image/upload/v123/sahapro/logos/abcdef.jpg
+            const match = url.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\.[^.]+)?$/);
+            if (!match) throw new BadRequestException('Geçersiz Cloudinary URL');
+            const publicId = match[1];
+            await cloudinary.uploader.destroy(publicId);
+            return { success: true };
+        } catch (err) {
+            console.error('Cloudinary delete error:', err);
+            throw new InternalServerErrorException('Görsel silinemedi');
         }
     }
 }

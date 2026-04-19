@@ -1,3 +1,9 @@
+export const teamAvatarFallback = (name: string) =>
+    `https://ui-avatars.com/api/?name=${encodeURIComponent(name || '?')}&background=1a2e35&color=cccccc&size=64&bold=true`;
+
+export const userAvatarFallback = (name: string) =>
+    `https://ui-avatars.com/api/?name=${encodeURIComponent(name || '?')}&background=111827&color=4ade80&size=64&bold=true`;
+
 export const formatMessageDate = (dateString: string | Date) => {
     if (!dateString) return '';
     const date = new Date(dateString);

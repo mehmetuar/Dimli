@@ -279,4 +279,14 @@ export class RatingsService {
         results.sort((a, b) => new Date(b.slotTime).getTime() - new Date(a.slotTime).getTime());
         return results;
     }
+
+    async getTeamMatchCount(teamId: string): Promise<number> {
+        const now = new Date();
+        return this.reservationRepo
+            .createQueryBuilder('r')
+            .where('r.status = :status', { status: ReservationStatus.APPROVED })
+            .andWhere('r.slotTime < :now', { now })
+            .andWhere('(r.teamId = :teamId OR r.opponentTeamId = :teamId)', { teamId })
+            .getCount();
+    }
 }

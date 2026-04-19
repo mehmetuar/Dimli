@@ -57,6 +57,6 @@ export class Team {
     @Column({ name: 'home_business_id', nullable: true })
     homeBusinessId: string;
 
-    @OneToMany(() => User, (user) => user.team, { cascade: true })
+    @OneToMany(() => User, (user) => user.team)
     players: User[];
 }

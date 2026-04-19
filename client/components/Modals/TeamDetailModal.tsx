@@ -113,18 +113,14 @@ export const TeamDetailModal: React.FC<TeamDetailModalProps> = ({ isOpen, onClos
                             </div>
 
                             {/* Stats Grid */}
-                            <div className="grid grid-cols-3 gap-3 mb-6">
+                            <div className="grid grid-cols-2 gap-3 mb-6">
+                                <div className="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 flex flex-col items-center">
+                                    <span className="text-[10px] text-slate-500 font-bold uppercase mb-1">Oynanmış Maç</span>
+                                    <span className="text-white font-black text-xl">{(team as any).playedMatchCount ?? 0}</span>
+                                </div>
                                 <div className="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 flex flex-col items-center">
                                     <span className="text-[10px] text-slate-500 font-bold uppercase mb-1">Fair Play</span>
                                     <FairPlayScore score={team.fairPlayScore} count={team.fairPlayRatingCount} />
-                                </div>
-                                <div className="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 flex flex-col items-center">
-                                    <span className="text-[10px] text-slate-500 font-bold uppercase mb-1">Maç</span>
-                                    <span className="text-white font-black text-xl">{team.wins + team.losses}</span>
-                                </div>
-                                <div className="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 flex flex-col items-center">
-                                    <span className="text-[10px] text-slate-500 font-bold uppercase mb-1">Galibiyet</span>
-                                    <span className="text-green-400 font-black text-xl">{team.wins}</span>
                                 </div>
                             </div>
 

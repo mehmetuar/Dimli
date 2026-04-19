@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Upload, Trash2, Loader2, Camera } from 'lucide-react';
+import { Pencil, Trash2, Loader2, Camera, Upload } from 'lucide-react';
 
 interface TeamLogoManagerProps {
     logoUrl: string | null;
@@ -76,17 +76,21 @@ export const TeamLogoManager: React.FC<TeamLogoManagerProps> = ({
                                 disabled={isUploading}
                                 className="flex-1 flex items-center justify-center gap-1.5 bg-slate-700 hover:bg-slate-600 disabled:opacity-40 text-slate-200 text-sm font-semibold py-2.5 rounded-xl transition-all active:scale-95"
                             >
-                                <Upload className="w-4 h-4" />
-                                Logo Yükle
+                                {showLogo ? (
+                                    <><Pencil className="w-4 h-4" />Düzenle</>
+                                ) : (
+                                    <><Upload className="w-4 h-4" />Logo Yükle</>
+                                )}
                             </button>
 
-                            {logoUrl && (
+                            {showLogo && (
                                 <button
                                     onClick={onRemove}
                                     disabled={isUploading}
                                     className="flex items-center justify-center gap-1.5 bg-red-500/15 hover:bg-red-500/25 disabled:opacity-40 text-red-400 text-sm font-semibold px-3 py-2.5 rounded-xl transition-all active:scale-95"
                                 >
                                     <Trash2 className="w-4 h-4" />
+                                    <span>Sil</span>
                                 </button>
                             )}
                         </div>

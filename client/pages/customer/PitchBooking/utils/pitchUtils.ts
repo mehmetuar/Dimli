@@ -6,6 +6,33 @@ export const isPastSlot = (startTime: string, date: string): boolean => {
     return slotDate < now;
 };
 
+// Gece yarısını geçen slotları doğru sıralamak için yardımcı fonksiyon.
+// Örneğin [09:00, 23:00, 23:30, 00:30, 01:00] listesinde 00:30 ve 01:00
+// "ertesi gün" olarak değil, 23:30'dan sonra gelecek şekilde sıralanır.
+const timeToSortMinutes = (time: string, isCrossMidnight: boolean): number => {
+    const [h, m] = time.split(':').map(Number);
+    const minutes = h * 60 + m;
+    // Gece yarısı geçen bir program varsa (hem 20+ hem 0-5 saatler),
+    // sabah erken saatlerini "ertesi günün başı" olarak değerlendir.
+    return (isCrossMidnight && h < 12) ? minutes + 24 * 60 : minutes;
+};
+
+export const sortSlotsForDisplay = (slots: { startTime: string; endTime: string; status?: string }[]) => {
+    const hasLateNight = slots.some(s => {
+        const [h] = s.startTime.split(':').map(Number);
+        return h >= 20;
+    });
+    const hasEarlyMorning = slots.some(s => {
+        const [h] = s.startTime.split(':').map(Number);
+        return h < 6;
+    });
+    const isCrossMidnight = hasLateNight && hasEarlyMorning;
+
+    return [...slots].sort((a, b) =>
+        timeToSortMinutes(a.startTime, isCrossMidnight) - timeToSortMinutes(b.startTime, isCrossMidnight)
+    );
+};
+
 export const groupMatchesByDate = (matches: any[]) => {
     const grouped: Record<string, any[]> = {};
     matches.forEach(match => {
@@ -30,14 +57,14 @@ export const getRelativeDateLabel = (dateStr: string) => {
 
 export const generateSlots = (pitch: any, business: any) => {
     if (pitch.timeSlots && pitch.timeSlots.length > 0) {
-        return pitch.timeSlots
+        const slots = pitch.timeSlots
             .filter((ts: any) => ts.isActive !== false)
             .map((ts: any) => ({
                 startTime: ts.startTime,
                 endTime: ts.endTime,
                 status: 'AVAILABLE'
-            }))
-            .sort((a: any, b: any) => a.startTime.localeCompare(b.startTime));
+            }));
+        return sortSlotsForDisplay(slots);
     }
 
     const openTime = pitch.openTime || business.openTime;

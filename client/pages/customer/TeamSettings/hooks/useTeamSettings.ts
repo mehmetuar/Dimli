@@ -61,9 +61,18 @@ export const useTeamSettings = () => {
         setTimeout(() => setErrorMessage(''), 3000);
     };
 
+    const deleteCloudImage = async (url: string) => {
+        try {
+            await api.post('/files/delete-cloud', { url });
+        } catch (err) {
+            console.error('Failed to delete cloud image:', err);
+        }
+    };
+
     const uploadLogo = async (file: File): Promise<string | null> => {
         if (!teamId) return null;
         setIsUploadingLogo(true);
+        const oldLogoUrl = logoUrl;
         try {
             const formData = new FormData();
             formData.append('file', file);
@@ -75,6 +84,10 @@ export const useTeamSettings = () => {
             setLogoUrl(fullUrl);
             // Auto-save to DB immediately — no need to press Kaydet for logo changes
             await api.patch(`/teams/${teamId}`, { logoUrl: fullUrl });
+            // Delete old cloud image after successful upload
+            if (oldLogoUrl && oldLogoUrl.includes('cloudinary.com')) {
+                await deleteCloudImage(oldLogoUrl);
+            }
             showSuccess('Logo güncellendi!');
             return fullUrl;
         } catch (err: any) {
@@ -87,9 +100,13 @@ export const useTeamSettings = () => {
 
     const removeLogo = async () => {
         if (!teamId) return;
+        const oldLogoUrl = logoUrl;
         setLogoUrl(null);
         try {
             await api.patch(`/teams/${teamId}`, { logoUrl: null });
+            if (oldLogoUrl && oldLogoUrl.includes('cloudinary.com')) {
+                await deleteCloudImage(oldLogoUrl);
+            }
         } catch (err) {
             console.error('Failed to remove logo', err);
         }

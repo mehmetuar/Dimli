@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Users, Star } from 'lucide-react';
-import { getMatchStatusInfo, formatMessageDate } from '../utils/chatUtils';
+import { getMatchStatusInfo, formatMessageDate, teamAvatarFallback, userAvatarFallback } from '../utils/chatUtils';
 import { MatchStatusBadge } from './MatchStatusBadge';
 import { stripSystemMessageMarkers } from '../../../../components/UI/SystemMessageRenderer';
 
@@ -65,19 +65,85 @@ export const ChannelItem: React.FC<ChannelItemProps> = ({ channel, onClick, onLo
             onClick={handleClick}
             className={`bg-slate-800 ${bgClass} p-4 rounded-2xl border border-slate-700/50 flex gap-4 items-center hover:bg-slate-750 active:scale-95 transition-all cursor-pointer select-none`}
         >
-            <div className="relative">
-                <img src={channel.avatarUrl || 'https://picsum.photos/200'} alt={channel.name} className={`w-14 h-14 object-cover ${channel.type === 'MATCH_GROUP' ? 'rounded-2xl' : 'rounded-full'}`} />
-                {channel.type === 'MATCH_GROUP' && (
-                    <div className="absolute -bottom-1 -right-1 bg-turf-600 p-1 rounded-lg border border-slate-800">
-                        <Users className="w-3 h-3 text-white" />
+            {(() => {
+                const ad = channel.avatarData;
+
+                // ── MATCH_GROUP: VS (iki takım) ───────────────────────────────
+                if (
+                    channel.type === 'MATCH_GROUP' &&
+                    ad?.matchType !== 'kendi_aramizda' &&
+                    ad?.awayTeamLogo !== undefined &&
+                    ad?.awayTeamLogo !== null
+                ) {
+                    return (
+                        <div className="relative w-14 h-14 bg-slate-900 rounded-2xl border border-slate-700 flex-shrink-0 overflow-visible">
+                            {/* Sol üst: Home team */}
+                            <img
+                                src={ad.homeTeamLogo || teamAvatarFallback(ad.homeTeamName || '')}
+                                alt={ad.homeTeamName}
+                                className="w-[30px] h-[30px] rounded-lg object-cover absolute top-1 left-1 z-10"
+                            />
+                            {/* Merkez: VS */}
+                            <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+                                <span className="text-[7px] font-black text-orange-500 bg-slate-950/90 px-1 py-px rounded leading-none tracking-wider">VS</span>
+                            </div>
+                            {/* Sağ alt: Away team */}
+                            <img
+                                src={ad.awayTeamLogo || teamAvatarFallback(ad.awayTeamName || '')}
+                                alt={ad.awayTeamName}
+                                className="w-[30px] h-[30px] rounded-lg object-cover absolute bottom-1 right-1 z-10 border-2 border-slate-900"
+                            />
+                            {/* Users badge */}
+                            <div className="absolute -bottom-1 -right-1 bg-turf-600 p-1 rounded-lg border border-slate-800 z-30">
+                                <Users className="w-3 h-3 text-white" />
+                            </div>
+                        </div>
+                    );
+                }
+
+                // ── MATCH_GROUP: kendi aramizda veya rakip yoksa tek logo ─────
+                if (channel.type === 'MATCH_GROUP') {
+                    return (
+                        <div className="relative flex-shrink-0">
+                            <img
+                                src={ad?.homeTeamLogo || teamAvatarFallback(ad?.homeTeamName || channel.name)}
+                                alt={channel.name}
+                                className="w-14 h-14 rounded-2xl object-cover"
+                            />
+                            <div className="absolute -bottom-1 -right-1 bg-turf-600 p-1 rounded-lg border border-slate-800">
+                                <Users className="w-3 h-3 text-white" />
+                            </div>
+                        </div>
+                    );
+                }
+
+                // ── JOKER_NEGOTIATION: karşı tarafın fotoğrafı ───────────────
+                if (channel.type === 'JOKER_NEGOTIATION') {
+                    return (
+                        <div className="relative flex-shrink-0">
+                            <img
+                                src={ad?.otherUserAvatar || userAvatarFallback(ad?.otherUserName || channel.name)}
+                                alt={ad?.otherUserName || channel.name}
+                                className="w-14 h-14 rounded-full object-cover"
+                            />
+                            <div className="absolute -bottom-1 -right-1 bg-yellow-500 p-1 rounded-lg border border-slate-800 shadow-lg shadow-yellow-500/20">
+                                <Star className="w-3 h-3 text-slate-900 fill-slate-900" />
+                            </div>
+                        </div>
+                    );
+                }
+
+                // ── Fallback (DM / diğer) ─────────────────────────────────────
+                return (
+                    <div className="relative flex-shrink-0">
+                        <img
+                            src={channel.avatarUrl || 'https://picsum.photos/200'}
+                            alt={channel.name}
+                            className="w-14 h-14 rounded-full object-cover"
+                        />
                     </div>
-                )}
-                {channel.type === 'JOKER_NEGOTIATION' && (
-                    <div className="absolute -bottom-1 -right-1 bg-yellow-500 p-1 rounded-lg border border-slate-800 shadow-lg shadow-yellow-500/20">
-                        <Star className="w-3 h-3 text-slate-900 fill-slate-900" />
-                    </div>
-                )}
-            </div>
+                );
+            })()}
             <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-start">
                     <h4 className="text-white font-bold truncate pr-2 flex items-center">

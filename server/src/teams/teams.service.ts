@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { Team } from './team.entity';
 import { User } from '../users/user.entity';
 import { UsersService } from '../users/users.service';
+import { RatingsService } from '../ratings/ratings.service';
 
 @Injectable()
 export class TeamsService {
@@ -11,6 +12,7 @@ export class TeamsService {
         @InjectRepository(Team)
         private teamsRepository: Repository<Team>,
         private usersService: UsersService,
+        private ratingsService: RatingsService,
     ) { }
 
     async create(createTeamDto: any, user: User): Promise<Team> {
@@ -101,12 +103,13 @@ export class TeamsService {
             id: user.id,
             name: user.full_name || user.username, // vital mapping
             position: user.position,
-            avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name || user.username)}&background=random`,
+            avatarUrl: user.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name || user.username)}&background=random`,
             rating: user.rating,
             teamId: team.id
         }));
 
-        return team;
+        const playedMatchCount = await this.ratingsService.getTeamMatchCount(team.id);
+        return { ...team, playedMatchCount } as any;
     }
 
     async addPlayer(teamId: string, userId: string): Promise<Team> {
