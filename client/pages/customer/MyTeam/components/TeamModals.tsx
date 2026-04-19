@@ -78,7 +78,7 @@ export const TeamModals: React.FC<TeamModalsProps> = ({
             <CreateMatchModal
                 isOpen={modals.isCreateMatchModalOpen}
                 onClose={() => modals.setIsCreateMatchModalOpen(false)}
-                preSelectedPitchId={myTeam?.homePitchId}
+                preSelectedBusinessId={myTeam?.homeBusinessId}
             />
 
             <CreateTeamModal

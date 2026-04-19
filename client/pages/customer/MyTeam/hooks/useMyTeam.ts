@@ -65,7 +65,7 @@ export const useMyTeam = (modals: any) => {
                             id: p.id,
                             name: p.full_name || p.username,
                             position: p.position || 'Orta Saha',
-                            avatarUrl: 'https://picsum.photos/100/100?random=' + p.id,
+                            avatarUrl: p.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.full_name || p.username || '?')}&background=random&size=100`,
                             rating: p.rating || 0
                         }));
                         setRoster(mappedRoster);

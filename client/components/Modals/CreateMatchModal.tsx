@@ -10,6 +10,7 @@ interface Props {
     isOpen: boolean;
     onClose: () => void;
     preSelectedPitchId?: string;
+    preSelectedBusinessId?: string;
     preSelectedStartTime?: string;
     preSelectedDate?: string;
 }
@@ -17,15 +18,7 @@ interface Props {
 import { DateSelectionModal } from './DateSelectionModal';
 import { TimeSelectionModal } from './TimeSelectionModal';
 
-interface Props {
-    isOpen: boolean;
-    onClose: () => void;
-    preSelectedPitchId?: string;
-    preSelectedStartTime?: string;
-    preSelectedDate?: string;
-}
-
-export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelectedPitchId, preSelectedStartTime, preSelectedDate }) => {
+export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelectedPitchId, preSelectedBusinessId, preSelectedStartTime, preSelectedDate }) => {
     if (!isOpen) return null;
 
     const navigate = useNavigate();
@@ -101,6 +94,9 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
                         setSelectedBusinessId(business.id);
                         setSelectedPitchId(preSelectedPitchId);
                     }
+                } else if (preSelectedBusinessId) {
+                    // Pre-expand the home business in the list
+                    setSelectedBusinessId(preSelectedBusinessId);
                 }
 
             } catch (error) {
@@ -116,7 +112,7 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
             // Always sync date with filter selection when opening
             setDate(preSelectedDate || getTodayDate());
             // Reset state if opening fresh (optional, but good for UX if not pre-selected)
-            if (!preSelectedPitchId) {
+            if (!preSelectedPitchId && !preSelectedBusinessId) {
                 setSelectedBusinessId(null);
                 setSelectedPitchId('');
                 setSuccessMessage('');
@@ -124,7 +120,7 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
                 setBookedTimes([]);
             }
         }
-    }, [isOpen, preSelectedPitchId]);
+    }, [isOpen, preSelectedPitchId, preSelectedBusinessId]);
 
     // Fetch booked slots when pitch or date changes
     useEffect(() => {
@@ -510,6 +506,7 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
                 onClose={() => setIsDateModalOpen(false)}
                 onSelect={setDate}
                 selectedDate={date}
+                maxMonthsAhead={1}
             />
 
             <TimeSelectionModal
