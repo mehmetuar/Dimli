@@ -1,10 +1,11 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, User, Key } from 'lucide-react';
+import { ChevronLeft, Key, UserCircle } from 'lucide-react';
 import { LoadingSpinner } from '../../../components/UI/LoadingSpinner';
 import { useProfile } from './hooks/useProfile';
 import { ProfileForm } from './components/ProfileForm';
 import { PasswordForm } from './components/PasswordForm';
+import { ProfilePhotoManager } from './components/ProfilePhotoManager';
 
 export const ProfileSettings: React.FC = () => {
     const navigate = useNavigate();
@@ -13,16 +14,15 @@ export const ProfileSettings: React.FC = () => {
         setActiveTab,
         loading,
         saving,
+        isUploadingAvatar,
         message,
         setMessage,
-        businesses,
-        searchQuery,
-        setSearchQuery,
         profileData,
         setProfileData,
         passwordData,
         setPasswordData,
-        handleToggleFavorite,
+        uploadAvatar,
+        removeAvatar,
         handleProfileUpdate,
         handlePasswordChange
     } = useProfile();
@@ -36,8 +36,9 @@ export const ProfileSettings: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-pitch pt-safe-top px-4 pb-20 overflow-x-hidden w-full max-w-full">
-            <header className="flex items-center gap-4 py-4 mb-6">
+        <div className="min-h-screen bg-pitch pt-safe-top pb-20 overflow-x-hidden w-full max-w-full">
+            {/* Header */}
+            <header className="flex items-center gap-4 px-4 py-4 mb-2">
                 <button
                     onClick={() => navigate(-1)}
                     className="p-2 -ml-2 rounded-full hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
@@ -49,32 +50,48 @@ export const ProfileSettings: React.FC = () => {
                 </h1>
             </header>
 
-            {/* Tabs */}
-            <div className="flex bg-slate-800/50 p-1 rounded-xl mb-6">
-                <button
-                    onClick={() => { setActiveTab('profile'); setMessage(null); }}
-                    className={`flex-1 py-3 rounded-lg font-bold text-sm transition-all flex items-center justify-center gap-2 ${activeTab === 'profile'
-                        ? 'bg-turf-600 text-white shadow-lg'
-                        : 'text-slate-400 hover:text-white'
-                        }`}
-                >
-                    <User className="w-4 h-4" />
-                    Profil Bilgileri
-                </button>
-                <button
-                    onClick={() => { setActiveTab('password'); setMessage(null); }}
-                    className={`flex-1 py-3 rounded-lg font-bold text-sm transition-all flex items-center justify-center gap-2 ${activeTab === 'password'
-                        ? 'bg-turf-600 text-white shadow-lg'
-                        : 'text-slate-400 hover:text-white'
-                        }`}
-                >
-                    <Key className="w-4 h-4" />
-                    Şifre Değiştir
-                </button>
+            {/* Profile Photo — always visible */}
+            <div className="px-4 mb-6">
+                <div className="bg-slate-800/50 rounded-2xl border border-slate-700 py-6">
+                    <ProfilePhotoManager
+                        avatarUrl={profileData.avatarUrl}
+                        fullName={profileData.full_name}
+                        isUploading={isUploadingAvatar}
+                        onUpload={uploadAvatar}
+                        onRemove={removeAvatar}
+                    />
+                </div>
             </div>
 
+            {/* Tabs */}
+            <div className="px-4 mb-6">
+                <div className="flex bg-slate-800/50 p-1 rounded-xl">
+                    <button
+                        onClick={() => { setActiveTab('profile'); setMessage(null); }}
+                        className={`flex-1 py-3 rounded-lg font-bold text-sm transition-all flex items-center justify-center gap-2 ${activeTab === 'profile'
+                            ? 'bg-turf-600 text-white shadow-lg'
+                            : 'text-slate-400 hover:text-white'
+                            }`}
+                    >
+                        <UserCircle className="w-4 h-4" />
+                        Profil Bilgileri
+                    </button>
+                    <button
+                        onClick={() => { setActiveTab('password'); setMessage(null); }}
+                        className={`flex-1 py-3 rounded-lg font-bold text-sm transition-all flex items-center justify-center gap-2 ${activeTab === 'password'
+                            ? 'bg-turf-600 text-white shadow-lg'
+                            : 'text-slate-400 hover:text-white'
+                            }`}
+                    >
+                        <Key className="w-4 h-4" />
+                        Şifre Değiştir
+                    </button>
+                </div>
+            </div>
+
+            {/* Message */}
             {message && (
-                <div className={`p-4 rounded-xl mb-6 text-sm font-bold text-center ${message.type === 'success'
+                <div className={`mx-4 p-4 rounded-xl mb-6 text-sm font-bold text-center ${message.type === 'success'
                     ? 'bg-green-500/10 border border-green-500/50 text-green-400'
                     : 'bg-red-500/10 border border-red-500/50 text-red-400'
                     }`}>
@@ -82,25 +99,24 @@ export const ProfileSettings: React.FC = () => {
                 </div>
             )}
 
-            {activeTab === 'profile' ? (
-                <ProfileForm
-                    profileData={profileData}
-                    setProfileData={setProfileData}
-                    businesses={businesses}
-                    searchQuery={searchQuery}
-                    setSearchQuery={setSearchQuery}
-                    handleToggleFavorite={handleToggleFavorite}
-                    handleProfileUpdate={handleProfileUpdate}
-                    saving={saving}
-                />
-            ) : (
-                <PasswordForm
-                    passwordData={passwordData}
-                    setPasswordData={setPasswordData}
-                    handlePasswordChange={handlePasswordChange}
-                    saving={saving}
-                />
-            )}
+            {/* Tab content */}
+            <div className="px-4">
+                {activeTab === 'profile' ? (
+                    <ProfileForm
+                        profileData={profileData}
+                        setProfileData={setProfileData}
+                        handleProfileUpdate={handleProfileUpdate}
+                        saving={saving}
+                    />
+                ) : (
+                    <PasswordForm
+                        passwordData={passwordData}
+                        setPasswordData={setPasswordData}
+                        handlePasswordChange={handlePasswordChange}
+                        saving={saving}
+                    />
+                )}
+            </div>
         </div>
     );
 };

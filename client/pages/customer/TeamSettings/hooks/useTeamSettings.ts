@@ -6,15 +6,15 @@ export const useTeamSettings = () => {
     const navigate = useNavigate();
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
+    const [isUploadingLogo, setIsUploadingLogo] = useState(false);
     const [isCaptain, setIsCaptain] = useState(false);
     const [teamId, setTeamId] = useState<string | null>(null);
 
     const [name, setName] = useState('');
     const [level, setLevel] = useState('BEGINNER');
-    const [location, setLocation] = useState('');
-    const [logoUrl, setLogoUrl] = useState('');
-    const [primaryColor, setPrimaryColor] = useState('bg-blue-500');
-    const [secondaryColor, setSecondaryColor] = useState('bg-purple-500');
+    const [logoUrl, setLogoUrl] = useState<string | null>(null);
+    const [primaryColor, setPrimaryColor] = useState('#3b82f6');
+    const [secondaryColor, setSecondaryColor] = useState('#a855f7');
 
     const [successMessage, setSuccessMessage] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
@@ -32,10 +32,9 @@ export const useTeamSettings = () => {
                 setTeamId(team.id);
                 setName(team.name || '');
                 setLevel(team.level || 'BEGINNER');
-                setLocation(team.location || '');
-                setLogoUrl(team.logoUrl || '');
-                setPrimaryColor(team.primaryColor || 'bg-blue-500');
-                setSecondaryColor(team.secondaryColor || 'bg-purple-500');
+                setLogoUrl(team.logoUrl || null);
+                setPrimaryColor(team.primaryColor || '#3b82f6');
+                setSecondaryColor(team.secondaryColor || '#a855f7');
 
                 const captain = team.captain;
                 const isCap = (captain && captain.id === user.id) || team.captainId === user.id;
@@ -62,6 +61,40 @@ export const useTeamSettings = () => {
         setTimeout(() => setErrorMessage(''), 3000);
     };
 
+    const uploadLogo = async (file: File): Promise<string | null> => {
+        if (!teamId) return null;
+        setIsUploadingLogo(true);
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            const res = await api.post('/files/upload', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            });
+            // Cloudinary returns a full secure_url (https://res.cloudinary.com/...)
+            const fullUrl: string = res.data.url;
+            setLogoUrl(fullUrl);
+            // Auto-save to DB immediately — no need to press Kaydet for logo changes
+            await api.patch(`/teams/${teamId}`, { logoUrl: fullUrl });
+            showSuccess('Logo güncellendi!');
+            return fullUrl;
+        } catch (err: any) {
+            showError(err.response?.data?.message || 'Logo yüklenemedi.');
+            return null;
+        } finally {
+            setIsUploadingLogo(false);
+        }
+    };
+
+    const removeLogo = async () => {
+        if (!teamId) return;
+        setLogoUrl(null);
+        try {
+            await api.patch(`/teams/${teamId}`, { logoUrl: null });
+        } catch (err) {
+            console.error('Failed to remove logo', err);
+        }
+    };
+
     const handleSave = async () => {
         if (!teamId || !isCaptain) return;
         if (!name.trim()) { showError('Takım adı boş olamaz.'); return; }
@@ -71,8 +104,7 @@ export const useTeamSettings = () => {
             await api.patch(`/teams/${teamId}`, {
                 name: name.trim(),
                 level,
-                location: location.trim(),
-                logoUrl: logoUrl.trim(),
+                logoUrl: logoUrl ?? null,
                 primaryColor,
                 secondaryColor,
             });
@@ -87,17 +119,19 @@ export const useTeamSettings = () => {
     return {
         isLoading,
         isSaving,
+        isUploadingLogo,
         isCaptain,
         teamId,
         name, setName,
         level, setLevel,
-        location, setLocation,
         logoUrl, setLogoUrl,
         primaryColor, setPrimaryColor,
         secondaryColor, setSecondaryColor,
         successMessage,
         errorMessage,
+        uploadLogo,
+        removeLogo,
         handleSave,
-        navigate
+        navigate,
     };
 };

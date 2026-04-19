@@ -99,7 +99,7 @@ export class TeamsController {
     @Patch(':id')
     updateTeam(
         @Param('id') id: string,
-        @Body() dto: { name?: string; level?: string; location?: string; logoUrl?: string; primaryColor?: string; secondaryColor?: string }
+        @Body() dto: { name?: string; level?: string; logoUrl?: string | null; primaryColor?: string; secondaryColor?: string }
     ) {
         return this.teamsService.updateTeam(id, dto);
     }

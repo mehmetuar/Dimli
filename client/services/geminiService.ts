@@ -6,15 +6,14 @@ import { SkillLevel } from "../types";
 // but for this frontend-only demo, we use the env variable directly as per instructions.
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-export const generateTeamBio = async (teamName: string, level: SkillLevel, location: string): Promise<string> => {
+export const generateTeamBio = async (teamName: string, level: SkillLevel): Promise<string> => {
   try {
-    const modelId = "gemini-2.5-flash"; 
+    const modelId = "gemini-2.5-flash";
     const prompt = `
       Sen bir Türk halı saha futbol koçusun. Şu takım için kısa, iddialı ama fair-play vurgusu yapan, eğlenceli bir tanıtım yazısı yaz (maksimum 2 cümle):
       Takım Adı: ${teamName}
       Seviye: ${level}
-      Lokasyon: ${location}
-      
+
       Türkçe argoları hafifçe kullanabilirsin ama saygılı ol.
     `;
 

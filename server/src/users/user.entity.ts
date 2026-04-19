@@ -41,6 +41,9 @@ export class User {
     @Column('float', { default: 0 })
     rating: number;
 
+    @Column({ name: 'avatar_url', nullable: true, type: 'varchar' })
+    avatarUrl: string | null;
+
     @Column({ nullable: true })
     pushToken: string;
 

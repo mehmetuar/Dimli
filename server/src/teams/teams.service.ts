@@ -225,13 +225,12 @@ export class TeamsService {
         return this.teamsRepository.save(team);
     }
 
-    async updateTeam(teamId: string, dto: { name?: string; level?: string; location?: string; logoUrl?: string; primaryColor?: string; secondaryColor?: string }): Promise<Team> {
+    async updateTeam(teamId: string, dto: { name?: string; level?: string; logoUrl?: string | null; primaryColor?: string; secondaryColor?: string }): Promise<Team> {
         const team = await this.findOne(teamId);
         if (!team) throw new Error('Team not found');
 
         if (dto.name !== undefined) team.name = dto.name;
         if (dto.level !== undefined) team.level = dto.level;
-        if (dto.location !== undefined) team.location = dto.location;
         if (dto.logoUrl !== undefined) team.logoUrl = dto.logoUrl;
         if (dto.primaryColor !== undefined) team.primaryColor = dto.primaryColor;
         if (dto.secondaryColor !== undefined) team.secondaryColor = dto.secondaryColor;

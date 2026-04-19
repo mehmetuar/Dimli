@@ -23,6 +23,7 @@ const Notifications         = lazy(() => import('./pages/customer/Notifications/
 const Login                 = lazy(() => import('./pages/customer/Login/Login').then(m => ({ default: m.Login })));
 const Register              = lazy(() => import('./pages/customer/Register/Register').then(m => ({ default: m.Register })));
 const ProfileSettings       = lazy(() => import('./pages/customer/ProfileSettings/ProfileSettings').then(m => ({ default: m.ProfileSettings })));
+const FavoriteBusinessesSettings = lazy(() => import('./pages/customer/FavoriteBusinesses/FavoriteBusinessesSettings').then(m => ({ default: m.FavoriteBusinessesSettings })));
 const TeamSettings          = lazy(() => import('./pages/customer/TeamSettings/TeamSettings').then(m => ({ default: m.TeamSettings })));
 const BusinessLogin         = lazy(() => import('./pages/business/BusinessLogin/BusinessLogin').then(m => ({ default: m.BusinessLogin })));
 const BusinessRegister      = lazy(() => import('./pages/business/BusinessRegister/BusinessRegister').then(m => ({ default: m.BusinessRegister })));
@@ -234,6 +235,7 @@ function AppContent() {
               <Route path="/team" element={<TeamProfile />} />
               <Route path="/notifications" element={<Notifications />} />
               <Route path="/settings/profile" element={<ProfileSettings />} />
+              <Route path="/settings/favorites" element={<FavoriteBusinessesSettings />} />
               <Route path="/settings/team" element={<TeamSettings />} />
             </Route>
           </Routes>

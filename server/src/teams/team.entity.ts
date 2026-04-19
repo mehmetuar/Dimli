@@ -9,8 +9,8 @@ export class Team {
     @Column()
     name: string;
 
-    @Column({ name: 'logo_url', nullable: true })
-    logoUrl: string;
+    @Column({ name: 'logo_url', nullable: true, type: 'varchar' })
+    logoUrl: string | null;
 
     @Column({ name: 'primary_color', nullable: true })
     primaryColor: string;

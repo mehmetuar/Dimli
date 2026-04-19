@@ -16,6 +16,7 @@ import { PitchesModule } from './pitches/pitches.module';
 import { BusinessOwnerModule } from './business-owner/business-owner.module';
 import { ReservationsModule } from './reservations/reservations.module';
 import { RatingsModule } from './ratings/ratings.module';
+import { FilesModule } from './files/files.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { RatingsModule } from './ratings/ratings.module';
     BusinessOwnerModule,
     ReservationsModule,
     RatingsModule,
+    FilesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

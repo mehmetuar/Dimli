@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, Settings, LogOut, ChevronRight } from 'lucide-react';
+import { User, Settings, LogOut, ChevronRight, Building2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface ProfileSettingsMenuProps {
@@ -22,7 +22,7 @@ export const ProfileSettingsMenu: React.FC<ProfileSettingsMenuProps> = ({ isMenu
                 <div className="p-6 border-b border-slate-700">
                     <h3 className="text-white font-bold text-xl flex items-center gap-2">
                         <User className="w-6 h-6 text-turf-500" />
-                        Profil Ayarları
+                        Hesap
                     </h3>
                     <p className="text-slate-400 text-sm mt-1">Hesabını ve tercihlerini yönet</p>
                 </div>
@@ -40,9 +40,24 @@ export const ProfileSettingsMenu: React.FC<ProfileSettingsMenuProps> = ({ isMenu
                         </div>
                         <ChevronRight className="w-5 h-5 text-slate-500" />
                     </button>
+
+                    <button
+                        onClick={() => { setIsMenuOpen(false); navigate('/settings/favorites'); }}
+                        className="w-full flex items-center gap-4 p-4 rounded-2xl bg-slate-700/50 hover:bg-slate-700 text-white transition-all active:scale-95"
+                    >
+                        <div className="bg-amber-500/20 p-2 rounded-full text-amber-400">
+                            <Building2 className="w-6 h-6" />
+                        </div>
+                        <div className="text-left flex-1">
+                            <div className="font-bold text-base">Favori İşletmelerim</div>
+                            <div className="text-xs text-slate-400">Tercih ettiğin sahaları seç</div>
+                        </div>
+                        <ChevronRight className="w-5 h-5 text-slate-500" />
+                    </button>
+
                     <button
                         onClick={() => { localStorage.removeItem('token'); navigate('/login'); }}
-                        className="w-full flex items-center gap-4 p-4 rounded-2xl bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-all active:scale-95 mt-4"
+                        className="w-full flex items-center gap-4 p-4 rounded-2xl bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-all active:scale-95 mt-2"
                     >
                         <div className="bg-red-500/20 p-2 rounded-full text-red-400">
                             <LogOut className="w-6 h-6" />

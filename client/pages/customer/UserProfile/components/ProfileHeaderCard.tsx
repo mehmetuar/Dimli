@@ -32,11 +32,20 @@ export const ProfileHeaderCard: React.FC<ProfileHeaderCardProps> = ({
                             className="w-32 h-32 rounded-full p-1 bg-gradient-to-r from-turf-500 to-blue-500 mb-4 relative group-avatar cursor-pointer"
                             onClick={() => setIsModalOpen(true)}
                         >
-                            <img
-                                src={'https://picsum.photos/100/100?random=1'}
-                                alt="Profile"
-                                className="w-full h-full rounded-full object-cover border-4 border-slate-900"
-                            />
+                            {currentUser.avatarUrl ? (
+                                <img
+                                    src={currentUser.avatarUrl}
+                                    alt="Profile"
+                                    className="w-full h-full rounded-full object-cover border-4 border-slate-900"
+                                />
+                            ) : (
+                                <div className="w-full h-full rounded-full border-4 border-slate-900 bg-gradient-to-br from-turf-600 to-blue-600 flex items-center justify-center">
+                                    <span className="text-white font-sport font-bold text-3xl">
+                                        {(currentUser.full_name || currentUser.username || '?')
+                                            .trim().split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2)}
+                                    </span>
+                                </div>
+                            )}
                             <button
                                 onClick={(e) => { e.stopPropagation(); setIsMenuOpen(true); }}
                                 className="absolute -right-2 -bottom-2 bg-slate-800 text-white p-2.5 rounded-full border border-slate-600 shadow-lg hover:bg-slate-700 hover:scale-110 transition-all z-20"
@@ -93,7 +102,7 @@ export const ProfileHeaderCard: React.FC<ProfileHeaderCardProps> = ({
                     birthDate: currentUser.birthDate,
                     foot: currentUser.foot,
                     isJoker: false,
-                    avatarUrl: 'https://picsum.photos/100/100?random=1',
+                    avatarUrl: currentUser.avatarUrl || undefined,
                     favoritePitchIds: currentUser.favoriteBusinessIds || [],
                     sharesFee: false
                 } as any}

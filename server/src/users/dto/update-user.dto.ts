@@ -44,4 +44,8 @@ export class UpdateUserDto {
     @IsOptional()
     @IsBoolean()
     sharesFee?: boolean;
+
+    @IsOptional()
+    @IsString()
+    avatarUrl?: string | null;
 }

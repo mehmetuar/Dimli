@@ -1,14 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { getProfile, updateProfile, changePassword, getBusinesses } from '../../../../services/api';
+import api, { getProfile, updateProfile, changePassword } from '../../../../services/api';
 
 export const useProfile = () => {
     const [activeTab, setActiveTab] = useState<'profile' | 'password'>('profile');
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
-
-    const [businesses, setBusinesses] = useState<any[]>([]);
-    const [searchQuery, setSearchQuery] = useState('');
 
     const [profileData, setProfileData] = useState<{
         full_name: string;
@@ -19,7 +17,7 @@ export const useProfile = () => {
         secondaryPosition: string;
         foot: string;
         location: string;
-        favoriteBusinessIds: string[];
+        avatarUrl: string | null;
     }>({
         full_name: '',
         username: '',
@@ -29,7 +27,7 @@ export const useProfile = () => {
         secondaryPosition: '',
         foot: '',
         location: '',
-        favoriteBusinessIds: []
+        avatarUrl: null,
     });
 
     const [passwordData, setPasswordData] = useState({
@@ -44,11 +42,7 @@ export const useProfile = () => {
 
     const loadProfile = async () => {
         try {
-            const [user, allBusinesses] = await Promise.all([
-                getProfile(),
-                getBusinesses()
-            ]);
-            setBusinesses(allBusinesses);
+            const user = await getProfile();
             setProfileData({
                 full_name: user.full_name || '',
                 username: user.username || '',
@@ -58,7 +52,7 @@ export const useProfile = () => {
                 secondaryPosition: user.secondaryPosition || '',
                 foot: user.foot || '',
                 location: user.location || '',
-                favoriteBusinessIds: user.favoriteBusinessIds || []
+                avatarUrl: user.avatarUrl || null,
             });
         } catch (error) {
             console.error('Error loading profile:', error);
@@ -68,19 +62,42 @@ export const useProfile = () => {
         }
     };
 
-    const handleToggleFavorite = (businessId: string) => {
-        setProfileData(prev => {
-            const isSelected = prev.favoriteBusinessIds.includes(businessId);
-            if (isSelected) {
-                return { ...prev, favoriteBusinessIds: prev.favoriteBusinessIds.filter(id => id !== businessId) };
-            } else {
-                if (prev.favoriteBusinessIds.length >= 3) {
-                    setMessage({ type: 'error', text: 'En fazla 3 favori işletme seçebilirsiniz.' });
-                    return prev;
-                }
-                return { ...prev, favoriteBusinessIds: [...prev.favoriteBusinessIds, businessId] };
-            }
-        });
+    const showSuccess = (msg: string) => {
+        setMessage({ type: 'success', text: msg });
+        setTimeout(() => setMessage(null), 3000);
+    };
+
+    const showError = (msg: string) => {
+        setMessage({ type: 'error', text: msg });
+        setTimeout(() => setMessage(null), 3000);
+    };
+
+    const uploadAvatar = async (file: File): Promise<void> => {
+        setIsUploadingAvatar(true);
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            const res = await api.post('/files/upload', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            });
+            const fullUrl: string = res.data.url;
+            setProfileData(prev => ({ ...prev, avatarUrl: fullUrl }));
+            await api.patch('/users/me', { avatarUrl: fullUrl });
+            showSuccess('Profil fotoğrafı güncellendi!');
+        } catch (err: any) {
+            showError(err.response?.data?.message || 'Fotoğraf yüklenemedi.');
+        } finally {
+            setIsUploadingAvatar(false);
+        }
+    };
+
+    const removeAvatar = async (): Promise<void> => {
+        setProfileData(prev => ({ ...prev, avatarUrl: null }));
+        try {
+            await api.patch('/users/me', { avatarUrl: null });
+        } catch (err) {
+            console.error('Failed to remove avatar', err);
+        }
     };
 
     const handleProfileUpdate = async (e: React.FormEvent) => {
@@ -88,23 +105,24 @@ export const useProfile = () => {
         setSaving(true);
         setMessage(null);
 
-        const payload = { ...profileData };
-        if (!payload.birthDate) {
-            delete payload.birthDate;
-        }
-        if (!payload.secondaryPosition) {
-            payload.secondaryPosition = null as any;
-        }
-        if (!payload.phone) {
-            payload.phone = null as any;
+        const payload: any = {
+            full_name: profileData.full_name,
+            username: profileData.username,
+            phone: profileData.phone || null,
+            position: profileData.position,
+            secondaryPosition: profileData.secondaryPosition || null,
+            foot: profileData.foot,
+        };
+        if (profileData.birthDate) {
+            payload.birthDate = profileData.birthDate;
         }
 
         try {
             await updateProfile(payload);
-            setMessage({ type: 'success', text: 'Profil başarıyla güncellendi.' });
+            showSuccess('Profil başarıyla güncellendi.');
         } catch (error: any) {
             console.error(error);
-            setMessage({ type: 'error', text: 'Profil güncellenirken bir hata oluştu.' });
+            showError('Profil güncellenirken bir hata oluştu.');
         } finally {
             setSaving(false);
         }
@@ -128,7 +146,7 @@ export const useProfile = () => {
                 oldPassword: passwordData.oldPassword,
                 newPassword: passwordData.newPassword
             });
-            setMessage({ type: 'success', text: 'Şifre başarıyla değiştirildi.' });
+            showSuccess('Şifre başarıyla değiştirildi.');
             setPasswordData({ oldPassword: '', newPassword: '', confirmPassword: '' });
         } catch (error: any) {
             console.error(error);
@@ -144,16 +162,15 @@ export const useProfile = () => {
         setActiveTab,
         loading,
         saving,
+        isUploadingAvatar,
         message,
         setMessage,
-        businesses,
-        searchQuery,
-        setSearchQuery,
         profileData,
         setProfileData,
         passwordData,
         setPasswordData,
-        handleToggleFavorite,
+        uploadAvatar,
+        removeAvatar,
         handleProfileUpdate,
         handlePasswordChange
     };

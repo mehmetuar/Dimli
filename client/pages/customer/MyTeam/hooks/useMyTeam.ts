@@ -108,7 +108,7 @@ export const useMyTeam = (modals: any) => {
     const handleGenerateBio = async () => {
         if (!myTeam) return;
         setIsGenerating(true);
-        const newBio = await generateTeamBio(myTeam.name, myTeam.level, myTeam.location);
+        const newBio = await generateTeamBio(myTeam.name, myTeam.level);
         setBio(newBio);
         const updatedTeam = { ...myTeam, description: newBio };
         setMyTeam(updatedTeam as any);
