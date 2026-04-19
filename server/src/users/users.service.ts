@@ -31,6 +31,7 @@ export class UsersService {
             const newUser = this.usersRepository.create({
                 ...userData,
                 password: hashedPassword,
+                phoneVerified: true,
             });
             return await this.usersRepository.save(newUser);
         } catch (error) {

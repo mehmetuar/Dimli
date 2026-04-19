@@ -7,12 +7,17 @@ import { PassportModule } from '@nestjs/passport';
 import { JwtModule } from '@nestjs/jwt';
 import { LocalStrategy } from './local.strategy';
 import { JwtStrategy } from './jwt.strategy';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { OtpCode } from './entities/otp-code.entity';
+import { SmsModule } from '../sms/sms.module';
 
 @Module({
   imports: [
     UsersModule,
     BusinessOwnerModule,
     PassportModule,
+    SmsModule,
+    TypeOrmModule.forFeature([OtpCode]),
     JwtModule.register({
       secret: 'SECRET_KEY', // TODO: Move to env
       signOptions: { expiresIn: '60m' },

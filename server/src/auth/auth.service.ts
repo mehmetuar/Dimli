@@ -1,14 +1,17 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { BusinessOwnerService } from '../business-owner/business-owner.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { DataSource } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm';
 import { RegisterBusinessDto } from './dto/register-business.dto';
 import { Business } from '../business/entities/business.entity';
 import { Pitch } from '../pitches/entities/pitch.entity';
 import { BusinessOwner } from '../business-owner/entities/business-owner.entity';
 import { TimeSlot } from '../pitches/entities/time-slot.entity';
+import { OtpCode } from './entities/otp-code.entity';
+import { SmsService } from '../sms/sms.service';
 
 @Injectable()
 export class AuthService {
@@ -17,7 +20,52 @@ export class AuthService {
         private businessOwnerService: BusinessOwnerService,
         private jwtService: JwtService,
         private dataSource: DataSource,
+        private smsService: SmsService,
+        @InjectRepository(OtpCode)
+        private otpRepository: Repository<OtpCode>,
     ) { }
+
+    async sendOtp(phone: string): Promise<void> {
+        // Önceki bekleyen kodları sil
+        await this.otpRepository.delete({ phone, verified: false });
+
+        const code = Math.floor(100000 + Math.random() * 900000).toString();
+        const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 dakika
+
+        const otp = this.otpRepository.create({ phone, code, verified: false, expiresAt });
+        await this.otpRepository.save(otp);
+
+        await this.smsService.sendSms(phone, `Dimli doğrulama kodunuz: ${code}`);
+    }
+
+    async verifyOtp(phone: string, code: string): Promise<void> {
+        const otp = await this.otpRepository.findOne({
+            where: { phone, code, verified: false },
+        });
+
+        if (!otp) {
+            throw new BadRequestException('Geçersiz doğrulama kodu.');
+        }
+
+        if (new Date() > otp.expiresAt) {
+            await this.otpRepository.delete({ id: otp.id });
+            throw new BadRequestException('Doğrulama kodunun süresi dolmuş. Lütfen yeni kod isteyin.');
+        }
+
+        otp.verified = true;
+        await this.otpRepository.save(otp);
+    }
+
+    async isPhoneVerified(phone: string): Promise<boolean> {
+        const otp = await this.otpRepository.findOne({
+            where: { phone, verified: true },
+        });
+        return !!otp && new Date() < otp.expiresAt;
+    }
+
+    async cleanupOtp(phone: string): Promise<void> {
+        await this.otpRepository.delete({ phone });
+    }
 
     async validateUser(username: string, pass: string): Promise<any> {
         const user = await this.usersService.findOne(username);

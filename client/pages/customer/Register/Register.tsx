@@ -7,9 +7,14 @@ import { useRegister } from './hooks/useRegister';
 // Components
 import { RegisterHeader } from './components/RegisterHeader';
 import { RegisterActions } from './components/RegisterActions';
-import { AccountStep } from './components/steps/AccountStep';
-import { PersonalInfoStep } from './components/steps/PersonalInfoStep';
+import { UsernameStep } from './components/steps/UsernameStep';
+import { PasswordStep } from './components/steps/PasswordStep';
+import { NameStep } from './components/steps/NameStep';
+import { PhoneVerificationStep } from './components/steps/PhoneVerificationStep';
+import { BirthDateEmailStep } from './components/steps/BirthDateEmailStep';
 import { PlayerProfileStep } from './components/steps/PlayerProfileStep';
+
+const TOTAL_STEPS = 6;
 
 export const Register: React.FC = () => {
     const {
@@ -17,8 +22,14 @@ export const Register: React.FC = () => {
         formData,
         error,
         loading,
-        isSubmitReady,
+        otpSent,
+        otpVerified,
+        otpLoading,
+        otpDigits,
+        resendCountdown,
         handleChange,
+        sendOtp,
+        onOtpDigitChange,
         nextStep,
         prevStep,
         handleRegister
@@ -28,7 +39,7 @@ export const Register: React.FC = () => {
         <div className="min-h-screen bg-pitch flex flex-col items-center justify-center px-4 pt-10 pb-10">
             <div className="w-full max-w-md bg-slate-800 p-8 rounded-3xl border border-slate-700 shadow-2xl relative overflow-hidden">
 
-                <RegisterHeader step={step} totalSteps={3} />
+                <RegisterHeader step={step} totalSteps={TOTAL_STEPS} />
 
                 {error && (
                     <div className="bg-red-500/10 border border-red-500/50 text-red-400 p-3 rounded-xl mb-6 text-sm font-bold text-center animate-shake">
@@ -37,14 +48,30 @@ export const Register: React.FC = () => {
                 )}
 
                 <form onSubmit={handleRegister}>
-                    {step === 1 && <AccountStep formData={formData} handleChange={handleChange} />}
-                    {step === 2 && <PersonalInfoStep formData={formData} handleChange={handleChange} />}
-                    {step === 3 && <PlayerProfileStep formData={formData} handleChange={handleChange} />}
+                    {step === 1 && <UsernameStep formData={formData} handleChange={handleChange} />}
+                    {step === 2 && <PasswordStep formData={formData} handleChange={handleChange} />}
+                    {step === 3 && <NameStep formData={formData} handleChange={handleChange} />}
+                    {step === 4 && (
+                        <PhoneVerificationStep
+                            formData={formData}
+                            handleChange={handleChange}
+                            otpSent={otpSent}
+                            otpVerified={otpVerified}
+                            otpLoading={otpLoading}
+                            otpDigits={otpDigits}
+                            resendCountdown={resendCountdown}
+                            sendOtp={sendOtp}
+                            onOtpDigitChange={onOtpDigitChange}
+                        />
+                    )}
+                    {step === 5 && <BirthDateEmailStep formData={formData} handleChange={handleChange} />}
+                    {step === 6 && <PlayerProfileStep formData={formData} handleChange={handleChange} />}
 
                     <RegisterActions
                         step={step}
+                        totalSteps={TOTAL_STEPS}
                         loading={loading}
-                        isSubmitReady={isSubmitReady}
+                        otpVerified={otpVerified}
                         nextStep={nextStep}
                         prevStep={prevStep}
                     />

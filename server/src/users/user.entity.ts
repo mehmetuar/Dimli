@@ -48,6 +48,9 @@ export class User {
     teamId: string;
 
     @Column({ default: false })
+    phoneVerified: boolean;
+
+    @Column({ default: false })
     isJoker: boolean;
 
     @Column({ default: true })
