@@ -54,18 +54,54 @@ export class UsersService {
             .getMany();
     }
 
-    async getJokers(district?: string): Promise<Partial<User>[]> {
-        const qb = this.usersRepository.createQueryBuilder('user')
-            .where('user.isJoker = :isJoker', { isJoker: true })
-            .leftJoinAndSelect('user.team', 'team');
-
-        if (district) {
-            qb.andWhere('user.location ILIKE :district', { district: `%${district}%` });
+    async getJokers(geoFilter?: { lat: number; lng: number; radius: number }): Promise<any[]> {
+        if (!geoFilter) {
+            return [];
         }
 
-        const jokers = await qb.getMany();
+        const { lat, lng, radius } = geoFilter;
 
-        return jokers.map(({ password, pushToken, ...safe }) => safe);
+        const raw: any[] = await this.usersRepository.query(
+            `SELECT id,
+                (6371 * acos(
+                    cos(radians($1)) * cos(radians(latitude))
+                    * cos(radians(longitude) - radians($2))
+                    + sin(radians($1)) * sin(radians(latitude))
+                )) AS distance_km
+             FROM "user"
+             WHERE "isJoker" = true
+               AND latitude IS NOT NULL
+               AND longitude IS NOT NULL
+               AND (
+                   6371 * acos(
+                       cos(radians($1)) * cos(radians(latitude))
+                       * cos(radians(longitude) - radians($2))
+                       + sin(radians($1)) * sin(radians(latitude))
+                   )
+               ) <= $3
+             ORDER BY distance_km ASC`,
+            [lat, lng, radius],
+        );
+
+        if (raw.length === 0) return [];
+
+        const ids = raw.map(r => r.id);
+        const distanceMap = new Map<string, number>(
+            raw.map(r => [r.id, parseFloat(Number(r.distance_km).toFixed(1))]),
+        );
+
+        const jokers = await this.usersRepository
+            .createQueryBuilder('user')
+            .leftJoinAndSelect('user.team', 'team')
+            .where('user.id IN (:...ids)', { ids })
+            .getMany();
+
+        return jokers
+            .map(({ password, pushToken, ...safe }) => ({
+                ...safe,
+                distanceKm: distanceMap.get(safe.id) ?? 0,
+            }))
+            .sort((a, b) => a.distanceKm - b.distanceKm);
     }
 
 

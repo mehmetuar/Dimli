@@ -1,4 +1,4 @@
-import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, JoinColumn, Index } from 'typeorm';
 
 @Entity()
 export class User {
@@ -58,6 +58,14 @@ export class User {
 
     @Column({ default: true })
     sharesFee: boolean;
+
+    @Index()
+    @Column('float', { nullable: true })
+    latitude: number | null;
+
+    @Index()
+    @Column('float', { nullable: true })
+    longitude: number | null;
 
     @ManyToOne('Team', (team: any) => team.players, { nullable: true })
     @JoinColumn({ name: 'team_id' })

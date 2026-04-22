@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, Param, UseGuards, Request, Query } from '@nestjs/common';
+import { Controller, Post, Body, Get, Param, Request, Query } from '@nestjs/common';
 import { BusinessOwnerService } from './business-owner.service';
 import { NotificationsService } from '../notifications/notifications.service';
 
@@ -26,14 +26,16 @@ export class BusinessOwnerController {
         return { success: true };
     }
 
-    // TODO: Add proper AuthGuard for BusinessOwner
-    // @UseGuards(JwtAuthGuard)
     @Get('dashboard')
     async getDashboard(@Request() req, @Query('date') date: string, @Query('ownerId') ownerId: string) {
-        // In real app, get ownerId from req.user
-        // For development/mock, allow passing ownerId or use a test one
-        // const id = req.user?.id || ownerId; 
         return this.businessOwnerService.getDashboardSlots(ownerId, date);
+    }
+
+    // GET /business-owner/stats?ownerId=xxx
+    // Tanımlama sırası önemli: :id parametreli route'tan ÖNCE olmalı
+    @Get('stats')
+    async getStats(@Query('ownerId') ownerId: string) {
+        return this.businessOwnerService.getStats(ownerId);
     }
 
     @Post('approve-reservation/:id')

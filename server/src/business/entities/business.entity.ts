@@ -1,4 +1,4 @@
-import { Entity, Column, PrimaryGeneratedColumn, OneToMany, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, OneToMany, CreateDateColumn, UpdateDateColumn, Index } from 'typeorm';
 import { Pitch } from '../../pitches/entities/pitch.entity';
 
 @Entity('businesses')
@@ -18,9 +18,11 @@ export class Business {
     @Column({ type: 'text', nullable: true })
     address: string;
 
+    @Index()
     @Column('float', { nullable: true })
     latitude: number;
 
+    @Index()
     @Column('float', { nullable: true })
     longitude: number;
 

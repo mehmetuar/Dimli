@@ -24,7 +24,7 @@ function uploadToCloudinary(buffer: Buffer): Promise<string> {
     return new Promise((resolve, reject) => {
         const upload = cloudinary.uploader.upload_stream(
             {
-                folder: 'sahapro/logos',
+                folder: 'dimli/logos',
                 resource_type: 'image',
                 transformation: [
                     { width: 400, height: 400, crop: 'fill', gravity: 'center' },
@@ -73,7 +73,7 @@ export class FilesController {
         if (!url) throw new BadRequestException('URL gerekli');
         try {
             // Extract public_id from Cloudinary URL
-            // e.g. https://res.cloudinary.com/cloud/image/upload/v123/sahapro/logos/abcdef.jpg
+            // e.g. https://res.cloudinary.com/cloud/image/upload/v123/dimli/logos/abcdef.jpg
             const match = url.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\.[^.]+)?$/);
             if (!match) throw new BadRequestException('Geçersiz Cloudinary URL');
             const publicId = match[1];

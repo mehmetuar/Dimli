@@ -76,8 +76,11 @@ export const getReservationsByPitch = async (pitchId: string, date: string) => {
     return response.data;
 };
 
-export const getBusinesses = async () => {
-    const response = await api.get('/businesses');
+export const getBusinesses = async (coords?: { lat: number; lng: number; radius?: number }) => {
+    const params = coords
+        ? { lat: coords.lat, lng: coords.lng, radius: coords.radius ?? 20 }
+        : undefined;
+    const response = await api.get('/businesses', { params });
     return response.data;
 };
 

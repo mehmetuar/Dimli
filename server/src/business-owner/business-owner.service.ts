@@ -1,14 +1,23 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Between, Not, IsNull } from 'typeorm';
 import { BusinessOwner } from './entities/business-owner.entity';
 import { ReservationsService } from '../reservations/reservations.service';
+import { Pitch } from '../pitches/entities/pitch.entity';
+import { Reservation, ReservationStatus } from '../reservations/entities/reservation.entity';
+import { Business } from '../business/entities/business.entity';
 
 @Injectable()
 export class BusinessOwnerService {
     constructor(
         @InjectRepository(BusinessOwner)
         private businessOwnerRepository: Repository<BusinessOwner>,
+        @InjectRepository(Pitch)
+        private pitchRepository: Repository<Pitch>,
+        @InjectRepository(Reservation)
+        private reservationRepository: Repository<Reservation>,
+        @InjectRepository(Business)
+        private businessRepository: Repository<Business>,
         private reservationsService: ReservationsService,
     ) { }
 
@@ -23,7 +32,10 @@ export class BusinessOwnerService {
     }
 
     async findOne(id: string): Promise<BusinessOwner | null> {
-        return this.businessOwnerRepository.findOne({ where: { id }, relations: ['business', 'business.pitches'] });
+        return this.businessOwnerRepository.findOne({
+            where: { id },
+            relations: ['business', 'business.pitches', 'business.pitches.timeSlots'],
+        });
     }
 
     async getDashboardSlots(ownerId: string, dateStr: string) {
@@ -36,8 +48,7 @@ export class BusinessOwnerService {
         const pitches = business.pitches || [];
         const slotsResponse: any[] = [];
 
-        // Parse date
-        const selectedDate = new Date(dateStr); // Expecting YYYY-MM-DD
+        const selectedDate = new Date(dateStr);
         const startOfDay = new Date(selectedDate);
         startOfDay.setHours(0, 0, 0, 0);
 
@@ -46,7 +57,6 @@ export class BusinessOwnerService {
             const hasCustomSlots = pitch.timeSlots && pitch.timeSlots.length > 0;
 
             if (hasCustomSlots) {
-                // ===== DYNAMIC SLOTS MODE =====
                 for (const ts of pitch.timeSlots) {
                     if (!ts.isActive) continue;
 
@@ -54,7 +64,6 @@ export class BusinessOwnerService {
                     const slotTime = new Date(startOfDay);
                     slotTime.setHours(startH, startM, 0, 0);
 
-                    // Find reservations matching this slot's start time
                     const reservations = await this.reservationsService.findByPitchAndDate(pitch.id, slotTime, slotTime);
                     const slotReservations = reservations.filter((r: any) => {
                         const rTime = new Date(r.slotTime);
@@ -81,7 +90,6 @@ export class BusinessOwnerService {
                     });
                 }
             } else {
-                // ===== FALLBACK: HOURLY SLOTS MODE =====
                 const openTime = pitch.openTime || business.openTime || '09:00';
                 const closeTime = pitch.closeTime || business.closeTime || '23:00';
 
@@ -147,7 +155,128 @@ export class BusinessOwnerService {
     }
 
     async approveReservation(reservationId: string, ownerId: string) {
-        // Verify ownership (TODO)
         return this.reservationsService.approve(reservationId);
+    }
+
+    async getStats(ownerId: string) {
+        const owner = await this.findOne(ownerId);
+        if (!owner || !owner.business) {
+            throw new Error('Business not found for this owner');
+        }
+
+        const business = await this.businessRepository.findOne({
+            where: { id: owner.business.id },
+            relations: ['pitches'],
+        });
+
+        if (!business) throw new Error('Business not found');
+
+        // Tarih aralıkları
+        const now = new Date();
+
+        const startOfToday = new Date(now);
+        startOfToday.setHours(0, 0, 0, 0);
+        const endOfToday = new Date(now);
+        endOfToday.setHours(23, 59, 59, 999);
+
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+        const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
+        const pitchStats: any[] = [];
+        let totalTodayConfirmed = 0;
+        let totalTodayEarnings = 0;
+        let totalTodayManual = 0;
+        let totalMonthConfirmed = 0;
+        let totalMonthEarnings = 0;
+        let totalMonthManual = 0;
+
+        for (const pitch of business.pitches) {
+            const pricePerHour = pitch.pricePerHour || 0;
+
+            // Bugün - gerçek maçlar (teamId NOT NULL)
+            const todayConfirmedCount = await this.reservationRepository.count({
+                where: {
+                    pitch: { id: pitch.id },
+                    status: ReservationStatus.APPROVED,
+                    teamId: Not(IsNull()),
+                    slotTime: Between(startOfToday, endOfToday),
+                },
+            });
+
+            // Bugün - manuel dolu (teamId NULL)
+            const todayManualCount = await this.reservationRepository.count({
+                where: {
+                    pitch: { id: pitch.id },
+                    status: ReservationStatus.APPROVED,
+                    teamId: IsNull(),
+                    slotTime: Between(startOfToday, endOfToday),
+                },
+            });
+
+            // Bu ay - gerçek maçlar
+            const monthConfirmedCount = await this.reservationRepository.count({
+                where: {
+                    pitch: { id: pitch.id },
+                    status: ReservationStatus.APPROVED,
+                    teamId: Not(IsNull()),
+                    slotTime: Between(startOfMonth, endOfMonth),
+                },
+            });
+
+            // Bu ay - manuel dolu
+            const monthManualCount = await this.reservationRepository.count({
+                where: {
+                    pitch: { id: pitch.id },
+                    status: ReservationStatus.APPROVED,
+                    teamId: IsNull(),
+                    slotTime: Between(startOfMonth, endOfMonth),
+                },
+            });
+
+            const todayEarnings = todayConfirmedCount * pricePerHour;
+            const monthEarnings = monthConfirmedCount * pricePerHour;
+
+            pitchStats.push({
+                pitchId: pitch.id,
+                pitchName: pitch.name,
+                pricePerHour,
+                today: {
+                    confirmedCount: todayConfirmedCount,
+                    earnings: todayEarnings,
+                    manualFillCount: todayManualCount,
+                },
+                thisMonth: {
+                    confirmedCount: monthConfirmedCount,
+                    earnings: monthEarnings,
+                    manualFillCount: monthManualCount,
+                },
+            });
+
+            totalTodayConfirmed += todayConfirmedCount;
+            totalTodayEarnings += todayEarnings;
+            totalTodayManual += todayManualCount;
+            totalMonthConfirmed += monthConfirmedCount;
+            totalMonthEarnings += monthEarnings;
+            totalMonthManual += monthManualCount;
+        }
+
+        return {
+            businessName: business.name,
+            rating: business.rating,
+            ratingCount: business.ratingCount,
+            pitches: pitchStats,
+            totals: {
+                today: {
+                    confirmedCount: totalTodayConfirmed,
+                    earnings: totalTodayEarnings,
+                    manualFillCount: totalTodayManual,
+                },
+                thisMonth: {
+                    confirmedCount: totalMonthConfirmed,
+                    earnings: totalMonthEarnings,
+                    manualFillCount: totalMonthManual,
+                },
+            },
+        };
     }
 }

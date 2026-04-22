@@ -165,6 +165,7 @@ export interface Business {
   openTime?: string;
   closeTime?: string;
   pitches?: Pitch[];
+  distanceKm?: number;
 }
 
 export interface Pitch {
