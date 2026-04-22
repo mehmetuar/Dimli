@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Navigation, Check } from 'lucide-react';
-import { Geolocation } from '@capacitor/geolocation';
+import { useLocationContext } from '../../contexts/LocationContext';
 
 interface LocationFilterModalProps {
     isOpen: boolean;
@@ -16,47 +16,23 @@ export interface LocationFilter {
 }
 
 export const LocationFilterModal: React.FC<LocationFilterModalProps> = ({ isOpen, onClose, currentFilter, onApply }) => {
-    const [radius, setRadius] = useState(currentFilter.radius || 20);
-    const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(currentFilter.coords || null);
-    const [isLocating, setIsLocating] = useState(false);
-    const [locationError, setLocationError] = useState('');
+    const { coords, isLocating, requestLocation } = useLocationContext();
 
+    const [radius, setRadius] = useState(currentFilter.radius || 20);
+
+    // Sync radius from currentFilter when modal opens
     useEffect(() => {
         if (isOpen) {
-            setRadius(currentFilter.radius || 60);
-            setUserCoords(currentFilter.coords || null);
+            setRadius(currentFilter.radius || 20);
         }
-    }, [isOpen, currentFilter]);
-
-    const handleLocateMe = async () => {
-        setIsLocating(true);
-        setLocationError('');
-        try {
-            const permission = await Geolocation.requestPermissions();
-            if (permission.location === 'denied') {
-                setLocationError('Konum izni reddedildi. Lütfen ayarlardan izin verin.');
-                return;
-            }
-            const position = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 10000 });
-            setUserCoords({ lat: position.coords.latitude, lng: position.coords.longitude });
-        } catch (error) {
-            setLocationError('Konum alınamadı. Lütfen izin verin.');
-            console.error(error);
-        } finally {
-            setIsLocating(false);
-        }
-    };
+    }, [isOpen, currentFilter.radius]);
 
     const handleApply = () => {
-        if (!userCoords) {
-            setLocationError('Konumunuzu belirlemelisiniz.');
-            return;
-        }
-
+        if (!coords) return; // should not happen — button disabled when no coords
         onApply({
             type: 'NEARBY',
             radius,
-            coords: userCoords
+            coords,
         });
         onClose();
     };
@@ -88,12 +64,14 @@ export const LocationFilterModal: React.FC<LocationFilterModalProps> = ({ isOpen
                         </div>
 
                         <div className="pl-8 animate-fade-in">
-                            {!userCoords ? (
+                            {!coords ? (
                                 <button
-                                    onClick={handleLocateMe}
-                                    className="text-xs bg-slate-700 text-white px-3 py-2 rounded-lg flex items-center gap-2 hover:bg-slate-600 mb-2"
+                                    onClick={requestLocation}
+                                    disabled={isLocating}
+                                    className="text-xs bg-slate-700 text-white px-3 py-2 rounded-lg flex items-center gap-2 hover:bg-slate-600 mb-2 disabled:opacity-50"
                                 >
-                                    <Navigation className="w-3 h-3" /> Konumumu Bul
+                                    <Navigation className="w-3 h-3" />
+                                    {isLocating ? 'Konum alınıyor...' : 'Konumumu Bul'}
                                 </button>
                             ) : (
                                 <div className="mb-4">
@@ -119,9 +97,9 @@ export const LocationFilterModal: React.FC<LocationFilterModalProps> = ({ isOpen
                         </div>
                     </div>
 
-                    {locationError && (
-                        <div className="text-red-400 text-xs bg-red-900/20 p-3 rounded-lg flex items-center gap-2">
-                            <X className="w-3 h-3" /> {locationError}
+                    {!coords && !isLocating && (
+                        <div className="text-amber-400 text-xs bg-amber-900/20 p-3 rounded-lg flex items-center gap-2">
+                            <Navigation className="w-3 h-3" /> Yakınındaki içerikleri görmek için konumunu paylaş.
                         </div>
                     )}
                 </div>
@@ -129,7 +107,8 @@ export const LocationFilterModal: React.FC<LocationFilterModalProps> = ({ isOpen
                 <div className="p-5 border-t border-slate-700 bg-slate-900">
                     <button
                         onClick={handleApply}
-                        className="w-full bg-turf-600 hover:bg-turf-500 text-white font-bold py-3.5 rounded-xl transition-colors shadow-lg shadow-turf-600/20"
+                        disabled={!coords}
+                        className="w-full bg-turf-600 hover:bg-turf-500 text-white font-bold py-3.5 rounded-xl transition-colors shadow-lg shadow-turf-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         Filtreyi Uygula
                     </button>

@@ -17,7 +17,7 @@ export const RegisterSidebar: React.FC<RegisterSidebarProps> = ({ currentStep })
     return (
         <div className="bg-slate-800/50 w-full md:w-1/4 p-6 border-b md:border-b-0 md:border-r border-slate-700 flex flex-row md:flex-col justify-between md:justify-start gap-4 overflow-x-auto">
             <div className="mb-0 md:mb-8 flex items-center gap-2">
-                <img src="/logo.png" alt="DIMLİ" className="h-8 w-auto object-contain" />
+                <img src="/icon.png" alt="DIMLİ" className="h-8 w-auto object-contain" />
                 <h1 className="font-black text-white italic hidden md:block">DIMLİ</h1>
             </div>
 

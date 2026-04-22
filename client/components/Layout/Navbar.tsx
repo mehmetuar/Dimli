@@ -57,7 +57,7 @@ export const Navbar: React.FC = () => {
     <>
       {/* Desktop Logo (Top Left Absolute) */}
       <div className="hidden md:flex fixed top-6 left-8 items-center gap-2 z-50 cursor-pointer" onClick={() => navigate('/')}>
-        <img src="/logo.png" alt="DIMLİ" className="h-10 w-auto object-contain" />
+        <img src="/icon.png" alt="DIMLİ" className="h-10 w-auto object-contain" />
       </div>
 
       {/* Notification Bell (Top Right - Visible Mobile & Desktop) - Conditioned */}

@@ -1,10 +1,14 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X, MapPin, Calendar, Clock, Shield, ChevronRight, CheckCircle, Trophy, Filter, Store, Info } from 'lucide-react';
+import { X, MapPin, Calendar, Clock, Shield, ChevronRight, CheckCircle, Trophy, Store, Info, Search } from 'lucide-react';
 import { LoadingSpinner } from '../UI/LoadingSpinner';
-import { SkillLevel, Business, Pitch, ReservationStatus } from '../../types';
-import api, { getReservationsByPitch } from '../../services/api';
+import { SkillLevel, Business, ReservationStatus } from '../../types';
+import api, { getReservationsByPitch, getBusinesses } from '../../services/api';
+import { useLocationContext } from '../../contexts/LocationContext';
+
+import { DateSelectionModal } from './DateSelectionModal';
+import { TimeSelectionModal } from './TimeSelectionModal';
 
 interface Props {
     isOpen: boolean;
@@ -15,10 +19,9 @@ interface Props {
     preSelectedDate?: string;
 }
 
-import { DateSelectionModal } from './DateSelectionModal';
-import { TimeSelectionModal } from './TimeSelectionModal';
-
 export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelectedPitchId, preSelectedBusinessId, preSelectedStartTime, preSelectedDate }) => {
+    const { coords, radius, isLocating } = useLocationContext();
+
     if (!isOpen) return null;
 
     const navigate = useNavigate();
@@ -28,16 +31,13 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
     const [selectedBusinessId, setSelectedBusinessId] = useState<string | null>(null);
     const [selectedPitchId, setSelectedPitchId] = useState(preSelectedPitchId || '');
 
-    // Derived state
-    const [selectedRegion, setSelectedRegion] = useState('TÜMÜ');
+    // Search
+    const [searchQuery, setSearchQuery] = useState('');
 
     // Get today's date in YYYY-MM-DD format
     const getTodayDate = () => {
         const today = new Date();
-        const year = today.getFullYear();
-        const month = String(today.getMonth() + 1).padStart(2, '0');
-        const day = String(today.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
+        return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     };
 
     const [date, setDate] = useState(preSelectedDate || getTodayDate());
@@ -45,30 +45,28 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
     const [level, setLevel] = useState(SkillLevel.INTERMEDIATE);
     const [note, setNote] = useState('');
     const [playerCount, setPlayerCount] = useState(7);
-    const [isLoading, setIsLoading] = useState(false); // For submission
-    const [isFetchingData, setIsFetchingData] = useState(false); // For initial data
+    const [isLoading, setIsLoading] = useState(false);
+    const [isLoadingLocation, setIsLoadingLocation] = useState(isLocating && !coords);
     const [successMessage, setSuccessMessage] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
     const [currentUser, setCurrentUser] = useState<any>(null);
-
-    // Booked slots tracking
     const [bookedTimes, setBookedTimes] = useState<string[]>([]);
-
-    // Modal states
     const [isDateModalOpen, setIsDateModalOpen] = useState(false);
     const [isTimeModalOpen, setIsTimeModalOpen] = useState(false);
-
-    // Flow State
     const [matchType, setMatchType] = useState<'rakip_araniyor' | 'kendi_aramizda'>('rakip_araniyor');
+
+    // Fetch nearby businesses from server (server-side geo filter)
+    const fetchBusinessesNearby = async (c: { lat: number; lng: number }) => {
+        const bList: Business[] = await getBusinesses({ lat: c.lat, lng: c.lng, radius });
+        setBusinesses(bList);
+    };
 
     // Fetch initial data (User & Businesses)
     useEffect(() => {
         const fetchInitialData = async () => {
-            setIsFetchingData(true);
             try {
-                // 1. Fetch User
+                // 1. Fetch User (fast — no spinner blocking the form)
                 const userRes = await api.get('/users/me');
-                console.log('📝 Current User:', userRes.data);
                 setCurrentUser(userRes.data);
                 if (userRes.data.team?.level) {
                     const rawLevel = userRes.data.team.level;
@@ -81,44 +79,49 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
                     setLevel(levelMap[rawLevel] ?? (rawLevel as SkillLevel));
                 }
 
-                // 2. Fetch Businesses (with Pitches)
-                const businessRes = await api.get('/businesses');
-                const fetchedBusinesses: Business[] = businessRes.data;
-                setBusinesses(fetchedBusinesses);
-
-                // 3. Handle Pre-selection
-                if (preSelectedPitchId) {
-                    // Find business for this pitch
-                    const business = fetchedBusinesses.find(b => b.pitches?.some(p => p.id === preSelectedPitchId));
-                    if (business) {
-                        setSelectedBusinessId(business.id);
-                        setSelectedPitchId(preSelectedPitchId);
+                // 2. For pre-selected pitch/business: fetch all businesses (no geo needed)
+                if (preSelectedPitchId || preSelectedBusinessId) {
+                    const bList: Business[] = await getBusinesses();
+                    setBusinesses(bList);
+                    if (preSelectedPitchId) {
+                        const business = bList.find(b => b.pitches?.some(p => p.id === preSelectedPitchId));
+                        if (business) {
+                            setSelectedBusinessId(business.id);
+                            setSelectedPitchId(preSelectedPitchId);
+                        }
+                    } else if (preSelectedBusinessId) {
+                        setSelectedBusinessId(preSelectedBusinessId);
                     }
-                } else if (preSelectedBusinessId) {
-                    // Pre-expand the home business in the list
-                    setSelectedBusinessId(preSelectedBusinessId);
+                    setIsLoadingLocation(false);
+                    return;
                 }
+
+                // 3. Normal open: use context coords (already resolved by LocationContext)
+                if (coords) {
+                    await fetchBusinessesNearby(coords);
+                }
+                setIsLoadingLocation(false);
 
             } catch (error) {
                 console.error('Failed to fetch data:', error);
                 setErrorMessage('Veriler yüklenirken hata oluştu.');
-            } finally {
-                setIsFetchingData(false);
+                setIsLoadingLocation(false);
             }
         };
 
         if (isOpen) {
-            fetchInitialData();
-            // Always sync date with filter selection when opening
+            setIsLoadingLocation(true);
+            setBusinesses([]);
             setDate(preSelectedDate || getTodayDate());
-            // Reset state if opening fresh (optional, but good for UX if not pre-selected)
             if (!preSelectedPitchId && !preSelectedBusinessId) {
                 setSelectedBusinessId(null);
                 setSelectedPitchId('');
                 setSuccessMessage('');
                 setErrorMessage('');
                 setBookedTimes([]);
+                setSearchQuery('');
             }
+            fetchInitialData();
         }
     }, [isOpen, preSelectedPitchId, preSelectedBusinessId]);
 
@@ -126,24 +129,18 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
     useEffect(() => {
         const fetchBookedSlots = async () => {
             if (!selectedPitchId || !date) return;
-
             try {
                 const reservations = await getReservationsByPitch(selectedPitchId, date);
-                // Filter only APPROVED reservations
                 const approvedReservations = reservations.filter((r: any) => r.status === ReservationStatus.APPROVED);
-
-                // Extract times (HH:MM format)
                 const times = approvedReservations.map((r: any) => {
                     const d = new Date(r.slotTime);
                     return d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', hour12: false });
                 });
-
                 setBookedTimes(times);
             } catch (error) {
                 console.error('Failed to fetch booked slots:', error);
             }
         };
-
         fetchBookedSlots();
     }, [selectedPitchId, date]);
 
@@ -154,10 +151,8 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
             setErrorMessage('Lütfen tüm alanları doldurun');
             return;
         }
-
         setIsLoading(true);
         setErrorMessage('');
-
         try {
             const response = await api.post('/match-announcements', {
                 pitchId: selectedPitchId,
@@ -168,15 +163,10 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
                 description: note,
                 matchType
             });
-
-            console.log('✅ Announcement created:', response.data);
             onClose();
-
             if (matchType === 'kendi_aramizda') {
-                // Oluşturulan chat kanalına direkt yönlendir
                 navigate('/chat', { state: { channelId: response.data.channelId || null } });
             } else {
-                // Maç pazarına yönlendir — yayınlanan ilan görünsün
                 navigate('/');
             }
         } catch (error: any) {
@@ -191,7 +181,6 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
         }
     };
 
-    // Helper to find selected pitch object
     const getSelectedPitch = () => {
         if (!selectedPitchId) return null;
         for (const b of businesses) {
@@ -202,24 +191,22 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
     };
     const selectedPitch = getSelectedPitch();
 
-    // Helper to find selected business object
     const getSelectedBusiness = () => {
-        if (selectedBusinessId) {
-            return businesses.find(b => b.id === selectedBusinessId);
-        }
-        if (selectedPitchId) {
-            return businesses.find(b => b.pitches?.some(p => p.id === selectedPitchId));
-        }
+        if (selectedBusinessId) return businesses.find(b => b.id === selectedBusinessId);
+        if (selectedPitchId) return businesses.find(b => b.pitches?.some(p => p.id === selectedPitchId));
         return undefined;
     };
     const selectedBusiness = getSelectedBusiness();
 
-
-    // Filter Logic for Businesses
-    const regions = ['TÜMÜ', ...new Set(businesses.map(b => b.district || b.city || ''))].filter(Boolean);
-    const filteredBusinesses = selectedRegion === 'TÜMÜ'
-        ? businesses
-        : businesses.filter(b => (b.district === selectedRegion || b.city === selectedRegion));
+    // Filter by search query only — server already handled geo + ordering
+    const filteredBusinesses = useMemo(() => {
+        if (!searchQuery.trim()) return businesses;
+        const q = searchQuery.trim().toLocaleLowerCase('tr');
+        return businesses.filter(b =>
+            b.name.toLocaleLowerCase('tr').includes(q) ||
+            b.pitches?.some(p => p.name.toLocaleLowerCase('tr').includes(q))
+        );
+    }, [businesses, searchQuery]);
 
     return (
         <>
@@ -254,224 +241,233 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
                             </div>
                         )}
 
-                        {isFetchingData ? (
-                            <div className="flex justify-center py-10">
-                                <LoadingSpinner />
+                        {/* Match Type Toggle */}
+                        <div className="mb-6 animate-fade-in">
+                            <div className="flex p-1 bg-slate-900 rounded-xl">
+                                <button
+                                    onClick={() => setMatchType('rakip_araniyor')}
+                                    className={`flex-1 py-3 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${matchType === 'rakip_araniyor' ? 'bg-turf-600 text-white shadow-lg shadow-turf-600/30' : 'text-slate-400 hover:text-slate-200'}`}
+                                >
+                                    <Shield className="w-4 h-4" />
+                                    Rakip Aranıyor
+                                </button>
+                                <button
+                                    onClick={() => setMatchType('kendi_aramizda')}
+                                    className={`flex-1 py-3 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${matchType === 'kendi_aramizda' ? 'bg-turf-600 text-white shadow-lg shadow-turf-600/30' : 'text-slate-400 hover:text-slate-200'}`}
+                                >
+                                    <Store className="w-4 h-4" />
+                                    Kendi Aramızda
+                                </button>
                             </div>
-                        ) : (
-                            <>
-                                {/* Match Type Toggle */}
-                                <div className="mb-6 animate-fade-in">
-                                    <div className="flex p-1 bg-slate-900 rounded-xl">
-                                        <button
-                                            onClick={() => setMatchType('rakip_araniyor')}
-                                            className={`flex-1 py-3 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${matchType === 'rakip_araniyor' ? 'bg-turf-600 text-white shadow-lg shadow-turf-600/30' : 'text-slate-400 hover:text-slate-200'}`}
-                                        >
-                                            <Shield className="w-4 h-4" />
-                                            Rakip Aranıyor
-                                        </button>
-                                        <button
-                                            onClick={() => setMatchType('kendi_aramizda')}
-                                            className={`flex-1 py-3 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${matchType === 'kendi_aramizda' ? 'bg-turf-600 text-white shadow-lg shadow-turf-600/30' : 'text-slate-400 hover:text-slate-200'}`}
-                                        >
-                                            <Store className="w-4 h-4" />
-                                            Kendi Aramızda
-                                        </button>
+                            {matchType === 'kendi_aramizda' && (
+                                <div className="mt-3 bg-blue-500/10 border border-blue-500/30 text-blue-400 px-4 py-3 rounded-xl flex gap-3 animate-fade-in text-xs leading-relaxed">
+                                    <Info className="w-5 h-5 shrink-0" />
+                                    <p><strong>Bilgilendirme:</strong> Kendi aramızda butonu ile ilgili saatte işletme onayı ile saha sadece sizin için rezerve edilecektir. Sizin için tek takımlı bir sohbet başlatılacaktır.</p>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Step 1: Pitch/Business Selection */}
+                        <div className="mb-8 animate-fade-in">
+                            <label className="text-xs font-bold text-slate-500 uppercase mb-3 block flex items-center gap-2">
+                                <span className="w-5 h-5 rounded-full bg-turf-600 text-slate-900 flex items-center justify-center text-[10px]">1</span>
+                                Saha Seçimi
+                            </label>
+
+                            {preSelectedPitchId ? (
+                                // READ ONLY VIEW if pre-selected
+                                <div className="bg-slate-900 p-4 rounded-xl border border-slate-700 flex items-center gap-3">
+                                    <div className="w-11 h-11 bg-slate-800 rounded-xl flex items-center justify-center text-turf-500 flex-shrink-0">
+                                        <MapPin className="w-5 h-5" />
                                     </div>
-                                    {matchType === 'kendi_aramizda' && (
-                                        <div className="mt-3 bg-blue-500/10 border border-blue-500/30 text-blue-400 px-4 py-3 rounded-xl flex gap-3 animate-fade-in text-xs leading-relaxed">
-                                            <Info className="w-5 h-5 shrink-0" />
-                                            <p><strong>Bilgilendirme:</strong> Kendi aramızda butonu ile ilgili saatte işletme onayı ile saha sadece sizin için rezerve edilecektir. Sizin için tek takımlı bir sohbet başlatılacaktır.</p>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="font-bold text-white text-sm truncate">
+                                            {businesses.find(b => b.pitches?.some(p => p.id === selectedPitchId))?.name}
                                         </div>
-                                    )}
-                                </div>
-
-                                {/* Step 1: Pitch/Business Selection */}
-                                <div className="mb-8 animate-fade-in">
-                                    <label className="text-xs font-bold text-slate-500 uppercase mb-3 block flex items-center gap-2">
-                                        <span className="w-5 h-5 rounded-full bg-turf-600 text-slate-900 flex items-center justify-center text-[10px]">1</span>
-                                        Saha Seçimi
-                                    </label>
-
-                                    {preSelectedPitchId ? (
-                                        // READ ONLY VIEW if pre-selected
-                                        <div className="bg-slate-900 p-4 rounded-xl border border-slate-700 flex items-center gap-3">
-                                            <div className="w-11 h-11 bg-slate-800 rounded-xl flex items-center justify-center text-turf-500 flex-shrink-0">
-                                                <MapPin className="w-5 h-5" />
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="font-bold text-white text-sm truncate">
-                                                    {businesses.find(b => b.pitches?.some(p => p.id === selectedPitchId))?.name}
-                                                </div>
-                                                <div className="text-xs text-slate-400 truncate">
-                                                    {selectedPitch?.name}
-                                                </div>
-                                            </div>
-                                            <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                                                <span className="text-turf-400 font-black text-base font-sport">₺{selectedPitch?.pricePerHour}</span>
-                                                <span className="text-[10px] bg-slate-800 px-2 py-0.5 rounded-full text-slate-400 border border-slate-700">Sabitlendi</span>
-                                            </div>
+                                        <div className="text-xs text-slate-400 truncate">
+                                            {selectedPitch?.name}
                                         </div>
-                                    ) : (
-                                        <>
-                                            {/* Region Filters */}
-                                            <div className="flex gap-2 mb-3 overflow-x-auto scrollbar-hide pb-2">
-                                                {regions.map(region => (
-                                                    <button
-                                                        key={region}
-                                                        onClick={() => setSelectedRegion(region)}
-                                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-colors ${selectedRegion === region
-                                                            ? 'bg-turf-600 text-white'
-                                                            : 'bg-slate-900 text-slate-400 border border-slate-700 hover:border-turf-500'
-                                                            }`}
-                                                    >
-                                                        {region}
-                                                    </button>
-                                                ))}
-                                            </div>
-
-                                            {/* Business List */}
-                                            <div className="grid grid-cols-1 gap-2 max-h-64 overflow-y-auto">
-                                                {filteredBusinesses.map(business => (
-                                                    <div key={business.id} className={`rounded-xl border transition-all overflow-hidden ${selectedBusinessId === business.id ? 'border-turf-500 bg-slate-900' : 'border-slate-700 bg-slate-900/50'}`}>
-                                                        <div
-                                                            onClick={() => setSelectedBusinessId(selectedBusinessId === business.id ? null : business.id)}
-                                                            className="p-3 cursor-pointer flex items-center gap-3 hover:bg-slate-800 transition-colors"
-                                                        >
-                                                            <Store className={`w-5 h-5 ${selectedBusinessId === business.id ? 'text-turf-500' : 'text-slate-500'}`} />
-                                                            <div className="flex-1">
-                                                                <div className="font-bold text-white text-sm">{business.name}</div>
-                                                                <div className="text-xs text-slate-500">{business.district}, {business.city}</div>
-                                                            </div>
-                                                            <ChevronRight className={`w-4 h-4 text-slate-600 transition-transform ${selectedBusinessId === business.id ? 'rotate-90' : ''}`} />
-                                                        </div>
-
-                                                        {/* Pitches List (if expanded) */}
-                                                        {selectedBusinessId === business.id && (
-                                                            <div className="bg-slate-950/50 p-2 space-y-1 border-t border-slate-800">
-                                                                {business.pitches?.map(pitch => (
-                                                                    <div
-                                                                        key={pitch.id}
-                                                                        onClick={() => setSelectedPitchId(pitch.id)}
-                                                                        className={`p-2 rounded-lg flex items-center justify-between cursor-pointer text-xs ${selectedPitchId === pitch.id ? 'bg-turf-900/40 text-turf-400 border border-turf-500/30' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
-                                                                    >
-                                                                        <div className="flex items-center gap-2">
-                                                                            <span>{pitch.name}</span>
-                                                                            <span className="px-1.5 py-0.5 rounded bg-slate-800 text-[9px] uppercase">{pitch.type}</span>
-                                                                        </div>
-                                                                        <div className="font-bold">₺{pitch.pricePerHour}</div>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </>
-                                    )}
-                                </div>
-
-                                {/* Step 2: Date & Time */}
-                                <div className="mb-8 animate-fade-in delay-75">
-                                    <label className="text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-2">
-                                        <span className="w-5 h-5 rounded-full bg-turf-600 text-slate-900 flex items-center justify-center text-[10px]">2</span>
-                                        Zamanlama
-                                    </label>
-                                    <div className="space-y-3">
-                                        {/* Date Card */}
-                                        <div
-                                            onClick={() => setIsDateModalOpen(true)}
-                                            className="relative bg-slate-900 border border-slate-700 rounded-xl flex items-center gap-3 px-4 py-3 cursor-pointer hover:border-turf-500 transition-colors"
-                                        >
-                                            <div className="w-9 h-9 rounded-lg bg-slate-800 flex items-center justify-center flex-shrink-0">
-                                                <Calendar className="w-4 h-4 text-turf-400" />
-                                            </div>
-                                            <div className="flex-1 flex flex-col">
-                                                <div className="text-[10px] text-slate-500 font-bold uppercase mb-0.5">TARİH</div>
-                                                <div className="text-white text-sm font-semibold">
-                                                    {date
-                                                        ? new Date(date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', weekday: 'long' })
-                                                        : 'Tarih Seçin'}
-                                                </div>
-                                            </div>
-                                            <ChevronRight className="w-4 h-4 text-slate-600" />
-                                        </div>
-
-
-                                        {/* Time Card */}
-                                        <div
-                                            onClick={() => setIsTimeModalOpen(true)}
-                                            className={`relative bg-slate-900 border border-slate-700 rounded-xl flex items-center gap-3 px-4 py-3 cursor-pointer hover:border-turf-500 transition-colors ${!selectedBusiness ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                        >
-                                            <div className="w-9 h-9 rounded-lg bg-slate-800 flex items-center justify-center flex-shrink-0">
-                                                <Clock className="w-4 h-4 text-turf-400" />
-                                            </div>
-                                            <div className="flex-1 flex flex-col">
-                                                <div className="text-[10px] text-slate-500 font-bold uppercase mb-0.5">SAAT</div>
-                                                <div className="text-white text-sm font-semibold">
-                                                    {time ? `${time}` : selectedBusiness ? 'Saat Seçin' : 'Önce Saha Seçin'}
-                                                </div>
-                                            </div>
-                                            <ChevronRight className="w-4 h-4 text-slate-600" />
-                                        </div>
-
+                                    </div>
+                                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                                        <span className="text-turf-400 font-black text-base font-sport">₺{selectedPitch?.pricePerHour}</span>
+                                        <span className="text-[10px] bg-slate-800 px-2 py-0.5 rounded-full text-slate-400 border border-slate-700">Sabitlendi</span>
                                     </div>
                                 </div>
-
-                                {/* Step 3: Details */}
-                                <div className="mb-4 animate-fade-in delay-150">
-                                    <label className="text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-2">
-                                        <span className="w-5 h-5 rounded-full bg-turf-600 text-slate-900 flex items-center justify-center text-[10px]">3</span>
-                                        Detaylar
-                                    </label>
-
-                                    <div className="space-y-4">
-                                        {matchType === 'rakip_araniyor' && (
-                                            <div>
-                                                <span className="text-xs text-slate-400 mb-2 block">Aranan Rakip Seviyesi</span>
-                                                <div className="flex p-1 bg-slate-900 rounded-lg">
-                                                    {Object.values(SkillLevel).map((lvl) => (
-                                                        <button
-                                                            key={lvl}
-                                                            onClick={() => setLevel(lvl)}
-                                                            className={`flex-1 py-2 text-[10px] font-bold rounded transition-colors ${level === lvl ? 'bg-slate-700 text-white shadow' : 'text-slate-500 hover:text-slate-300'}`}
-                                                        >
-                                                            {lvl}
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        <div>
-                                            <span className="text-xs text-slate-400 mb-2 block">Kadro Boyutu</span>
-                                            <div className="flex p-1 bg-slate-900 rounded-lg overflow-x-auto">
-                                                {[5, 6, 7, 8, 11].map((count) => (
-                                                    <button
-                                                        key={count}
-                                                        onClick={() => setPlayerCount(count)}
-                                                        className={`flex-1 py-2 px-2 text-[10px] font-bold rounded transition-colors whitespace-nowrap ${playerCount === count ? 'bg-slate-700 text-white shadow' : 'text-slate-500 hover:text-slate-300'}`}
-                                                    >
-                                                        {count}v{count}
-                                                    </button>
-                                                ))}
-                                            </div>
+                            ) : isLoadingLocation ? (
+                                // GPS loading — only blocks business list, not the whole form
+                                <div className="flex flex-col items-center justify-center py-10 gap-3 bg-slate-900/50 rounded-xl border border-slate-700/50">
+                                    <LoadingSpinner />
+                                    <p className="text-slate-500 text-xs">Konumunuz alınıyor...</p>
+                                    <p className="text-slate-600 text-[10px]">Yakınındaki sahalar yükleniyor</p>
+                                </div>
+                            ) : (
+                                <>
+                                    {/* Location badge + Search row */}
+                                    <div className="flex gap-2 mb-3">
+                                        <div className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold bg-turf-600 text-white border border-turf-500 shrink-0">
+                                            <MapPin className="w-3.5 h-3.5" />
+                                            Yakınımda ({radius}km)
                                         </div>
-
-                                        <div>
-                                            <span className="text-xs text-slate-400 mb-2 block">Kaptan Notu</span>
-                                            <textarea
-                                                rows={3}
-                                                className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-white text-sm focus:border-turf-500 focus:outline-none"
-                                                placeholder="Örn: Forma rengimiz siyah. İddialıyız."
-                                                value={note}
-                                                onChange={(e) => setNote(e.target.value)}
+                                        <div className="relative flex-1">
+                                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none" />
+                                            <input
+                                                type="text"
+                                                placeholder="Saha ara..."
+                                                value={searchQuery}
+                                                onChange={e => setSearchQuery(e.target.value)}
+                                                className="w-full bg-slate-900 border border-slate-700 rounded-lg pl-8 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:border-turf-500 focus:outline-none"
                                             />
                                         </div>
                                     </div>
+
+                                    {/* Business List */}
+                                    <div className="grid grid-cols-1 gap-2 max-h-64 overflow-y-auto">
+                                        {filteredBusinesses.length === 0 ? (
+                                            <div className="text-center text-slate-500 text-xs py-8 bg-slate-900/50 rounded-xl border border-dashed border-slate-700">
+                                                <MapPin className="w-6 h-6 mx-auto mb-2 text-slate-600" />
+                                                {searchQuery ? 'Arama sonucu bulunamadı.' : 'Yakınınızda saha bulunamadı.'}
+                                            </div>
+                                        ) : filteredBusinesses.map(business => (
+                                            <div key={business.id} className={`rounded-xl border transition-all overflow-hidden ${selectedBusinessId === business.id ? 'border-turf-500 bg-slate-900' : 'border-slate-700 bg-slate-900/50'}`}>
+                                                <div
+                                                    onClick={() => setSelectedBusinessId(selectedBusinessId === business.id ? null : business.id)}
+                                                    className="p-3 cursor-pointer flex items-center gap-3 hover:bg-slate-800 transition-colors"
+                                                >
+                                                    <Store className={`w-5 h-5 shrink-0 ${selectedBusinessId === business.id ? 'text-turf-500' : 'text-slate-500'}`} />
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="font-bold text-white text-sm truncate">{business.name}</div>
+                                                        <div className="text-xs text-slate-500">{business.district}, {business.city}</div>
+                                                    </div>
+                                                    {business.distanceKm != null && (
+                                                        <span className="text-[10px] font-bold text-turf-400 bg-turf-900/30 border border-turf-500/30 px-2 py-0.5 rounded-full shrink-0">
+                                                            {business.distanceKm} km
+                                                        </span>
+                                                    )}
+                                                    <ChevronRight className={`w-4 h-4 text-slate-600 transition-transform shrink-0 ${selectedBusinessId === business.id ? 'rotate-90' : ''}`} />
+                                                </div>
+
+                                                {/* Pitches List (if expanded) */}
+                                                {selectedBusinessId === business.id && (
+                                                    <div className="bg-slate-950/50 p-2 space-y-1 border-t border-slate-800">
+                                                        {business.pitches?.map(pitch => (
+                                                            <div
+                                                                key={pitch.id}
+                                                                onClick={() => setSelectedPitchId(pitch.id)}
+                                                                className={`p-2 rounded-lg flex items-center justify-between cursor-pointer text-xs ${selectedPitchId === pitch.id ? 'bg-turf-900/40 text-turf-400 border border-turf-500/30' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+                                                            >
+                                                                <div className="flex items-center gap-2">
+                                                                    <span>{pitch.name}</span>
+                                                                    <span className="px-1.5 py-0.5 rounded bg-slate-800 text-[9px] uppercase">{pitch.type}</span>
+                                                                </div>
+                                                                <div className="font-bold">₺{pitch.pricePerHour}</div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </>
+                            )}
+                        </div>
+
+                        {/* Step 2: Date & Time */}
+                        <div className="mb-8 animate-fade-in delay-75">
+                            <label className="text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-2">
+                                <span className="w-5 h-5 rounded-full bg-turf-600 text-slate-900 flex items-center justify-center text-[10px]">2</span>
+                                Zamanlama
+                            </label>
+                            <div className="space-y-3">
+                                {/* Date Card */}
+                                <div
+                                    onClick={() => setIsDateModalOpen(true)}
+                                    className="relative bg-slate-900 border border-slate-700 rounded-xl flex items-center gap-3 px-4 py-3 cursor-pointer hover:border-turf-500 transition-colors"
+                                >
+                                    <div className="w-9 h-9 rounded-lg bg-slate-800 flex items-center justify-center flex-shrink-0">
+                                        <Calendar className="w-4 h-4 text-turf-400" />
+                                    </div>
+                                    <div className="flex-1 flex flex-col">
+                                        <div className="text-[10px] text-slate-500 font-bold uppercase mb-0.5">TARİH</div>
+                                        <div className="text-white text-sm font-semibold">
+                                            {date
+                                                ? new Date(date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', weekday: 'long' })
+                                                : 'Tarih Seçin'}
+                                        </div>
+                                    </div>
+                                    <ChevronRight className="w-4 h-4 text-slate-600" />
                                 </div>
-                            </>
-                        )}
+
+                                {/* Time Card */}
+                                <div
+                                    onClick={() => setIsTimeModalOpen(true)}
+                                    className={`relative bg-slate-900 border border-slate-700 rounded-xl flex items-center gap-3 px-4 py-3 cursor-pointer hover:border-turf-500 transition-colors ${!selectedBusiness ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                >
+                                    <div className="w-9 h-9 rounded-lg bg-slate-800 flex items-center justify-center flex-shrink-0">
+                                        <Clock className="w-4 h-4 text-turf-400" />
+                                    </div>
+                                    <div className="flex-1 flex flex-col">
+                                        <div className="text-[10px] text-slate-500 font-bold uppercase mb-0.5">SAAT</div>
+                                        <div className="text-white text-sm font-semibold">
+                                            {time ? `${time}` : selectedBusiness ? 'Saat Seçin' : 'Önce Saha Seçin'}
+                                        </div>
+                                    </div>
+                                    <ChevronRight className="w-4 h-4 text-slate-600" />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Step 3: Details */}
+                        <div className="mb-4 animate-fade-in delay-150">
+                            <label className="text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-2">
+                                <span className="w-5 h-5 rounded-full bg-turf-600 text-slate-900 flex items-center justify-center text-[10px]">3</span>
+                                Detaylar
+                            </label>
+
+                            <div className="space-y-4">
+                                {matchType === 'rakip_araniyor' && (
+                                    <div>
+                                        <span className="text-xs text-slate-400 mb-2 block">Aranan Rakip Seviyesi</span>
+                                        <div className="flex p-1 bg-slate-900 rounded-lg">
+                                            {Object.values(SkillLevel).map((lvl) => (
+                                                <button
+                                                    key={lvl}
+                                                    onClick={() => setLevel(lvl)}
+                                                    className={`flex-1 py-2 text-[10px] font-bold rounded transition-colors ${level === lvl ? 'bg-slate-700 text-white shadow' : 'text-slate-500 hover:text-slate-300'}`}
+                                                >
+                                                    {lvl}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div>
+                                    <span className="text-xs text-slate-400 mb-2 block">Kadro Boyutu</span>
+                                    <div className="flex p-1 bg-slate-900 rounded-lg overflow-x-auto">
+                                        {[5, 6, 7, 8, 11].map((count) => (
+                                            <button
+                                                key={count}
+                                                onClick={() => setPlayerCount(count)}
+                                                className={`flex-1 py-2 px-2 text-[10px] font-bold rounded transition-colors whitespace-nowrap ${playerCount === count ? 'bg-slate-700 text-white shadow' : 'text-slate-500 hover:text-slate-300'}`}
+                                            >
+                                                {count}v{count}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <span className="text-xs text-slate-400 mb-2 block">Kaptan Notu</span>
+                                    <textarea
+                                        rows={3}
+                                        className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-white text-sm focus:border-turf-500 focus:outline-none"
+                                        placeholder="Örn: Forma rengimiz siyah. İddialıyız."
+                                        value={note}
+                                        onChange={(e) => setNote(e.target.value)}
+                                    />
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     {/* Footer Actions */}
