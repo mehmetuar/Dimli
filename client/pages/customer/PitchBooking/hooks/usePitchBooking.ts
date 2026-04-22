@@ -1,32 +1,13 @@
 import { useState, useEffect } from 'react';
-import { Geolocation } from '@capacitor/geolocation';
 import api from '../../../../services/api';
+import { getBusinesses } from '../../../../services/api';
 import { Business, Team } from '../../../../types';
 import { LocationFilter } from '../../../../components/Modals/LocationFilterModal';
-
-// ── Haversine distance (km) ─────────────────────────────────────────────────
-function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
-    const R = 6371;
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLng = (lng2 - lng1) * Math.PI / 180;
-    const a = Math.sin(dLat / 2) ** 2 +
-        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-        Math.sin(dLng / 2) ** 2;
-    return parseFloat((R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))).toFixed(1));
-}
-
-// ── Coord cache shared with Marketplace ────────────────────────────────────
-const COORD_CACHE_KEY = 'marketplace_user_coords';
-const getCachedCoords = (): { lat: number; lng: number } | null => {
-    try { const r = sessionStorage.getItem(COORD_CACHE_KEY); return r ? JSON.parse(r) : null; }
-    catch { return null; }
-};
-const setCachedCoords = (c: { lat: number; lng: number }) => {
-    try { sessionStorage.setItem(COORD_CACHE_KEY, JSON.stringify(c)); } catch { /* ignore */ }
-};
-// ───────────────────────────────────────────────────────────────────────────
+import { useLocationContext } from '../../../../contexts/LocationContext';
 
 export const usePitchBooking = () => {
+    const { coords, radius, isLocating, setRadius } = useLocationContext();
+
     const [businesses, setBusinesses] = useState<Business[]>([]);
     const [expandedBusinessId, setExpandedBusinessId] = useState<string | null>(null);
     const [selectedPitchIdInBusiness, setSelectedPitchIdInBusiness] = useState<Record<string, string>>({});
@@ -35,8 +16,6 @@ export const usePitchBooking = () => {
     const [offerMode, setOfferMode] = useState<{ matchId: string, teamName: string } | null>(null);
 
     const [isLocationFilterOpen, setIsLocationFilterOpen] = useState(false);
-    const [locationFilter, setLocationFilter] = useState<LocationFilter>({ type: 'ALL' });
-
     const [myChallenges, setMyChallenges] = useState<any[]>([]);
     const [confirmCancelModal, setConfirmCancelModal] = useState<{ isOpen: boolean; challengeId: string | null }>({ isOpen: false, challengeId: null });
     const [confirmDeleteAdModal, setConfirmDeleteAdModal] = useState<{ isOpen: boolean; adId: string | null }>({ isOpen: false, adId: null });
@@ -70,15 +49,18 @@ export const usePitchBooking = () => {
 
     const [currentUser, setCurrentUser] = useState<any>(null);
     const [pitchAnnouncements, setPitchAnnouncements] = useState<any[]>([]);
-    const [businessDistances, setBusinessDistances] = useState<Record<string, number>>({});
+
+    // Computed location filter (for UI components that expect LocationFilter shape)
+    const locationFilter: LocationFilter = { type: 'NEARBY', radius, coords: coords ?? undefined };
 
     const isAuthorized = () => {
         if (!currentUser?.team) return false;
         return currentUser.team.captainId === currentUser.id || currentUser.team.viceCaptainIds?.includes(currentUser.id) || false;
     };
 
+    // Fetch user + challenges once
     useEffect(() => {
-        const fetchData = async () => {
+        const fetchUserData = async () => {
             try {
                 const userRes = await api.get('/users/me');
                 setCurrentUser(userRes.data);
@@ -87,46 +69,36 @@ export const usePitchBooking = () => {
                     const challengesRes = await api.get(`/challenges/team/${userRes.data.team.id}`);
                     setMyChallenges(challengesRes.data);
                 }
-
-                const businessRes = await api.get('/businesses');
-                const bList: Business[] = businessRes.data;
-                setBusinesses(bList);
-
-                // ── Compute distances ─────────────────────────────────────
-                const computeDistances = (coords: { lat: number; lng: number }) => {
-                    const map: Record<string, number> = {};
-                    bList.forEach(b => {
-                        if (b.latitude && b.longitude) {
-                            map[b.id] = haversineKm(coords.lat, coords.lng, b.latitude, b.longitude);
-                        }
-                    });
-                    setBusinessDistances(map);
-                };
-
-                // Use cached coords first (instant), then refresh GPS
-                const cached = getCachedCoords();
-                if (cached) computeDistances(cached);
-
-                try {
-                    let permStatus = await Geolocation.checkPermissions();
-                    if (permStatus.location === 'prompt' || permStatus.location === 'prompt-with-rationale') {
-                        permStatus = await Geolocation.requestPermissions();
-                    }
-                    if (permStatus.location !== 'denied') {
-                        const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 10000 });
-                        const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-                        setCachedCoords(coords);
-                        computeDistances(coords);
-                    }
-                } catch (gpsErr) {
-                    console.warn('Sahalar GPS unavailable:', gpsErr);
-                }
             } catch (error) {
-                console.error('Failed to fetch data:', error);
+                console.error('Failed to fetch user data:', error);
             }
         };
-        fetchData();
+        fetchUserData();
     }, []);
+
+    // Re-fetch businesses whenever coords or radius changes (context-driven)
+    useEffect(() => {
+        if (!coords) {
+            setBusinesses([]);
+            return;
+        }
+        let cancelled = false;
+        const fetchBusinessesWithCoords = async () => {
+            try {
+                const bList: Business[] = await getBusinesses({ lat: coords.lat, lng: coords.lng, radius });
+                if (!cancelled) setBusinesses(bList);
+            } catch (error) {
+                console.error('Failed to fetch businesses:', error);
+            }
+        };
+        fetchBusinessesWithCoords();
+        return () => { cancelled = true; };
+    }, [coords, radius]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Delegate filter change to global context
+    const applyLocationFilter = (filter: LocationFilter) => {
+        if (filter.radius) setRadius(filter.radius);
+    };
 
     useEffect(() => {
         if (expandedBusinessId && selectedPitchIdInBusiness[expandedBusinessId]) {
@@ -176,18 +148,8 @@ export const usePitchBooking = () => {
         }
     }, [expandedBusinessId, businesses, selectedPitchIdInBusiness]);
 
-    const getFilteredBusinesses = () => {
-        let filtered = [...businesses];
-        if (locationFilter.type === 'NEARBY' && locationFilter.radius) {
-            filtered = filtered.filter(b => {
-                const distance = businessDistances[b.id];
-                return distance !== undefined && distance <= locationFilter.radius!;
-            });
-            // Sort by distance
-            filtered.sort((a, b) => (businessDistances[a.id] || 999) - (businessDistances[b.id] || 999));
-        }
-        return filtered;
-    };
+    // Server zaten radius'a göre filtreledi ve mesafeye göre sıraladı
+    const getFilteredBusinesses = () => [...businesses];
 
     const handleSendOffer = async (note: string) => {
         if (!currentUser?.team || !offerMode) return;
@@ -274,7 +236,9 @@ export const usePitchBooking = () => {
         viewingTeam, setViewingTeam,
         offerMode, setOfferMode,
         isLocationFilterOpen, setIsLocationFilterOpen,
-        locationFilter, setLocationFilter,
+        locationFilter, setLocationFilter: applyLocationFilter,
+        // isLoadingLocation: true while GPS is in flight and no coords yet
+        isLoadingLocation: isLocating && !coords,
         myChallenges,
         confirmCancelModal, setConfirmCancelModal,
         confirmDeleteAdModal, setConfirmDeleteAdModal,
@@ -286,8 +250,8 @@ export const usePitchBooking = () => {
         selectedDate, setSelectedDate,
         reservations, slotDetailModal, setSlotDetailModal,
         currentUser, pitchAnnouncements,
-        businessDistances,
         isAuthorized, getFilteredBusinesses,
+        applyLocationFilter,
         handleSendOffer, handleConfirmCancel, handleConfirmDeleteAd,
         handleCreateAd, handleReserve, handleReservationSuccess, openSlotDetail,
         handleCancelClick, handleDeleteAdClick

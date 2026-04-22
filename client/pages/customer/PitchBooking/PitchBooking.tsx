@@ -1,5 +1,6 @@
 import React from 'react';
 import { MapPin } from 'lucide-react';
+import { LoadingSpinner } from '../../../components/UI/LoadingSpinner';
 
 import { usePitchBooking } from './hooks/usePitchBooking';
 import { TeamDetailModal } from './components/TeamDetailModal';
@@ -21,7 +22,8 @@ export const PitchBooking: React.FC = () => {
       viewingTeam, setViewingTeam,
       offerMode, setOfferMode,
       isLocationFilterOpen, setIsLocationFilterOpen,
-      locationFilter, setLocationFilter,
+      locationFilter, applyLocationFilter,
+      isLoadingLocation,
       myChallenges,
       confirmCancelModal, setConfirmCancelModal,
       confirmDeleteAdModal, setConfirmDeleteAdModal,
@@ -32,7 +34,7 @@ export const PitchBooking: React.FC = () => {
       reservationPitchId, reservationStartTime,
       selectedDate, setSelectedDate,
       reservations, slotDetailModal, setSlotDetailModal,
-      currentUser, pitchAnnouncements, businessDistances,
+      currentUser, pitchAnnouncements,
       isAuthorized, getFilteredBusinesses,
       handleSendOffer, handleConfirmCancel, handleConfirmDeleteAd,
       handleCreateAd, handleReserve, handleReservationSuccess, openSlotDetail,
@@ -49,7 +51,7 @@ export const PitchBooking: React.FC = () => {
             isOpen={isLocationFilterOpen}
             onClose={() => setIsLocationFilterOpen(false)}
             currentFilter={locationFilter}
-            onApply={setLocationFilter}
+            onApply={applyLocationFilter}
          />
 
          <DateFilterModal
@@ -141,18 +143,21 @@ export const PitchBooking: React.FC = () => {
             selectedDate={selectedDate}
             onOpenLocationFilter={() => setIsLocationFilterOpen(true)}
             onOpenDateFilter={() => setIsDateFilterOpen(true)}
-            onClearFilter={() => setLocationFilter({ type: 'ALL' })}
          />
 
          <div className="space-y-6">
-            {filteredBusinesses.length === 0 && (
+            {isLoadingLocation ? (
+               <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+                  <LoadingSpinner />
+                  <p className="mt-4 text-sm font-medium">Konumunuz alınıyor...</p>
+                  <p className="text-xs text-slate-500 mt-1">Yakınındaki sahalar yükleniyor</p>
+               </div>
+            ) : filteredBusinesses.length === 0 ? (
                <div className="text-center py-12 text-slate-400 bg-slate-800/50 rounded-3xl border border-dashed border-slate-700">
                   <MapPin className="w-8 h-8 mx-auto mb-3 text-slate-600" />
                   Seçilen konumda halı saha işletmesi bulunamadı.
                </div>
-            )}
-
-            {filteredBusinesses.map((business) => (
+            ) : filteredBusinesses.map((business) => (
                <BusinessListItem
                   key={business.id}
                   business={business}
@@ -173,7 +178,7 @@ export const PitchBooking: React.FC = () => {
                   setOfferMode={setOfferMode}
                   handleDeleteAdClick={handleDeleteAdClick}
                   handleCancelClick={handleCancelClick}
-                  distanceKm={businessDistances[business.id]}
+                  distanceKm={business.distanceKm}
                />
             ))}
          </div>

@@ -1,29 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Geolocation } from '@capacitor/geolocation';
 import api from '../../../../services/api';
 import { Business } from '../../../../types';
 import { LocationFilter } from '../../../../components/Modals/LocationFilterModal';
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Coord cache: survives tab switches and page re-mounts within a session.
-// Stored in sessionStorage so it resets on full app restart.
-// ─────────────────────────────────────────────────────────────────────────────
-const COORD_CACHE_KEY = 'marketplace_user_coords';
-
-const getCachedCoords = (): { lat: number; lng: number } | null => {
-  try {
-    const raw = sessionStorage.getItem(COORD_CACHE_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch { return null; }
-};
-
-const setCachedCoords = (coords: { lat: number; lng: number }) => {
-  try { sessionStorage.setItem(COORD_CACHE_KEY, JSON.stringify(coords)); } catch { /* ignore */ }
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
+import { useLocationContext } from '../../../../contexts/LocationContext';
 
 export const useMarketplace = () => {
+  const { coords, radius, permissionStatus, setRadius } = useLocationContext();
+
   const [matches, setMatches] = useState<any[]>([]);
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -40,23 +23,20 @@ export const useMarketplace = () => {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [isDateFilterOpen, setIsDateFilterOpen] = useState(false);
 
-  // Location
+  // Location modal visibility (local UI state only)
   const [isLocationFilterOpen, setIsLocationFilterOpen] = useState(false);
-  const [locationFilter, setLocationFilter] = useState<LocationFilter>({ type: 'ALL' });
-  const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
-  // Only true when the OS permission is actually denied — NOT on timeout/error
-  const [locationPermissionDenied, setLocationPermissionDenied] = useState(false);
+
+  // ── Computed location filter (for UI components that expect LocationFilter shape) ──
+  const locationFilter: LocationFilter = coords
+    ? { type: 'NEARBY', radius, coords }
+    : { type: 'ALL' };
 
   // ── Core fetch ────────────────────────────────────────────────────────────
-  const fetchAnnouncements = async (filter: LocationFilter, coords: { lat: number; lng: number } | null) => {
+  const fetchAnnouncements = async (lat: number, lng: number, r: number) => {
     try {
-      const params: Record<string, any> = {};
-      if (filter.type === 'NEARBY' && coords) {
-        params.lat = coords.lat;
-        params.lng = coords.lng;
-        params.radius = filter.radius ?? 20;
-      }
-      const res = await api.get('/match-announcements', { params });
+      const res = await api.get('/match-announcements', {
+        params: { lat, lng, radius: r },
+      });
       return (res.data as any[]).filter(m => m.matchType !== 'kendi_aramizda');
     } catch (err) {
       console.error('Failed to fetch announcements', err);
@@ -64,44 +44,9 @@ export const useMarketplace = () => {
     }
   };
 
-  // ── GPS helper ────────────────────────────────────────────────────────────
-  // Returns coords if available, null if permission denied or unavailable.
-  // Only sets locationPermissionDenied when permission is ACTUALLY denied.
-  const resolveGPS = async (): Promise<{ lat: number; lng: number } | null> => {
-    try {
-      // Use checkPermissions first — avoids re-triggering the iOS dialog unnecessarily
-      let permStatus = await Geolocation.checkPermissions();
-
-      if (permStatus.location === 'prompt' || permStatus.location === 'prompt-with-rationale') {
-        permStatus = await Geolocation.requestPermissions();
-      }
-
-      if (permStatus.location === 'denied') {
-        setLocationPermissionDenied(true);
-        return null;
-      }
-
-      // Permission granted — get position with a generous timeout
-      const position = await Geolocation.getCurrentPosition({
-        enableHighAccuracy: false, // lower accuracy = faster fix
-        timeout: 10000,
-      });
-
-      setLocationPermissionDenied(false); // clear any stale denied flag
-      return { lat: position.coords.latitude, lng: position.coords.longitude };
-    } catch (err) {
-      // This is a GPS error / timeout, NOT a permission denial
-      console.warn('GPS resolve failed (timeout or hw error):', err);
-      return null;
-    }
-  };
-
-  // ── Mount effect (runs every time user enters this screen) ────────────────
+  // ── Initial data (user, businesses for getPitchDetails, challenges) ──────
   useEffect(() => {
-    // Güvenlik ağı: 12 saniye içinde yükleme bitmezse zorla kapat
-    const safetyTimer = setTimeout(() => setIsLoading(false), 12000);
-
-    const fetchData = async () => {
+    const fetchStaticData = async () => {
       try {
         const [userResponse, businessResponse] = await Promise.all([
           api.get('/users/me'),
@@ -115,71 +60,45 @@ export const useMarketplace = () => {
             .then(r => setMyChallenges(r.data))
             .catch(() => {});
         }
-
-        // ── Check for cached coords from this session ────────────────────────
-        const cached = getCachedCoords();
-
-        if (cached) {
-          const nearbyFilter: LocationFilter = { type: 'NEARBY', radius: 20, coords: cached };
-          setUserCoords(cached);
-          setLocationFilter(nearbyFilter);
-
-          const announcements = await fetchAnnouncements(nearbyFilter, cached);
-          setMatches(announcements);
-          setIsLoading(false);
-
-          // Silently refresh GPS in background (updates cache, re-fetches if moved)
-          resolveGPS().then(freshCoords => {
-            if (!freshCoords) return;
-            setCachedCoords(freshCoords);
-            if (JSON.stringify(freshCoords) === JSON.stringify(cached)) return;
-            setUserCoords(freshCoords);
-            const updatedFilter: LocationFilter = { type: 'NEARBY', radius: 20, coords: freshCoords };
-            setLocationFilter(updatedFilter);
-            fetchAnnouncements(updatedFilter, freshCoords).then(setMatches).catch(() => {});
-          }).catch(() => {});
-        } else {
-          // No cached coords — show all results instantly, then try GPS
-          const allAnnouncements = await fetchAnnouncements({ type: 'ALL' }, null);
-          setMatches(allAnnouncements);
-          setIsLoading(false);
-
-          // Try GPS in background (non-blocking)
-          const coords = await resolveGPS();
-          if (coords) {
-            setCachedCoords(coords);
-            setUserCoords(coords);
-            const nearbyFilter: LocationFilter = { type: 'NEARBY', radius: 20, coords };
-            setLocationFilter(nearbyFilter);
-            const nearbyAnnouncements = await fetchAnnouncements(nearbyFilter, coords);
-            setMatches(nearbyAnnouncements);
-          }
-        }
       } catch (error) {
-        console.error('Failed to fetch marketplace data:', error);
-        setIsLoading(false);
+        console.error('Failed to fetch marketplace static data:', error);
+      }
+    };
+    fetchStaticData();
+  }, []);
+
+  // ── Re-fetch announcements whenever coords or radius changes ─────────────
+  // Bug fix: if no coords, show empty list (never show all announcements)
+  useEffect(() => {
+    let cancelled = false;
+    const safetyTimer = setTimeout(() => setIsLoading(false), 12000);
+
+    const load = async () => {
+      setIsLoading(true);
+      try {
+        if (!coords) {
+          // No location — show empty, not all announcements
+          setMatches([]);
+        } else {
+          const announcements = await fetchAnnouncements(coords.lat, coords.lng, radius);
+          if (!cancelled) setMatches(announcements);
+        }
       } finally {
+        if (!cancelled) setIsLoading(false);
         clearTimeout(safetyTimer);
       }
     };
 
-    fetchData();
-    return () => clearTimeout(safetyTimer);
-  }, []);
+    load();
+    return () => {
+      cancelled = true;
+      clearTimeout(safetyTimer);
+    };
+  }, [coords, radius]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Manual filter change ──────────────────────────────────────────────────
-  const applyLocationFilter = async (filter: LocationFilter) => {
-    setLocationFilter(filter);
-
-    let coords = userCoords;
-    if (filter.type === 'NEARBY' && filter.coords) {
-      coords = filter.coords;
-      setUserCoords(coords);
-      if (coords) setCachedCoords(coords);
-    }
-
-    const announcements = await fetchAnnouncements(filter, coords);
-    setMatches(announcements);
+  // ── Manual filter change — delegates to global context ──────────────────
+  const applyLocationFilter = (filter: LocationFilter) => {
+    if (filter.radius) setRadius(filter.radius);
   };
 
   const myTeam = currentUser?.team;
@@ -233,14 +152,15 @@ export const useMarketplace = () => {
     setIsLocationFilterOpen,
     locationFilter,
     setLocationFilter: applyLocationFilter,
-    userCoords,
-    locationPermissionDenied,
+    // Backward compat aliases
+    userCoords: coords,
+    locationPermissionDenied: permissionStatus === 'denied',
     isAuthorized,
     getPitchDetails,
     getFilteredMatches,
     selectedDate,
     setSelectedDate,
     isDateFilterOpen,
-    setIsDateFilterOpen
+    setIsDateFilterOpen,
   };
 };

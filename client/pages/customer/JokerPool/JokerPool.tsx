@@ -1,5 +1,5 @@
 import React from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, MapPin } from 'lucide-react';
 import { InviteJokerModal } from '../../../components/Modals/InviteJokerModal';
 import { JokerProfileModal } from '../../../components/Modals/JokerProfileModal';
 import { LocationFilterModal } from '../../../components/Modals/LocationFilterModal';
@@ -12,16 +12,19 @@ import { JokerPoolHeader } from './components/JokerPoolHeader';
 import { JokerLocationFilter } from './components/JokerLocationFilter';
 import { JokerCard } from './components/JokerCard';
 import { JokerDetailModal } from './components/JokerDetailModal';
+import { LoadingSpinner } from '../../../components/UI/LoadingSpinner';
 
 export const JokerPool: React.FC = () => {
    const {
       currentUser,
       isLoading,
+      isLoadingLocation,
       selectedJoker, setSelectedJoker,
       isInviteModalOpen, setIsInviteModalOpen,
       isProfileModalOpen, setIsProfileModalOpen,
       isLocationFilterOpen, setIsLocationFilterOpen,
-      locationFilter, setLocationFilter,
+      locationFilter,
+      applyLocationFilter,
       visibleJokers,
       handleSaveProfile
    } = useJokerPool();
@@ -55,7 +58,7 @@ export const JokerPool: React.FC = () => {
             isOpen={isLocationFilterOpen}
             onClose={() => setIsLocationFilterOpen(false)}
             currentFilter={locationFilter}
-            onApply={setLocationFilter}
+            onApply={applyLocationFilter}
          />
 
          {/* Header */}
@@ -67,12 +70,17 @@ export const JokerPool: React.FC = () => {
          {/* Location Filter */}
          <JokerLocationFilter
             locationFilter={locationFilter}
-            setLocationFilter={setLocationFilter}
             setIsLocationFilterOpen={setIsLocationFilterOpen}
          />
 
          {/* Joker List */}
-         {isLoading ? (
+         {isLoadingLocation ? (
+            <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+               <LoadingSpinner />
+               <p className="mt-4 text-sm font-medium">Konumunuz alınıyor...</p>
+               <p className="text-xs text-slate-500 mt-1">Yakınındaki joker oyuncular yükleniyor</p>
+            </div>
+         ) : isLoading ? (
             <div className="flex justify-center items-center py-20">
                <Loader2 className="w-8 h-8 text-turf-500 animate-spin" />
             </div>
@@ -87,10 +95,9 @@ export const JokerPool: React.FC = () => {
                   />
                ))}
                {visibleJokers.length === 0 && (
-                  <div className="col-span-2 text-center py-10 text-slate-500">
-                     {locationFilter.type === 'NEARBY'
-                        ? "Yakınınızda Joker bulunamadı."
-                        : "Şu an aktif Joker bulunmuyor. İlk sen ol!"}
+                  <div className="col-span-2 text-center py-12 text-slate-400 bg-slate-800/50 rounded-3xl border border-dashed border-slate-700">
+                     <MapPin className="w-8 h-8 mx-auto mb-3 text-slate-600" />
+                     <p>Yakınınızda joker oyuncu bulunamadı.</p>
                   </div>
                )}
             </div>

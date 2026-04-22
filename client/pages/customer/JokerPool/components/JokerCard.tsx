@@ -34,8 +34,15 @@ export const JokerCard: React.FC<JokerCardProps> = ({ player, currentUser, onCli
                 <h3 className="font-bold text-white text-lg truncate group-hover:text-turf-400 transition-colors">
                     {displayName} {isMe && '(Sen)'}
                 </h3>
-                <div className="flex items-center gap-1 text-xs text-slate-400 mt-0.5 mb-2">
-                    <MapPin className="w-3 h-3 text-turf-600" /> {player.location || 'Konum yok'}
+                <div className="flex items-center gap-2 mt-0.5 mb-2">
+                    <div className="flex items-center gap-1 text-xs text-slate-400">
+                        <MapPin className="w-3 h-3 text-turf-600" /> {player.location || 'Konum yok'}
+                    </div>
+                    {player.distanceKm != null && (
+                        <span className="text-xs font-bold text-turf-400 bg-turf-900/30 px-2 py-0.5 rounded-full ml-auto">
+                            {player.distanceKm} km
+                        </span>
+                    )}
                 </div>
                 <div className="flex justify-between items-center">
                     <span className={`text-xs px-2 py-1 rounded font-bold uppercase ${player.position === 'KALECİ' || player.position === 'GK'
