@@ -12,35 +12,65 @@ import { ProtectedRoute } from './components/Layout/ProtectedRoute';
 import { RatingModal } from './components/Modals/RatingModal';
 import { PendingRating } from './types';
 import { initializePushNotifications } from './services/pushNotificationService';
+import { LocationProvider, useLocationContext } from './contexts/LocationContext';
 
 // ── Lazy page imports (code splitting — reduces initial bundle from ~1.17MB → ~200KB) ──
-const Marketplace           = lazy(() => import('./pages/customer/Marketplace/Marketplace').then(m => ({ default: m.Marketplace })));
-const TeamProfile           = lazy(() => import('./pages/customer/TeamProfile/TeamProfile').then(m => ({ default: m.TeamProfile })));
-const JokerPool             = lazy(() => import('./pages/customer/JokerPool/JokerPool').then(m => ({ default: m.JokerPool })));
-const PitchBooking          = lazy(() => import('./pages/customer/PitchBooking/PitchBooking').then(m => ({ default: m.PitchBooking })));
-const Chat                  = lazy(() => import('./pages/customer/Chat/Chat').then(m => ({ default: m.Chat })));
-const Notifications         = lazy(() => import('./pages/customer/Notifications/Notifications').then(m => ({ default: m.Notifications })));
-const Login                 = lazy(() => import('./pages/customer/Login/Login').then(m => ({ default: m.Login })));
-const Register              = lazy(() => import('./pages/customer/Register/Register').then(m => ({ default: m.Register })));
-const ProfileSettings       = lazy(() => import('./pages/customer/ProfileSettings/ProfileSettings').then(m => ({ default: m.ProfileSettings })));
+const Marketplace = lazy(() => import('./pages/customer/Marketplace/Marketplace').then(m => ({ default: m.Marketplace })));
+const TeamProfile = lazy(() => import('./pages/customer/TeamProfile/TeamProfile').then(m => ({ default: m.TeamProfile })));
+const JokerPool = lazy(() => import('./pages/customer/JokerPool/JokerPool').then(m => ({ default: m.JokerPool })));
+const PitchBooking = lazy(() => import('./pages/customer/PitchBooking/PitchBooking').then(m => ({ default: m.PitchBooking })));
+const Chat = lazy(() => import('./pages/customer/Chat/Chat').then(m => ({ default: m.Chat })));
+const Notifications = lazy(() => import('./pages/customer/Notifications/Notifications').then(m => ({ default: m.Notifications })));
+const Login = lazy(() => import('./pages/customer/Login/Login').then(m => ({ default: m.Login })));
+const Register = lazy(() => import('./pages/customer/Register/Register').then(m => ({ default: m.Register })));
+const ProfileSettings = lazy(() => import('./pages/customer/ProfileSettings/ProfileSettings').then(m => ({ default: m.ProfileSettings })));
 const FavoriteBusinessesSettings = lazy(() => import('./pages/customer/FavoriteBusinesses/FavoriteBusinessesSettings').then(m => ({ default: m.FavoriteBusinessesSettings })));
-const TeamSettings          = lazy(() => import('./pages/customer/TeamSettings/TeamSettings').then(m => ({ default: m.TeamSettings })));
-const BusinessLogin         = lazy(() => import('./pages/business/BusinessLogin/BusinessLogin').then(m => ({ default: m.BusinessLogin })));
-const BusinessRegister      = lazy(() => import('./pages/business/BusinessRegister/BusinessRegister').then(m => ({ default: m.BusinessRegister })));
-const BusinessDashboard     = lazy(() => import('./pages/business/BusinessDashboard/BusinessDashboard').then(m => ({ default: m.BusinessDashboard })));
-const BusinessSettingsHub   = lazy(() => import('./pages/business/BusinessSettingsHub/BusinessSettingsHub').then(m => ({ default: m.BusinessSettingsHub })));
-const BusinessInfoSettings  = lazy(() => import('./pages/business/BusinessInfoSettings/BusinessInfoSettings').then(m => ({ default: m.BusinessInfoSettings })));
-const BusinessPitchList     = lazy(() => import('./pages/business/BusinessPitchList/BusinessPitchList').then(m => ({ default: m.BusinessPitchList })));
+const TeamSettings = lazy(() => import('./pages/customer/TeamSettings/TeamSettings').then(m => ({ default: m.TeamSettings })));
+const BusinessLogin = lazy(() => import('./pages/business/BusinessLogin/BusinessLogin').then(m => ({ default: m.BusinessLogin })));
+const BusinessRegister = lazy(() => import('./pages/business/BusinessRegister/BusinessRegister').then(m => ({ default: m.BusinessRegister })));
+const BusinessDashboard = lazy(() => import('./pages/business/BusinessDashboard/BusinessDashboard').then(m => ({ default: m.BusinessDashboard })));
+const BusinessSettingsHub = lazy(() => import('./pages/business/BusinessSettingsHub/BusinessSettingsHub').then(m => ({ default: m.BusinessSettingsHub })));
+const BusinessInfoSettings = lazy(() => import('./pages/business/BusinessInfoSettings/BusinessInfoSettings').then(m => ({ default: m.BusinessInfoSettings })));
+const BusinessPitchList = lazy(() => import('./pages/business/BusinessPitchList/BusinessPitchList').then(m => ({ default: m.BusinessPitchList })));
 const BusinessPitchSettings = lazy(() => import('./pages/business/BusinessPitchSettings/BusinessPitchSettings').then(m => ({ default: m.BusinessPitchSettings })));
 const BusinessPasswordSettings = lazy(() => import('./pages/business/BusinessPasswordSettings/BusinessPasswordSettings').then(m => ({ default: m.BusinessPasswordSettings })));
 const BusinessNotificationsPage = lazy(() => import('./pages/business/BusinessNotificationsPage/BusinessNotificationsPage').then(m => ({ default: m.BusinessNotificationsPage })));
+const BusinessStats = lazy(() => import('./pages/business/BusinessStats/BusinessStats').then(m => ({ default: m.BusinessStats })));
 
-// ── Minimal full-screen loading fallback ─────────────────────────────────────
+// ── Animated full-screen loading fallback ────────────────────────────────────
 const PageLoader = () => (
   <div className="flex items-center justify-center h-full w-full bg-slate-900">
-    <div className="flex flex-col items-center gap-4">
-      <img src="/logo.png" alt="DIMLİ" className="h-14 w-auto object-contain animate-pulse" />
+    <div className="flex flex-col items-center" style={{ gap: 0 }}>
+      {/* Beyaz top — yukarıdan kaleye (icon) doğru düşer ve zıplar */}
+      <div
+        style={{
+          width: 14,
+          height: 14,
+          borderRadius: '50%',
+          background: 'white',
+          boxShadow: '0 0 8px rgba(255,255,255,0.7)',
+          animation: 'dimliball 1.5s cubic-bezier(0.25,0.46,0.45,0.94) infinite',
+          marginBottom: 4,
+        }}
+      />
+      <img
+        src="/icon.png"
+        alt="DIMLİ"
+        style={{ height: 56, width: 'auto', objectFit: 'contain' }}
+      />
     </div>
+    <style>{`
+      @keyframes dimliball {
+        0%   { transform: translateY(-72px); opacity: 0; }
+        30%  { opacity: 1; }
+        45%  { transform: translateY(0px); }
+        58%  { transform: translateY(-20px); }
+        70%  { transform: translateY(0px); }
+        80%  { transform: translateY(-8px); }
+        90%  { transform: translateY(0px); }
+        100% { transform: translateY(-72px); opacity: 0; }
+      }
+    `}</style>
   </div>
 );
 
@@ -49,6 +79,7 @@ function AppContent() {
   const isAuthPage = location.pathname === '/login' || location.pathname === '/register' || location.pathname.startsWith('/business');
   const [watchId, setWatchId] = useState<string | null>(null);
   const [pendingRatings, setPendingRatings] = useState<PendingRating[]>([]);
+  const { updateCoords } = useLocationContext();
 
   // Android & iOS: StatusBar + SplashScreen on first mount
   useEffect(() => {
@@ -58,7 +89,7 @@ function AppContent() {
         StatusBar.setBackgroundColor({ color: '#0f172a' });
       }
       // Hide splash screen now that React has mounted
-      SplashScreen.hide({ fadeOutDuration: 300 }).catch(() => {});
+      SplashScreen.hide({ fadeOutDuration: 300 }).catch(() => { });
     }
   }, []);
 
@@ -181,6 +212,8 @@ function AppContent() {
             if (err || !position) return;
             try {
               const { latitude, longitude } = position.coords;
+              // Context'i de güncelle (tüm sayfalar anlık konumu görsün)
+              updateCoords({ lat: latitude, lng: longitude });
               const response = await axios.get(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
               if (response.data && response.data.address) {
                 const address = response.data.address;
@@ -227,6 +260,7 @@ function AppContent() {
             <Route path="/business/settings/pitches/:pitchId" element={<BusinessPitchSettings />} />
             <Route path="/business/settings/password" element={<BusinessPasswordSettings />} />
             <Route path="/business/notifications" element={<BusinessNotificationsPage />} />
+            <Route path="/business/stats" element={<BusinessStats />} />
             <Route element={<ProtectedRoute />}>
               <Route path="/" element={<Marketplace />} />
               <Route path="/pitches" element={<PitchBooking />} />
@@ -256,9 +290,11 @@ function AppContent() {
 
 function App() {
   return (
-    <HashRouter>
-      <AppContent />
-    </HashRouter>
+    <LocationProvider>
+      <HashRouter>
+        <AppContent />
+      </HashRouter>
+    </LocationProvider>
   );
 }
 
