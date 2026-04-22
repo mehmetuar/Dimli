@@ -17,7 +17,6 @@ export const BusinessDateFilterModal: React.FC<BusinessDateFilterModalProps> = (
 }) => {
     if (!isOpen) return null;
 
-    // Business panel allows past dates (viewing history)
     const minDate = (() => {
         const d = new Date();
         d.setDate(d.getDate() - 90);
@@ -32,26 +31,26 @@ export const BusinessDateFilterModal: React.FC<BusinessDateFilterModalProps> = (
 
     return (
         <div
-            className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/95 backdrop-blur-md animate-fade-in"
+            className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in"
             onClick={onClose}
         >
             <div
-                className="bg-slate-800 w-full max-w-md sm:rounded-3xl rounded-t-3xl border border-slate-700 shadow-2xl overflow-hidden"
+                className="bg-[#0e1e3a] w-full max-w-md sm:rounded-3xl rounded-t-3xl border border-blue-900/50 shadow-2xl overflow-hidden"
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Header */}
-                <div className="p-6 border-b border-slate-700 bg-slate-900 flex justify-between items-center">
+                <div className="p-6 border-b border-blue-900/40 bg-[#0a1628] flex justify-between items-center">
                     <div>
                         <h2 className="font-sport font-black text-2xl text-white italic uppercase tracking-wide">
                             TARİH <span className="text-orange-500">SEÇ</span>
                         </h2>
-                        <p className="text-slate-400 text-xs font-bold uppercase tracking-tighter">
+                        <p className="text-blue-300/60 text-xs font-bold uppercase tracking-tighter">
                             Geçmiş ve ileriye dönük tarihler aktif
                         </p>
                     </div>
                     <button
                         onClick={onClose}
-                        className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white hover:bg-red-500 transition-colors"
+                        className="p-2 bg-blue-900/40 rounded-full text-blue-300/60 hover:text-white hover:bg-red-500 transition-colors"
                     >
                         <X className="w-5 h-5" />
                     </button>
@@ -72,7 +71,7 @@ export const BusinessDateFilterModal: React.FC<BusinessDateFilterModalProps> = (
 
                     {/* Hızlı Seçim */}
                     <div className="space-y-3">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-1">
+                        <label className="text-[10px] font-black text-blue-300/50 uppercase tracking-widest pl-1">
                             Hızlı Seçim
                         </label>
                         <div className="flex gap-3">
@@ -83,7 +82,7 @@ export const BusinessDateFilterModal: React.FC<BusinessDateFilterModalProps> = (
                                     onSelect(formatted);
                                     onClose();
                                 }}
-                                className="flex-1 px-4 py-4 bg-slate-900/50 hover:bg-orange-500 hover:text-white border border-slate-700 text-white rounded-2xl text-sm font-black uppercase italic transition-all"
+                                className="flex-1 px-4 py-4 bg-[#0a1628]/80 hover:bg-orange-500 hover:text-white border border-blue-900/50 text-white rounded-2xl text-sm font-black uppercase italic transition-all"
                             >
                                 Bugün
                             </button>
@@ -95,7 +94,7 @@ export const BusinessDateFilterModal: React.FC<BusinessDateFilterModalProps> = (
                                     onSelect(formatted);
                                     onClose();
                                 }}
-                                className="flex-1 px-4 py-4 bg-slate-900/50 hover:bg-orange-500 hover:text-white border border-slate-700 text-white rounded-2xl text-sm font-black uppercase italic transition-all"
+                                className="flex-1 px-4 py-4 bg-[#0a1628]/80 hover:bg-orange-500 hover:text-white border border-blue-900/50 text-white rounded-2xl text-sm font-black uppercase italic transition-all"
                             >
                                 Yarın
                             </button>
@@ -103,7 +102,7 @@ export const BusinessDateFilterModal: React.FC<BusinessDateFilterModalProps> = (
                     </div>
                 </div>
 
-                <div className="p-6 bg-slate-900/50 border-t border-slate-700">
+                <div className="p-6 bg-[#0a1628]/60 border-t border-blue-900/40">
                     <button
                         onClick={onClose}
                         className="w-full py-4 bg-slate-700 hover:bg-slate-600 text-white font-black uppercase italic rounded-2xl transition-colors"

@@ -49,10 +49,10 @@ export const BusinessDashboard: React.FC = () => {
     } = useBusinessDashboard();
 
     if (loading) return <BusinessLoadingSpinner fullScreen />;
-    if (!dashboardData) return <div className="min-h-screen bg-slate-900 flex items-center justify-center text-white font-bold italic">Veri bulunamadı.</div>;
+    if (!dashboardData) return <div className="min-h-screen bg-slate-800 flex items-center justify-center text-white font-bold italic">Veri bulunamadı.</div>;
 
     return (
-        <div className="min-h-screen bg-slate-950 text-white pb-24">
+        <div className="min-h-screen bg-slate-800 text-white pb-24">
             {/* Header */}
             <DashboardHeader
                 businessName={dashboardData.businessName}
