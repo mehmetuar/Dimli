@@ -207,7 +207,8 @@ function AppContent() {
 
         currentWatchId = await Geolocation.watchPosition(
           // enableHighAccuracy: false — Android'de daha hızlı ve stabil
-          { enableHighAccuracy: false, timeout: 15000, maximumAge: 30000 },
+          // maximumAge: 0 → taze GPS kullan, cache'den dönme
+          { enableHighAccuracy: false, timeout: 15000, maximumAge: 0 },
           async (position, err) => {
             if (err || !position) return;
             try {

@@ -2,8 +2,11 @@ import { useState, useEffect } from 'react';
 import { Geolocation } from '@capacitor/geolocation';
 import axios from 'axios';
 import api from '../../../../services/api';
+import { useLocationContext } from '../../../../contexts/LocationContext';
 
 export const useUserProfile = () => {
+    const { coords: contextCoords, updateCoords } = useLocationContext();
+
     const [currentUser, setCurrentUser] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -51,18 +54,23 @@ export const useUserProfile = () => {
                 }
             }
 
+            // maximumAge: 0 → OS GPS cache'ini hiç kullanma, taze konum al
             const position = await Geolocation.getCurrentPosition({
-                enableHighAccuracy: true,
-                timeout: 10000,
-                maximumAge: 3000
+                enableHighAccuracy: false,
+                timeout: 15000,
+                maximumAge: 0
             });
 
             const { latitude, longitude } = position.coords;
+
+            // Context koordinatlarını da güncelle (tüm sayfalar anlık konumu görsün)
+            updateCoords({ lat: latitude, lng: longitude });
+
             const response = await axios.get(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
             const address = response.data.address;
             const locationName = address.district || address.city || address.town || address.state || 'Bilinmeyen Konum';
 
-            const updateRes = await api.patch('/users/me', { location: locationName });
+            const updateRes = await api.patch('/users/me', { location: locationName, latitude, longitude });
             setCurrentUser(updateRes.data);
             setSuccessMessage(`Konum güncellendi: ${locationName}`);
         } catch (error) {

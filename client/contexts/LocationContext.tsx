@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { Geolocation } from '@capacitor/geolocation';
+import { App as CapApp } from '@capacitor/app';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -80,7 +81,8 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         return;
       }
       setPermissionStatus('granted');
-      const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 10000 });
+      // maximumAge: 0 → OS'un GPS cache'ini asla kullanma, her zaman taze konum al
+      const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 15000, maximumAge: 0 });
       updateCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
     } catch (err) {
       console.warn('LocationContext GPS error:', err);
@@ -90,9 +92,20 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   }, [updateCoords]);
 
-  // On mount: get fresh GPS (cached coords are already in state via useState initializer)
+  // On mount + app foreground: always get fresh GPS
   useEffect(() => {
     requestLocation();
+
+    // Capacitor: uygulama arka plandan ön plana gelince konumu tazele
+    const listenerPromise = CapApp.addListener('appStateChange', (state) => {
+      if (state.isActive) {
+        requestLocation();
+      }
+    });
+
+    return () => {
+      listenerPromise.then(h => h.remove()).catch(() => {});
+    };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
