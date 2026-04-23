@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Users, Phone, AlertTriangle, Check, MessageSquare } from 'lucide-react';
+import { X, Users, Phone, AlertTriangle, Check, MessageSquare, Star, Trophy } from 'lucide-react';
 import { Clock } from 'lucide-react';
 
 interface SlotDetailModalProps {
@@ -91,6 +91,16 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                                                         <Phone className="w-3 h-3" />
                                                         {res.team?.captain?.phone || 'Tel Yok'}
                                                     </div>
+                                                    <div className="flex gap-3 mt-2 pt-2 border-t border-slate-700/50">
+                                                        <div className="flex items-center gap-1" title="Fair Play Skoru">
+                                                            <Star className="w-3 h-3 text-yellow-500 fill-yellow-500/20" />
+                                                            <span className="text-[10px] font-bold text-slate-300">{res.team?.fairPlayScore || '0.0'}</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-1" title="Oynadığı Maç Sayısı">
+                                                            <Trophy className="w-3 h-3 text-blue-400" />
+                                                            <span className="text-[10px] font-bold text-slate-300">{res.team?.playedMatchCount || 0} Maç</span>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -133,6 +143,16 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                                                         <div className="text-xs text-slate-400 font-mono mt-0.5 flex items-center gap-1">
                                                             <Phone className="w-3 h-3" />
                                                             {res.opponentTeam?.captain?.phone || 'Tel Yok'}
+                                                        </div>
+                                                        <div className="flex gap-3 mt-2 pt-2 border-t border-slate-700/50">
+                                                            <div className="flex items-center gap-1" title="Fair Play Skoru">
+                                                                <Star className="w-3 h-3 text-yellow-500 fill-yellow-500/20" />
+                                                                <span className="text-[10px] font-bold text-slate-300">{res.opponentTeam?.fairPlayScore || '0.0'}</span>
+                                                            </div>
+                                                            <div className="flex items-center gap-1" title="Oynadığı Maç Sayısı">
+                                                                <Trophy className="w-3 h-3 text-blue-400" />
+                                                                <span className="text-[10px] font-bold text-slate-300">{res.opponentTeam?.playedMatchCount || 0} Maç</span>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -195,15 +215,25 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                                                     <span>Reddedildi (Pasif)</span>
                                                 </div>
                                             ) : (
-                                                <button
-                                                    onClick={() => openActionModal('APPROVE', res.id)}
-                                                    className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white py-3 rounded-xl font-bold text-sm transition-all shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2 group"
-                                                >
-                                                    <div className="bg-white/20 p-1 rounded-full group-hover:scale-110 transition-transform">
-                                                        <Check className="w-4 h-4" />
-                                                    </div>
-                                                    Bu İsteği Onayla
-                                                </button>
+                                                <div className="flex gap-2">
+                                                    <button
+                                                        onClick={() => openActionModal('APPROVE', res.id)}
+                                                        className="flex-[2] bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white py-3 rounded-xl font-bold text-sm transition-all shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2 group"
+                                                    >
+                                                        <div className="bg-white/20 p-1 rounded-full group-hover:scale-110 transition-transform">
+                                                            <Check className="w-4 h-4" />
+                                                        </div>
+                                                        Bu İsteği Onayla
+                                                    </button>
+                                                    <button
+                                                        onClick={() => openActionModal('SEND_NOTE', res.id)}
+                                                        className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-2 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2"
+                                                        title="Mesaj Gönder"
+                                                    >
+                                                        <MessageSquare className="w-4 h-4 text-orange-400" />
+                                                        Not
+                                                    </button>
+                                                </div>
                                             )}
                                         </div>
                                     </>

@@ -6,6 +6,7 @@ import { ReservationsService } from '../reservations/reservations.service';
 import { Pitch } from '../pitches/entities/pitch.entity';
 import { Reservation, ReservationStatus } from '../reservations/entities/reservation.entity';
 import { Business } from '../business/entities/business.entity';
+import { RatingsService } from '../ratings/ratings.service';
 
 @Injectable()
 export class BusinessOwnerService {
@@ -19,6 +20,7 @@ export class BusinessOwnerService {
         @InjectRepository(Business)
         private businessRepository: Repository<Business>,
         private reservationsService: ReservationsService,
+        private ratingsService: RatingsService,
     ) { }
 
     async create(createBusinessOwnerDto: any): Promise<BusinessOwner> {
@@ -70,6 +72,16 @@ export class BusinessOwnerService {
                         return Math.abs(rTime.getTime() - slotTime.getTime()) < 60000;
                     });
 
+                    // Enrich reservations with playedMatchCount
+                    for (const res of slotReservations) {
+                        if (res.teamId) {
+                            (res.team as any).playedMatchCount = await this.ratingsService.getTeamMatchCount(res.teamId);
+                        }
+                        if (res.opponentTeamId) {
+                            (res.opponentTeam as any).playedMatchCount = await this.ratingsService.getTeamMatchCount(res.opponentTeamId);
+                        }
+                    }
+
                     let status = 'EMPTY';
                     const approved = slotReservations.find((r: any) => r.status === 'APPROVED');
                     const pending = slotReservations.filter((r: any) => r.status === 'PENDING');
@@ -117,6 +129,16 @@ export class BusinessOwnerService {
                         const rTime = new Date(r.slotTime);
                         return Math.abs(rTime.getTime() - slotTime.getTime()) < 60000;
                     });
+
+                    // Enrich reservations with playedMatchCount
+                    for (const res of slotReservations) {
+                        if (res.teamId) {
+                            (res.team as any).playedMatchCount = await this.ratingsService.getTeamMatchCount(res.teamId);
+                        }
+                        if (res.opponentTeamId) {
+                            (res.opponentTeam as any).playedMatchCount = await this.ratingsService.getTeamMatchCount(res.opponentTeamId);
+                        }
+                    }
 
                     let status = 'EMPTY';
                     const approved = slotReservations.find((r: any) => r.status === 'APPROVED');

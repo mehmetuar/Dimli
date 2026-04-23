@@ -52,10 +52,10 @@ export const TeamHeaderCard: React.FC<TeamHeaderCardProps> = ({
                 style={{ background: `radial-gradient(circle at bottom left, ${toHex((myTeam as any).secondaryColor || (myTeam as any).primaryColor)}, transparent 70%)` }}
             />
 
-            <div className="flex justify-between items-start relative z-10">
-                <div className="flex items-center gap-4">
+            <div className="flex justify-between items-start relative z-10 gap-2">
+                <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                     <div
-                        className="w-20 h-20 rounded-full flex items-center justify-center overflow-hidden shadow-xl"
+                        className="w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center overflow-hidden shadow-xl shrink-0"
                         style={{ border: `3px solid ${toHex((myTeam as any).primaryColor)}60` }}
                     >
                         {(myTeam as any).logoUrl ? (
@@ -63,34 +63,35 @@ export const TeamHeaderCard: React.FC<TeamHeaderCardProps> = ({
                                 onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                         ) : (
                             <div
-                                className="w-full h-full flex items-center justify-center text-white font-black text-2xl"
+                                className="w-full h-full flex items-center justify-center text-white font-black text-xl sm:text-2xl"
                                 style={{ background: `linear-gradient(135deg, ${toHex((myTeam as any).primaryColor)}, ${toHex((myTeam as any).secondaryColor || (myTeam as any).primaryColor)}88)` }}
                             >
                                 {myTeam.name?.slice(0, 2).toUpperCase()}
                             </div>
                         )}
                     </div>
-                    <div>
-                        <h2 className="font-sport font-black text-3xl text-white italic tracking-wide uppercase">{myTeam.name}</h2>
-                        <div className="flex items-center gap-2 mt-1">
+                    <div className="min-w-0">
+                        <h2 className="font-sport font-black text-xl sm:text-2xl md:text-3xl text-white italic tracking-wide uppercase truncate">{myTeam.name}</h2>
+                        <div className="flex flex-wrap items-center gap-2 mt-1">
                             <LevelBadge level={myTeam.level} />
                             <FairPlayScore score={myTeam.fairPlayScore} count={myTeam.fairPlayRatingCount} />
                         </div>
                     </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                     <button
                         onClick={() => setIsTeamMenuOpen(true)}
-                        className="p-2 bg-slate-900/50 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg transition-colors border border-slate-700/50"
+                        className="p-1.5 sm:p-2 bg-slate-900/50 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg transition-colors border border-slate-700/50"
+                        title="Takım Ayarları"
                     >
-                        <Settings className="w-5 h-5" />
+                        <Settings className="w-4 h-4 sm:w-5 sm:h-5" />
                     </button>
                     <button
                         onClick={handleLeaveTeam}
-                        className="p-2 bg-slate-900/50 hover:bg-red-500/20 text-slate-400 hover:text-red-500 rounded-lg transition-colors border border-slate-700/50"
+                        className="p-1.5 sm:p-2 bg-slate-900/50 hover:bg-red-500/20 text-slate-400 hover:text-red-500 rounded-lg transition-colors border border-slate-700/50"
                         title="Takımdan Ayrıl"
                     >
-                        <LogOut className="w-5 h-5" />
+                        <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />
                     </button>
                 </div>
             </div>

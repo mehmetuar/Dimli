@@ -265,27 +265,38 @@ export const Chat: React.FC = () => {
               />
             );
           })()}
-          <div className="flex-1" onClick={handleOpenMatchDetail} style={{ cursor: activeChannel?.relatedMatchId ? 'pointer' : 'default' }}>
-            <h2 className="text-white font-bold leading-tight flex items-center">{activeChannel?.name}<MatchStatusBadge reservation={activeChannel?.reservation} size="md" /></h2>
-            <div className="flex items-center gap-2 text-xs text-slate-400 mt-1">
+          <div className="flex-1 min-w-0" onClick={handleOpenMatchDetail} style={{ cursor: activeChannel?.relatedMatchId ? 'pointer' : 'default' }}>
+            <h2 className="text-white font-bold leading-tight text-sm sm:text-base md:text-lg truncate">{activeChannel?.name}</h2>
+            <div className="flex flex-col text-[10px] sm:text-xs text-slate-400 mt-0.5">
               {activeChannel?.type === 'MATCH_GROUP' ? (
-                <div className="flex flex-col">
-                  <span className="flex items-center gap-1 text-turf-500"><Users className="w-3 h-3" /> {activeChannel.participants?.length || 14} Oyuncu Aktif</span>
+                <>
+                  <span className="flex items-center gap-1 text-turf-500 font-medium">
+                    <Users className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                    {activeChannel.participants?.length || 14} Oyuncu Aktif
+                  </span>
                   {(() => {
                     const info = getMatchStatusInfo(activeChannel?.reservation);
-                    if (info) return <span className={`text-[10px] font-semibold ${info.textColor}`}>{info.label}</span>;
+                    if (info) return <span className={`font-semibold ${info.textColor} leading-none mt-0.5`}>{info.label}</span>;
                     return null;
                   })()}
-                </div>
+                </>
               ) : activeChannel?.type === 'JOKER_NEGOTIATION' ? (
-                <span className="flex items-center gap-1 text-yellow-500 bg-yellow-500/10 px-2 py-0.5 rounded-full border border-yellow-500/20"><Star className="w-3 h-3 fill-yellow-500 text-yellow-500" /> Joker Müzakere Odası</span>
+                <span className="flex items-center gap-1 text-yellow-500 font-medium mt-0.5">
+                  <Star className="w-2.5 h-2.5 fill-yellow-500" />
+                  Müzakere Odası
+                </span>
               ) : (
-                <span className="flex items-center gap-1 text-green-500"><span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span> Çevrimiçi</span>
+                <span className="flex items-center gap-1 text-green-500 font-medium mt-0.5">
+                  <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
+                  Çevrimiçi
+                </span>
               )}
             </div>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <MatchStatusBadge reservation={activeChannel?.reservation} size="md" />
+
             {opponentJoker && (
               <button
                 onClick={() => setIsInviteModalOpen(true)}

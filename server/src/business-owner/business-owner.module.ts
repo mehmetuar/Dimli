@@ -5,6 +5,7 @@ import { BusinessOwnerController } from './business-owner.controller';
 import { BusinessOwner } from './entities/business-owner.entity';
 import { ReservationsModule } from '../reservations/reservations.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { RatingsModule } from '../ratings/ratings.module';
 import { Pitch } from '../pitches/entities/pitch.entity';
 import { Reservation } from '../reservations/entities/reservation.entity';
 import { Business } from '../business/entities/business.entity';
@@ -14,6 +15,7 @@ import { Business } from '../business/entities/business.entity';
         TypeOrmModule.forFeature([BusinessOwner, Pitch, Reservation, Business]),
         ReservationsModule,
         NotificationsModule,
+        RatingsModule,
     ],
     controllers: [BusinessOwnerController],
     providers: [BusinessOwnerService],
