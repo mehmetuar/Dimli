@@ -1,12 +1,15 @@
 import React from 'react';
-import { Briefcase, MapPin, CheckCircle, User, Store } from 'lucide-react';
+import { Briefcase, MapPin, CheckCircle, User, Store, Star, CreditCard, Phone } from 'lucide-react';
 
 export const steps = [
-    { id: 1, title: 'Yetkili', icon: User },
-    { id: 2, title: 'Konum', icon: MapPin },
-    { id: 3, title: 'İşletme', icon: Store },
-    { id: 4, title: 'Sahalar', icon: Briefcase },
-    { id: 5, title: 'Onay', icon: CheckCircle },
+    { id: 1, title: 'Hoşgeldiniz', icon: Star },
+    { id: 2, title: 'Hesap', icon: User },
+    { id: 3, title: 'Doğrulama', icon: Phone },
+    { id: 4, title: 'İşletme', icon: Store },
+    { id: 5, title: 'Konum', icon: MapPin },
+    { id: 6, title: 'Sahalar', icon: Briefcase },
+    { id: 7, title: 'Ödeme', icon: CreditCard },
+    { id: 8, title: 'Tamamlandı', icon: CheckCircle },
 ];
 
 interface RegisterSidebarProps {

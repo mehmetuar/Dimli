@@ -1,56 +1,61 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronRight, ChevronLeft, CheckCircle, User } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Loader2 } from 'lucide-react';
 import { LocationSelectionModal } from '../../../components/Modals/LocationSelectionModal';
 import { BusinessTimePickerModal } from '../../../components/Modals/BusinessTimePickerModal';
 
-// Hooks & Steps
 import { useBusinessRegister } from './hooks/useBusinessRegister';
 import { RegisterSidebar, steps } from './components/RegisterSidebar';
+
+import { WelcomeStep } from './components/steps/WelcomeStep';
 import { OwnerInfoStep } from './components/steps/OwnerInfoStep';
-import { LocationStep } from './components/steps/LocationStep';
+import { OtpVerificationStep } from './components/steps/OtpVerificationStep';
 import { BusinessDetailsStep } from './components/steps/BusinessDetailsStep';
-import { PitchesStep } from './components/steps/PitchesStep';
-import { SummaryStep } from './components/steps/SummaryStep';
+import { LocationStep } from './components/steps/LocationStep';
+import { PitchesAndPlanStep } from './components/steps/PitchesAndPlanStep';
+import { PaymentStep } from './components/steps/PaymentStep';
+import { CongratulationsStep } from './components/steps/CongratulationsStep';
 
 export const BusinessRegister: React.FC = () => {
     const {
-        currentStep,
-        error,
-        isLoading,
+        currentStep, totalSteps,
+        error, isLoading,
         isGeocoding, setIsGeocoding,
         isLocationModalOpen, setIsLocationModalOpen,
         locationModalStep, setLocationModalStep,
         isTimePickerOpen, setIsTimePickerOpen,
-        tempSlot,
+        tempSlot, setTempSlot,
         formData,
-        updateOwner,
-        updateBusiness,
-        updatePitch,
-        addPitch,
-        removePitch,
-        toggleFacility,
-        addTimeSlot,
-        removeTimeSlot,
-        handleSubmit,
-        nextStep,
-        prevStep
+        otpSent, otpSending, otpCode, setOtpCode,
+        updateOwner, updateBusiness, updatePitch,
+        setPitchCount, toggleFacility, addTimeSlot, removeTimeSlot,
+        sendOtp, verifyOtp,
+        handleSubmit, nextStep, prevStep,
     } = useBusinessRegister();
+
+    const isLastInputStep = currentStep === 7;
+    const isCongratsStep = currentStep === 8;
+    const isOtpStep = currentStep === 3;
 
     const renderStepContent = () => {
         switch (currentStep) {
             case 1:
-                return <OwnerInfoStep formData={formData} updateOwner={updateOwner} />;
+                return <WelcomeStep />;
             case 2:
+                return <OwnerInfoStep formData={formData} updateOwner={updateOwner} />;
+            case 3:
                 return (
-                    <LocationStep
-                        formData={formData}
-                        updateBusiness={updateBusiness}
-                        isGeocoding={isGeocoding}
-                        setIsGeocoding={setIsGeocoding}
+                    <OtpVerificationStep
+                        phone={formData.owner.phone}
+                        otpCode={otpCode}
+                        setOtpCode={setOtpCode}
+                        otpSending={otpSending}
+                        isLoading={isLoading}
+                        onVerify={verifyOtp}
+                        onResend={sendOtp}
                     />
                 );
-            case 3:
+            case 4:
                 return (
                     <BusinessDetailsStep
                         formData={formData}
@@ -60,13 +65,21 @@ export const BusinessRegister: React.FC = () => {
                         setIsTimePickerOpen={setIsTimePickerOpen}
                     />
                 );
-            case 4:
+            case 5:
                 return (
-                    <PitchesStep
+                    <LocationStep
+                        formData={formData}
+                        updateBusiness={updateBusiness}
+                        isGeocoding={isGeocoding}
+                        setIsGeocoding={setIsGeocoding}
+                    />
+                );
+            case 6:
+                return (
+                    <PitchesAndPlanStep
                         formData={formData}
                         updatePitch={updatePitch}
-                        addPitch={addPitch}
-                        removePitch={removePitch}
+                        setPitchCount={setPitchCount}
                         setIsTimePickerOpen={setIsTimePickerOpen}
                         removeTimeSlot={removeTimeSlot}
                         tempSlot={tempSlot}
@@ -74,8 +87,10 @@ export const BusinessRegister: React.FC = () => {
                         toggleFacility={toggleFacility}
                     />
                 );
-            case 5:
-                return <SummaryStep formData={formData} />;
+            case 7:
+                return <PaymentStep formData={formData} isLoading={isLoading} onSubmit={handleSubmit} />;
+            case 8:
+                return <CongratulationsStep ownerEmail={formData.owner.email} />;
             default:
                 return null;
         }
@@ -88,16 +103,21 @@ export const BusinessRegister: React.FC = () => {
                 <RegisterSidebar currentStep={currentStep} />
 
                 <div className="flex-1 flex flex-col p-6 md:p-10 relative">
-                    <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-2xl font-black text-white italic uppercase tracking-wider">
-                            {steps.find(s => s.id === currentStep)?.title}
-                        </h2>
-                        <span className="text-slate-500 text-sm font-bold">Adım {currentStep} / 5</span>
-                    </div>
+                    {/* Header — tamamlandı adımında gizle */}
+                    {!isCongratsStep && (
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-2xl font-black text-white italic uppercase tracking-wider">
+                                {steps.find(s => s.id === currentStep)?.title}
+                            </h2>
+                            <span className="text-slate-500 text-sm font-bold">
+                                {currentStep < 8 ? `Adım ${currentStep} / 7` : ''}
+                            </span>
+                        </div>
+                    )}
 
                     {error && (
-                        <div className="bg-red-500/10 border border-red-500/50 text-red-400 p-3 rounded-xl mb-6 text-sm font-bold flex items-center gap-2">
-                            <User className="w-4 h-4" /> {error}
+                        <div className="bg-red-500/10 border border-red-500/50 text-red-400 p-3 rounded-xl mb-4 text-sm font-bold">
+                            {error}
                         </div>
                     )}
 
@@ -105,35 +125,51 @@ export const BusinessRegister: React.FC = () => {
                         {renderStepContent()}
                     </div>
 
-                    <div className="absolute bottom-6 left-6 right-6 flex justify-between pt-4 border-t border-slate-800 bg-slate-900 z-10">
-                        <button
-                            onClick={prevStep}
-                            disabled={currentStep === 1}
-                            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-colors ${currentStep === 1 ? 'text-slate-700 cursor-not-allowed' : 'text-slate-400 hover:text-white hover:bg-slate-800'
-                                }`}
-                        >
-                            <ChevronLeft size={20} /> Geri
-                        </button>
+                    {/* Navigation — OTP, payment, congrats adımlarında farklı davranış */}
+                    {!isCongratsStep && !isLastInputStep && !isOtpStep && (
+                        <div className="absolute bottom-6 left-6 right-6 flex justify-between pt-4 border-t border-slate-800 bg-slate-900 z-10">
+                            <button
+                                onClick={prevStep}
+                                disabled={currentStep === 1}
+                                className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-colors ${currentStep === 1 ? 'text-slate-700 cursor-not-allowed' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                            >
+                                <ChevronLeft size={20} /> Geri
+                            </button>
 
-                        {currentStep < 5 ? (
                             <button
                                 onClick={nextStep}
-                                className="bg-white text-slate-900 px-8 py-3 rounded-xl font-black flex items-center gap-2 hover:bg-slate-200 transition-colors shadow-lg shadow-white/10"
-                            >
-                                İleri <ChevronRight size={20} />
-                            </button>
-                        ) : (
-                            <button
-                                onClick={handleSubmit}
                                 disabled={isLoading}
-                                className="bg-gradient-to-r from-orange-600 to-red-600 text-white px-8 py-3 rounded-xl font-black flex items-center gap-2 hover:from-orange-500 hover:to-red-500 transition-all shadow-lg shadow-orange-900/30 disabled:opacity-50"
+                                className="bg-white text-slate-900 px-8 py-3 rounded-xl font-black flex items-center gap-2 hover:bg-slate-200 transition-colors shadow-lg shadow-white/10 disabled:opacity-50"
                             >
-                                {isLoading ? 'Kaydediliyor...' : 'Kaydı Tamamla'} <CheckCircle size={20} />
+                                {isLoading ? <Loader2 className="animate-spin" size={18} /> : <>İleri <ChevronRight size={20} /></>}
                             </button>
-                        )}
-                    </div>
+                        </div>
+                    )}
+
+                    {/* OTP adımında sadece geri butonu */}
+                    {isOtpStep && (
+                        <div className="absolute bottom-6 left-6 right-6 pt-4 border-t border-slate-800 bg-slate-900 z-10">
+                            <button
+                                onClick={prevStep}
+                                className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                            >
+                                <ChevronLeft size={20} /> Geri
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
+
+            {!isCongratsStep && (
+                <div className="mt-6 text-center">
+                    <p className="text-slate-500 text-sm">
+                        Zaten hesabın var mı?{' '}
+                        <Link to="/business/login" className="text-orange-500 font-bold hover:underline">
+                            Giriş Yap
+                        </Link>
+                    </p>
+                </div>
+            )}
 
             <LocationSelectionModal
                 isOpen={isLocationModalOpen}
@@ -161,8 +197,8 @@ export const BusinessRegister: React.FC = () => {
                     isTimePickerOpen.type === 'OPEN' ? formData.business.openTime :
                         isTimePickerOpen.type === 'CLOSE' ? formData.business.closeTime :
                             isTimePickerOpen.pitchIdx !== undefined ? (
-                                isTimePickerOpen.type === 'PITCH_OPEN' ? formData.pitches[isTimePickerOpen.pitchIdx].openTime :
-                                    isTimePickerOpen.type === 'PITCH_CLOSE' ? formData.pitches[isTimePickerOpen.pitchIdx].closeTime :
+                                isTimePickerOpen.type === 'PITCH_OPEN' ? formData.pitches[isTimePickerOpen.pitchIdx]?.openTime :
+                                    isTimePickerOpen.type === 'PITCH_CLOSE' ? formData.pitches[isTimePickerOpen.pitchIdx]?.closeTime :
                                         isTimePickerOpen.type === 'SLOT_START' ? tempSlot.startTime : tempSlot.endTime
                             ) : '19:00'
                 }
@@ -172,20 +208,11 @@ export const BusinessRegister: React.FC = () => {
                     else if (isTimePickerOpen.pitchIdx !== undefined) {
                         if (isTimePickerOpen.type === 'PITCH_OPEN') updatePitch(isTimePickerOpen.pitchIdx, 'openTime', time);
                         else if (isTimePickerOpen.type === 'PITCH_CLOSE') updatePitch(isTimePickerOpen.pitchIdx, 'closeTime', time);
-                        else if (isTimePickerOpen.type === 'SLOT_START') tempSlot.startTime = time;
-                        else if (isTimePickerOpen.type === 'SLOT_END') tempSlot.endTime = time;
+                        else if (isTimePickerOpen.type === 'SLOT_START') setTempSlot(s => ({ ...s, startTime: time }));
+                        else if (isTimePickerOpen.type === 'SLOT_END') setTempSlot(s => ({ ...s, endTime: time }));
                     }
                 }}
             />
-
-            <div className="mt-6 text-center">
-                <p className="text-slate-500 text-sm">
-                    Zaten hesabın var mı?{' '}
-                    <Link to="/business/login" className="text-orange-500 font-bold hover:underline">
-                        Giriş Yap
-                    </Link>
-                </p>
-            </div>
         </div>
     );
 };
