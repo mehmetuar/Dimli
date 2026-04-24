@@ -42,7 +42,6 @@ function uploadToCloudinary(buffer: Buffer): Promise<string> {
 
 @Controller('files')
 export class FilesController {
-    @UseGuards(JwtAuthGuard)
     @Post('upload')
     @UseInterceptors(
         FileInterceptor('file', {
