@@ -80,6 +80,18 @@ export class AuthController {
 
     // ─── Business Auth ───────────────────────────────────────────────────────────
 
+    @Post('business/send-otp')
+    async businessSendOtp(@Body() body: { phone: string }) {
+        await this.authService.sendBusinessOwnerOtp(body.phone);
+        return { success: true };
+    }
+
+    @Post('business/verify-otp')
+    async businessVerifyOtp(@Body() body: { phone: string; code: string }) {
+        await this.authService.verifyBusinessOwnerOtp(body.phone, body.code);
+        return { verified: true };
+    }
+
     @Post('business/login')
     async loginBusiness(@Body() body) {
         const owner = await this.authService.validateBusinessOwner(body.email, body.password);

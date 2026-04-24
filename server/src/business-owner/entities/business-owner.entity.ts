@@ -15,8 +15,11 @@ export class BusinessOwner {
     @Column()
     fullName: string;
 
-    @Column({ nullable: true })
+    @Column({ nullable: true, unique: true })
     phone: string;
+
+    @Column({ default: false })
+    phoneVerified: boolean;
 
     @OneToOne(() => Business, { nullable: true })
     @JoinColumn()

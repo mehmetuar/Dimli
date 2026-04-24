@@ -1,0 +1,26 @@
+import { Controller, Get, Post, Body, Headers, UnauthorizedException } from '@nestjs/common';
+import { SubscriptionService } from './subscription.service';
+
+@Controller('subscription')
+export class SubscriptionController {
+    constructor(private readonly subscriptionService: SubscriptionService) { }
+
+    @Get('plans')
+    getPlans() {
+        return this.subscriptionService.getPlans();
+    }
+
+    // RevenueCat webhook — abonelik durumu değişikliklerini dinler
+    @Post('webhook/revenuecat')
+    async revenuecatWebhook(
+        @Body() body: any,
+        @Headers('authorization') authHeader: string,
+    ) {
+        const expectedSecret = process.env.REVENUECAT_WEBHOOK_SECRET || '';
+        if (expectedSecret && authHeader !== expectedSecret) {
+            throw new UnauthorizedException('Geçersiz webhook isteği.');
+        }
+        await this.subscriptionService.handleWebhook(body.event || body);
+        return { received: true };
+    }
+}

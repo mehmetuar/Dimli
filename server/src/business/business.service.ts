@@ -23,7 +23,10 @@ export class BusinessService {
 
     async findAll(geoFilter?: GeoFilter): Promise<(Business & { distanceKm?: number })[]> {
         if (!geoFilter) {
-            return this.businessRepository.find({ relations: ['pitches', 'pitches.timeSlots'] });
+            return this.businessRepository.find({
+                where: { status: 'active' },
+                relations: ['pitches', 'pitches.timeSlots'],
+            });
         }
 
         const { lat, lng, radius } = geoFilter;
@@ -39,6 +42,7 @@ export class BusinessService {
              FROM businesses
              WHERE latitude IS NOT NULL
                AND longitude IS NOT NULL
+               AND status = 'active'
                AND (
                    6371 * acos(
                        cos(radians($1)) * cos(radians(latitude))

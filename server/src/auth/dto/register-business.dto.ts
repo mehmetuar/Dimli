@@ -15,8 +15,8 @@ class RegisterBusinessOwnerDto {
     fullName: string;
 
     @IsString()
-    @IsOptional()
-    phone?: string;
+    @IsNotEmpty()
+    phone: string;
 }
 
 class RegisterTimeSlotDto {
@@ -88,6 +88,10 @@ class RegisterPitchDto {
     @IsOptional()
     closeTime?: string;
 
+    @IsString()
+    @IsOptional()
+    imageUrl?: string;
+
     @IsArray()
     @IsString({ each: true })
     @IsOptional()
@@ -113,4 +117,8 @@ export class RegisterBusinessDto {
     @ValidateNested({ each: true })
     @Type(() => RegisterPitchDto)
     pitches: RegisterPitchDto[];
+
+    @IsString()
+    @IsOptional()
+    planType?: string;
 }

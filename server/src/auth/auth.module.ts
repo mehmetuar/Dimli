@@ -19,7 +19,7 @@ import { SmsModule } from '../sms/sms.module';
     SmsModule,
     TypeOrmModule.forFeature([OtpCode]),
     JwtModule.register({
-      secret: 'SECRET_KEY', // TODO: Move to env
+      secret: process.env.JWT_SECRET || 'SECRET_KEY',
       signOptions: { expiresIn: '60m' },
     }),
   ],

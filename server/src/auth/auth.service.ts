@@ -132,6 +132,78 @@ export class AuthService {
         await this.otpRepository.delete({ phone });
     }
 
+    // ─── İşletme Sahibi OTP ─────────────────────────────────────────────────────
+
+    async sendBusinessOwnerOtp(phone: string): Promise<void> {
+        phone = this.normalizePhone(phone);
+
+        // Telefon başka bir işletme sahibine ait mi?
+        const existingOwner = await this.businessOwnerService.findByPhone(phone);
+        if (existingOwner) {
+            throw new ConflictException('Bu telefon numarası zaten kayıtlı.');
+        }
+
+        // Saatte maksimum 3 OTP isteği
+        await this.checkRateLimit(phone);
+
+        // Önceki bekleyen kodları sil
+        await this.otpRepository.delete({ phone, verified: false, purpose: 'business_registration' });
+
+        const code = this.generateOtpCode();
+        const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 dakika
+
+        const otp = this.otpRepository.create({
+            phone,
+            code,
+            verified: false,
+            expiresAt,
+            purpose: 'business_registration',
+            attempts: 0,
+        });
+        await this.otpRepository.save(otp);
+
+        await this.smsService.sendSms(phone, `Dimli doğrulama kodunuz: ${code}`);
+    }
+
+    async verifyBusinessOwnerOtp(phone: string, code: string): Promise<void> {
+        phone = this.normalizePhone(phone);
+
+        const otp = await this.otpRepository.findOne({
+            where: { phone, verified: false, purpose: 'business_registration' },
+        });
+
+        if (!otp) {
+            throw new BadRequestException('Geçersiz doğrulama kodu.');
+        }
+
+        otp.attempts += 1;
+        if (otp.attempts >= 5) {
+            await this.otpRepository.delete({ id: otp.id });
+            throw new BadRequestException('Çok fazla yanlış deneme. Lütfen yeni kod isteyin.');
+        }
+
+        if (otp.code !== code) {
+            await this.otpRepository.save(otp);
+            throw new BadRequestException('Geçersiz doğrulama kodu.');
+        }
+
+        if (new Date() > otp.expiresAt) {
+            await this.otpRepository.delete({ id: otp.id });
+            throw new BadRequestException('Doğrulama kodunun süresi dolmuş. Lütfen yeni kod isteyin.');
+        }
+
+        otp.verified = true;
+        await this.otpRepository.save(otp);
+    }
+
+    async isBusinessOwnerPhoneVerified(phone: string): Promise<boolean> {
+        phone = this.normalizePhone(phone);
+        const otp = await this.otpRepository.findOne({
+            where: { phone, verified: true, purpose: 'business_registration' },
+        });
+        return !!otp;
+    }
+
     // ─── Şifremi Unuttum Akışı ──────────────────────────────────────────────────
 
     async sendPasswordResetOtp(phone: string): Promise<void> {
@@ -276,10 +348,25 @@ export class AuthService {
         await queryRunner.startTransaction();
 
         try {
-            // 1. Create Business Owner
+            // 1. Email benzersizlik kontrolü
             const existingOwner = await this.businessOwnerService.findByEmail(data.owner.email);
             if (existingOwner) {
-                throw new Error('Email already exists');
+                throw new ConflictException('Bu e-posta adresi zaten kayıtlı.');
+            }
+
+            // 2. Telefon benzersizlik kontrolü
+            if (data.owner.phone) {
+                const normalizedPhone = this.normalizePhone(data.owner.phone);
+                const existingPhone = await this.businessOwnerService.findByPhone(normalizedPhone);
+                if (existingPhone) {
+                    throw new ConflictException('Bu telefon numarası zaten kayıtlı.');
+                }
+
+                // 3. Telefon doğrulama kontrolü
+                const isVerified = await this.isBusinessOwnerPhoneVerified(normalizedPhone);
+                if (!isVerified) {
+                    throw new BadRequestException('Telefon numarası doğrulanmamış.');
+                }
             }
 
             const salt = await bcrypt.genSalt();
@@ -289,7 +376,10 @@ export class AuthService {
             businessOwner.email = data.owner.email;
             businessOwner.password = hashedPassword;
             businessOwner.fullName = data.owner.fullName;
-            if (data.owner.phone) businessOwner.phone = data.owner.phone;
+            if (data.owner.phone) {
+                businessOwner.phone = this.normalizePhone(data.owner.phone);
+                businessOwner.phoneVerified = true;
+            }
 
             const savedOwner = await queryRunner.manager.save(businessOwner);
 
@@ -319,6 +409,7 @@ export class AuthService {
                     if (pitchData.type) pitch.type = pitchData.type;
                     pitch.pricePerHour = pitchData.pricePerHour;
                     if (pitchData.facilities) pitch.facilities = pitchData.facilities;
+                    if ((pitchData as any).imageUrl) pitch.imageUrl = (pitchData as any).imageUrl;
 
                     if (pitchData.openTime) {
                         pitch.openTime = pitchData.openTime;
@@ -351,6 +442,14 @@ export class AuthService {
             }
 
             await queryRunner.commitTransaction();
+
+            // OTP temizle
+            if (data.owner.phone) {
+                await this.otpRepository.delete({
+                    phone: this.normalizePhone(data.owner.phone),
+                    purpose: 'business_registration',
+                });
+            }
 
             const { password, ...result } = savedOwner;
             return {

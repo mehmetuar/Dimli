@@ -17,6 +17,8 @@ import { BusinessOwnerModule } from './business-owner/business-owner.module';
 import { ReservationsModule } from './reservations/reservations.module';
 import { RatingsModule } from './ratings/ratings.module';
 import { FilesModule } from './files/files.module';
+import { AdminModule } from './admin/admin.module';
+import { SubscriptionModule } from './subscription/subscription.module';
 
 @Module({
   imports: [
@@ -46,6 +48,8 @@ import { FilesModule } from './files/files.module';
     ReservationsModule,
     RatingsModule,
     FilesModule,
+    AdminModule,
+    SubscriptionModule,
   ],
   controllers: [AppController],
   providers: [AppService],

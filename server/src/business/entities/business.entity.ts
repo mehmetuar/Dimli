@@ -49,6 +49,19 @@ export class Business {
     @Column('int', { default: 0 })
     ratingCount: number;
 
+    @Column({
+        type: 'enum',
+        enum: ['pending', 'active', 'rejected', 'suspended'],
+        default: 'pending',
+    })
+    status: string;
+
+    @Column({ nullable: true, type: 'text' })
+    rejectionReason: string | null;
+
+    @Column({ nullable: true, type: 'timestamp' })
+    reviewedAt: Date | null;
+
     @OneToMany(() => Pitch, (pitch) => pitch.business)
     pitches: Pitch[];
 

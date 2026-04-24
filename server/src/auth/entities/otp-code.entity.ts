@@ -18,7 +18,7 @@ export class OtpCode {
     expiresAt: Date;
 
     @Column({ default: 'registration' })
-    purpose: string; // 'registration' | 'password_reset'
+    purpose: string; // 'registration' | 'password_reset' | 'business_registration'
 
     @Column({ default: 0 })
     attempts: number;

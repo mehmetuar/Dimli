@@ -33,6 +33,10 @@ export class BusinessOwnerService {
         return this.businessOwnerRepository.findOne({ where: { email }, relations: ['business'] });
     }
 
+    async findByPhone(phone: string): Promise<BusinessOwner | null> {
+        return this.businessOwnerRepository.findOne({ where: { phone } });
+    }
+
     async findOne(id: string): Promise<BusinessOwner | null> {
         return this.businessOwnerRepository.findOne({
             where: { id },
