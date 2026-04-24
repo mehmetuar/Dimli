@@ -1,9 +1,16 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import {
+    Injectable,
+    BadRequestException,
+    ConflictException,
+    NotFoundException,
+    HttpException,
+    HttpStatus,
+} from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { BusinessOwnerService } from '../business-owner/business-owner.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, Repository, MoreThanOrEqual } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { RegisterBusinessDto } from './dto/register-business.dto';
 import { Business } from '../business/entities/business.entity';
@@ -25,25 +32,81 @@ export class AuthService {
         private otpRepository: Repository<OtpCode>,
     ) { }
 
-    async sendOtp(phone: string): Promise<void> {
-        // Önceki bekleyen kodları sil
-        await this.otpRepository.delete({ phone, verified: false });
+    private normalizePhone(phone: string): string {
+        const cleaned = phone.replace(/\s/g, '');
+        if (cleaned.startsWith('0')) return '90' + cleaned.slice(1);
+        if (!cleaned.startsWith('90')) return '90' + cleaned;
+        return cleaned;
+    }
 
-        const code = Math.floor(100000 + Math.random() * 900000).toString();
+    private generateOtpCode(): string {
+        return Math.floor(100000 + Math.random() * 900000).toString();
+    }
+
+    private async checkRateLimit(phone: string): Promise<void> {
+        const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+        const recentCount = await this.otpRepository.count({
+            where: { phone, createdAt: MoreThanOrEqual(oneHourAgo) },
+        });
+        if (recentCount >= 3) {
+            throw new HttpException(
+                'Çok fazla kod isteği gönderildi. Lütfen 1 saat sonra tekrar deneyin.',
+                HttpStatus.TOO_MANY_REQUESTS,
+            );
+        }
+    }
+
+    async sendOtp(phone: string): Promise<void> {
+        phone = this.normalizePhone(phone);
+
+        // Telefon zaten kayıtlıysa OTP gönderme
+        const existingUser = await this.usersService.findByPhone(phone);
+        if (existingUser) {
+            throw new ConflictException('Bu telefon numarası zaten kayıtlı.');
+        }
+
+        // Saatte maksimum 3 OTP isteği
+        await this.checkRateLimit(phone);
+
+        // Önceki bekleyen kayıt kodlarını sil
+        await this.otpRepository.delete({ phone, verified: false, purpose: 'registration' });
+
+        const code = this.generateOtpCode();
         const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 dakika
 
-        const otp = this.otpRepository.create({ phone, code, verified: false, expiresAt });
+        const otp = this.otpRepository.create({
+            phone,
+            code,
+            verified: false,
+            expiresAt,
+            purpose: 'registration',
+            attempts: 0,
+        });
         await this.otpRepository.save(otp);
 
         await this.smsService.sendSms(phone, `Dimli doğrulama kodunuz: ${code}`);
     }
 
     async verifyOtp(phone: string, code: string): Promise<void> {
+        phone = this.normalizePhone(phone);
+
         const otp = await this.otpRepository.findOne({
-            where: { phone, code, verified: false },
+            where: { phone, verified: false, purpose: 'registration' },
         });
 
         if (!otp) {
+            throw new BadRequestException('Geçersiz doğrulama kodu.');
+        }
+
+        // Deneme sınırı kontrolü
+        otp.attempts += 1;
+        if (otp.attempts >= 5) {
+            await this.otpRepository.delete({ id: otp.id });
+            throw new BadRequestException('Çok fazla yanlış deneme. Lütfen yeni kod isteyin.');
+        }
+
+        if (otp.code !== code) {
+            await this.otpRepository.save(otp);
             throw new BadRequestException('Geçersiz doğrulama kodu.');
         }
 
@@ -57,15 +120,105 @@ export class AuthService {
     }
 
     async isPhoneVerified(phone: string): Promise<boolean> {
+        phone = this.normalizePhone(phone);
         const otp = await this.otpRepository.findOne({
-            where: { phone, verified: true },
+            where: { phone, verified: true, purpose: 'registration' },
         });
         return !!otp && new Date() < otp.expiresAt;
     }
 
     async cleanupOtp(phone: string): Promise<void> {
+        phone = this.normalizePhone(phone);
         await this.otpRepository.delete({ phone });
     }
+
+    // ─── Şifremi Unuttum Akışı ──────────────────────────────────────────────────
+
+    async sendPasswordResetOtp(phone: string): Promise<void> {
+        phone = this.normalizePhone(phone);
+
+        // Telefon kayıtlı DEĞİLSE hata ver
+        const user = await this.usersService.findByPhone(phone);
+        if (!user) {
+            throw new NotFoundException('Bu telefon numarasıyla kayıtlı hesap bulunamadı.');
+        }
+
+        // Saatte maksimum 3 OTP isteği
+        await this.checkRateLimit(phone);
+
+        // Önceki bekleyen şifre sıfırlama kodlarını sil
+        await this.otpRepository.delete({ phone, verified: false, purpose: 'password_reset' });
+
+        const code = this.generateOtpCode();
+        const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 dakika
+
+        const otp = this.otpRepository.create({
+            phone,
+            code,
+            verified: false,
+            expiresAt,
+            purpose: 'password_reset',
+            attempts: 0,
+        });
+        await this.otpRepository.save(otp);
+
+        await this.smsService.sendSms(phone, `Dimli şifre sıfırlama kodunuz: ${code}`);
+    }
+
+    async verifyPasswordResetOtp(phone: string, code: string): Promise<void> {
+        phone = this.normalizePhone(phone);
+
+        const otp = await this.otpRepository.findOne({
+            where: { phone, verified: false, purpose: 'password_reset' },
+        });
+
+        if (!otp) {
+            throw new BadRequestException('Geçersiz doğrulama kodu.');
+        }
+
+        // Deneme sınırı kontrolü
+        otp.attempts += 1;
+        if (otp.attempts >= 5) {
+            await this.otpRepository.delete({ id: otp.id });
+            throw new BadRequestException('Çok fazla yanlış deneme. Lütfen yeni kod isteyin.');
+        }
+
+        if (otp.code !== code) {
+            await this.otpRepository.save(otp);
+            throw new BadRequestException('Geçersiz doğrulama kodu.');
+        }
+
+        if (new Date() > otp.expiresAt) {
+            await this.otpRepository.delete({ id: otp.id });
+            throw new BadRequestException('Doğrulama kodunun süresi dolmuş. Lütfen yeni kod isteyin.');
+        }
+
+        otp.verified = true;
+        await this.otpRepository.save(otp);
+    }
+
+    async resetPassword(phone: string, newPassword: string): Promise<void> {
+        phone = this.normalizePhone(phone);
+
+        const otp = await this.otpRepository.findOne({
+            where: { phone, verified: true, purpose: 'password_reset' },
+        });
+
+        if (!otp || new Date() > otp.expiresAt) {
+            throw new BadRequestException('Doğrulama süresi dolmuş. Lütfen tekrar deneyin.');
+        }
+
+        const user = await this.usersService.findByPhone(phone);
+        if (!user) {
+            throw new NotFoundException('Kullanıcı bulunamadı.');
+        }
+
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        await this.usersService.updatePassword(user.id, hashedPassword);
+        await this.otpRepository.delete({ phone, purpose: 'password_reset' });
+    }
+
+    // ─── Mevcut Auth Metodları ───────────────────────────────────────────────────
 
     async validateUser(username: string, pass: string): Promise<any> {
         const user = await this.usersService.findOne(username);
@@ -104,7 +257,6 @@ export class AuthService {
     }
 
     async registerBusinessOwner(data: any) {
-        // Hash password
         const salt = await bcrypt.genSalt();
         const hashedPassword = await bcrypt.hash(data.password, salt);
 
@@ -125,7 +277,6 @@ export class AuthService {
 
         try {
             // 1. Create Business Owner
-            // Check if email already exists
             const existingOwner = await this.businessOwnerService.findByEmail(data.owner.email);
             if (existingOwner) {
                 throw new Error('Email already exists');
@@ -169,7 +320,6 @@ export class AuthService {
                     pitch.pricePerHour = pitchData.pricePerHour;
                     if (pitchData.facilities) pitch.facilities = pitchData.facilities;
 
-                    // Priority: Pitch specific time > Business time > null
                     if (pitchData.openTime) {
                         pitch.openTime = pitchData.openTime;
                     } else if (savedBusiness.openTime) {
@@ -187,7 +337,6 @@ export class AuthService {
 
                     const savedPitch = await queryRunner.manager.save(pitch);
 
-                    // 4b. Create TimeSlots for this pitch
                     if (pitchData.timeSlots && Array.isArray(pitchData.timeSlots)) {
                         for (const slotData of pitchData.timeSlots) {
                             const timeSlot = new TimeSlot();

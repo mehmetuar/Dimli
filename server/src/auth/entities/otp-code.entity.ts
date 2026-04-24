@@ -17,6 +17,12 @@ export class OtpCode {
     @Column({ type: 'timestamp' })
     expiresAt: Date;
 
+    @Column({ default: 'registration' })
+    purpose: string; // 'registration' | 'password_reset'
+
+    @Column({ default: 0 })
+    attempts: number;
+
     @CreateDateColumn()
     createdAt: Date;
 }

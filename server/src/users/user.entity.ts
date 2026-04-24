@@ -5,13 +5,13 @@ export class User {
     @PrimaryGeneratedColumn('uuid')
     id: string;
 
-    @Column({ unique: true })
+    @Column({ type: 'varchar', unique: true, nullable: true })
     email: string;
 
     @Column({ unique: true })
     username: string;
 
-    @Column({ nullable: true })
+    @Column({ nullable: true, unique: true })
     phone: string;
 
     @Column()

@@ -57,9 +57,31 @@ export class AuthController {
             };
         }
     }
+
+    // ─── Şifremi Unuttum ────────────────────────────────────────────────────────
+
+    @Post('forgot-password/send-otp')
+    async forgotPasswordSendOtp(@Body() body: { phone: string }) {
+        await this.authService.sendPasswordResetOtp(body.phone);
+        return { success: true };
+    }
+
+    @Post('forgot-password/verify-otp')
+    async forgotPasswordVerifyOtp(@Body() body: { phone: string; code: string }) {
+        await this.authService.verifyPasswordResetOtp(body.phone, body.code);
+        return { verified: true };
+    }
+
+    @Post('forgot-password/reset')
+    async resetPassword(@Body() body: { phone: string; newPassword: string }) {
+        await this.authService.resetPassword(body.phone, body.newPassword);
+        return { success: true };
+    }
+
+    // ─── Business Auth ───────────────────────────────────────────────────────────
+
     @Post('business/login')
     async loginBusiness(@Body() body) {
-        // Manual validation for now as we don't have a BusinessAuthGuard yet
         const owner = await this.authService.validateBusinessOwner(body.email, body.password);
         if (!owner) {
             throw new UnauthorizedException('Invalid credentials');

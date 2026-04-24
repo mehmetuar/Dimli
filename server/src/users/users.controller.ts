@@ -8,6 +8,15 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 export class UsersController {
     constructor(private usersService: UsersService) { }
 
+    @Get('check-username')
+    async checkUsername(@Query('username') username: string): Promise<{ available: boolean }> {
+        if (!username || username.trim().length < 3) {
+            return { available: false };
+        }
+        const taken = await this.usersService.isUsernameTaken(username.trim());
+        return { available: !taken };
+    }
+
     @UseGuards(JwtAuthGuard)
     @Get('me')
     async getProfile(@Request() req) {

@@ -15,6 +15,18 @@ export class UsersService {
         private usersRepository: Repository<User>,
     ) { }
 
+    normalizePhone(phone: string): string {
+        const cleaned = phone.replace(/\s/g, '');
+        if (cleaned.startsWith('0')) return '90' + cleaned.slice(1);
+        if (!cleaned.startsWith('90')) return '90' + cleaned;
+        return cleaned;
+    }
+
+    async findByPhone(phone: string): Promise<User | null> {
+        const normalized = this.normalizePhone(phone);
+        return this.usersRepository.findOne({ where: { phone: normalized } });
+    }
+
     async create(userData: CreateUserDto): Promise<User> {
         try {
             if (!userData.password) {
@@ -30,6 +42,7 @@ export class UsersService {
             const hashedPassword = await bcrypt.hash(userData.password, 10);
             const newUser = this.usersRepository.create({
                 ...userData,
+                phone: this.normalizePhone(userData.phone),
                 password: hashedPassword,
                 phoneVerified: true,
             });
@@ -42,6 +55,11 @@ export class UsersService {
 
     async findOne(username: string): Promise<User | null> {
         return this.usersRepository.findOne({ where: { username }, relations: ['team'] });
+    }
+
+    async isUsernameTaken(username: string): Promise<boolean> {
+        const user = await this.usersRepository.findOne({ where: { username } });
+        return !!user;
     }
 
     async findById(id: string): Promise<User | null> {
@@ -108,6 +126,10 @@ export class UsersService {
     async update(id: string, updateUserDto: UpdateUserDto): Promise<User | null> {
         await this.usersRepository.update(id, updateUserDto);
         return this.usersRepository.findOne({ where: { id }, relations: ['team'] });
+    }
+
+    async updatePassword(id: string, hashedPassword: string): Promise<void> {
+        await this.usersRepository.update(id, { password: hashedPassword });
     }
 
     async updatePushToken(id: string, pushToken: string): Promise<void> {

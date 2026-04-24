@@ -13,8 +13,9 @@ import { NameStep } from './components/steps/NameStep';
 import { PhoneVerificationStep } from './components/steps/PhoneVerificationStep';
 import { BirthDateEmailStep } from './components/steps/BirthDateEmailStep';
 import { PlayerProfileStep } from './components/steps/PlayerProfileStep';
+import { PhotoUploadStep } from './components/steps/PhotoUploadStep';
 
-const TOTAL_STEPS = 6;
+const TOTAL_STEPS = 7;
 
 export const Register: React.FC = () => {
     const {
@@ -27,9 +28,11 @@ export const Register: React.FC = () => {
         otpLoading,
         otpDigits,
         resendCountdown,
+        uploadLoading,
         handleChange,
         sendOtp,
         onOtpDigitChange,
+        uploadAvatar,
         nextStep,
         prevStep,
         handleRegister
@@ -66,15 +69,35 @@ export const Register: React.FC = () => {
                     )}
                     {step === 5 && <BirthDateEmailStep formData={formData} handleChange={handleChange} />}
                     {step === 6 && <PlayerProfileStep formData={formData} handleChange={handleChange} />}
+                    {step === 7 && (
+                        <>
+                            <PhotoUploadStep
+                                fullName={formData.full_name}
+                                avatarUrl={formData.avatarUrl}
+                                uploadLoading={uploadLoading}
+                                registerLoading={loading}
+                                onUpload={uploadAvatar}
+                            />
+                            <button
+                                type="button"
+                                onClick={prevStep}
+                                className="w-full mt-3 text-slate-500 hover:text-slate-300 text-sm font-bold transition-colors py-2"
+                            >
+                                ← Geri dön
+                            </button>
+                        </>
+                    )}
 
-                    <RegisterActions
-                        step={step}
-                        totalSteps={TOTAL_STEPS}
-                        loading={loading}
-                        otpVerified={otpVerified}
-                        nextStep={nextStep}
-                        prevStep={prevStep}
-                    />
+                    {step !== 7 && (
+                        <RegisterActions
+                            step={step}
+                            totalSteps={TOTAL_STEPS}
+                            loading={loading}
+                            otpVerified={otpVerified}
+                            nextStep={nextStep}
+                            prevStep={prevStep}
+                        />
+                    )}
                 </form>
 
                 <div className="mt-6 text-center">

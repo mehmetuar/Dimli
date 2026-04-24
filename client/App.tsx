@@ -36,6 +36,7 @@ const BusinessPitchSettings = lazy(() => import('./pages/business/BusinessPitchS
 const BusinessPasswordSettings = lazy(() => import('./pages/business/BusinessPasswordSettings/BusinessPasswordSettings').then(m => ({ default: m.BusinessPasswordSettings })));
 const BusinessNotificationsPage = lazy(() => import('./pages/business/BusinessNotificationsPage/BusinessNotificationsPage').then(m => ({ default: m.BusinessNotificationsPage })));
 const BusinessStats = lazy(() => import('./pages/business/BusinessStats/BusinessStats').then(m => ({ default: m.BusinessStats })));
+const ForgotPassword = lazy(() => import('./pages/customer/ForgotPassword/ForgotPassword').then(m => ({ default: m.ForgotPassword })));
 
 // ── Animated full-screen loading fallback ────────────────────────────────────
 const PageLoader = () => (
@@ -76,7 +77,7 @@ const PageLoader = () => (
 
 function AppContent() {
   const location = useLocation();
-  const isAuthPage = location.pathname === '/login' || location.pathname === '/register' || location.pathname.startsWith('/business');
+  const isAuthPage = location.pathname === '/login' || location.pathname === '/register' || location.pathname === '/forgot-password' || location.pathname.startsWith('/business');
   const [watchId, setWatchId] = useState<string | null>(null);
   const [pendingRatings, setPendingRatings] = useState<PendingRating[]>([]);
   const { updateCoords } = useLocationContext();
@@ -252,6 +253,7 @@ function AppContent() {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/business/login" element={<BusinessLogin />} />
             <Route path="/business/register" element={<BusinessRegister />} />
             <Route path="/business/dashboard" element={<BusinessDashboard />} />

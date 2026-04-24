@@ -73,6 +73,12 @@ export const Login: React.FC = () => {
                     >
                         Giriş Yap
                     </button>
+
+                    <div className="text-center mt-3">
+                        <Link to="/forgot-password" className="text-slate-400 text-sm hover:text-turf-400 font-bold transition-colors">
+                            Şifremi Unuttum
+                        </Link>
+                    </div>
                 </form>
 
                 <div className="mt-6 text-center">

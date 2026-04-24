@@ -44,9 +44,10 @@ export const RegisterActions: React.FC<RegisterActionsProps> = ({
                     <button
                         type="button"
                         onClick={nextStep}
-                        className="flex-1 bg-turf-600 text-white py-4 rounded-xl font-bold hover:bg-turf-500 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-turf-600/20"
+                        disabled={loading}
+                        className="flex-1 bg-turf-600 text-white py-4 rounded-xl font-bold hover:bg-turf-500 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-turf-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        İleri <ChevronRight className="w-5 h-5" />
+                        {loading ? <LoadingSpinner size="sm" text="" /> : <>İleri <ChevronRight className="w-5 h-5" /></>}
                     </button>
                 )
             )}
