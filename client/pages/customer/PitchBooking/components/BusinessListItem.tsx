@@ -3,7 +3,6 @@ import { MapPin, Star, ChevronDown, Trophy, Navigation } from 'lucide-react';
 import { Business } from '../../../../types';
 import { PitchSchedule } from './PitchSchedule';
 import { ActiveMatchesList } from './ActiveMatchesList';
-import { groupMatchesByDate } from '../utils/pitchUtils';
 
 interface BusinessListItemProps {
     business: Business;
@@ -42,7 +41,6 @@ export const BusinessListItem: React.FC<BusinessListItemProps> = ({
     const activeMatches = pitchAnnouncements
         .filter(a => a.matchType !== 'kendi_aramizda')
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    const groupedMatches = groupMatchesByDate(activeMatches);
 
     return (
         <div className={`bg-slate-800 rounded-3xl overflow-hidden border transition-all duration-300 ${isExpanded ? 'border-turf-500 shadow-neon' : 'border-slate-700 shadow-lg'}`}>
@@ -140,7 +138,6 @@ export const BusinessListItem: React.FC<BusinessListItemProps> = ({
 
                             <ActiveMatchesList
                                 activeMatches={activeMatches}
-                                groupedMatches={groupedMatches}
                                 currentUser={currentUser}
                                 myChallenges={myChallenges}
                                 isAuthorized={isAuthorized}

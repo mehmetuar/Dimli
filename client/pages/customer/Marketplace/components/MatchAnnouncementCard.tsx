@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, Clock, MapPin, Navigation, Shield, X, Lock, TurkishLira, ChevronRight } from 'lucide-react';
+import { Calendar, Clock, MapPin, Navigation, Shield, X, Lock, TurkishLira, ChevronRight, Users } from 'lucide-react';
 import { LevelBadge } from '../../../../components/UI/LevelBadge';
 import { FairPlayScore } from '../../../../components/UI/FairPlayScore';
 import { Pitch, Business } from '../../../../types';
@@ -17,6 +17,16 @@ interface MatchAnnouncementCardProps {
     handleOpenChallengeModal: (announcement: any) => void;
 }
 
+/** Find end time from pitch time slots; fall back to +1 h */
+const resolveEndTime = (time: string, pitch: Pitch | null): string => {
+    if (pitch && (pitch as any).timeSlots?.length) {
+        const slot = (pitch as any).timeSlots.find((s: any) => s.startTime === time);
+        if (slot?.endTime) return slot.endTime;
+    }
+    const [h, m] = time.split(':').map(Number);
+    return `${String((h + 1) % 24).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+};
+
 export const MatchAnnouncementCard: React.FC<MatchAnnouncementCardProps> = ({
     announcement,
     myTeam,
@@ -31,26 +41,27 @@ export const MatchAnnouncementCard: React.FC<MatchAnnouncementCardProps> = ({
 }) => {
     const isOwnTeam = announcement.teamId === myTeam?.id;
     const { pitch, business } = getPitchDetails(announcement.pitchId);
+    const endTime = resolveEndTime(announcement.time, pitch);
+    const existingChallenge = myChallenges.find(
+        c => c.toMatchId === announcement.id && c.status === 'PENDING'
+    );
 
     return (
-        <div
-            className={`group relative rounded-3xl border overflow-hidden transition-all duration-300 ${isOwnTeam
-                ? 'bg-turf-900/20 border-turf-500/50'
-                : 'bg-slate-800 border-slate-700 hover:border-turf-500/50 hover:shadow-neon'
-                }`}
-        >
-            <div className={`absolute -right-10 -top-10 w-40 h-40 rounded-full blur-2xl transition-colors ${isOwnTeam ? 'bg-turf-600/20' : 'bg-slate-700/20 group-hover:bg-turf-600/10'
-                }`}></div>
+        <div className={`relative rounded-3xl border overflow-hidden ${isOwnTeam
+            ? 'bg-turf-900/20 border-turf-500/50'
+            : 'bg-slate-800 border-slate-700'
+            }`}>
+            {/* Ambient glow */}
+            <div className={`absolute -right-10 -top-10 w-40 h-40 rounded-full blur-2xl pointer-events-none ${isOwnTeam ? 'bg-turf-600/20' : 'bg-slate-700/20'}`} />
 
-            <div className="p-5 relative z-10">
+            <div className="p-4 relative z-10">
+
+                {/* ── Own-team top action bar ── */}
                 {isOwnTeam && (
                     isAuthorized ? (
                         <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteAdClick(announcement.id);
-                            }}
-                            className="w-full mb-4 bg-turf-900/30 border border-turf-500/30 text-turf-400 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-red-900/30 hover:text-red-400 hover:border-red-900/50 transition-all group"
+                            onClick={e => { e.stopPropagation(); handleDeleteAdClick(announcement.id); }}
+                            className="w-full mb-4 bg-turf-900/30 border border-turf-500/30 text-turf-400 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 active:bg-red-900/30 active:text-red-400 active:border-red-900/50 transition-all group"
                         >
                             <span className="group-hover:hidden flex items-center gap-2">
                                 <Shield className="w-4 h-4" /> Sizin İlanınız (Aktif)
@@ -60,95 +71,109 @@ export const MatchAnnouncementCard: React.FC<MatchAnnouncementCardProps> = ({
                             </span>
                         </button>
                     ) : (
-                        <div className="w-full mb-4 bg-turf-900/20 border border-turf-500/20 text-turf-500 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2">
+                        <div className="w-full mb-4 bg-turf-900/20 border border-turf-500/20 text-turf-500 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2">
                             <Shield className="w-4 h-4" /> Sizin İlanınız (Yönetici Değilsiniz)
                         </div>
                     )
                 )}
 
-                <div className="flex justify-between items-start mb-4">
-                    <div className="flex items-center gap-4">
-                        <div
-                            className="relative cursor-pointer hover:scale-105 transition-transform"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                if (announcement.teamId) setSelectedTeamId(announcement.teamId);
-                            }}
-                        >
-                            <img src={announcement.team?.logoUrl || '/default-team-logo.png'} alt={announcement.team?.name} className="w-14 h-14 rounded-full bg-slate-900 object-cover border-2 border-slate-600 shadow-lg" />
-                        </div>
-                        <div
-                            className="cursor-pointer group/team"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                if (announcement.teamId) setSelectedTeamId(announcement.teamId);
-                            }}
-                        >
-                            <div className="flex items-center gap-2">
-                                <h3 className="font-sport font-bold text-2xl text-white uppercase italic tracking-wide group-hover/team:text-turf-500 transition-colors">{announcement.team?.name}</h3>
-                                <FairPlayScore score={announcement.team?.fairPlayScore || 0} count={announcement.team?.fairPlayRatingCount} />
-                            </div>
-                            <div className="flex items-center gap-2 mt-1">
-                                <LevelBadge level={announcement.team?.level || 'INTERMEDIATE'} />
-                                <span className="text-[10px] font-bold text-turf-500 bg-turf-900/30 px-2 py-0.5 rounded border border-turf-500/20">RAKİP ARANIYOR</span>
-                            </div>
-                        </div>
-                    </div>
+                {/* ── Team header row ── */}
+                <div className="flex items-center gap-3 mb-4">
 
-                    <div className="flex flex-col items-center gap-2">
-                        <div className="text-center bg-slate-900/50 p-2 rounded-lg border border-slate-700/50 backdrop-blur-sm min-w-[80px]">
-                            <span className="block text-[10px] text-slate-500 uppercase font-bold">Oyuncu</span>
-                            <span className="block text-lg font-bold text-white">{announcement.playerCount}v{announcement.playerCount}</span>
+                    {/* Logo — overflow-hidden wrapper guarantees circle on iOS & Android */}
+                    <button
+                        className="flex-shrink-0 w-16 h-16 rounded-full overflow-hidden border-2 border-slate-600 bg-slate-900 shadow-lg active:scale-95 transition-transform"
+                        onClick={e => { e.stopPropagation(); if (announcement.teamId) setSelectedTeamId(announcement.teamId); }}
+                    >
+                        <img
+                            src={announcement.team?.logoUrl || '/default-team-logo.png'}
+                            alt={announcement.team?.name}
+                            className="w-full h-full object-cover"
+                        />
+                    </button>
+
+                    {/* Team info — grows, min-w-0 prevents overflow */}
+                    <button
+                        className="flex-1 min-w-0 text-left"
+                        onClick={e => { e.stopPropagation(); if (announcement.teamId) setSelectedTeamId(announcement.teamId); }}
+                    >
+                        {/* Name + FairPlay */}
+                        <div className="flex items-center gap-2 min-w-0">
+                            <span className="font-sport font-bold text-xl text-white uppercase italic tracking-wide truncate">
+                                {announcement.team?.name}
+                            </span>
+                            <span className="flex-shrink-0">
+                                <FairPlayScore score={announcement.team?.fairPlayScore || 0} count={announcement.team?.fairPlayRatingCount} />
+                            </span>
                         </div>
+                        {/* Badges row */}
+                        <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                            <LevelBadge level={announcement.team?.level || 'INTERMEDIATE'} />
+                            <span className="text-[10px] font-bold text-turf-500 bg-turf-900/30 px-2 py-0.5 rounded border border-turf-500/20 whitespace-nowrap">
+                                RAKİP ARANIYOR
+                            </span>
+                        </div>
+                    </button>
+
+                    {/* Player count — fixed width, flex-shrink-0 */}
+                    <div className="flex-shrink-0 flex flex-col items-center bg-slate-900/60 border border-slate-700/60 rounded-xl px-3 py-2">
+                        <span className="text-[9px] text-slate-500 uppercase font-bold tracking-wide leading-none mb-0.5">Oyuncu</span>
+                        <span className="text-base font-black text-white leading-none">
+                            {announcement.playerCount}v{announcement.playerCount}
+                        </span>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 mb-5">
-                    <div className="flex items-center gap-3 bg-slate-900/50 p-3 rounded-xl border border-slate-700/50">
-                        <div className="bg-slate-800 p-2 rounded-lg">
+                {/* ── Info grid ── */}
+                <div className="grid grid-cols-2 gap-2 mb-4">
+
+                    {/* Date */}
+                    <div className="flex items-center gap-2.5 bg-slate-900/50 p-2.5 rounded-xl border border-slate-700/50">
+                        <div className="flex-shrink-0 bg-slate-800 p-1.5 rounded-lg">
                             <Calendar className="w-4 h-4 text-blue-400" />
                         </div>
-                        <div>
-                            <div className="text-[10px] text-slate-500 font-bold uppercase">Tarih</div>
-                            <div className="text-sm font-bold text-slate-200">{announcement.date}</div>
+                        <div className="min-w-0">
+                            <div className="text-[9px] text-slate-500 font-bold uppercase leading-none mb-0.5">Tarih</div>
+                            <div className="text-xs font-bold text-slate-200 truncate">{announcement.date}</div>
                         </div>
                     </div>
-                    <div className="flex items-center gap-3 bg-slate-900/50 p-3 rounded-xl border border-slate-700/50">
-                        <div className="bg-slate-800 p-2 rounded-lg">
+
+                    {/* Time */}
+                    <div className="flex items-center gap-2.5 bg-slate-900/50 p-2.5 rounded-xl border border-slate-700/50">
+                        <div className="flex-shrink-0 bg-slate-800 p-1.5 rounded-lg">
                             <Clock className="w-4 h-4 text-orange-400" />
                         </div>
-                        <div>
-                            <div className="text-[10px] text-slate-500 font-bold uppercase">Saat</div>
-                            <div className="text-sm font-bold text-slate-200">
-                                {announcement.time} - {`${(parseInt(announcement.time.split(':')[0]) + 1).toString().padStart(2, '0')}:${announcement.time.split(':')[1]}`}
+                        <div className="min-w-0">
+                            <div className="text-[9px] text-slate-500 font-bold uppercase leading-none mb-0.5">Saat</div>
+                            <div className="text-xs font-bold text-slate-200 truncate">
+                                {announcement.time} - {endTime}
                             </div>
                         </div>
                     </div>
-                    {/* Saha & Konum — Distance Integrated */}
+
+                    {/* Location — full width */}
                     <div className="col-span-2 bg-slate-900/50 rounded-xl border border-slate-700/50 overflow-hidden">
-                        {/* Header row: label + km badge */}
-                        <div className="flex items-center gap-2 px-3 pt-2.5 pb-1.5 border-b border-slate-700/40">
-                            <div className="bg-slate-800 p-1.5 rounded-lg flex-shrink-0">
+                        <div className="flex items-center gap-2 px-3 pt-2 pb-1.5 border-b border-slate-700/40">
+                            <div className="flex-shrink-0 bg-slate-800 p-1.5 rounded-lg">
                                 <MapPin className="w-3.5 h-3.5 text-turf-500" />
                             </div>
-                            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider flex-1">Saha &amp; Konum</span>
+                            <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider flex-1">Saha &amp; Konum</span>
                             {announcement.distanceKm !== undefined && (
-                                <div className="flex items-center gap-1.5 bg-turf-600/25 border border-turf-500/50 px-2.5 py-1 rounded-full">
+                                <div className="flex items-center gap-1 bg-turf-600/25 border border-turf-500/50 px-2 py-0.5 rounded-full">
                                     <Navigation className="w-2.5 h-2.5 text-turf-400" />
-                                    <span className="text-[11px] font-black text-white tracking-wide">{announcement.distanceKm} km</span>
+                                    <span className="text-[10px] font-black text-white">{announcement.distanceKm} km</span>
                                 </div>
                             )}
                         </div>
-                        {/* Content row: business / pitch / district */}
-                        <div className="px-3 py-2.5">
+                        <div className="px-3 py-2">
                             {pitch ? (
-                                <div className="space-y-1">
-                                    <div className="flex items-center gap-2 flex-wrap">
+                                <div className="space-y-0.5">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
                                         <span className="text-sm font-black text-white">{business?.name}</span>
                                         <span className="w-1 h-1 rounded-full bg-slate-600 flex-shrink-0" />
-                                        <span className="text-sm font-semibold text-slate-300">{pitch.name}</span>
+                                        <span className="text-xs font-semibold text-slate-300">{pitch.name}</span>
                                     </div>
-                                    <div className="flex items-center gap-1.5">
+                                    <div className="flex items-center gap-1">
                                         <MapPin className="w-3 h-3 text-turf-500 flex-shrink-0" />
                                         <span className="text-xs font-semibold text-turf-400">{business?.district}</span>
                                         {business?.city && business.city !== business.district && (
@@ -165,56 +190,59 @@ export const MatchAnnouncementCard: React.FC<MatchAnnouncementCardProps> = ({
                         </div>
                     </div>
 
-                    {/* Price Display */}
-                    <div className="col-span-2 flex items-center gap-3 bg-slate-900/50 p-3 rounded-xl border border-slate-700/50">
-                        <div className="bg-slate-800 p-2 rounded-lg">
+                    {/* Price — full width */}
+                    <div className="col-span-2 flex items-center gap-3 bg-slate-900/50 p-2.5 rounded-xl border border-slate-700/50">
+                        <div className="flex-shrink-0 bg-slate-800 p-1.5 rounded-lg">
                             <TurkishLira className="w-4 h-4 text-green-500" />
                         </div>
-                        <div>
-                            <div className="text-[10px] text-slate-500 font-bold uppercase">Saha Ücreti (Takım Başı)</div>
-                            <div className="text-sm font-bold text-slate-200">
-                                {pitch ? (
-                                    <span className="text-green-400 flex items-center gap-1">
-                                        {pitch.pricePerHour / 2} <TurkishLira size={12} className="stroke-[3]" />
-                                    </span>
-                                ) : (
-                                    <span className="text-slate-500 text-xs">Fiyat Bilgisi Yok</span>
-                                )}
-                            </div>
+                        <div className="min-w-0">
+                            <div className="text-[9px] text-slate-500 font-bold uppercase leading-none mb-0.5">Saha Ücreti (Takım Başı)</div>
+                            {pitch ? (
+                                <span className="text-sm font-bold text-green-400 flex items-center gap-0.5">
+                                    {pitch.pricePerHour / 2} <TurkishLira size={12} className="stroke-[3]" />
+                                </span>
+                            ) : (
+                                <span className="text-xs text-slate-500">Fiyat Bilgisi Yok</span>
+                            )}
                         </div>
                     </div>
                 </div>
 
+                {/* Description */}
                 {announcement.description && (
-                    <div className="mb-4 text-sm text-slate-400 italic">
+                    <div className="mb-4 text-xs text-slate-400 italic leading-relaxed">
                         "{announcement.description}"
                     </div>
                 )}
 
+                {/* ── Action button ── */}
                 {isOwnTeam ? (
-                    <div className="w-full bg-turf-900/30 border border-turf-500/30 text-turf-400 py-3.5 rounded-xl font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2">
-                        <Shield className="w-4 h-4" />
-                        İlanınız Aktif
+                    <div className="w-full bg-turf-900/30 border border-turf-500/30 text-turf-400 py-3 rounded-xl font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2">
+                        <Shield className="w-4 h-4" /> İlanınız Aktif
                     </div>
-                ) : myChallenges.find(c => c.toMatchId === announcement.id && c.status === 'PENDING') ? (
+                ) : existingChallenge ? (
                     <button
-                        onClick={() => handleCancelClick(myChallenges.find(c => c.toMatchId === announcement.id && c.status === 'PENDING').id)}
-                        className="w-full bg-slate-700/50 border border-slate-600/50 text-slate-400 py-3.5 rounded-xl font-bold text-sm uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-red-900/30 hover:text-red-400 hover:border-red-900/50 transition-all group"
+                        onClick={() => handleCancelClick(existingChallenge.id)}
+                        className="w-full bg-slate-700/50 border border-slate-600/50 text-slate-400 py-3 rounded-xl font-bold text-sm uppercase tracking-wider flex items-center justify-center gap-2 active:bg-red-900/30 active:text-red-400 active:border-red-900/50 transition-all group"
                     >
-                        <span className="group-hover:hidden flex items-center gap-2"><Clock className="w-4 h-4" /> İstek Gönderildi</span>
-                        <span className="hidden group-hover:flex items-center gap-2"><X className="w-4 h-4" /> İsteği İptal Et</span>
+                        <span className="group-hover:hidden flex items-center gap-2">
+                            <Clock className="w-4 h-4" /> İstek Gönderildi
+                        </span>
+                        <span className="hidden group-hover:flex items-center gap-2">
+                            <X className="w-4 h-4" /> İsteği İptal Et
+                        </span>
                     </button>
                 ) : canChallenge ? (
                     <button
                         onClick={() => handleOpenChallengeModal(announcement)}
-                        className="w-full bg-turf-600 text-white py-3.5 rounded-xl font-black text-sm uppercase tracking-wider hover:bg-turf-500 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-turf-600/20"
+                        className="w-full bg-turf-600 text-white py-3 rounded-xl font-black text-sm uppercase tracking-wider active:bg-turf-500 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-turf-600/20"
                     >
                         Meydan Oku <ChevronRight className="w-5 h-5" />
                     </button>
                 ) : (
-                    <div className="w-full bg-slate-700/50 text-slate-500 py-3.5 rounded-xl font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 border border-slate-600/50 cursor-not-allowed">
+                    <div className="w-full bg-slate-700/50 text-slate-500 py-3 rounded-xl font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 border border-slate-600/50 cursor-not-allowed">
                         <Lock className="w-4 h-4" />
-                        Sadece Kaptan ve Yardımcıları
+                        <span className="text-xs">Sadece Kaptan ve Yardımcıları</span>
                     </div>
                 )}
             </div>

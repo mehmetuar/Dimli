@@ -493,10 +493,14 @@ export class ReservationsService {
                         }
                     }
 
-                    const conflictPlayerIds = new Set<string>();
-                    if (conflict.team?.players)         conflict.team.players.forEach(p => conflictPlayerIds.add((p as any).id));
-                    if (conflict.opponentTeam?.players) conflict.opponentTeam.players.forEach(p => conflictPlayerIds.add((p as any).id));
-                    for (const playerId of conflictPlayerIds) {
+                    // Hangi takımın saati çakıştığını, hangisinin rakibi yüzünden etkilendiğini belirle
+                    const conflictingTeam = conflict.teamId === reservation.teamId ? conflict.team : conflict.opponentTeam;
+                    const innocentTeam    = conflict.teamId === reservation.teamId ? conflict.opponentTeam : conflict.team;
+
+                    // Saat çakışması olan takıma (başka maçı kesinleşen) bildirim
+                    const conflictingPlayerIds = new Set<string>();
+                    if (conflictingTeam?.players) conflictingTeam.players.forEach(p => conflictingPlayerIds.add((p as any).id));
+                    for (const playerId of conflictingPlayerIds) {
                         await this.notificationsService.create({
                             userId: playerId,
                             type: 'SYSTEM',
@@ -505,6 +509,21 @@ export class ReservationsService {
                             relatedId: conflict.id,
                             read: false,
                             metadata: { type: 'TIME_CONFLICT_CANCELLED', reservationId: conflict.id }
+                        });
+                    }
+
+                    // Rakibinin çakışması nedeniyle maçı iptal edilen (massum) takıma farklı bildirim
+                    const innocentPlayerIds = new Set<string>();
+                    if (innocentTeam?.players) innocentTeam.players.forEach(p => innocentPlayerIds.add((p as any).id));
+                    for (const playerId of innocentPlayerIds) {
+                        await this.notificationsService.create({
+                            userId: playerId,
+                            type: 'SYSTEM',
+                            title: '⚠️ Maç İptal - Saat Çakışması',
+                            message: `Rakibinizin aynı saatte farklı bir maçı kesinleştiği için bu maç iptal edilmiştir.`,
+                            relatedId: conflict.id,
+                            read: false,
+                            metadata: { type: 'TIME_CONFLICT_OPPONENT_CANCELLED', reservationId: conflict.id }
                         });
                     }
                 }

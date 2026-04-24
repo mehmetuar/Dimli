@@ -85,6 +85,13 @@ body.modal-open {
   touch-action: none;
 }
 
+/* Modal açıkken navbar ve bildirim ziline erişimi engelle */
+body.modal-open nav,
+body.modal-open .fixed.top-bell-safe {
+  pointer-events: none;
+  visibility: hidden;
+}
+
 /* Modal overlay — Android'de çift tap zoom engelle */
 .modal-overlay {
   touch-action: none;
