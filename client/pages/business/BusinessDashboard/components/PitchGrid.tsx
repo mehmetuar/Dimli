@@ -99,15 +99,15 @@ export const PitchGrid: React.FC<PitchGridProps> = ({
                                     `}
                                 >
                                     <span className={`
-                                        font-black tracking-tighter leading-none text-center
-                                        ${formattedTime.includes(' - ') ? 'text-[14px] sm:text-[15px]' : 'text-lg sm:text-xl'}
+                                        font-black tracking-tighter leading-none text-center !whitespace-nowrap
+                                        ${formattedTime.includes(' - ') ? 'text-[clamp(11px,3.5vw,15px)]' : 'text-[clamp(14px,4vw,20px)]'}
                                         ${isPast ? 'text-slate-500' : 'text-white'}
                                     `}>
                                         {formattedTime}
                                     </span>
 
                                     <span className={`
-                                        text-[9px] sm:text-[10px] font-bold uppercase mt-1.5 tracking-widest
+                                        text-[clamp(8px,2.2vw,10px)] font-bold uppercase mt-1.5 tracking-widest !whitespace-nowrap overflow-hidden text-ellipsis
                                         ${isPast ? 'text-slate-600'
                                             : slot.status === 'EMPTY' ? 'text-slate-400'
                                                 : slot.status === 'PENDING' ? 'text-orange-400'
@@ -115,7 +115,7 @@ export const PitchGrid: React.FC<PitchGridProps> = ({
                                     `}>
                                         {isPast ? 'GEÇTİ'
                                             : slot.status === 'EMPTY' ? 'BOŞ'
-                                                : slot.status === 'PENDING' ? 'Onay Bekliyor'
+                                                : slot.status === 'PENDING' ? 'ONAY BEKLİYOR'
                                                     : 'DOLU'}
                                     </span>
 

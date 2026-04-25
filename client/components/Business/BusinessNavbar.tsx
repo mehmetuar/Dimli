@@ -27,7 +27,7 @@ export const BusinessNavbar: React.FC = () => {
                         size={24}
                         strokeWidth={isStatsActive ? 3 : 2}
                     />
-                    <span className={`text-[10px] transition-all duration-200 text-orange-500 ${isStatsActive ? 'font-black' : 'font-bold'}`}>
+                    <span className={`text-[clamp(8px,2.2vw,10px)] transition-all duration-200 text-orange-500 ${isStatsActive ? 'font-black' : 'font-bold'}`}>
                         Özet
                     </span>
                 </button>
@@ -50,7 +50,7 @@ export const BusinessNavbar: React.FC = () => {
                             strokeWidth={isPanelActive ? 2.5 : 2}
                         />
                     </div>
-                    <span className={`text-[10px] -mt-1 transition-all duration-200 text-orange-500 ${isPanelActive ? 'font-black' : 'font-bold'}`}>
+                    <span className={`text-[clamp(8px,2.2vw,10px)] -mt-1 transition-all duration-200 text-orange-500 ${isPanelActive ? 'font-black' : 'font-bold'}`}>
                         Panel
                     </span>
                 </button>
@@ -65,7 +65,7 @@ export const BusinessNavbar: React.FC = () => {
                         size={24}
                         strokeWidth={isSettingsActive ? 3 : 2}
                     />
-                    <span className={`text-[10px] transition-all duration-200 text-orange-500 ${isSettingsActive ? 'font-black' : 'font-bold'}`}>
+                    <span className={`text-[clamp(8px,2.2vw,10px)] transition-all duration-200 text-orange-500 ${isSettingsActive ? 'font-black' : 'font-bold'}`}>
                         Ayarlar
                     </span>
                 </button>

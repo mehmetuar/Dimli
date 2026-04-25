@@ -29,7 +29,7 @@ export const ProfileHeaderCard: React.FC<ProfileHeaderCardProps> = ({
                     <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]"></div>
                     <div className="relative z-10 p-6 flex flex-col items-center">
                         <div
-                            className="w-32 h-32 rounded-full p-1 bg-gradient-to-r from-turf-500 to-blue-500 mb-4 relative group-avatar cursor-pointer"
+                            className="w-24 h-24 xs:w-28 xs:h-28 sm:w-32 sm:h-32 rounded-full p-1 bg-gradient-to-r from-turf-500 to-blue-500 mb-2 sm:mb-4 relative group-avatar cursor-pointer"
                             onClick={() => setIsModalOpen(true)}
                         >
                             {currentUser.avatarUrl ? (
@@ -55,35 +55,35 @@ export const ProfileHeaderCard: React.FC<ProfileHeaderCardProps> = ({
                         </div>
 
                         <h2
-                            className="font-sport font-bold text-4xl text-white uppercase italic tracking-wide mb-6 cursor-pointer hover:text-turf-400 transition-colors text-center"
+                            className="font-sport font-bold text-2xl xs:text-3xl sm:text-4xl text-white uppercase italic tracking-wide mb-4 sm:mb-6 cursor-pointer hover:text-turf-400 transition-colors text-center px-2"
                             onClick={() => setIsModalOpen(true)}
                         >
                             {currentUser.full_name || currentUser.username}
                         </h2>
 
-                        <div className="grid grid-cols-2 gap-3 w-full">
-                            <div className="bg-slate-800/50 p-3 rounded-xl border border-slate-700 flex flex-col items-center justify-center gap-1">
-                                <span className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">YAŞ</span>
-                                <span className="text-white font-sport text-xl font-bold">{calculateAge(currentUser.birthDate)}</span>
+                        <div className="grid grid-cols-2 gap-2 sm:gap-3 w-full">
+                            <div className="bg-slate-800/50 p-2 sm:p-3 rounded-xl border border-slate-700 flex flex-col items-center justify-center gap-0.5 sm:gap-1">
+                                <span className="text-slate-400 text-[9px] xs:text-[10px] sm:text-xs font-bold uppercase tracking-wider">YAŞ</span>
+                                <span className="text-white font-sport text-lg sm:text-xl font-bold">{calculateAge(currentUser.birthDate)}</span>
                             </div>
-                            <div className="bg-slate-800/50 p-3 rounded-xl border border-slate-700 flex flex-col items-center justify-center gap-1 relative group">
-                                <span className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">KONUM</span>
-                                <span className="text-white font-sport text-lg font-bold truncate max-w-[120px] sm:max-w-full text-center">{currentUser.location || 'İstanbul'}</span>
+                            <div className="bg-slate-800/50 p-2 sm:p-3 rounded-xl border border-slate-700 flex flex-col items-center justify-center gap-0.5 sm:gap-1 relative group">
+                                <span className="text-slate-400 text-[9px] xs:text-[10px] sm:text-xs font-bold uppercase tracking-wider">KONUM</span>
+                                <span className="text-white font-sport text-base sm:text-lg font-bold truncate max-w-[100px] xs:max-w-[120px] sm:max-w-full text-center">{currentUser.location || 'İstanbul'}</span>
                                 <button onClick={() => handleUpdateLocation(false)} className="absolute top-1 right-1 text-turf-500 hover:text-white transition-colors">
                                     <MapPin className="w-3 h-3" />
                                 </button>
                             </div>
-                            <div className="bg-slate-800/50 p-3 rounded-xl border border-slate-700 flex flex-col items-center justify-center gap-1 col-span-2">
-                                <span className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">MEVKİ</span>
-                                <span className="text-turf-400 font-sport text-2xl font-bold">{currentUser.position || '-'}</span>
+                            <div className="bg-slate-800/50 p-2 sm:p-3 rounded-xl border border-slate-700 flex flex-col items-center justify-center gap-0.5 sm:gap-1 col-span-2">
+                                <span className="text-slate-400 text-[9px] xs:text-[10px] sm:text-xs font-bold uppercase tracking-wider">MEVKİ</span>
+                                <span className="text-turf-400 font-sport text-xl sm:text-2xl font-bold">{currentUser.position || '-'}</span>
                             </div>
-                            <div className="bg-slate-800/50 p-3 rounded-xl border border-slate-700 flex flex-col items-center justify-center gap-1">
-                                <span className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">YAN MEVKİ</span>
-                                <span className="text-white font-sport text-lg font-bold">{currentUser.secondaryPosition || '-'}</span>
+                            <div className="bg-slate-800/50 p-2 sm:p-3 rounded-xl border border-slate-700 flex flex-col items-center justify-center gap-0.5 sm:gap-1">
+                                <span className="text-slate-400 text-[9px] xs:text-[10px] sm:text-xs font-bold uppercase tracking-wider">YAN MEVKİ</span>
+                                <span className="text-white font-sport text-base sm:text-lg font-bold">{currentUser.secondaryPosition || '-'}</span>
                             </div>
-                            <div className="bg-slate-800/50 p-3 rounded-xl border border-slate-700 flex flex-col items-center justify-center gap-1">
-                                <span className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">AYAK</span>
-                                <span className="text-white font-sport text-xl font-bold uppercase">{currentUser.foot || '-'}</span>
+                            <div className="bg-slate-800/50 p-2 sm:p-3 rounded-xl border border-slate-700 flex flex-col items-center justify-center gap-0.5 sm:gap-1">
+                                <span className="text-slate-400 text-[9px] xs:text-[10px] sm:text-xs font-bold uppercase tracking-wider">AYAK</span>
+                                <span className="text-white font-sport text-lg sm:text-xl font-bold uppercase">{currentUser.foot || '-'}</span>
                             </div>
                         </div>
                     </div>

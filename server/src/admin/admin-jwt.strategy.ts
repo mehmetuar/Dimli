@@ -11,10 +11,14 @@ export class AdminJwtStrategy extends PassportStrategy(Strategy, 'admin-jwt') {
         @InjectRepository(AdminUser)
         private adminUserRepository: Repository<AdminUser>,
     ) {
+        const secret = process.env.ADMIN_JWT_SECRET;
+        if (!secret) {
+            throw new Error('ADMIN_JWT_SECRET ortam değişkeni tanımlı değil. Uygulama başlatılamaz.');
+        }
         super({
             jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
             ignoreExpiration: false,
-            secretOrKey: process.env.ADMIN_JWT_SECRET || 'ADMIN_SECRET_KEY',
+            secretOrKey: secret,
         });
     }
 

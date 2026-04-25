@@ -31,7 +31,7 @@ export const JokerCard: React.FC<JokerCardProps> = ({ player, currentUser, onCli
                 />
             </div>
             <div className="flex-1 min-w-0 relative z-10">
-                <h3 className="font-bold text-white text-lg truncate group-hover:text-turf-400 transition-colors">
+                <h3 className="font-bold text-white text-[clamp(12px,3.8vw,18px)] truncate group-hover:text-turf-400 transition-colors">
                     {displayName} {isMe && '(Sen)'}
                 </h3>
                 <div className="flex items-center gap-2 mt-0.5 mb-2">
@@ -45,7 +45,7 @@ export const JokerCard: React.FC<JokerCardProps> = ({ player, currentUser, onCli
                     )}
                 </div>
                 <div className="flex justify-between items-center">
-                    <span className={`text-xs px-2 py-1 rounded font-bold uppercase ${player.position === 'KALECİ' || player.position === 'GK'
+                    <span className={`text-[clamp(8px,2.2vw,12px)] px-2 py-1 rounded font-bold uppercase !whitespace-nowrap overflow-hidden text-ellipsis ${player.position === 'KALECİ' || player.position === 'GK'
                         ? 'bg-yellow-500/20 text-yellow-500'
                         : 'bg-slate-700 text-slate-300'
                         }`}>

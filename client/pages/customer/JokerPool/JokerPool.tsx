@@ -30,7 +30,7 @@ export const JokerPool: React.FC = () => {
    } = useJokerPool();
 
    return (
-      <div className="pb-28 pt-20 px-4 max-w-3xl mx-auto min-h-screen bg-pitch">
+      <div className="pb-28 pt-16 sm:pt-20 px-3 xs:px-4 sm:px-6 max-w-3xl mx-auto min-h-screen bg-pitch">
 
          {/* Joker Detail Modal */}
          <JokerDetailModal

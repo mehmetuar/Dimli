@@ -11,10 +11,10 @@ const formatCurrency = (amount: number): string => {
 const StatCell: React.FC<{ label: string; value: string; sub?: string; accent?: boolean }> = ({
     label, value, sub, accent
 }) => (
-    <div className="flex flex-col items-center justify-center py-3 px-2">
-        <span className="text-[10px] font-bold uppercase tracking-widest text-blue-300/50 mb-1">{label}</span>
-        <span className={`text-lg font-black leading-none ${accent ? 'text-green-600' : 'text-white'}`}>{value}</span>
-        {sub && <span className="text-[10px] text-slate-500 mt-0.5 font-medium">{sub}</span>}
+    <div className="flex flex-col items-center justify-center py-3 px-1 min-w-0">
+        <span className="text-[clamp(8px,2.2vw,10px)] font-bold uppercase tracking-widest text-blue-300/50 mb-1 !whitespace-nowrap overflow-hidden text-ellipsis w-full text-center">{label}</span>
+        <span className={`text-[clamp(14px,4vw,18px)] font-black leading-none !whitespace-nowrap overflow-hidden text-ellipsis ${accent ? 'text-green-600' : 'text-white'}`}>{value}</span>
+        {sub && <span className="text-[clamp(8px,2.2vw,10px)] text-slate-500 mt-1 font-medium !whitespace-nowrap overflow-hidden text-ellipsis">{sub}</span>}
     </div>
 );
 
@@ -104,10 +104,10 @@ export const BusinessStats: React.FC = () => {
             <div className="bg-gradient-to-b from-[#0a1628] to-[#0f1e3a] p-4 border-b border-blue-900/60 shadow-xl">
                 <div className="flex justify-between items-center">
                     <div>
-                        <h1 className="font-sport font-black text-2xl text-orange-500 italic tracking-tighter uppercase drop-shadow-sm">
+                        <h1 className="font-sport font-black text-[clamp(18px,5.5vw,24px)] text-orange-500 italic tracking-tighter uppercase drop-shadow-sm !whitespace-nowrap overflow-hidden text-ellipsis">
                             {stats.businessName}
                         </h1>
-                        <div className="text-[10px] text-blue-300/60 font-bold uppercase tracking-widest mt-0.5">
+                        <div className="text-[clamp(8px,2.2vw,10px)] text-blue-300/60 font-bold uppercase tracking-widest mt-0.5">
                             Özet & İstatistik
                         </div>
                     </div>
@@ -123,26 +123,26 @@ export const BusinessStats: React.FC = () => {
             <div className="p-4 space-y-4">
 
                 {/* Değerlendirme Kartı */}
-                <div className="bg-[#0e1e3a] rounded-2xl border border-blue-900/40 p-4 flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-2xl bg-yellow-400/10 border border-yellow-400/20 flex items-center justify-center shrink-0">
-                        <Star className="w-7 h-7 text-yellow-400 fill-yellow-400/20" />
+                <div className="bg-[#0e1e3a] rounded-2xl border border-blue-900/40 p-4 flex items-center gap-3 sm:gap-4">
+                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-yellow-400/10 border border-yellow-400/20 flex items-center justify-center shrink-0">
+                        <Star className="w-6 h-6 sm:w-7 sm:h-7 text-yellow-400 fill-yellow-400/20" />
                     </div>
-                    <div className="flex-1">
-                        <div className="flex items-baseline gap-1.5">
-                            <span className="text-3xl font-black text-white leading-none">
+                    <div className="flex-1 min-w-0">
+                        <div className="flex items-baseline gap-1">
+                            <span className="text-[clamp(24px,7.5vw,30px)] font-black text-white leading-none">
                                 {stats.rating?.toFixed(1) ?? '—'}
                             </span>
-                            <span className="text-sm font-bold text-slate-500">/ 5.0</span>
+                            <span className="text-xs font-bold text-slate-500">/ 5.0</span>
                         </div>
-                        <div className="text-xs text-blue-200/70 font-black uppercase tracking-tight mt-1">
+                        <div className="text-[clamp(8px,2.2vw,10px)] text-blue-200/70 font-black uppercase tracking-tight mt-1 !whitespace-nowrap overflow-hidden text-ellipsis">
                             {stats.ratingCount} değerlendirme
                         </div>
                     </div>
-                    <div className="flex">
+                    <div className="flex shrink-0">
                         {[1, 2, 3, 4, 5].map((s) => (
                             <Star
                                 key={s}
-                                className={`w-4 h-4 ${s <= Math.round(stats.rating ?? 0) ? 'text-yellow-400 fill-yellow-500' : 'text-slate-700 fill-slate-700'}`}
+                                className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${s <= Math.round(stats.rating ?? 0) ? 'text-yellow-400 fill-yellow-500' : 'text-slate-700 fill-slate-700'}`}
                             />
                         ))}
                     </div>

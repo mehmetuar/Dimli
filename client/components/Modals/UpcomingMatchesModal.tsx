@@ -77,8 +77,8 @@ export const UpcomingMatchesModal: React.FC<UpcomingMatchesModalProps> = ({
                         <div className="bg-turf-500/10 p-3 rounded-xl">
                             <Calendar className="w-6 h-6 text-turf-500" />
                         </div>
-                        <div>
-                            <h3 className="text-2xl font-sport font-bold text-white uppercase italic tracking-wide">
+                        <div className="pr-10">
+                            <h3 className="text-[clamp(16px,5.5vw,24px)] font-sport font-bold text-white uppercase italic tracking-wide !whitespace-nowrap overflow-hidden text-ellipsis">
                                 Yaklaşan Maçlar
                             </h3>
                             <p className="text-sm text-slate-400">İşletme tarafından kesinleştirilmiş maçlar</p>

@@ -41,7 +41,7 @@ export const JokerDetailModal: React.FC<JokerDetailModalProps> = ({
                     {/* Card Header */}
                     <div className="relative z-10 pt-6 px-6 pb-0 flex justify-between items-start">
                         <div className="flex flex-col pt-4">
-                            <span className="text-xl font-bold text-slate-300 uppercase tracking-widest">{selectedJoker.position}</span>
+                            <span className="text-[clamp(16px,5vw,22px)] font-bold text-slate-300 uppercase tracking-widest !whitespace-nowrap overflow-hidden text-ellipsis">{selectedJoker.position}</span>
                             <div className="mt-2 flex items-center gap-1">
                                 <img src="https://flagcdn.com/w40/tr.png" className="w-6 h-4 rounded shadow" alt="TR" />
                             </div>
@@ -57,7 +57,7 @@ export const JokerDetailModal: React.FC<JokerDetailModalProps> = ({
 
                     {/* Name */}
                     <div className="relative z-10 text-center mt-6 mb-4">
-                        <h2 className="font-sport font-black text-4xl text-white uppercase italic tracking-tighter drop-shadow-md">
+                        <h2 className="font-sport font-black text-[clamp(20px,7.5vw,36px)] text-white uppercase italic tracking-tighter drop-shadow-md !whitespace-nowrap shrink-0 overflow-hidden text-ellipsis">
                             {selectedJoker.full_name || selectedJoker.username}
                         </h2>
                         <div className="flex justify-center items-center gap-2 text-slate-400 text-xs font-bold uppercase tracking-wide">
@@ -68,23 +68,23 @@ export const JokerDetailModal: React.FC<JokerDetailModalProps> = ({
                     {/* Info Grid */}
                     <div className="relative z-10 px-6 pb-6">
                         <div className="grid grid-cols-2 gap-4 mb-6">
-                            <div className="bg-white/5 rounded-xl p-3 border border-white/10 flex flex-col items-center justify-center">
-                                <span className="text-[10px] text-slate-400 font-bold uppercase mb-1">YAŞ</span>
-                                <span className="font-sport text-2xl font-black text-white">
+                            <div className="bg-white/5 rounded-xl p-2 sm:p-3 border border-white/10 flex flex-col items-center justify-center min-w-0">
+                                <span className="text-[clamp(8px,2.2vw,10px)] text-slate-400 font-bold uppercase mb-0.5">YAŞ</span>
+                                <span className="font-sport text-[clamp(16px,5vw,24px)] font-black text-white !whitespace-nowrap overflow-hidden text-ellipsis">
                                     {selectedJoker.birthDate ? new Date().getFullYear() - new Date(selectedJoker.birthDate).getFullYear() : '-'}
                                 </span>
                             </div>
-                            <div className="bg-white/5 rounded-xl p-3 border border-white/10 flex flex-col items-center justify-center">
-                                <span className="text-[10px] text-slate-400 font-bold uppercase mb-1">AYAK</span>
-                                <span className="font-sport text-xl font-black text-white uppercase">{selectedJoker.foot || '-'}</span>
+                            <div className="bg-white/5 rounded-xl p-2 sm:p-3 border border-white/10 flex flex-col items-center justify-center min-w-0">
+                                <span className="text-[clamp(8px,2.2vw,10px)] text-slate-400 font-bold uppercase mb-0.5">AYAK</span>
+                                <span className="font-sport text-[clamp(10px,3.5vw,18px)] font-black text-white uppercase !whitespace-nowrap overflow-hidden text-ellipsis">{selectedJoker.foot || '-'}</span>
                             </div>
-                            <div className="bg-white/5 rounded-xl p-3 border border-white/10 flex flex-col items-center justify-center">
-                                <span className="text-[10px] text-slate-400 font-bold uppercase mb-1">MEVKİ</span>
-                                <span className="font-sport text-lg font-black text-white uppercase">{selectedJoker.position || '-'}</span>
+                            <div className="bg-white/5 rounded-xl p-2 sm:p-3 border border-white/10 flex flex-col items-center justify-center min-w-0">
+                                <span className="text-[clamp(8px,2.2vw,10px)] text-slate-400 font-bold uppercase mb-0.5">MEVKİ</span>
+                                <span className="font-sport text-[clamp(10px,3.5vw,18px)] font-black text-white uppercase !whitespace-nowrap overflow-hidden text-ellipsis">{selectedJoker.position || '-'}</span>
                             </div>
-                            <div className="bg-white/5 rounded-xl p-3 border border-white/10 flex flex-col items-center justify-center">
-                                <span className="text-[10px] text-slate-400 font-bold uppercase mb-1">YAN MEVKİ</span>
-                                <span className="font-sport text-lg font-black text-slate-300 uppercase">{selectedJoker.secondaryPosition || '-'}</span>
+                            <div className="bg-white/5 rounded-xl p-2 sm:p-3 border border-white/10 flex flex-col items-center justify-center min-w-0">
+                                <span className="text-[clamp(8px,2.2vw,10px)] text-slate-400 font-bold uppercase mb-0.5">YAN MEVKİ</span>
+                                <span className="font-sport text-[clamp(10px,3.5vw,18px)] font-black text-slate-300 uppercase !whitespace-nowrap overflow-hidden text-ellipsis">{selectedJoker.secondaryPosition || '-'}</span>
                             </div>
                         </div>
 

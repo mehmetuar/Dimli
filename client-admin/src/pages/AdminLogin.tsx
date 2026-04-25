@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import adminApi from '../services/adminApi';
+import { DimliLogo } from '../components/Icons';
 
 export default function AdminLogin() {
     const navigate = useNavigate();
@@ -25,43 +26,64 @@ export default function AdminLogin() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-[#101828] via-[#17213a] to-[#101828]">
             <div className="w-full max-w-sm">
+                {/* Brand block */}
                 <div className="text-center mb-8">
-                    <h1 className="text-3xl font-black text-white italic">DİMLİ</h1>
-                    <p className="text-slate-400 text-sm mt-1">Admin Paneli</p>
+                    <div className="flex flex-col items-center gap-3 mb-2">
+                        <DimliLogo size={72} className="drop-shadow-[0_0_18px_rgba(74,222,128,0.25)]" />
+                        <div>
+                            <p className="text-orange-400/80 text-xs font-bold uppercase tracking-[0.2em]">Admin Paneli</p>
+                        </div>
+                    </div>
                 </div>
 
-                <form onSubmit={handleLogin} className="bg-slate-900 border border-slate-800 rounded-2xl p-8 space-y-4">
+                {/* Form */}
+                <form
+                    onSubmit={handleLogin}
+                    className="bg-[#1e2d47] border border-slate-700/60 rounded-2xl p-8 space-y-4 shadow-2xl shadow-black/60"
+                >
                     {error && (
-                        <div className="bg-red-500/10 border border-red-500/40 text-red-400 p-3 rounded-xl text-sm font-bold">
+                        <div className="bg-red-500/10 border border-red-500/40 text-red-300 p-3 rounded-xl text-sm font-bold">
                             {error}
                         </div>
                     )}
 
-                    <div className="space-y-1">
-                        <label className="text-xs text-slate-400 font-bold uppercase">E-posta</label>
+                    <div className="space-y-1.5">
+                        <label className="text-xs text-slate-300 font-bold uppercase tracking-wider">E-posta</label>
                         <input
-                            type="email" required value={email} onChange={e => setEmail(e.target.value)}
-                            className="w-full bg-slate-800 border border-slate-700 text-white p-3 rounded-xl focus:outline-none focus:border-orange-500 transition-all"
+                            type="email"
+                            required
+                            value={email}
+                            onChange={e => setEmail(e.target.value)}
+                            className="w-full bg-[#253352] border border-slate-600/60 text-white p-3 rounded-xl focus:outline-none focus:border-orange-500 transition-all placeholder-slate-500"
+                            placeholder="admin@dimli.com"
                         />
                     </div>
 
-                    <div className="space-y-1">
-                        <label className="text-xs text-slate-400 font-bold uppercase">Şifre</label>
+                    <div className="space-y-1.5">
+                        <label className="text-xs text-slate-300 font-bold uppercase tracking-wider">Şifre</label>
                         <input
-                            type="password" required value={password} onChange={e => setPassword(e.target.value)}
-                            className="w-full bg-slate-800 border border-slate-700 text-white p-3 rounded-xl focus:outline-none focus:border-orange-500 transition-all"
+                            type="password"
+                            required
+                            value={password}
+                            onChange={e => setPassword(e.target.value)}
+                            className="w-full bg-[#253352] border border-slate-600/60 text-white p-3 rounded-xl focus:outline-none focus:border-orange-500 transition-all"
                         />
                     </div>
 
                     <button
-                        type="submit" disabled={loading}
-                        className="w-full bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white py-3 rounded-xl font-black transition-colors"
+                        type="submit"
+                        disabled={loading}
+                        className="w-full bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white py-3 rounded-xl font-black transition-colors mt-2 shadow-lg shadow-orange-900/30"
                     >
                         {loading ? 'Giriş yapılıyor...' : 'Giriş Yap'}
                     </button>
                 </form>
+
+                <p className="text-center text-slate-500 text-xs mt-5">
+                    Sporcu sahaları yönetim paneli
+                </p>
             </div>
         </div>
     );

@@ -19,10 +19,10 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
         <div className="bg-gradient-to-b from-[#0a1628] to-[#0f1e3a] backdrop-blur-md p-4 sticky top-0 z-10 border-b border-blue-900/60 shadow-2xl">
             <div className="flex justify-between items-center mb-4">
                 <div>
-                    <h1 className="font-sport font-black text-2xl text-orange-500 italic tracking-tighter uppercase drop-shadow-sm">
+                    <h1 className="font-sport font-black text-[clamp(18px,5.5vw,24px)] text-orange-500 italic tracking-tighter uppercase drop-shadow-sm !whitespace-nowrap overflow-hidden text-ellipsis">
                         {businessName}
                     </h1>
-                    <div className="text-[10px] text-blue-300/60 font-bold uppercase tracking-widest mt-0.5">
+                    <div className="text-[clamp(8px,2.2vw,10px)] text-blue-300/60 font-bold uppercase tracking-widest mt-0.5">
                         Yönetim Paneli
                     </div>
                 </div>
