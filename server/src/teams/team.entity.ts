@@ -21,8 +21,6 @@ export class Team {
     @Column({ nullable: true })
     level: string; // 'BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'PRO'
 
-    @Column({ nullable: true })
-    location: string;
 
     @Column('text', { nullable: true })
     description: string;
@@ -33,11 +31,6 @@ export class Team {
     @Column('int', { name: 'fair_play_rating_count', default: 0 })
     fairPlayRatingCount: number;
 
-    @Column('int', { default: 0 })
-    wins: number;
-
-    @Column('int', { default: 0 })
-    losses: number;
 
     // Captain ID for easy access
     @Column({ nullable: true })

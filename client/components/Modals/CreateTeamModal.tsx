@@ -14,7 +14,6 @@ export const CreateTeamModal: React.FC<Props> = ({ isOpen, onClose, onCreate }) 
     if (!isOpen) return null;
 
     const [name, setName] = useState('');
-    const [location, setLocation] = useState(CURRENT_USER.location || '');
     const [level, setLevel] = useState('BEGINNER');
     const [color, setColor] = useState('bg-red-500');
     const [secondaryColor, setSecondaryColor] = useState('bg-blue-500');
@@ -43,7 +42,7 @@ export const CreateTeamModal: React.FC<Props> = ({ isOpen, onClose, onCreate }) 
     const handleSubmit = () => {
         setError('');
 
-        if (!name || !location) return;
+        if (!name) return;
 
         // Check for unique name
         const nameExists = MOCK_TEAMS.some(t => t.name.toLowerCase() === name.trim().toLowerCase());
@@ -54,15 +53,12 @@ export const CreateTeamModal: React.FC<Props> = ({ isOpen, onClose, onCreate }) 
 
         const newTeam: Partial<Team> = {
             name: name.trim(),
-            location,
             level,
             primaryColor: color,
             secondaryColor,
             description: description || 'Sahaların yeni yıldızı.',
             captainId: CURRENT_USER.id,
             fairPlayScore: 5.0,
-            wins: 0,
-            losses: 0,
             logoUrl: `https://ui-avatars.com/api/?name=${name}&background=random&color=fff&size=200`,
         };
 
@@ -154,19 +150,7 @@ export const CreateTeamModal: React.FC<Props> = ({ isOpen, onClose, onCreate }) 
 
                     {/* Location & Level */}
                     <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="text-xs font-bold text-slate-500 uppercase mb-2 block flex items-center gap-2">
-                                <MapPin className="w-4 h-4" /> Bölge
-                            </label>
-                            <input
-                                type="text"
-                                value={location}
-                                onChange={(e) => setLocation(e.target.value)}
-                                placeholder="İlçe/Semt"
-                                className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-white text-sm focus:border-turf-500 focus:outline-none"
-                            />
-                        </div>
-                        <div>
+                        <div className="col-span-2">
                             <label className="text-xs font-bold text-slate-500 uppercase mb-2 block flex items-center gap-2">
                                 <Trophy className="w-4 h-4" /> Seviye
                             </label>
@@ -200,7 +184,7 @@ export const CreateTeamModal: React.FC<Props> = ({ isOpen, onClose, onCreate }) 
                 <div className="p-4 bg-slate-900 border-t border-slate-800 sticky bottom-0">
                     <button
                         onClick={handleSubmit}
-                        disabled={!name || !location}
+                        disabled={!name}
                         className="w-full bg-turf-600 disabled:bg-slate-700 disabled:text-slate-500 text-white font-black uppercase italic py-4 rounded-xl text-lg shadow-lg shadow-turf-600/20 hover:scale-[1.02] active:scale-95 transition-all"
                     >
                         Takımı Oluştur

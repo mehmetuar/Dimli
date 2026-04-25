@@ -59,7 +59,7 @@ export const TeamDetailModal: React.FC<TeamDetailModalProps> = ({ isOpen, onClos
 
     return (
         <div className="fixed inset-0 z-[60] flex items-center justify-center px-4 bg-black/90 backdrop-blur-sm animate-fade-in">
-            <div className="bg-slate-800 w-full max-w-lg rounded-3xl border border-slate-700 overflow-hidden relative shadow-2xl flex flex-col max-h-[90vh]">
+            <div className="bg-slate-800 w-full max-w-lg rounded-[2.5rem] border border-slate-700/50 overflow-hidden relative shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[85vh] animate-slide-up">
 
                 {/* Close Button */}
                 <button
@@ -93,18 +93,15 @@ export const TeamDetailModal: React.FC<TeamDetailModalProps> = ({ isOpen, onClos
                             {/* Team Identity */}
                             <div className="flex justify-between items-start mb-6">
                                 <div>
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <h2 className="font-sport font-black text-3xl text-white uppercase italic tracking-wide leading-none">
+                                    <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                                        <h2 className="font-sport font-black text-[clamp(1.5rem,6vw,2rem)] text-white uppercase italic tracking-tight leading-none">
                                             {team.name}
                                         </h2>
                                         {currentUserId && roster.some(p => p.id === currentUserId) && (
-                                            <span className="bg-turf-600 text-white text-[10px] font-bold px-2 py-0.5 rounded border border-turf-400">
+                                            <span className="bg-turf-600/90 text-white text-[clamp(0.5rem,2vw,0.625rem)] font-black px-2 py-0.5 rounded-md border border-white/20 shadow-sm shadow-turf-600/20">
                                                 SİZİN TAKIMINIZ
                                             </span>
                                         )}
-                                    </div>
-                                    <div className="flex items-center gap-2 text-slate-400 text-xs font-bold uppercase">
-                                        <MapPin className="w-3 h-3 text-turf-500" /> {team.location || 'Konum Belirtilmemiş'}
                                     </div>
                                 </div>
                                 <div className="text-right">
@@ -115,12 +112,12 @@ export const TeamDetailModal: React.FC<TeamDetailModalProps> = ({ isOpen, onClos
                             {/* Stats Grid */}
                             <div className="grid grid-cols-2 gap-3 mb-6">
                                 <div className="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 flex flex-col items-center">
-                                    <span className="text-[10px] text-slate-500 font-bold uppercase mb-1">Oynanmış Maç</span>
-                                    <span className="text-white font-black text-xl">{(team as any).playedMatchCount ?? 0}</span>
+                                    <span className="text-[clamp(0.5rem,2vw,0.625rem)] text-slate-500 font-black uppercase tracking-wider mb-1">Oynanmış Maç</span>
+                                    <span className="text-white font-black text-[clamp(1.25rem,5.5vw,1.5rem)]">{(team as any).playedMatchCount ?? 0}</span>
                                 </div>
                                 <div className="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 flex flex-col items-center">
-                                    <span className="text-[10px] text-slate-500 font-bold uppercase mb-1">Fair Play</span>
-                                    <FairPlayScore score={team.fairPlayScore} count={team.fairPlayRatingCount} />
+                                    <span className="text-[clamp(0.5rem,2vw,0.625rem)] text-slate-500 font-black uppercase tracking-wider mb-1">Fair Play</span>
+                                    <FairPlayScore score={team.fairPlayScore} count={team.fairPlayRatingCount} className="scale-90" />
                                 </div>
                             </div>
 
@@ -169,15 +166,15 @@ export const TeamDetailModal: React.FC<TeamDetailModalProps> = ({ isOpen, onClos
                                                     className={`w-8 h-8 rounded-full object-cover border ${isMe ? 'border-turf-500 ring-1 ring-turf-500' : 'border-slate-600'}`}
                                                     alt={player.name}
                                                 />
-                                                <div className="flex-1">
-                                                    <div className="text-sm font-bold text-white flex items-center gap-2">
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="text-[clamp(0.8rem,3.5vw,0.875rem)] font-black text-white flex items-center gap-1.5 truncate">
                                                         {player.name}
-                                                        {isMe && <span className="text-[10px] text-turf-500 font-black">(Siz)</span>}
-                                                        {team.captainId === player.id && <Trophy className="w-3 h-3 text-yellow-500" />}
+                                                        {isMe && <span className="text-[9px] text-turf-500 font-black flex-shrink-0">(SİZ)</span>}
+                                                        {team.captainId === player.id && <Trophy className="w-3.5 h-3.5 text-yellow-500 flex-shrink-0" />}
                                                     </div>
-                                                    <div className="text-[10px] text-slate-500 uppercase font-bold">{player.position}</div>
+                                                    <div className="text-[clamp(0.55rem,2.2vw,0.65rem)] text-slate-500 uppercase font-black tracking-wide">{player.position}</div>
                                                 </div>
-                                                <div className={`font-black text-sm ${isMe ? 'text-turf-400' : 'text-turf-500'}`}>{player.rating}</div>
+                                                <div className={`font-black text-[clamp(0.8rem,3.5vw,0.875rem)] ${isMe ? 'text-turf-400' : 'text-turf-500'} flex-shrink-0`}>{player.rating}</div>
                                             </div>
                                         );
                                     })}

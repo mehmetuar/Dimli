@@ -56,15 +56,12 @@ export interface Team {
   captainId: string;
   viceCaptainIds?: string[]; // Array of vice-captain IDs (max 2)
   level: SkillLevel;
-  location: string;
   coordinates?: { lat: number; lng: number }; // New field
   homePitchId?: string; // The ID of their favorite pitch
   homeBusinessId?: string; // The ID of their favorite business
   fairPlayScore: number; // 1-5
   fairPlayRatingCount?: number;
   description: string;
-  wins: number;
-  losses: number;
   guestPlayerIds?: string[]; // IDs of jokers playing temporarily
   players?: any[]; // Team roster from API
 }
