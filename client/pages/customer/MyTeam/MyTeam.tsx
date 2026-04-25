@@ -24,7 +24,8 @@ export const MyTeam: React.FC = () => {
         isGenerating, upcomingMatches, isUpcomingLoading, fetchUpcomingMatches,
         matchHistory, isMatchHistoryLoading, fetchMatchHistory,
         successMessage, setSuccessMessage, successType, setSuccessType, errorMessage, setErrorMessage,
-        handleGenerateBio, handleSaveBio, handleSetHomeBusiness, handleCreateTeam, handleLeaveTeam
+        handleGenerateBio, handleSaveBio, handleSetHomeBusiness, handleCreateTeam, handleLeaveTeam,
+        isLocationFilterOpen, setIsLocationFilterOpen, locationFilter, applyLocationFilter, isLoadingLocation,
     } = useMyTeam(modals);
 
     const rosterActions = useTeamRoster({
@@ -138,6 +139,11 @@ export const MyTeam: React.FC = () => {
                         setIsEditingPitch={modals.setIsEditingPitch}
                         handleSetHomeBusiness={handleSetHomeBusiness}
                         setIsCreateMatchModalOpen={modals.setIsCreateMatchModalOpen}
+                        isLocationFilterOpen={isLocationFilterOpen}
+                        setIsLocationFilterOpen={setIsLocationFilterOpen}
+                        locationFilter={locationFilter}
+                        applyLocationFilter={applyLocationFilter}
+                        isLoadingLocation={isLoadingLocation}
                     />
 
                     <TeamRoster

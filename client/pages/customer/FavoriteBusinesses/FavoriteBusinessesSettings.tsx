@@ -1,32 +1,57 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, Building2, Search, CheckCircle, Save } from 'lucide-react';
-import api, { getProfile, updateProfile, getBusinesses } from '../../../services/api';
+import { ChevronLeft, Building2, Search, CheckCircle, Save, MapPin } from 'lucide-react';
+import { getProfile, updateProfile, getBusinesses } from '../../../services/api';
 import { LoadingSpinner } from '../../../components/UI/LoadingSpinner';
+import { useLocationContext } from '../../../contexts/LocationContext';
+import { LocationFilterModal, LocationFilter } from '../../../components/Modals/LocationFilterModal';
 
 export const FavoriteBusinessesSettings: React.FC = () => {
     const navigate = useNavigate();
+    const { coords, radius, isLocating, setRadius } = useLocationContext();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [businesses, setBusinesses] = useState<any[]>([]);
     const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+    const [isLocationFilterOpen, setIsLocationFilterOpen] = useState(false);
+
+    const isLoadingLocation = isLocating && !coords;
+    const locationFilter: LocationFilter = { type: 'NEARBY', radius, coords: coords ?? undefined };
+    const applyLocationFilter = (filter: LocationFilter) => { if (filter.radius) setRadius(filter.radius); };
 
     useEffect(() => {
-        const load = async () => {
+        const loadProfile = async () => {
             try {
-                const [user, allBusinesses] = await Promise.all([getProfile(), getBusinesses()]);
+                const user = await getProfile();
                 setFavoriteIds(user.favoriteBusinessIds || []);
-                setBusinesses(allBusinesses);
             } catch {
-                setMessage({ type: 'error', text: 'Veriler yüklenemedi.' });
+                setMessage({ type: 'error', text: 'Profil yüklenemedi.' });
             } finally {
                 setLoading(false);
             }
         };
-        load();
+        loadProfile();
     }, []);
+
+    useEffect(() => {
+        if (!coords) {
+            setBusinesses([]);
+            return;
+        }
+        let cancelled = false;
+        const fetchBusinessesWithCoords = async () => {
+            try {
+                const data = await getBusinesses({ lat: coords.lat, lng: coords.lng, radius });
+                if (!cancelled) setBusinesses(data);
+            } catch (error) {
+                console.error('Failed to fetch businesses:', error);
+            }
+        };
+        fetchBusinessesWithCoords();
+        return () => { cancelled = true; };
+    }, [coords, radius]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const handleToggle = (id: string) => {
         setFavoriteIds(prev => {
@@ -67,7 +92,7 @@ export const FavoriteBusinessesSettings: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-pitch pt-safe-top pb-28 overflow-x-hidden w-full max-w-full">
+        <div className="min-h-screen bg-pitch pt-safe-top pb-32 overflow-x-hidden w-full max-w-full">
             {/* Header */}
             <header className="flex items-center gap-4 px-4 py-4 mb-4">
                 <button
@@ -103,20 +128,41 @@ export const FavoriteBusinessesSettings: React.FC = () => {
                     </p>
                 </div>
 
-                {/* Search */}
-                <div className="relative">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 w-5 h-5" />
-                    <input
-                        type="text"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="İşletme ara..."
-                        className="w-full bg-slate-800 text-white pl-12 pr-4 py-3.5 rounded-xl border border-slate-700 focus:border-turf-500 focus:outline-none font-bold"
-                    />
+                {/* Search + Konum Filtresi */}
+                <div className="flex gap-2">
+                    <div className="relative flex-1">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 w-5 h-5" />
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="İşletme ara..."
+                            className="w-full bg-slate-800 text-white pl-12 pr-4 py-3.5 rounded-xl border border-slate-700 focus:border-turf-500 focus:outline-none font-bold"
+                        />
+                    </div>
+                    <button
+                        onClick={() => setIsLocationFilterOpen(true)}
+                        className="flex items-center gap-1.5 px-3 py-3.5 bg-slate-800 border border-slate-700 rounded-xl text-white hover:bg-slate-700 transition-colors shrink-0"
+                    >
+                        <MapPin className={`w-4 h-4 ${coords ? 'text-turf-400' : 'text-slate-500'}`} />
+                        {coords && <span className="text-xs font-bold text-turf-400">{radius}km</span>}
+                    </button>
                 </div>
 
                 {/* Business list */}
-                {filtered.length > 0 ? (
+                {isLoadingLocation ? (
+                    <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+                        <LoadingSpinner size="lg" text="" />
+                        <p className="mt-4 text-sm font-medium">Konumunuz alınıyor...</p>
+                        <p className="text-xs text-slate-500 mt-1">Yakınındaki işletmeler yükleniyor</p>
+                    </div>
+                ) : businesses.length === 0 ? (
+                    <div className="text-center py-12 text-slate-400 bg-slate-800/50 rounded-3xl border border-dashed border-slate-700">
+                        <MapPin className="w-8 h-8 mx-auto mb-3 text-slate-600" />
+                        <p className="text-sm">Yakınında işletme bulunamadı.</p>
+                        <p className="text-xs text-slate-500 mt-1">Konum filtresini açarak konumunu paylaş.</p>
+                    </div>
+                ) : filtered.length > 0 ? (
                     <div className="space-y-2">
                         {filtered.map(business => {
                             const isSelected = favoriteIds.includes(business.id);
@@ -154,8 +200,15 @@ export const FavoriteBusinessesSettings: React.FC = () => {
                 )}
             </div>
 
-            {/* Sticky save button */}
-            <div className="fixed bottom-0 left-0 right-0 p-4 bg-pitch/90 backdrop-blur-sm border-t border-slate-800 pb-safe-bottom">
+            <LocationFilterModal
+                isOpen={isLocationFilterOpen}
+                onClose={() => setIsLocationFilterOpen(false)}
+                currentFilter={locationFilter}
+                onApply={applyLocationFilter}
+            />
+
+            {/* Sticky save button — fixed at bottom since Navbar is hidden on this page */}
+            <div className="fixed bottom-0 left-0 right-0 p-4 bg-pitch/90 backdrop-blur-sm border-t border-slate-800 pb-safe-bottom z-[60]">
                 <button
                     onClick={handleSave}
                     disabled={saving}

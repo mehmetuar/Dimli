@@ -29,7 +29,7 @@ export const Login: React.FC = () => {
         <div className="min-h-screen bg-pitch flex flex-col items-center justify-center px-4 pt-20 pb-28">
             <div className="w-full max-w-md bg-slate-800 p-8 rounded-3xl border border-slate-700 shadow-2xl">
                 <div className="text-center mb-8">
-                    <img src="/icon.png" alt="DIMLİ" className="h-16 w-auto object-contain mx-auto mb-4" />
+                    <img src="/icon.png" alt="DİMLİ" className="h-16 w-auto object-contain mx-auto mb-4" />
                     <h1 className="font-sport font-black text-4xl text-white italic">GİRİŞ YAP</h1>
                     <p className="text-slate-400 mt-2">Sahalara geri dön kaptan.</p>
                 </div>

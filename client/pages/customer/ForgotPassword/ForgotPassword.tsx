@@ -63,7 +63,7 @@ export const ForgotPassword: React.FC = () => {
                     <>
                         {/* Başlık */}
                         <div className="text-center mb-8">
-                            <img src="/icon.png" alt="DIMLİ" className="h-12 w-auto object-contain mx-auto mb-4" />
+                            <img src="/icon.png" alt="DİMLİ" className="h-12 w-auto object-contain mx-auto mb-4" />
                             <h1 className="font-sport font-black text-3xl text-white italic">ŞİFREMİ UNUTTUM</h1>
                             <p className="text-slate-400 mt-2 text-sm">
                                 {step === 1 && 'Kayıtlı telefon numaranı gir, SMS ile kod gönderelim.'}

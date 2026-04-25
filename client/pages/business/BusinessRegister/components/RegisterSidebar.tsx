@@ -29,8 +29,8 @@ export const RegisterSidebar: React.FC<RegisterSidebarProps> = ({ currentStep })
     return (
         <div className="bg-slate-800/50 w-full md:w-1/4 p-4 md:p-6 border-b md:border-b-0 md:border-r border-slate-700 flex flex-row md:flex-col justify-between md:justify-start gap-2 overflow-x-auto scrollbar-hide">
             <div className="mb-0 md:mb-8 flex items-center gap-2 shrink-0">
-                <img src="/icon.png" alt="DIMLİ" className="h-8 w-auto object-contain" />
-                <h1 className="font-black text-white italic hidden md:block">DIMLİ</h1>
+                <img src="/icon.png" alt="DİMLİ" className="h-8 w-auto object-contain" />
+                <h1 className="font-black text-white italic hidden md:block">DİMLİ</h1>
             </div>
 
             <div className="flex flex-row md:flex-col gap-1.5 md:gap-2">
@@ -42,21 +42,19 @@ export const RegisterSidebar: React.FC<RegisterSidebarProps> = ({ currentStep })
                         <div
                             key={step.id}
                             ref={el => { stepRefs.current[idx] = el; }}
-                            className={`flex items-center gap-3 p-2.5 md:p-3 rounded-xl transition-all duration-300 ease-in-out shrink-0 ${
-                                isActive
-                                    ? 'bg-orange-600 text-white shadow-lg shadow-orange-900/50 scale-[1.04]'
-                                    : isCompleted
+                            className={`flex items-center gap-3 p-2.5 md:p-3 rounded-xl transition-all duration-300 ease-in-out shrink-0 ${isActive
+                                ? 'bg-orange-600 text-white shadow-lg shadow-orange-900/50 scale-[1.04]'
+                                : isCompleted
                                     ? 'text-green-500'
                                     : 'text-slate-500'
-                            }`}
+                                }`}
                         >
-                            <div className={`w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${
-                                isActive
-                                    ? 'border-white bg-white/20'
-                                    : isCompleted
+                            <div className={`w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${isActive
+                                ? 'border-white bg-white/20'
+                                : isCompleted
                                     ? 'border-green-500 bg-green-500/10'
                                     : 'border-slate-600 bg-slate-800'
-                            }`}>
+                                }`}>
                                 {isCompleted ? <CheckCircle size={15} /> : <Icon size={15} />}
                             </div>
                             <span className={`font-bold text-sm hidden md:block transition-all duration-300 ${isActive ? 'text-white' : ''}`}>

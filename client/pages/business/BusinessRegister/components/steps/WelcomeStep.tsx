@@ -18,7 +18,7 @@ export const WelcomeStep: React.FC = () => {
                     <img src="/icon.png" alt="Dimli" className="w-10 h-10 object-contain" />
                 </div>
                 <div>
-                    <p className="text-orange-400 font-black italic uppercase tracking-widest text-sm">DIMLİ İŞLETME</p>
+                    <p className="text-orange-400 font-black italic uppercase tracking-widest text-sm">DİMLİ İŞLETME</p>
                     <h2 className="text-2xl md:text-3xl font-black text-white leading-tight mt-1">
                         Sahanızı dijital<br />dünyaya taşıyın.
                     </h2>

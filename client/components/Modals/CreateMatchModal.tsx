@@ -79,26 +79,25 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
                     setLevel(levelMap[rawLevel] ?? (rawLevel as SkillLevel));
                 }
 
-                // 2. For pre-selected pitch/business: fetch all businesses (no geo needed)
-                if (preSelectedPitchId || preSelectedBusinessId) {
+                // 2. For pre-selected pitch: fetch all businesses to locate the pitch by ID
+                if (preSelectedPitchId) {
                     const bList: Business[] = await getBusinesses();
                     setBusinesses(bList);
-                    if (preSelectedPitchId) {
-                        const business = bList.find(b => b.pitches?.some(p => p.id === preSelectedPitchId));
-                        if (business) {
-                            setSelectedBusinessId(business.id);
-                            setSelectedPitchId(preSelectedPitchId);
-                        }
-                    } else if (preSelectedBusinessId) {
-                        setSelectedBusinessId(preSelectedBusinessId);
+                    const business = bList.find(b => b.pitches?.some(p => p.id === preSelectedPitchId));
+                    if (business) {
+                        setSelectedBusinessId(business.id);
+                        setSelectedPitchId(preSelectedPitchId);
                     }
                     setIsLoadingLocation(false);
                     return;
                 }
 
-                // 3. Normal open: use context coords (already resolved by LocationContext)
+                // 3. Normal open OR preSelectedBusinessId: use geo filter (same as Marketplace)
                 if (coords) {
                     await fetchBusinessesNearby(coords);
+                }
+                if (preSelectedBusinessId) {
+                    setSelectedBusinessId(preSelectedBusinessId);
                 }
                 setIsLoadingLocation(false);
 

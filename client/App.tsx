@@ -56,7 +56,7 @@ const PageLoader = () => (
       />
       <img
         src="/icon.png"
-        alt="DIMLİ"
+        alt="DİMLİ"
         style={{ height: 56, width: 'auto', objectFit: 'contain' }}
       />
     </div>
@@ -77,7 +77,12 @@ const PageLoader = () => (
 
 function AppContent() {
   const location = useLocation();
-  const isAuthPage = location.pathname === '/login' || location.pathname === '/register' || location.pathname === '/forgot-password' || location.pathname.startsWith('/business');
+  const isAuthPage =
+    location.pathname === '/login' ||
+    location.pathname === '/register' ||
+    location.pathname === '/forgot-password' ||
+    location.pathname.startsWith('/business') ||
+    location.pathname.startsWith('/settings');
   const [watchId, setWatchId] = useState<string | null>(null);
   const [pendingRatings, setPendingRatings] = useState<PendingRating[]>([]);
   const { updateCoords } = useLocationContext();

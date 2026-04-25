@@ -4,15 +4,19 @@ import api, { getPitches, getBusinesses } from '../../../../services/api';
 import { generateTeamBio } from '../../../../services/geminiService';
 import { Team, Player, Pitch, Business, MatchHistoryItem } from '../../../../types';
 import { SuccessType } from '../../../../components/Modals/SuccessModal';
+import { useLocationContext } from '../../../../contexts/LocationContext';
+import { LocationFilter } from '../../../../components/Modals/LocationFilterModal';
 
 export const useMyTeam = (modals: any) => {
     const navigate = useNavigate();
+    const { coords, radius, isLocating, setRadius } = useLocationContext();
     const [currentUser, setCurrentUser] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [myTeam, setMyTeam] = useState<Team | undefined>(undefined);
     const [roster, setRoster] = useState<Partial<Player>[]>([]);
     const [pitches, setPitches] = useState<Pitch[]>([]);
     const [businesses, setBusinesses] = useState<Business[]>([]);
+    const [isLocationFilterOpen, setIsLocationFilterOpen] = useState(false);
     const [bio, setBio] = useState('');
     const [isEditingBio, setIsEditingBio] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
@@ -44,13 +48,11 @@ export const useMyTeam = (modals: any) => {
                 const user = response.data;
                 setCurrentUser(user);
 
-                const [pitchesData, businessesData, historyResponse] = await Promise.all([
+                const [pitchesData, historyResponse] = await Promise.all([
                     getPitches(),
-                    getBusinesses(),
                     api.get('/ratings/history'),
                 ]);
                 setPitches(pitchesData);
-                setBusinesses(businessesData);
                 setMatchHistory(historyResponse.data || []);
 
                 if (user.team) {
@@ -79,6 +81,25 @@ export const useMyTeam = (modals: any) => {
         };
         fetchUser();
     }, []);
+
+    // Konum değişince işletmeleri yeniden çek — PitchBooking ile aynı pattern
+    useEffect(() => {
+        if (!coords) {
+            setBusinesses([]);
+            return;
+        }
+        let cancelled = false;
+        const fetchBusinessesWithCoords = async () => {
+            try {
+                const data = await getBusinesses({ lat: coords.lat, lng: coords.lng, radius });
+                if (!cancelled) setBusinesses(data);
+            } catch (error) {
+                console.error('Failed to fetch businesses:', error);
+            }
+        };
+        fetchBusinessesWithCoords();
+        return () => { cancelled = true; };
+    }, [coords, radius]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const fetchUpcomingMatches = async () => {
         if (!myTeam?.id) return;
@@ -203,12 +224,18 @@ export const useMyTeam = (modals: any) => {
         });
     };
 
+    const locationFilter: LocationFilter = { type: 'NEARBY', radius, coords: coords ?? undefined };
+    const applyLocationFilter = (filter: LocationFilter) => { if (filter.radius) setRadius(filter.radius); };
+    const isLoadingLocation = isLocating && !coords;
+
     return {
         currentUser, isLoading, myTeam, setMyTeam, roster, setRoster,
         pitches, businesses, bio, setBio, isEditingBio, setIsEditingBio,
         isGenerating, upcomingMatches, isUpcomingLoading, fetchUpcomingMatches,
         matchHistory, isMatchHistoryLoading, fetchMatchHistory,
         successMessage, setSuccessMessage, successType, setSuccessType, errorMessage, setErrorMessage,
-        handleGenerateBio, handleSaveBio, handleSetHomeBusiness, handleCreateTeam, handleLeaveTeam
+        handleGenerateBio, handleSaveBio, handleSetHomeBusiness, handleCreateTeam, handleLeaveTeam,
+        isLocationFilterOpen, setIsLocationFilterOpen,
+        locationFilter, applyLocationFilter, isLoadingLocation,
     };
 };

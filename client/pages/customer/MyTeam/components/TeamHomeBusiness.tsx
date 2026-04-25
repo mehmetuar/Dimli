@@ -1,6 +1,8 @@
 import React from 'react';
-import { Store, Plus } from 'lucide-react';
+import { Store, Plus, MapPin } from 'lucide-react';
 import { Business, Team } from '../../../../types';
+import { LocationFilterModal, LocationFilter } from '../../../../components/Modals/LocationFilterModal';
+import { LoadingSpinner } from '../../../../components/UI/LoadingSpinner';
 
 interface TeamHomeBusinessProps {
     myTeam: Team;
@@ -10,15 +12,22 @@ interface TeamHomeBusinessProps {
     setIsEditingPitch: (isEditing: boolean) => void;
     handleSetHomeBusiness: (id: string) => void;
     setIsCreateMatchModalOpen: (isOpen: boolean) => void;
+    isLocationFilterOpen: boolean;
+    setIsLocationFilterOpen: (open: boolean) => void;
+    locationFilter: LocationFilter;
+    applyLocationFilter: (filter: LocationFilter) => void;
+    isLoadingLocation: boolean;
 }
 
 export const TeamHomeBusiness: React.FC<TeamHomeBusinessProps> = ({
     myTeam, businesses, isCaptain, isEditingPitch, setIsEditingPitch,
-    handleSetHomeBusiness, setIsCreateMatchModalOpen
+    handleSetHomeBusiness, setIsCreateMatchModalOpen,
+    isLocationFilterOpen, setIsLocationFilterOpen, locationFilter, applyLocationFilter, isLoadingLocation
 }) => {
     const selectedHomeBusiness = businesses.find(b => b.id === myTeam?.homeBusinessId);
 
     return (
+        <>
         <div className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden">
             <div className="p-4 border-b border-slate-700 flex justify-between items-center">
                 <h3 className="font-sport font-bold text-xl text-white flex items-center gap-2">
@@ -37,19 +46,40 @@ export const TeamHomeBusiness: React.FC<TeamHomeBusinessProps> = ({
 
             {isEditingPitch ? (
                 <div className="p-4 bg-slate-900">
-                    <p className="text-xs text-slate-400 mb-3">Takımınızın favori işletmesini seçin:</p>
-                    <div className="space-y-2 max-h-40 overflow-y-auto">
-                        {businesses.map(business => (
-                            <button
-                                key={business.id}
-                                onClick={() => handleSetHomeBusiness(business.id)}
-                                className="w-full text-left p-3 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 flex justify-between items-center"
-                            >
-                                <span className="text-white text-sm font-bold">{business.name}</span>
-                                <span className="text-xs text-slate-400">{business.district}, {business.city}</span>
-                            </button>
-                        ))}
+                    <div className="flex items-center justify-between mb-3">
+                        <p className="text-xs text-slate-400">Takımınızın favori işletmesini seçin:</p>
+                        <button
+                            onClick={() => setIsLocationFilterOpen(true)}
+                            className="flex items-center gap-1.5 text-xs bg-slate-700 hover:bg-slate-600 text-white px-3 py-1.5 rounded-lg transition-colors"
+                        >
+                            <MapPin className="w-3.5 h-3.5 text-turf-400" />
+                            {locationFilter.coords ? `${locationFilter.radius} km` : 'Konum Filtresi'}
+                        </button>
                     </div>
+                    {isLoadingLocation ? (
+                        <div className="flex flex-col items-center justify-center py-6 text-slate-400">
+                            <LoadingSpinner size="sm" text="" />
+                            <p className="mt-2 text-xs">Konumunuz alınıyor...</p>
+                        </div>
+                    ) : businesses.length === 0 ? (
+                        <div className="text-center py-6 text-slate-500 text-xs flex flex-col items-center gap-2">
+                            <MapPin className="w-5 h-5" />
+                            Yakınında işletme bulunamadı.
+                        </div>
+                    ) : (
+                        <div className="space-y-2 max-h-40 overflow-y-auto">
+                            {businesses.map(business => (
+                                <button
+                                    key={business.id}
+                                    onClick={() => handleSetHomeBusiness(business.id)}
+                                    className="w-full text-left p-3 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 flex justify-between items-center"
+                                >
+                                    <span className="text-white text-sm font-bold">{business.name}</span>
+                                    <span className="text-xs text-slate-400">{business.district}, {business.city}</span>
+                                </button>
+                            ))}
+                        </div>
+                    )}
                 </div>
             ) : (
                 selectedHomeBusiness ? (
@@ -75,5 +105,12 @@ export const TeamHomeBusiness: React.FC<TeamHomeBusinessProps> = ({
                 )
             )}
         </div>
+        <LocationFilterModal
+            isOpen={isLocationFilterOpen}
+            onClose={() => setIsLocationFilterOpen(false)}
+            currentFilter={locationFilter}
+            onApply={applyLocationFilter}
+        />
+        </>
     );
 };
