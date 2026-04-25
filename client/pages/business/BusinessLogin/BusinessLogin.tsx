@@ -29,7 +29,7 @@ export const BusinessLogin: React.FC = () => {
                 <div className="text-center mb-8">
                     <img src="/icon.png" alt="DIMLİ" className="h-14 w-auto object-contain mx-auto mb-3" />
                     <h1 className="font-sport font-black text-4xl text-white italic">İŞLETME PANELİ</h1>
-                    <p className="text-slate-400 mt-2">DIMLİ Business</p>
+                    <p className="text-slate-400 mt-2">DİMLİ Business</p>
                 </div>
 
                 {error && (

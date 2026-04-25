@@ -62,7 +62,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ formData, isLoading, o
             <div className="flex items-start gap-2 text-xs text-slate-500">
                 <ShieldCheck size={14} className="shrink-0 mt-0.5 text-slate-400" />
                 <span>
-                    Başvurunuz admin ekibimiz tarafından 1-2 iş günü içinde incelenecektir.
+                    Başvurunuz ekibimiz tarafından 1-2 iş günü içinde incelenecektir.
                     Onay sonrası işletmeniz yayına alınacak ve abonelik süreci başlayacaktır.
                 </span>
             </div>

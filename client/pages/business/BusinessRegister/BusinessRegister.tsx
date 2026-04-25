@@ -35,7 +35,9 @@ export const BusinessRegister: React.FC = () => {
 
     const isLastInputStep = currentStep === 7;
     const isCongratsStep = currentStep === 8;
+    const isWelcomeStep = currentStep === 1;
     const isOtpStep = currentStep === 3;
+    const hideHeader = isCongratsStep || isWelcomeStep;
 
     const renderStepContent = () => {
         switch (currentStep) {
@@ -60,8 +62,6 @@ export const BusinessRegister: React.FC = () => {
                     <BusinessDetailsStep
                         formData={formData}
                         updateBusiness={updateBusiness}
-                        setLocationModalStep={setLocationModalStep}
-                        setIsLocationModalOpen={setIsLocationModalOpen}
                         setIsTimePickerOpen={setIsTimePickerOpen}
                     />
                 );
@@ -97,19 +97,19 @@ export const BusinessRegister: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4">
-            <div className="w-full max-w-4xl bg-slate-900 rounded-3xl border border-slate-800 shadow-2xl overflow-hidden flex flex-col md:flex-row min-h-[600px]">
+        <div className="min-h-[100dvh] bg-slate-950 flex flex-col items-center justify-center p-3 md:p-4 pb-safe">
+            <div className="w-full max-w-4xl bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-800 shadow-2xl overflow-hidden flex flex-col md:flex-row min-h-[580px] md:min-h-[600px]">
 
                 <RegisterSidebar currentStep={currentStep} />
 
-                <div className="flex-1 flex flex-col p-6 md:p-10 relative">
-                    {/* Header — tamamlandı adımında gizle */}
-                    {!isCongratsStep && (
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-2xl font-black text-white italic uppercase tracking-wider">
+                <div className="flex-1 flex flex-col p-5 md:p-10 relative">
+                    {/* Header — welcome ve tamamlandı adımında gizle */}
+                    {!hideHeader && (
+                        <div className="flex justify-between items-center mb-5 md:mb-6">
+                            <h2 className="text-xl md:text-2xl font-black text-white italic uppercase tracking-wider">
                                 {steps.find(s => s.id === currentStep)?.title}
                             </h2>
-                            <span className="text-slate-500 text-sm font-bold">
+                            <span className="text-slate-500 text-xs md:text-sm font-bold">
                                 {currentStep < 8 ? `Adım ${currentStep} / 7` : ''}
                             </span>
                         </div>
@@ -121,17 +121,21 @@ export const BusinessRegister: React.FC = () => {
                         </div>
                     )}
 
-                    <div className="flex-1 overflow-y-auto pr-2 scrollbar-hide pb-24">
+                    <div className="flex-1 overflow-y-auto pr-1 scrollbar-hide pb-24">
                         {renderStepContent()}
                     </div>
 
                     {/* Navigation — OTP, payment, congrats adımlarında farklı davranış */}
                     {!isCongratsStep && !isLastInputStep && !isOtpStep && (
-                        <div className="absolute bottom-6 left-6 right-6 flex justify-between pt-4 border-t border-slate-800 bg-slate-900 z-10">
+                        <div className="absolute bottom-0 left-0 right-0 flex justify-between items-center px-5 md:px-10 py-4 border-t border-slate-800 bg-slate-900 z-10">
                             <button
                                 onClick={prevStep}
                                 disabled={currentStep === 1}
-                                className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-colors ${currentStep === 1 ? 'text-slate-700 cursor-not-allowed' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
+                                className={`flex items-center gap-2 px-5 py-3 rounded-xl font-bold transition-colors min-h-[44px] ${
+                                    currentStep === 1
+                                        ? 'text-slate-700 cursor-not-allowed'
+                                        : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                                }`}
                             >
                                 <ChevronLeft size={20} /> Geri
                             </button>
@@ -139,7 +143,7 @@ export const BusinessRegister: React.FC = () => {
                             <button
                                 onClick={nextStep}
                                 disabled={isLoading}
-                                className="bg-white text-slate-900 px-8 py-3 rounded-xl font-black flex items-center gap-2 hover:bg-slate-200 transition-colors shadow-lg shadow-white/10 disabled:opacity-50"
+                                className="bg-white text-slate-900 px-7 py-3 rounded-xl font-black flex items-center gap-2 hover:bg-slate-200 transition-colors shadow-lg shadow-white/10 disabled:opacity-50 min-h-[44px]"
                             >
                                 {isLoading ? <Loader2 className="animate-spin" size={18} /> : <>İleri <ChevronRight size={20} /></>}
                             </button>
@@ -148,10 +152,10 @@ export const BusinessRegister: React.FC = () => {
 
                     {/* OTP adımında sadece geri butonu */}
                     {isOtpStep && (
-                        <div className="absolute bottom-6 left-6 right-6 pt-4 border-t border-slate-800 bg-slate-900 z-10">
+                        <div className="absolute bottom-0 left-0 right-0 px-5 md:px-10 py-4 border-t border-slate-800 bg-slate-900 z-10">
                             <button
                                 onClick={prevStep}
-                                className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                                className="flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-slate-400 hover:text-white hover:bg-slate-800 transition-colors min-h-[44px]"
                             >
                                 <ChevronLeft size={20} /> Geri
                             </button>
@@ -161,7 +165,7 @@ export const BusinessRegister: React.FC = () => {
             </div>
 
             {!isCongratsStep && (
-                <div className="mt-6 text-center">
+                <div className="mt-5 text-center">
                     <p className="text-slate-500 text-sm">
                         Zaten hesabın var mı?{' '}
                         <Link to="/business/login" className="text-orange-500 font-bold hover:underline">

@@ -28,6 +28,7 @@ export const BusinessPitchSettings: React.FC = () => {
         newSlotEnd, setNewSlotEnd,
         savingSlots,
         slotsSuccess,
+        slotError, setSlotError,
         isTimePickerOpen, setIsTimePickerOpen,
         formData,
         allFacilities,
@@ -67,8 +68,11 @@ export const BusinessPitchSettings: React.FC = () => {
                     newSlotEnd={newSlotEnd}
                     savingSlots={savingSlots}
                     slotsSuccess={slotsSuccess}
+                    slotError={slotError}
+                    pitchOpenTime={formData.openTime || undefined}
+                    pitchCloseTime={formData.closeTime || undefined}
                     isTimePickerOpen={isTimePickerOpen}
-                    setIsTimePickerOpen={setIsTimePickerOpen}
+                    setIsTimePickerOpen={(s) => { setIsTimePickerOpen(s); setSlotError(''); }}
                     setNewSlotStart={setNewSlotStart}
                     setNewSlotEnd={setNewSlotEnd}
                     onAddSlot={handleAddSlot}

@@ -3,6 +3,29 @@ import { useNavigate, useParams } from 'react-router-dom';
 import api from '../../../../services/api';
 import { DEFAULT_FACILITIES } from '../../../../constants';
 
+// ─── Slot yardımcı fonksiyonları ─────────────────────────────────────────────
+
+const toMin = (t: string): number => {
+    if (!t) return 0;
+    const [h, m] = t.split(':').map(Number);
+    return h * 60 + (m || 0);
+};
+
+/** "00:00" gece yarısını 24*60 dakika olarak ele al */
+const toMinEnd = (t: string): number => {
+    const m = toMin(t);
+    return m === 0 ? 24 * 60 : m;
+};
+
+const slotsOverlap = (
+    a: { startTime: string; endTime: string },
+    b: { startTime: string; endTime: string }
+): boolean => {
+    const aS = toMin(a.startTime), aE = toMinEnd(a.endTime);
+    const bS = toMin(b.startTime), bE = toMinEnd(b.endTime);
+    return aS < bE && aE > bS;
+};
+
 // Gece yarısı geçen slotları doğru sıralamak için (ör. 23:30 → 00:30).
 // Hem geç gece (>=20:00) hem erken sabah (<06:00) slotları varsa,
 // erken sabah slotları "ertesi günün başı" olarak değerlendirilir.
@@ -47,6 +70,7 @@ export const useBusinessPitchSettings = () => {
     const [newSlotEnd, setNewSlotEnd] = useState('20:00');
     const [savingSlots, setSavingSlots] = useState(false);
     const [slotsSuccess, setSlotsSuccess] = useState(false);
+    const [slotError, setSlotError] = useState('');
 
     const [isTimePickerOpen, setIsTimePickerOpen] = useState<TimePickerState>({ open: false, type: 'OPEN' });
 
@@ -137,14 +161,38 @@ export const useBusinessPitchSettings = () => {
     };
 
     const handleAddSlot = () => {
-        // newSlotStart !== newSlotEnd kontrolü yeterli.
-        // Bitiş saati başlangıçtan küçükse gece yarısını geçen slot demektir (ör. 23:30 → 00:30).
-        if (newSlotStart && newSlotEnd && newSlotStart !== newSlotEnd) {
-            const exists = timeSlots.some(s => s.startTime === newSlotStart && s.endTime === newSlotEnd);
-            if (!exists) {
-                setTimeSlots(prev => sortTimeSlotsForDisplay([...prev, { startTime: newSlotStart, endTime: newSlotEnd }]));
+        setSlotError('');
+        const newSlot = { startTime: newSlotStart, endTime: newSlotEnd };
+
+        if (!newSlotStart || !newSlotEnd || newSlotStart === newSlotEnd) {
+            setSlotError('Başlangıç ve bitiş saati farklı olmalı.');
+            return;
+        }
+        if (toMin(newSlotStart) >= toMinEnd(newSlotEnd)) {
+            setSlotError('Bitiş saati başlangıçtan sonra olmalı.');
+            return;
+        }
+
+        const open = formData.openTime;
+        const close = formData.closeTime;
+        if (open && close) {
+            const sS = toMin(newSlotStart);
+            const sE = toMinEnd(newSlotEnd);
+            const oMin = toMin(open);
+            const cMin = toMinEnd(close);
+            if (sS < oMin || sE > cMin) {
+                setSlotError(`Slot ${open}–${close} saatleri arasında olmalı.`);
+                return;
             }
         }
+
+        const overlapping = timeSlots.find(s => slotsOverlap(s, newSlot));
+        if (overlapping) {
+            setSlotError(`Bu saat, ${overlapping.startTime}–${overlapping.endTime} slotu ile çakışıyor.`);
+            return;
+        }
+
+        setTimeSlots(prev => sortTimeSlotsForDisplay([...prev, newSlot]));
     };
 
     const handleRemoveSlot = (index: number) => {
@@ -182,6 +230,7 @@ export const useBusinessPitchSettings = () => {
         newSlotEnd, setNewSlotEnd,
         savingSlots,
         slotsSuccess,
+        slotError, setSlotError,
         isTimePickerOpen, setIsTimePickerOpen,
         formData,
         allFacilities,
