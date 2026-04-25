@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Headers, UnauthorizedException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Headers, UnauthorizedException } from '@nestjs/common';
 import { SubscriptionService } from './subscription.service';
 
 @Controller('subscription')
@@ -8,6 +8,11 @@ export class SubscriptionController {
     @Get('plans')
     getPlans() {
         return this.subscriptionService.getPlans();
+    }
+
+    @Get('owner/:ownerId')
+    findByOwner(@Param('ownerId') ownerId: string) {
+        return this.subscriptionService.findByOwner(ownerId);
     }
 
     // RevenueCat webhook — abonelik durumu değişikliklerini dinler

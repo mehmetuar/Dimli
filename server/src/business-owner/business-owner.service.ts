@@ -58,7 +58,24 @@ export class BusinessOwnerService {
         const startOfDay = new Date(selectedDate);
         startOfDay.setHours(0, 0, 0, 0);
 
+        // Day name for closed-day check (en-US locale gives English names)
+        const dayName = selectedDate.toLocaleDateString('en-US', { weekday: 'long' });
+
         for (const pitch of pitches) {
+            // Check if pitch is passive or permanently closed on this day
+            const isClosed = pitch.isActive === false || (pitch.closedDays && pitch.closedDays.includes(dayName));
+            if (isClosed) {
+                slotsResponse.push({
+                    pitchId: pitch.id,
+                    pitchName: pitch.name,
+                    hasCustomSlots: false,
+                    isClosed: true,
+                    closedReason: pitch.isActive === false ? 'PASSIVE' : 'CLOSED_DAY',
+                    slots: []
+                });
+                continue;
+            }
+
             const pitchSlots: any[] = [];
             const hasCustomSlots = pitch.timeSlots && pitch.timeSlots.length > 0;
 

@@ -18,6 +18,12 @@ export const PitchSchedule: React.FC<PitchScheduleProps> = ({
     business, selectedPitch, selectedDate, pitchAnnouncements, reservations,
     isAuthorized, openSlotDetail, handleCreateAd, handleReserve
 }) => {
+    // Check if pitch is closed (passive or closed on this specific day)
+    const dayName = new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long' });
+    const isPitchClosed =
+        selectedPitch.isActive === false ||
+        (selectedPitch.closedDays && selectedPitch.closedDays.includes(dayName));
+
     return (
         <div className="mb-8">
             <div className="flex items-center justify-between mb-3">
@@ -34,7 +40,30 @@ export const PitchSchedule: React.FC<PitchScheduleProps> = ({
                 </a>
             </div>
 
-            <div className="grid grid-cols-3 gap-2">
+            {/* ── SAHA KAPALI overlay ── */}
+            {isPitchClosed && (
+                <div className="relative rounded-xl overflow-hidden border border-red-900/50 min-h-[200px]">
+                    {/* Blurred placeholder grid */}
+                    <div className="blur-sm pointer-events-none opacity-30 grid grid-cols-3 gap-2 p-4">
+                        {[...Array(6)].map((_, i) => (
+                            <div key={i} className="p-3 rounded-xl border border-slate-700 bg-slate-800 min-h-[80px]" />
+                        ))}
+                    </div>
+                    {/* Overlay */}
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-red-950/80 backdrop-blur-sm">
+                        <span className="text-3xl font-black text-white uppercase tracking-widest text-center px-4">
+                            SAHA KAPALI
+                        </span>
+                        <span className="text-red-300 text-sm mt-2 text-center px-6">
+                            {selectedPitch.isActive === false
+                                ? 'Bu saha geçici olarak hizmet dışı bırakılmıştır.'
+                                : 'Bu saha bugün kapalıdır.'}
+                        </span>
+                    </div>
+                </div>
+            )}
+
+            {!isPitchClosed && <div className="grid grid-cols-3 gap-2">
                 {generateSlots(selectedPitch, business).map((slot: any, slotIdx: number) => {
                     const isPast = isPastSlot(slot.startTime, selectedDate);
 
@@ -141,10 +170,13 @@ export const PitchSchedule: React.FC<PitchScheduleProps> = ({
                         </div>
                     )
                 })}
-            </div>
-            <p className="text-[10px] text-slate-500 mt-2 flex items-center gap-1">
-                <AlertCircle className="w-3 h-3" /> Boş saatlere tıklayarak ilan açabilirsiniz. Dolu/Bekleyen saatlere tıklayarak detayları görebilirsiniz.
-            </p>
+            </div>}
+
+            {!isPitchClosed && (
+                <p className="text-[10px] text-slate-500 mt-2 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" /> Boş saatlere tıklayarak ilan açabilirsiniz. Dolu/Bekleyen saatlere tıklayarak detayları görebilirsiniz.
+                </p>
+            )}
         </div>
     );
 };

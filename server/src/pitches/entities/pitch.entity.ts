@@ -45,4 +45,10 @@ export class Pitch {
     @Column('simple-array', { nullable: true })
     facilities: string[];
 
+    @Column({ default: true })
+    isActive: boolean;
+
+    @Column('simple-array', { nullable: true })
+    closedDays: string[]; // e.g. ['Sunday', 'Monday']
+
 }

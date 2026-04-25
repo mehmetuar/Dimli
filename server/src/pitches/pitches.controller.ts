@@ -15,14 +15,40 @@ export class PitchesController {
         return this.pitchesService.findAll();
     }
 
-    @Get(':id')
-    findOne(@Param('id') id: string) {
-        return this.pitchesService.findOne(id);
-    }
-
     @Get('business/:businessId')
     findByBusiness(@Param('businessId') businessId: string) {
         return this.pitchesService.findByBusiness(businessId);
+    }
+
+    // ===== STATUS & CLOSED DAYS — must be before @Get(':id') / @Patch(':id') =====
+
+    @Patch(':id/status')
+    toggleStatus(@Param('id') id: string) {
+        return this.pitchesService.toggleStatus(id);
+    }
+
+    @Patch(':id/closed-days')
+    updateClosedDays(@Param('id') id: string, @Body() body: { closedDays: string[] }) {
+        return this.pitchesService.updateClosedDays(id, body.closedDays);
+    }
+
+    // ===== TIME SLOT ENDPOINTS — must be before @Get(':id') =====
+
+    @Put(':id/time-slots')
+    setTimeSlots(@Param('id') id: string, @Body() body: { slots: { startTime: string; endTime: string }[] }) {
+        return this.pitchesService.setTimeSlots(id, body.slots);
+    }
+
+    @Get(':id/time-slots')
+    getTimeSlots(@Param('id') id: string) {
+        return this.pitchesService.getTimeSlots(id);
+    }
+
+    // ===== GENERIC CRUD =====
+
+    @Get(':id')
+    findOne(@Param('id') id: string) {
+        return this.pitchesService.findOne(id);
     }
 
     @Patch(':id')
@@ -34,17 +60,4 @@ export class PitchesController {
     remove(@Param('id') id: string) {
         return this.pitchesService.remove(id);
     }
-
-    // ===== TIME SLOT ENDPOINTS =====
-
-    @Put(':id/time-slots')
-    setTimeSlots(@Param('id') id: string, @Body() body: { slots: { startTime: string; endTime: string }[] }) {
-        return this.pitchesService.setTimeSlots(id, body.slots);
-    }
-
-    @Get(':id/time-slots')
-    getTimeSlots(@Param('id') id: string) {
-        return this.pitchesService.getTimeSlots(id);
-    }
 }
-

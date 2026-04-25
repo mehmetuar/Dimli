@@ -27,8 +27,6 @@ const slotsOverlap = (
 };
 
 // Gece yarısı geçen slotları doğru sıralamak için (ör. 23:30 → 00:30).
-// Hem geç gece (>=20:00) hem erken sabah (<06:00) slotları varsa,
-// erken sabah slotları "ertesi günün başı" olarak değerlendirilir.
 const sortTimeSlotsForDisplay = (slots: { startTime: string; endTime: string }[]) => {
     const hasLateNight = slots.some(s => {
         const [h] = s.startTime.split(':').map(Number);
@@ -79,8 +77,21 @@ export const useBusinessPitchSettings = () => {
         pricePerHour: '',
         openTime: '',
         closeTime: '',
-        facilities: [] as string[]
+        facilities: [] as string[],
+        isActive: true,
+        closedDays: [] as string[],
+        imageUrl: '',
     });
+
+    // Conflict modal for when trying to deactivate a pitch with future matches
+    const [conflictModal, setConflictModal] = useState<{ show: boolean; conflicts: any[] }>({
+        show: false,
+        conflicts: [],
+    });
+
+    const [togglingStatus, setTogglingStatus] = useState(false);
+    const [savingClosedDays, setSavingClosedDays] = useState(false);
+    const [closedDaysSuccess, setClosedDaysSuccess] = useState(false);
 
     useEffect(() => {
         fetchPitchData();
@@ -95,7 +106,10 @@ export const useBusinessPitchSettings = () => {
                 pricePerHour: pitch.pricePerHour?.toString() || '',
                 openTime: pitch.openTime || '',
                 closeTime: pitch.closeTime || '',
-                facilities: pitch.facilities || []
+                facilities: pitch.facilities || [],
+                isActive: pitch.isActive !== false,
+                closedDays: pitch.closedDays || [],
+                imageUrl: pitch.imageUrl || '',
             });
             if (pitch.timeSlots && pitch.timeSlots.length > 0) {
                 setTimeSlots(pitch.timeSlots.map((ts: any) => ({ startTime: ts.startTime, endTime: ts.endTime })));
@@ -214,6 +228,53 @@ export const useBusinessPitchSettings = () => {
         }
     };
 
+    // ─── Active/Passive toggle ────────────────────────────────────────────────
+
+    const toggleActive = async () => {
+        setTogglingStatus(true);
+        try {
+            const response = await api.patch(`/pitches/${pitchId}/status`);
+            setFormData(prev => ({ ...prev, isActive: response.data.isActive !== false }));
+        } catch (error: any) {
+            if (error?.response?.status === 409) {
+                const data = error.response.data;
+                setConflictModal({
+                    show: true,
+                    conflicts: data?.message?.conflicts || data?.conflicts || [],
+                });
+            } else {
+                alert('Saha durumu değiştirilirken bir hata oluştu.');
+            }
+        } finally {
+            setTogglingStatus(false);
+        }
+    };
+
+    // ─── Closed days ─────────────────────────────────────────────────────────
+
+    const handleClosedDayToggle = async (day: string) => {
+        const current = formData.closedDays;
+        const updated = current.includes(day)
+            ? current.filter(d => d !== day)
+            : [...current, day];
+
+        setFormData(prev => ({ ...prev, closedDays: updated }));
+        setSavingClosedDays(true);
+        setClosedDaysSuccess(false);
+        try {
+            await api.patch(`/pitches/${pitchId}/closed-days`, { closedDays: updated });
+            setClosedDaysSuccess(true);
+            setTimeout(() => setClosedDaysSuccess(false), 2000);
+        } catch (error) {
+            console.error('Error updating closed days:', error);
+            // revert on failure
+            setFormData(prev => ({ ...prev, closedDays: current }));
+            alert('Kapalı günler kaydedilirken hata oluştu.');
+        } finally {
+            setSavingClosedDays(false);
+        }
+    };
+
     const allFacilities = Array.from(new Set([...DEFAULT_FACILITIES, ...formData.facilities]));
 
     return {
@@ -234,6 +295,10 @@ export const useBusinessPitchSettings = () => {
         isTimePickerOpen, setIsTimePickerOpen,
         formData,
         allFacilities,
+        conflictModal, setConflictModal,
+        togglingStatus,
+        savingClosedDays,
+        closedDaysSuccess,
         handleSubmit,
         handleDeletePitch,
         handleFacilityToggle,
@@ -241,6 +306,8 @@ export const useBusinessPitchSettings = () => {
         handleChange,
         handleAddSlot,
         handleRemoveSlot,
-        handleSaveSlots
+        handleSaveSlots,
+        toggleActive,
+        handleClosedDayToggle,
     };
 };

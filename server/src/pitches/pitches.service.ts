@@ -1,8 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, MoreThan } from 'typeorm';
 import { Pitch } from './entities/pitch.entity';
 import { TimeSlot } from './entities/time-slot.entity';
+import { Reservation, ReservationStatus } from '../reservations/entities/reservation.entity';
 
 @Injectable()
 export class PitchesService {
@@ -11,6 +12,8 @@ export class PitchesService {
         private pitchesRepository: Repository<Pitch>,
         @InjectRepository(TimeSlot)
         private timeSlotRepository: Repository<TimeSlot>,
+        @InjectRepository(Reservation)
+        private reservationRepository: Repository<Reservation>,
     ) { }
 
     async create(createPitchDto: any) {
@@ -66,6 +69,47 @@ export class PitchesService {
         return await this.pitchesRepository.delete(id);
     }
 
+    // ===== STATUS TOGGLE =====
+
+    async toggleStatus(pitchId: string) {
+        const pitch = await this.findOne(pitchId);
+
+        // Only check for conflicts when trying to deactivate
+        if (pitch.isActive) {
+            const conflicts = await this.reservationRepository.find({
+                where: {
+                    pitchId,
+                    status: ReservationStatus.APPROVED,
+                    slotTime: MoreThan(new Date()),
+                },
+                relations: ['team'],
+                order: { slotTime: 'ASC' },
+            });
+
+            if (conflicts.length > 0) {
+                throw new ConflictException({
+                    message: 'Kesinleşmiş maçlar var',
+                    conflicts: conflicts.map(c => ({
+                        id: c.id,
+                        slotTime: c.slotTime,
+                        teamName: c.team?.name || 'Bilinmiyor',
+                    })),
+                });
+            }
+        }
+
+        await this.pitchesRepository.update(pitchId, { isActive: !pitch.isActive });
+        return this.findOne(pitchId);
+    }
+
+    // ===== CLOSED DAYS =====
+
+    async updateClosedDays(pitchId: string, closedDays: string[]) {
+        await this.findOne(pitchId); // verify exists
+        await this.pitchesRepository.update(pitchId, { closedDays });
+        return this.findOne(pitchId);
+    }
+
     // ===== TIME SLOT MANAGEMENT =====
 
     async setTimeSlots(pitchId: string, slots: { startTime: string; endTime: string }[]) {
@@ -98,4 +142,3 @@ export class PitchesService {
         });
     }
 }
-
