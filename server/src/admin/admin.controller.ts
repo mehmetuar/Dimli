@@ -2,6 +2,7 @@ import {
     Controller,
     Post,
     Get,
+    Patch,
     Body,
     Param,
     Query,
@@ -50,6 +51,23 @@ export class AdminController {
         @Request() req,
     ) {
         return this.adminService.rejectApplication(businessId, req.user.id, body.reason);
+    }
+
+    @UseGuards(AdminJwtAuthGuard)
+    @Patch('applications/:businessId')
+    async updateApplication(
+        @Param('businessId') businessId: string,
+        @Body() body: any,
+    ) {
+        return this.adminService.updateApplication(businessId, body);
+    }
+
+    // ─── Statistics ───────────────────────────────────────────────────────────
+
+    @UseGuards(AdminJwtAuthGuard)
+    @Get('statistics')
+    async getStatistics() {
+        return this.adminService.getStatistics();
     }
 
     // ─── Businesses ───────────────────────────────────────────────────────────

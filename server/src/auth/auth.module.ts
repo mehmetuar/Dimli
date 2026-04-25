@@ -10,6 +10,7 @@ import { JwtStrategy } from './jwt.strategy';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { OtpCode } from './entities/otp-code.entity';
 import { SmsModule } from '../sms/sms.module';
+import { SubscriptionModule } from '../subscription/subscription.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { SmsModule } from '../sms/sms.module';
     BusinessOwnerModule,
     PassportModule,
     SmsModule,
+    SubscriptionModule,
     TypeOrmModule.forFeature([OtpCode]),
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'SECRET_KEY',

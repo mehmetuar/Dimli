@@ -8,11 +8,14 @@ import { AdminJwtStrategy } from './admin-jwt.strategy';
 import { AdminUser } from './entities/admin-user.entity';
 import { Business } from '../business/entities/business.entity';
 import { BusinessOwner } from '../business-owner/entities/business-owner.entity';
+import { Subscription } from '../subscription/entities/subscription.entity';
+import { Pitch } from '../pitches/entities/pitch.entity';
+import { TimeSlot } from '../pitches/entities/time-slot.entity';
 
 @Module({
     imports: [
         PassportModule,
-        TypeOrmModule.forFeature([AdminUser, Business, BusinessOwner]),
+        TypeOrmModule.forFeature([AdminUser, Business, BusinessOwner, Subscription, Pitch, TimeSlot]),
         JwtModule.register({
             secret: process.env.ADMIN_JWT_SECRET || 'ADMIN_SECRET_KEY',
             signOptions: { expiresIn: '8h' },

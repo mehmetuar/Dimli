@@ -19,6 +19,7 @@ import { BusinessOwner } from '../business-owner/entities/business-owner.entity'
 import { TimeSlot } from '../pitches/entities/time-slot.entity';
 import { OtpCode } from './entities/otp-code.entity';
 import { SmsService } from '../sms/sms.service';
+import { SubscriptionService } from '../subscription/subscription.service';
 
 @Injectable()
 export class AuthService {
@@ -28,6 +29,7 @@ export class AuthService {
         private jwtService: JwtService,
         private dataSource: DataSource,
         private smsService: SmsService,
+        private subscriptionService: SubscriptionService,
         @InjectRepository(OtpCode)
         private otpRepository: Repository<OtpCode>,
     ) { }
@@ -442,6 +444,15 @@ export class AuthService {
             }
 
             await queryRunner.commitTransaction();
+
+            // 5. Trial abonelik oluştur (planType varsa)
+            if (data.planType) {
+                try {
+                    await this.subscriptionService.createTrialSubscription(savedOwner.id, data.planType);
+                } catch {
+                    // Abonelik oluşturma hatası kayıt işlemini geri almaz
+                }
+            }
 
             // OTP temizle
             if (data.owner.phone) {

@@ -17,7 +17,7 @@ export default function AdminLogin() {
         try {
             const res = await adminApi.post('/admin/auth/login', { email, password });
             localStorage.setItem('admin_token', res.data.access_token);
-            navigate('/applications');
+            navigate('/dashboard');
         } catch (err: any) {
             setError(err.response?.data?.message || 'Giriş başarısız.');
         } finally {

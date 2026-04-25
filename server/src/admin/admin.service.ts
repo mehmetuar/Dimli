@@ -11,6 +11,17 @@ import * as bcrypt from 'bcrypt';
 import { AdminUser } from './entities/admin-user.entity';
 import { Business } from '../business/entities/business.entity';
 import { BusinessOwner } from '../business-owner/entities/business-owner.entity';
+import { Subscription } from '../subscription/entities/subscription.entity';
+import { Pitch } from '../pitches/entities/pitch.entity';
+import { TimeSlot } from '../pitches/entities/time-slot.entity';
+
+const PLAN_LABELS: Record<string, string> = {
+    '1_pitch': 'Starter',
+    '2_pitch': 'Basic',
+    '3_pitch': 'Pro',
+    '4_pitch': 'Business',
+    '5plus_pitch': 'Enterprise',
+};
 
 @Injectable()
 export class AdminService {
@@ -21,6 +32,12 @@ export class AdminService {
         private businessRepository: Repository<Business>,
         @InjectRepository(BusinessOwner)
         private businessOwnerRepository: Repository<BusinessOwner>,
+        @InjectRepository(Subscription)
+        private subscriptionRepository: Repository<Subscription>,
+        @InjectRepository(Pitch)
+        private pitchRepository: Repository<Pitch>,
+        @InjectRepository(TimeSlot)
+        private timeSlotRepository: Repository<TimeSlot>,
         private jwtService: JwtService,
     ) { }
 
@@ -93,7 +110,7 @@ export class AdminService {
         };
     }
 
-    async approveApplication(businessId: string, adminId: string) {
+    async approveApplication(businessId: string, _adminId: string) {
         const business = await this.businessRepository.findOne({ where: { id: businessId } });
         if (!business) throw new NotFoundException('İşletme bulunamadı.');
 
@@ -105,7 +122,7 @@ export class AdminService {
         return { success: true, message: 'İşletme onaylandı.' };
     }
 
-    async rejectApplication(businessId: string, adminId: string, reason: string) {
+    async rejectApplication(businessId: string, _adminId: string, reason: string) {
         const business = await this.businessRepository.findOne({ where: { id: businessId } });
         if (!business) throw new NotFoundException('İşletme bulunamadı.');
 
@@ -153,5 +170,160 @@ export class AdminService {
         business.status = 'active';
         await this.businessRepository.save(business);
         return { success: true };
+    }
+
+    // ─── Update Application ───────────────────────────────────────────────────
+
+    async updateApplication(businessId: string, body: {
+        business?: Partial<Pick<Business, 'name' | 'city' | 'district' | 'address' | 'phone' | 'openTime' | 'closeTime'>>;
+        owner?: Partial<Pick<BusinessOwner, 'fullName' | 'email' | 'phone'>>;
+        pitches?: Array<{
+            id: string;
+            name?: string;
+            type?: string;
+            pricePerHour?: number;
+            facilities?: string[];
+            imageUrl?: string;
+            timeSlots?: Array<{
+                id?: string;
+                startTime: string;
+                endTime: string;
+                isActive: boolean;
+                _delete?: boolean;
+            }>;
+        }>;
+    }) {
+        const business = await this.businessRepository.findOne({ where: { id: businessId } });
+        if (!business) throw new NotFoundException('İşletme bulunamadı.');
+
+        if (body.business) {
+            Object.assign(business, body.business);
+            await this.businessRepository.save(business);
+        }
+
+        if (body.owner) {
+            const owner = await this.businessOwnerRepository.findOne({ where: { business: { id: businessId } } });
+            if (owner) {
+                Object.assign(owner, body.owner);
+                await this.businessOwnerRepository.save(owner);
+            }
+        }
+
+        if (body.pitches && body.pitches.length > 0) {
+            for (const pitchUpdate of body.pitches) {
+                const pitch = await this.pitchRepository.findOne({ where: { id: pitchUpdate.id, businessId } });
+                if (!pitch) continue;
+
+                if (pitchUpdate.name !== undefined) pitch.name = pitchUpdate.name;
+                if (pitchUpdate.type !== undefined) pitch.type = pitchUpdate.type;
+                if (pitchUpdate.pricePerHour !== undefined) pitch.pricePerHour = pitchUpdate.pricePerHour;
+                if (pitchUpdate.facilities !== undefined) pitch.facilities = pitchUpdate.facilities;
+                if (pitchUpdate.imageUrl !== undefined) pitch.imageUrl = pitchUpdate.imageUrl;
+                await this.pitchRepository.save(pitch);
+
+                // Saat slotları
+                if (pitchUpdate.timeSlots && pitchUpdate.timeSlots.length > 0) {
+                    for (const slotUpdate of pitchUpdate.timeSlots) {
+                        if (slotUpdate.id && slotUpdate._delete) {
+                            // Mevcut slotu sil
+                            await this.timeSlotRepository.delete({ id: slotUpdate.id, pitchId: pitch.id });
+                        } else if (slotUpdate.id) {
+                            // Mevcut slotu güncelle
+                            const slot = await this.timeSlotRepository.findOne({ where: { id: slotUpdate.id, pitchId: pitch.id } });
+                            if (slot) {
+                                slot.startTime = slotUpdate.startTime;
+                                slot.endTime = slotUpdate.endTime;
+                                slot.isActive = slotUpdate.isActive;
+                                await this.timeSlotRepository.save(slot);
+                            }
+                        } else {
+                            // Yeni slot oluştur
+                            const newSlot = this.timeSlotRepository.create({
+                                pitchId: pitch.id,
+                                startTime: slotUpdate.startTime,
+                                endTime: slotUpdate.endTime,
+                                isActive: slotUpdate.isActive,
+                            });
+                            await this.timeSlotRepository.save(newSlot);
+                        }
+                    }
+                }
+            }
+        }
+
+        return this.getApplicationDetail(businessId);
+    }
+
+    // ─── Statistics ───────────────────────────────────────────────────────────
+
+    async getStatistics() {
+        // Status sayımları
+        const [pending, active, rejected, suspended] = await Promise.all([
+            this.businessRepository.count({ where: { status: 'pending' } }),
+            this.businessRepository.count({ where: { status: 'active' } }),
+            this.businessRepository.count({ where: { status: 'rejected' } }),
+            this.businessRepository.count({ where: { status: 'suspended' } }),
+        ]);
+
+        // Abonelik istatistikleri
+        const allSubscriptions = await this.subscriptionRepository.find({ relations: ['owner'] });
+        const activeSubscriptions = allSubscriptions.filter(s => s.status === 'active');
+        const trialSubscriptions = allSubscriptions.filter(s => s.status === 'trial');
+        // Aktif + trial = toplam gelir potansiyeli (RevenueCat entegrasyonu öncesinde trial'lar da sayılır)
+        const billedSubscriptions = [...activeSubscriptions, ...trialSubscriptions];
+
+        const totalMRR = billedSubscriptions.reduce((sum, s) => sum + Number(s.pricePerMonth), 0);
+
+        // Plan bazlı dağılım (aktif + trial)
+        const planMap: Record<string, { count: number; monthlyRevenue: number }> = {};
+        for (const sub of billedSubscriptions) {
+            if (!planMap[sub.planType]) planMap[sub.planType] = { count: 0, monthlyRevenue: 0 };
+            planMap[sub.planType].count++;
+            planMap[sub.planType].monthlyRevenue += Number(sub.pricePerMonth);
+        }
+        const byPlan = Object.entries(planMap).map(([planType, data]) => ({
+            planType,
+            label: PLAN_LABELS[planType] ?? planType,
+            count: data.count,
+            monthlyRevenue: data.monthlyRevenue,
+        }));
+
+        // Son 12 ay aylık büyüme (onaylanan işletmeler)
+        const now = new Date();
+        const monthlyGrowth: Array<{ month: string; newBusinesses: number; approvedBusinesses: number }> = [];
+        for (let i = 11; i >= 0; i--) {
+            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const year = d.getFullYear();
+            const month = d.getMonth() + 1;
+            const monthStr = `${year}-${String(month).padStart(2, '0')}`;
+
+            const startOfMonth = new Date(year, month - 1, 1);
+            const endOfMonth = new Date(year, month, 0, 23, 59, 59);
+
+            const [newBusinesses, approvedBusinesses] = await Promise.all([
+                this.businessRepository
+                    .createQueryBuilder('b')
+                    .where('b.createdAt >= :start AND b.createdAt <= :end', { start: startOfMonth, end: endOfMonth })
+                    .getCount(),
+                this.businessRepository
+                    .createQueryBuilder('b')
+                    .where('b.status = :status AND b.reviewedAt >= :start AND b.reviewedAt <= :end',
+                        { status: 'active', start: startOfMonth, end: endOfMonth })
+                    .getCount(),
+            ]);
+
+            monthlyGrowth.push({ month: monthStr, newBusinesses, approvedBusinesses });
+        }
+
+        return {
+            counts: { pending, active, rejected, suspended },
+            revenue: {
+                activeSubscriptions: activeSubscriptions.length,
+                trialSubscriptions: trialSubscriptions.length,
+                totalMRR,
+                byPlan,
+            },
+            monthlyGrowth,
+        };
     }
 }

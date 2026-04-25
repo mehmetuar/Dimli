@@ -3,7 +3,15 @@
 @tailwind utilities;
 
 body {
-  background-color: #17213a;
-  color: #e2e8f0;
+  background-color: #111b2e;
+  color: #dde8f5;
   font-family: system-ui, -apple-system, sans-serif;
 }
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #2a3d5a transparent;
+}
+*::-webkit-scrollbar { width: 5px; height: 5px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background-color: #2a3d5a; border-radius: 4px; }
