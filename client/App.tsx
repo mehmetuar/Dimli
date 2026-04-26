@@ -13,6 +13,7 @@ import { RatingModal } from './components/Modals/RatingModal';
 import { PendingRating } from './types';
 import { initializePushNotifications } from './services/pushNotificationService';
 import { LocationProvider, useLocationContext } from './contexts/LocationContext';
+import { useKeyboardScroll } from './utils/useKeyboardScroll';
 
 // ── Lazy page imports (code splitting — reduces initial bundle from ~1.17MB → ~200KB) ──
 const Marketplace = lazy(() => import('./pages/customer/Marketplace/Marketplace').then(m => ({ default: m.Marketplace })));
@@ -76,6 +77,7 @@ const PageLoader = () => (
 );
 
 function AppContent() {
+  useKeyboardScroll();
   const location = useLocation();
   const isAuthPage =
     location.pathname === '/login' ||
@@ -253,7 +255,7 @@ function AppContent() {
 
   return (
     <div className="flex flex-col h-screen bg-pitch text-white overflow-hidden">
-      <div className="flex-1 overflow-y-auto pb-20 scrollbar-hide">
+      <div className={`flex-1 overflow-y-auto scrollbar-hide ${isAuthPage ? '' : 'pb-20'}`}>
         <Suspense fallback={<PageLoader />}>
           <Routes>
             <Route path="/login" element={<Login />} />

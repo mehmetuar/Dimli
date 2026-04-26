@@ -166,7 +166,7 @@ export const useChat = () => {
             setOptionsModalChannel(null);
             if (selectedChannelId === channelId) setSelectedChannelId(null);
             setSuccessModalMessage('Sohbet başarıyla silindi.');
-            setSuccessModalType('MATCH_CANCELLED');
+            setSuccessModalType('DEFAULT');
             setSuccessModalOpen(true);
         } catch (error: any) {
             console.error('Failed to delete channel:', error);

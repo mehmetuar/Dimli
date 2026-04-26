@@ -16,6 +16,7 @@ import { SuccessModal } from '../../../components/Modals/SuccessModal';
 import { KendiAramizdaNewMatchModal } from '../../../components/Modals/KendiAramizdaNewMatchModal';
 import { ManageJokersModal } from '../../../components/Modals/ManageJokersModal';
 import { JokerDMChatInfoModal } from '../../../components/Modals/JokerDMChatInfoModal';
+import { useKeyboardHeight } from '../../../utils/useKeyboardHeight';
 
 export const Chat: React.FC = () => {
   const {
@@ -44,10 +45,12 @@ export const Chat: React.FC = () => {
     handleAcceptProposal, handleAcceptRematch, handleInviteJokerToMatch, handleCancelJokerNegotiation
   } = useChat();
 
+  const keyboardHeight = useKeyboardHeight();
   const [showScrollButton, setShowScrollButton] = React.useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const isUserAtBottomRef = useRef(true);
   const endRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const opponentTeam = null; // Simplification as in original
   const opponentJoker = null; // Simplification as in original
@@ -76,6 +79,13 @@ export const Chat: React.FC = () => {
     setShowScrollButton(false);
     setTimeout(() => scrollToBottom('instant'), 100);
   }, [selectedChannelId]);
+
+  // Klavye açıldığında en alttaysa son mesajı görünür tut
+  useEffect(() => {
+    if (keyboardHeight > 0 && isUserAtBottomRef.current) {
+      setTimeout(() => scrollToBottom('instant'), 50);
+    }
+  }, [keyboardHeight]);
 
 
   if (!selectedChannelId) {
@@ -107,6 +117,27 @@ export const Chat: React.FC = () => {
           )}
         </div>
 
+        <SuccessModal
+          isOpen={successModalOpen}
+          onClose={() => setSuccessModalOpen(false)}
+          message={successModalMessage}
+          type={successModalType}
+        />
+
+        <ConfirmModal
+          isOpen={confirmModalOpen}
+          onClose={() => setConfirmModalOpen(false)}
+          onConfirm={() => {
+            setConfirmModalOpen(false);
+            if (confirmAction) confirmAction();
+          }}
+          title={confirmTitle}
+          message={confirmMessage}
+          confirmText={confirmButtonText}
+          cancelText="Vazgeç"
+          isDangerous={confirmIsDangerous}
+        />
+
         {/* CHAT OPTIONS MODAL */}
         {optionsModalChannel && (() => {
           const modalStatusInfo = getMatchStatusInfo(optionsModalChannel.reservation);
@@ -134,7 +165,16 @@ export const Chat: React.FC = () => {
 
                   {canDelete && (
                     <button
-                      onClick={() => handleDeleteChannel(optionsModalChannel.id)}
+                      onClick={() => {
+                        const channelToDelete = optionsModalChannel;
+                        setOptionsModalChannel(null);
+                        setConfirmTitle('Sohbeti Sil');
+                        setConfirmMessage('Bu sohbeti silmek istediğinize emin misiniz? Bu işlem geri alınamaz.');
+                        setConfirmIsDangerous(true);
+                        setConfirmButtonText('Sil');
+                        setConfirmAction(() => () => handleDeleteChannel(channelToDelete.id));
+                        setConfirmModalOpen(true);
+                      }}
                       disabled={isDeleting}
                       className="w-full bg-slate-900 border border-slate-700 text-slate-400 hover:text-red-400 hover:border-red-900/50 font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2"
                     >
@@ -159,7 +199,10 @@ export const Chat: React.FC = () => {
   }
 
   return (
-    <div className="fixed inset-0 z-[60] flex flex-col bg-pitch-surface">
+    <div
+      className="fixed inset-0 z-[60] flex flex-col bg-pitch-surface"
+      style={keyboardHeight > 0 ? { paddingBottom: `calc(${keyboardHeight}px - env(safe-area-inset-bottom, 0px))` } : undefined}
+    >
       <InviteJokerModal
         isOpen={isInviteModalOpen}
         onClose={() => setIsInviteModalOpen(false)}
@@ -523,16 +566,26 @@ export const Chat: React.FC = () => {
                 <div className="flex gap-2 items-end">
                   <div className="flex-1 bg-slate-800 rounded-xl flex items-center border border-slate-700 focus-within:border-turf-500 transition-colors">
                     <input
+                      ref={inputRef}
                       type="text"
                       value={input}
                       onChange={(e) => setInput(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          handleSend();
+                          inputRef.current?.focus();
+                        }
+                      }}
                       placeholder="Mesaj yaz..."
                       className="w-full bg-transparent px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none"
                     />
                   </div>
                   <button
-                    onClick={handleSend}
+                    onPointerDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      handleSend();
+                      inputRef.current?.focus();
+                    }}
                     className={`p-3 rounded-xl transition-all ${input.trim() ? 'bg-turf-600 text-white shadow-lg shadow-turf-600/20 scale-100' : 'bg-slate-800 text-slate-500 scale-95'}`}
                   >
                     <Send className="w-5 h-5" />

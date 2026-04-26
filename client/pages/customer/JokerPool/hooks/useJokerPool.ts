@@ -59,7 +59,12 @@ export const useJokerPool = () => {
         if (filter.radius) setRadius(filter.radius);
     };
 
-    const visibleJokers = jokers;
+    const visibleJokers = currentUser
+        ? [
+            ...jokers.filter(j => j.id === currentUser.id),
+            ...jokers.filter(j => j.id !== currentUser.id)
+          ]
+        : jokers;
 
     const handleSaveProfile = async (data: any) => {
         try {

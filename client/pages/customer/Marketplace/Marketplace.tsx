@@ -73,7 +73,7 @@ export const Marketplace: React.FC = () => {
     setIsChallengeModalOpen(true);
   };
 
-  if (isLoading) {
+  if (isLoading && matches.length === 0) {
     return <LoadingSpinner fullScreen text="Maçlar Yükleniyor..." />;
   }
 

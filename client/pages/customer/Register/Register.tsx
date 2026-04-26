@@ -39,7 +39,7 @@ export const Register: React.FC = () => {
     } = useRegister();
 
     return (
-        <div className="min-h-screen bg-pitch flex flex-col items-center justify-center px-4 pt-10 pb-10">
+        <div className="min-h-screen bg-pitch flex flex-col items-center justify-start px-4 pt-10 pb-16">
             <div className="w-full max-w-md bg-slate-800 p-8 rounded-3xl border border-slate-700 shadow-2xl relative overflow-hidden">
 
                 <RegisterHeader step={step} totalSteps={TOTAL_STEPS} />

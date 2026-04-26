@@ -26,7 +26,7 @@ export const Login: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-pitch flex flex-col items-center justify-center px-4 pt-20 pb-28">
+        <div className="min-h-screen bg-pitch flex flex-col items-center justify-start px-4 pt-16 pb-16">
             <div className="w-full max-w-md bg-slate-800 p-8 rounded-3xl border border-slate-700 shadow-2xl">
                 <div className="text-center mb-8">
                     <img src="/icon.png" alt="DİMLİ" className="h-16 w-auto object-contain mx-auto mb-4" />
