@@ -8,6 +8,7 @@ import {
     Query,
     UseGuards,
     Request,
+    Delete,
 } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { AdminJwtAuthGuard } from './admin-jwt-auth.guard';
@@ -88,5 +89,28 @@ export class AdminController {
     @Post('businesses/:businessId/activate')
     async activateBusiness(@Param('businessId') businessId: string) {
         return this.adminService.activateBusiness(businessId);
+    }
+
+    // ─── Change Requests ─────────────────────────────────────────────────────
+
+    @UseGuards(AdminJwtAuthGuard)
+    @Get('change-requests')
+    async getChangeRequests(@Query('status') status?: string) {
+        return this.adminService.getChangeRequests(status);
+    }
+
+    @UseGuards(AdminJwtAuthGuard)
+    @Post('change-requests/:id/approve')
+    async approveChangeRequest(@Param('id') id: string) {
+        return this.adminService.approveChangeRequest(id);
+    }
+
+    @UseGuards(AdminJwtAuthGuard)
+    @Post('change-requests/:id/reject')
+    async rejectChangeRequest(
+        @Param('id') id: string,
+        @Body() body: { reason: string },
+    ) {
+        return this.adminService.rejectChangeRequest(id, body.reason);
     }
 }

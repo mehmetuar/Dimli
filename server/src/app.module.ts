@@ -19,6 +19,7 @@ import { RatingsModule } from './ratings/ratings.module';
 import { FilesModule } from './files/files.module';
 import { AdminModule } from './admin/admin.module';
 import { SubscriptionModule } from './subscription/subscription.module';
+import { PitchChangeRequestsModule } from './pitch-change-requests/pitch-change-requests.module';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { SubscriptionModule } from './subscription/subscription.module';
     FilesModule,
     AdminModule,
     SubscriptionModule,
+    PitchChangeRequestsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

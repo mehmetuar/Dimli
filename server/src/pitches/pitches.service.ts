@@ -4,6 +4,7 @@ import { Repository, MoreThan } from 'typeorm';
 import { Pitch } from './entities/pitch.entity';
 import { TimeSlot } from './entities/time-slot.entity';
 import { Reservation, ReservationStatus } from '../reservations/entities/reservation.entity';
+import { PitchChangeRequest } from './entities/pitch-change-request.entity';
 
 @Injectable()
 export class PitchesService {
@@ -14,6 +15,8 @@ export class PitchesService {
         private timeSlotRepository: Repository<TimeSlot>,
         @InjectRepository(Reservation)
         private reservationRepository: Repository<Reservation>,
+        @InjectRepository(PitchChangeRequest)
+        private changeRequestRepository: Repository<PitchChangeRequest>,
     ) { }
 
     async create(createPitchDto: any) {
@@ -50,7 +53,13 @@ export class PitchesService {
         if (!pitch) {
             throw new NotFoundException(`Pitch with ID ${id} not found`);
         }
-        return pitch;
+
+        const pendingRequests = await this.changeRequestRepository.find({
+            where: { pitchId: id, status: 'pending' },
+            order: { createdAt: 'DESC' },
+        });
+
+        return { ...pitch, pendingChangeRequests: pendingRequests };
     }
 
     async findByBusiness(businessId: string) {

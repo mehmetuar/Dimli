@@ -7,6 +7,7 @@ import ApprovedPage from './pages/ApprovedPage';
 import RejectedPage from './pages/RejectedPage';
 import SuspendedPage from './pages/SuspendedPage';
 import AdminApplicationDetail from './pages/AdminApplicationDetail';
+import ChangeRequestsPage from './pages/ChangeRequestsPage';
 import Layout from './components/Layout';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -31,6 +32,7 @@ export default function App() {
             <Route path="/rejected" element={<WithLayout><RejectedPage /></WithLayout>} />
             <Route path="/suspended" element={<WithLayout><SuspendedPage /></WithLayout>} />
             <Route path="/applications/:id" element={<WithLayout><AdminApplicationDetail /></WithLayout>} />
+            <Route path="/change-requests" element={<WithLayout><ChangeRequestsPage /></WithLayout>} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
     );

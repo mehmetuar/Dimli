@@ -11,11 +11,13 @@ import { BusinessOwner } from '../business-owner/entities/business-owner.entity'
 import { Subscription } from '../subscription/entities/subscription.entity';
 import { Pitch } from '../pitches/entities/pitch.entity';
 import { TimeSlot } from '../pitches/entities/time-slot.entity';
+import { PitchChangeRequest } from '../pitches/entities/pitch-change-request.entity';
+import { Notification } from '../notifications/notification.entity';
 
 @Module({
     imports: [
         PassportModule,
-        TypeOrmModule.forFeature([AdminUser, Business, BusinessOwner, Subscription, Pitch, TimeSlot]),
+        TypeOrmModule.forFeature([AdminUser, Business, BusinessOwner, Subscription, Pitch, TimeSlot, PitchChangeRequest, Notification]),
         JwtModule.register({
             secret: process.env.ADMIN_JWT_SECRET || 'ADMIN_SECRET_KEY',
             signOptions: { expiresIn: '8h' },

@@ -52,6 +52,14 @@ interface TimePickerState {
     type: 'OPEN' | 'CLOSE' | 'SLOT_START' | 'SLOT_END';
 }
 
+export interface PendingChangeRequest {
+    id: string;
+    type: 'CUSTOM_FACILITY' | 'PHOTO_UPDATE';
+    status: 'pending';
+    requestedData: any;
+    createdAt: string;
+}
+
 export const useBusinessPitchSettings = () => {
     const { pitchId } = useParams();
     const navigate = useNavigate();
@@ -60,15 +68,19 @@ export const useBusinessPitchSettings = () => {
     const [deleting, setDeleting] = useState(false);
     const [success, setSuccess] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
-    const [newFacility, setNewFacility] = useState('');
-    const [showFacilityInput, setShowFacilityInput] = useState(false);
+    const [businessId, setBusinessId] = useState<string | null>(null);
 
     const [timeSlots, setTimeSlots] = useState<{ startTime: string; endTime: string }[]>([]);
     const [newSlotStart, setNewSlotStart] = useState('19:00');
     const [newSlotEnd, setNewSlotEnd] = useState('20:00');
     const [savingSlots, setSavingSlots] = useState(false);
     const [slotsSuccess, setSlotsSuccess] = useState(false);
-    const [slotError, setSlotError] = useState('');
+
+    // Saat çakışma modalı
+    const [slotConflictModal, setSlotConflictModal] = useState<{
+        show: boolean;
+        message: string;
+    }>({ show: false, message: '' });
 
     const [isTimePickerOpen, setIsTimePickerOpen] = useState<TimePickerState>({ open: false, type: 'OPEN' });
 
@@ -82,6 +94,21 @@ export const useBusinessPitchSettings = () => {
         closedDays: [] as string[],
         imageUrl: '',
     });
+
+    // Bekleyen değişiklik istekleri
+    const [pendingChangeRequests, setPendingChangeRequests] = useState<PendingChangeRequest[]>([]);
+
+    // Değişiklik isteği gönderildi modalı
+    const [changeRequestSentModal, setChangeRequestSentModal] = useState(false);
+
+    // Facility modal
+    const [showFacilityModal, setShowFacilityModal] = useState(false);
+    const [newFacility, setNewFacility] = useState('');
+    const [submittingFacility, setSubmittingFacility] = useState(false);
+
+    // Photo update
+    const [showPhotoModal, setShowPhotoModal] = useState(false);
+    const [submittingPhoto, setSubmittingPhoto] = useState(false);
 
     // Conflict modal for when trying to deactivate a pitch with future matches
     const [conflictModal, setConflictModal] = useState<{ show: boolean; conflicts: any[] }>({
@@ -99,6 +126,14 @@ export const useBusinessPitchSettings = () => {
 
     const fetchPitchData = async () => {
         try {
+            const ownerId = localStorage.getItem('ownerId');
+            let busId: string | null = null;
+            if (ownerId) {
+                const ownerResp = await api.get(`/business-owner/${ownerId}`);
+                busId = ownerResp.data.business?.id || null;
+                setBusinessId(busId);
+            }
+
             const response = await api.get(`/pitches/${pitchId}`);
             const pitch = response.data;
             setFormData({
@@ -113,6 +148,9 @@ export const useBusinessPitchSettings = () => {
             });
             if (pitch.timeSlots && pitch.timeSlots.length > 0) {
                 setTimeSlots(pitch.timeSlots.map((ts: any) => ({ startTime: ts.startTime, endTime: ts.endTime })));
+            }
+            if (pitch.pendingChangeRequests) {
+                setPendingChangeRequests(pitch.pendingChangeRequests);
             }
             setLoading(false);
         } catch (error) {
@@ -159,14 +197,57 @@ export const useBusinessPitchSettings = () => {
         });
     };
 
-    const handleAddFacility = () => {
-        if (newFacility.trim()) {
-            const formatted = newFacility.trim();
-            if (!formData.facilities.includes(formatted)) {
-                setFormData(prev => ({ ...prev, facilities: [...prev.facilities, formatted] }));
-            }
+    // Manuel imkan → admin onay isteği gönder
+    const handleSubmitFacilityRequest = async () => {
+        const trimmed = newFacility.trim();
+        if (!trimmed || !businessId) return;
+
+        // Zaten mevcut mu kontrol et
+        if (formData.facilities.includes(trimmed)) {
+            alert('Bu imkan zaten eklenmiş.');
+            return;
+        }
+
+        setSubmittingFacility(true);
+        try {
+            await api.post(`/pitches/${pitchId}/change-requests`, {
+                businessId,
+                type: 'CUSTOM_FACILITY',
+                requestedData: { facility: trimmed },
+            });
             setNewFacility('');
-            setShowFacilityInput(false);
+            setShowFacilityModal(false);
+            setChangeRequestSentModal(true);
+            // Bekleyen istekleri güncelle
+            const updated = await api.get(`/pitches/${pitchId}/change-requests/pending`);
+            setPendingChangeRequests(updated.data);
+        } catch (error) {
+            console.error('Error submitting facility request:', error);
+            alert('İstek gönderilirken hata oluştu.');
+        } finally {
+            setSubmittingFacility(false);
+        }
+    };
+
+    // Fotoğraf değişikliği → admin onay isteği gönder
+    const handleSubmitPhotoRequest = async (imageUrl: string) => {
+        if (!businessId) return;
+        setSubmittingPhoto(true);
+        try {
+            await api.post(`/pitches/${pitchId}/change-requests`, {
+                businessId,
+                type: 'PHOTO_UPDATE',
+                requestedData: { imageUrl },
+            });
+            setShowPhotoModal(false);
+            setChangeRequestSentModal(true);
+            const updated = await api.get(`/pitches/${pitchId}/change-requests/pending`);
+            setPendingChangeRequests(updated.data);
+        } catch (error) {
+            console.error('Error submitting photo request:', error);
+            alert('Fotoğraf isteği gönderilirken hata oluştu.');
+        } finally {
+            setSubmittingPhoto(false);
         }
     };
 
@@ -175,15 +256,14 @@ export const useBusinessPitchSettings = () => {
     };
 
     const handleAddSlot = () => {
-        setSlotError('');
         const newSlot = { startTime: newSlotStart, endTime: newSlotEnd };
 
         if (!newSlotStart || !newSlotEnd || newSlotStart === newSlotEnd) {
-            setSlotError('Başlangıç ve bitiş saati farklı olmalı.');
+            setSlotConflictModal({ show: true, message: 'Başlangıç ve bitiş saati farklı olmalı.' });
             return;
         }
         if (toMin(newSlotStart) >= toMinEnd(newSlotEnd)) {
-            setSlotError('Bitiş saati başlangıçtan sonra olmalı.');
+            setSlotConflictModal({ show: true, message: 'Bitiş saati başlangıçtan sonra olmalı.' });
             return;
         }
 
@@ -195,14 +275,17 @@ export const useBusinessPitchSettings = () => {
             const oMin = toMin(open);
             const cMin = toMinEnd(close);
             if (sS < oMin || sE > cMin) {
-                setSlotError(`Slot ${open}–${close} saatleri arasında olmalı.`);
+                setSlotConflictModal({ show: true, message: `Slot ${open}–${close} saatleri arasında olmalı.` });
                 return;
             }
         }
 
         const overlapping = timeSlots.find(s => slotsOverlap(s, newSlot));
         if (overlapping) {
-            setSlotError(`Bu saat, ${overlapping.startTime}–${overlapping.endTime} slotu ile çakışıyor.`);
+            setSlotConflictModal({
+                show: true,
+                message: `Bu saat aralığı mevcut ${overlapping.startTime}–${overlapping.endTime} slotu ile çakışıyor.`,
+            });
             return;
         }
 
@@ -277,6 +360,9 @@ export const useBusinessPitchSettings = () => {
 
     const allFacilities = Array.from(new Set([...DEFAULT_FACILITIES, ...formData.facilities]));
 
+    const hasPendingFacility = pendingChangeRequests.some(r => r.type === 'CUSTOM_FACILITY');
+    const hasPendingPhoto = pendingChangeRequests.some(r => r.type === 'PHOTO_UPDATE');
+
     return {
         navigate,
         loading,
@@ -285,13 +371,16 @@ export const useBusinessPitchSettings = () => {
         success,
         showDeleteModal, setShowDeleteModal,
         newFacility, setNewFacility,
-        showFacilityInput, setShowFacilityInput,
+        showFacilityModal, setShowFacilityModal,
+        submittingFacility,
+        showPhotoModal, setShowPhotoModal,
+        submittingPhoto,
         timeSlots,
         newSlotStart, setNewSlotStart,
         newSlotEnd, setNewSlotEnd,
         savingSlots,
         slotsSuccess,
-        slotError, setSlotError,
+        slotConflictModal, setSlotConflictModal,
         isTimePickerOpen, setIsTimePickerOpen,
         formData,
         allFacilities,
@@ -299,10 +388,15 @@ export const useBusinessPitchSettings = () => {
         togglingStatus,
         savingClosedDays,
         closedDaysSuccess,
+        pendingChangeRequests,
+        changeRequestSentModal, setChangeRequestSentModal,
+        hasPendingFacility,
+        hasPendingPhoto,
         handleSubmit,
         handleDeletePitch,
         handleFacilityToggle,
-        handleAddFacility,
+        handleSubmitFacilityRequest,
+        handleSubmitPhotoRequest,
         handleChange,
         handleAddSlot,
         handleRemoveSlot,

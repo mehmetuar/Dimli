@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
-import { Save, Image, Power, Calendar, AlertTriangle, X } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { Save, Image, Power, Calendar, AlertTriangle, X, CheckCircle, Clock, Camera } from 'lucide-react';
 import { BusinessNavbar } from '../../../components/Business/BusinessNavbar';
 import { BusinessLoadingSpinner } from '../../../components/Business/BusinessLoadingSpinner';
+import { ImageCropModal } from '../../../components/Modals/ImageCropModal';
+import api from '../../../services/api';
 
 // Hooks
 import { useBusinessPitchSettings } from './hooks/useBusinessPitchSettings';
@@ -29,13 +31,16 @@ export const BusinessPitchSettings: React.FC = () => {
         saving,
         success,
         newFacility, setNewFacility,
-        showFacilityInput, setShowFacilityInput,
+        showFacilityModal, setShowFacilityModal,
+        submittingFacility,
+        showPhotoModal, setShowPhotoModal,
+        submittingPhoto,
         timeSlots,
         newSlotStart, setNewSlotStart,
         newSlotEnd, setNewSlotEnd,
         savingSlots,
         slotsSuccess,
-        slotError, setSlotError,
+        slotConflictModal, setSlotConflictModal,
         isTimePickerOpen, setIsTimePickerOpen,
         formData,
         allFacilities,
@@ -43,9 +48,13 @@ export const BusinessPitchSettings: React.FC = () => {
         togglingStatus,
         savingClosedDays,
         closedDaysSuccess,
+        changeRequestSentModal, setChangeRequestSentModal,
+        hasPendingPhoto,
+        hasPendingFacility,
         handleSubmit,
         handleFacilityToggle,
-        handleAddFacility,
+        handleSubmitFacilityRequest,
+        handleSubmitPhotoRequest,
         handleChange,
         handleAddSlot,
         handleRemoveSlot,
@@ -61,6 +70,11 @@ export const BusinessPitchSettings: React.FC = () => {
         day: null,
     });
 
+    // Fotoğraf yükleme state'i
+    const [cropFile, setCropFile] = useState<File | null>(null);
+    const [uploadingPhoto, setUploadingPhoto] = useState(false);
+    const photoInputRef = useRef<HTMLInputElement>(null);
+
     if (loading) return <BusinessLoadingSpinner fullScreen />;
 
     const pendingDayLabel = dayConfirm.day
@@ -69,6 +83,34 @@ export const BusinessPitchSettings: React.FC = () => {
     const pendingDayIsClosed = dayConfirm.day
         ? formData.closedDays.includes(dayConfirm.day)
         : false;
+
+    const handlePhotoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setCropFile(file);
+        }
+        // Reset input so same file can be selected again
+        e.target.value = '';
+    };
+
+    const handleCropComplete = async (croppedFile: File) => {
+        setCropFile(null);
+        setUploadingPhoto(true);
+        try {
+            const formDataUpload = new FormData();
+            formDataUpload.append('file', croppedFile);
+            const uploadResp = await api.post('/files/upload', formDataUpload, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            });
+            const imageUrl = uploadResp.data.url;
+            await handleSubmitPhotoRequest(imageUrl);
+        } catch (error) {
+            console.error('Photo upload error:', error);
+            alert('Fotoğraf yüklenirken hata oluştu.');
+        } finally {
+            setUploadingPhoto(false);
+        }
+    };
 
     return (
         <div className="min-h-screen bg-slate-900 text-white pb-24 relative">
@@ -173,11 +215,11 @@ export const BusinessPitchSettings: React.FC = () => {
                         newSlotEnd={newSlotEnd}
                         savingSlots={savingSlots}
                         slotsSuccess={slotsSuccess}
-                        slotError={slotError}
+                        slotError=""
                         pitchOpenTime={formData.openTime || undefined}
                         pitchCloseTime={formData.closeTime || undefined}
                         isTimePickerOpen={isTimePickerOpen}
-                        setIsTimePickerOpen={(s) => { setIsTimePickerOpen(s); setSlotError(''); }}
+                        setIsTimePickerOpen={(s) => setIsTimePickerOpen(s)}
                         setNewSlotStart={setNewSlotStart}
                         setNewSlotEnd={setNewSlotEnd}
                         onAddSlot={handleAddSlot}
@@ -185,30 +227,58 @@ export const BusinessPitchSettings: React.FC = () => {
                         onSaveSlots={handleSaveSlots}
                     />
 
-                    {/* ── Saha Fotoğrafı (sadece görüntüleme) ─────────────── */}
-                    {formData.imageUrl && (
-                        <div className="rounded-xl overflow-hidden border border-slate-700">
+                    {/* ── Saha Fotoğrafı ───────────────────────────────────── */}
+                    <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
+                        {formData.imageUrl ? (
                             <img
                                 src={formData.imageUrl}
                                 alt={formData.name}
                                 className="w-full h-48 object-cover"
                             />
-                            <div className="bg-slate-800 px-4 py-2 flex items-center gap-2">
-                                <Image className="w-4 h-4 text-slate-400" />
-                                <span className="text-xs text-slate-400">Saha fotoğrafı (kayıt sırasında yüklendi)</span>
+                        ) : (
+                            <div className="w-full h-48 bg-slate-900 flex items-center justify-center">
+                                <Image className="w-10 h-10 text-slate-600" />
                             </div>
+                        )}
+                        <div className="bg-slate-800 px-4 py-3 flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                                <Image className="w-4 h-4 text-slate-400" />
+                                <span className="text-xs text-slate-400">Saha fotoğrafı</span>
+                            </div>
+                            {hasPendingPhoto ? (
+                                <div className="flex items-center gap-1 text-yellow-400">
+                                    <Clock className="w-3.5 h-3.5" />
+                                    <span className="text-xs font-medium">İnceleme bekliyor</span>
+                                </div>
+                            ) : (
+                                <button
+                                    type="button"
+                                    disabled={uploadingPhoto || submittingPhoto}
+                                    onClick={() => photoInputRef.current?.click()}
+                                    className="flex items-center gap-1.5 bg-orange-600 hover:bg-orange-500 disabled:bg-slate-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors"
+                                >
+                                    <Camera className="w-3.5 h-3.5" />
+                                    {uploadingPhoto || submittingPhoto ? 'Yükleniyor...' : 'Fotoğrafı Güncelle'}
+                                </button>
+                            )}
                         </div>
-                    )}
+                    </div>
+
+                    {/* Gizli file input */}
+                    <input
+                        ref={photoInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handlePhotoFileChange}
+                    />
 
                     <PitchFacilitiesSection
                         allFacilities={allFacilities}
                         selectedFacilities={formData.facilities}
-                        newFacility={newFacility}
-                        setNewFacility={setNewFacility}
-                        showFacilityInput={showFacilityInput}
-                        setShowFacilityInput={setShowFacilityInput}
                         onToggle={handleFacilityToggle}
-                        onAdd={handleAddFacility}
+                        onOpenModal={() => setShowFacilityModal(true)}
+                        hasPendingFacility={hasPendingFacility}
                     />
 
                     <div className="pt-4">
@@ -222,6 +292,116 @@ export const BusinessPitchSettings: React.FC = () => {
             </div>
 
             <BusinessNavbar />
+
+            {/* ── ImageCrop Modal (fotoğraf seçilince açılır) ──────────── */}
+            {cropFile && (
+                <ImageCropModal
+                    file={cropFile}
+                    onCrop={handleCropComplete}
+                    onCancel={() => setCropFile(null)}
+                />
+            )}
+
+            {/* ── Manuel İmkan Ekleme Modalı ───────────────────────────── */}
+            {showFacilityModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-5">
+                    <div className="w-full max-w-md bg-slate-800 rounded-2xl border border-slate-600 shadow-2xl">
+                        <div className="p-5">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="font-bold text-white text-base">Manuel İmkan Ekle</h3>
+                                <button
+                                    type="button"
+                                    onClick={() => { setShowFacilityModal(false); setNewFacility(''); }}
+                                    className="text-slate-400 hover:text-white"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+                            <p className="text-sm text-slate-400 mb-4">
+                                Listede olmayan bir imkan eklemek istiyorsanız buraya yazın. İnceleme sonrası yayınlanacaktır.
+                            </p>
+                            <input
+                                type="text"
+                                value={newFacility}
+                                onChange={(e) => setNewFacility(e.target.value)}
+                                placeholder="İmkan adı (ör: Çocuk Parkuru)"
+                                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-orange-500 mb-4"
+                                autoFocus
+                                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSubmitFacilityRequest(); } }}
+                            />
+                            <div className="flex gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => { setShowFacilityModal(false); setNewFacility(''); }}
+                                    className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-xl font-bold transition-colors"
+                                >
+                                    Vazgeç
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleSubmitFacilityRequest}
+                                    disabled={!newFacility.trim() || submittingFacility}
+                                    className="flex-1 bg-orange-600 hover:bg-orange-500 disabled:bg-slate-700 text-white py-3 rounded-xl font-bold transition-colors"
+                                >
+                                    {submittingFacility ? 'Gönderiliyor...' : 'İstek Gönder'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ── Değişiklik İsteği Gönderildi Modalı ─────────────────── */}
+            {changeRequestSentModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-5">
+                    <div className="w-full max-w-md bg-slate-800 rounded-2xl border border-green-500/40 shadow-2xl">
+                        <div className="p-5 text-center">
+                            <div className="flex justify-center mb-4">
+                                <div className="p-3 bg-green-500/20 rounded-full">
+                                    <CheckCircle className="w-8 h-8 text-green-400" />
+                                </div>
+                            </div>
+                            <h3 className="font-bold text-white text-base mb-2">İstek Gönderildi</h3>
+                            <p className="text-sm text-slate-400 mb-5">
+                                Değişiklik isteğiniz gönderildi. En kısa sürede inceleme sonrası yayına alınacaktır.
+                            </p>
+                            <button
+                                type="button"
+                                onClick={() => setChangeRequestSentModal(false)}
+                                className="w-full bg-green-600 hover:bg-green-500 text-white py-3 rounded-xl font-bold transition-colors"
+                            >
+                                Tamam
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ── Saat Slotu Çakışma Modalı ────────────────────────────── */}
+            {slotConflictModal.show && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-5">
+                    <div className="w-full max-w-md bg-slate-800 rounded-2xl border border-yellow-500/40 shadow-2xl">
+                        <div className="p-5">
+                            <div className="flex items-start gap-3 mb-5">
+                                <div className="p-2 bg-yellow-500/20 rounded-xl flex-shrink-0">
+                                    <AlertTriangle className="w-5 h-5 text-yellow-400" />
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-white text-base">Saat Slotu Eklenemedi</h3>
+                                    <p className="text-sm text-slate-400 mt-1">{slotConflictModal.message}</p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setSlotConflictModal({ show: false, message: '' })}
+                                className="w-full bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-xl font-bold transition-colors"
+                            >
+                                Tamam
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* ── Saha Durumu Onay Modalı ───────────────────────────────── */}
             {statusConfirm && (

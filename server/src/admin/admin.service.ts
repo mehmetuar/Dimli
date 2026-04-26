@@ -14,6 +14,8 @@ import { BusinessOwner } from '../business-owner/entities/business-owner.entity'
 import { Subscription } from '../subscription/entities/subscription.entity';
 import { Pitch } from '../pitches/entities/pitch.entity';
 import { TimeSlot } from '../pitches/entities/time-slot.entity';
+import { PitchChangeRequest } from '../pitches/entities/pitch-change-request.entity';
+import { Notification } from '../notifications/notification.entity';
 
 const PLAN_LABELS: Record<string, string> = {
     '1_pitch': 'Starter',
@@ -38,6 +40,10 @@ export class AdminService {
         private pitchRepository: Repository<Pitch>,
         @InjectRepository(TimeSlot)
         private timeSlotRepository: Repository<TimeSlot>,
+        @InjectRepository(PitchChangeRequest)
+        private changeRequestRepository: Repository<PitchChangeRequest>,
+        @InjectRepository(Notification)
+        private notificationRepository: Repository<Notification>,
         private jwtService: JwtService,
     ) { }
 
@@ -252,6 +258,115 @@ export class AdminService {
         }
 
         return this.getApplicationDetail(businessId);
+    }
+
+    // ─── Change Requests ─────────────────────────────────────────────────────
+
+    async getChangeRequests(status?: string): Promise<any[]> {
+        const where: any = status ? { status } : { status: 'pending' };
+        const requests = await this.changeRequestRepository.find({
+            where,
+            relations: ['pitch', 'pitch.business'],
+            order: { createdAt: 'DESC' },
+        });
+
+        return requests.map(r => ({
+            id: r.id,
+            type: r.type,
+            status: r.status,
+            requestedData: r.requestedData,
+            currentData: r.currentData,
+            rejectionReason: r.rejectionReason,
+            createdAt: r.createdAt,
+            reviewedAt: r.reviewedAt,
+            pitchId: r.pitchId,
+            pitchName: r.pitch?.name,
+            businessId: r.businessId,
+            businessName: r.pitch?.business?.name,
+        }));
+    }
+
+    async approveChangeRequest(requestId: string): Promise<{ success: boolean }> {
+        const request = await this.changeRequestRepository.findOne({
+            where: { id: requestId },
+            relations: ['pitch'],
+        });
+        if (!request) throw new NotFoundException('İstek bulunamadı.');
+
+        if (request.type === 'CUSTOM_FACILITY') {
+            const pitch = await this.pitchRepository.findOne({ where: { id: request.pitchId } });
+            const currentFacilities = pitch?.facilities || [];
+            if (!currentFacilities.includes(request.requestedData.facility)) {
+                await this.pitchRepository.update(request.pitchId, {
+                    facilities: [...currentFacilities, request.requestedData.facility],
+                });
+            }
+        } else if (request.type === 'PHOTO_UPDATE') {
+            await this.pitchRepository.update(request.pitchId, {
+                imageUrl: request.requestedData.imageUrl,
+            });
+        }
+
+        await this.changeRequestRepository.update(requestId, {
+            status: 'approved',
+            reviewedAt: new Date(),
+        });
+
+        await this.sendOwnerNotification(
+            request.businessId,
+            'PITCH_CHANGE_APPROVED',
+            request.type === 'CUSTOM_FACILITY'
+                ? `"${request.requestedData.facility}" imkanı onaylandı ve sahanıza eklendi.`
+                : 'Saha fotoğrafı değişikliğiniz onaylandı ve yayınlandı.',
+            requestId,
+        );
+
+        return { success: true };
+    }
+
+    async rejectChangeRequest(requestId: string, reason: string): Promise<{ success: boolean }> {
+        const request = await this.changeRequestRepository.findOne({ where: { id: requestId } });
+        if (!request) throw new NotFoundException('İstek bulunamadı.');
+
+        await this.changeRequestRepository.update(requestId, {
+            status: 'rejected',
+            rejectionReason: reason,
+            reviewedAt: new Date(),
+        });
+
+        await this.sendOwnerNotification(
+            request.businessId,
+            'PITCH_CHANGE_REJECTED',
+            request.type === 'CUSTOM_FACILITY'
+                ? `"${request.requestedData.facility}" imkan isteğiniz reddedildi. Sebep: ${reason}`
+                : `Saha fotoğrafı değişiklik isteğiniz reddedildi. Sebep: ${reason}`,
+            requestId,
+        );
+
+        return { success: true };
+    }
+
+    private async sendOwnerNotification(
+        businessId: string,
+        type: 'PITCH_CHANGE_APPROVED' | 'PITCH_CHANGE_REJECTED',
+        message: string,
+        relatedId: string,
+    ): Promise<void> {
+        const owner = await this.businessOwnerRepository.findOne({
+            where: { business: { id: businessId } },
+            relations: ['business'],
+        });
+        if (!owner) return;
+
+        const notification = this.notificationRepository.create({
+            userId: owner.id,
+            type,
+            title: type === 'PITCH_CHANGE_APPROVED' ? 'Değişiklik Onaylandı' : 'Değişiklik Reddedildi',
+            message,
+            relatedId,
+            read: false,
+        });
+        await this.notificationRepository.save(notification);
     }
 
     // ─── Statistics ───────────────────────────────────────────────────────────

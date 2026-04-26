@@ -10,6 +10,7 @@ import {
     IconLogout,
     IconShield,
     IconMenu,
+    IconClipboard,
 } from './Icons';
 import LogoutModal from './LogoutModal';
 
@@ -120,6 +121,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed = false, onToggle }) => {
                     <NavItem to="/approved" icon={<IconCheck size={18} />} label={collapsed ? '' : 'Onaylı'} />
                     <NavItem to="/rejected" icon={<IconX size={18} />} label={collapsed ? '' : 'Reddedilen'} />
                     <NavItem to="/suspended" icon={<IconPause size={18} />} label={collapsed ? '' : 'Askıda'} />
+                    <NavItem to="/change-requests" icon={<IconClipboard size={18} />} label={collapsed ? '' : 'Değişiklik İstekleri'} />
                 </nav>
 
                 {/* Alt — Çıkış */}

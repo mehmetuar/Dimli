@@ -1,22 +1,17 @@
 import React from 'react';
-import { ListChecks, Plus, X } from 'lucide-react';
+import { ListChecks, Plus, Clock } from 'lucide-react';
 
 interface PitchFacilitiesSectionProps {
     allFacilities: string[];
     selectedFacilities: string[];
-    newFacility: string;
-    setNewFacility: (v: string) => void;
-    showFacilityInput: boolean;
-    setShowFacilityInput: (v: boolean) => void;
     onToggle: (facility: string) => void;
-    onAdd: () => void;
+    onOpenModal: () => void;
+    hasPendingFacility: boolean;
 }
 
 export const PitchFacilitiesSection: React.FC<PitchFacilitiesSectionProps> = ({
     allFacilities, selectedFacilities,
-    newFacility, setNewFacility,
-    showFacilityInput, setShowFacilityInput,
-    onToggle, onAdd
+    onToggle, onOpenModal, hasPendingFacility,
 }) => {
     return (
         <div className="bg-slate-800 p-5 rounded-xl border border-slate-700">
@@ -43,31 +38,23 @@ export const PitchFacilitiesSection: React.FC<PitchFacilitiesSectionProps> = ({
                 })}
             </div>
 
-            {showFacilityInput ? (
-                <div className="flex gap-2">
-                    <input
-                        type="text"
-                        value={newFacility}
-                        onChange={(e) => setNewFacility(e.target.value)}
-                        placeholder="Özellik adı..."
-                        className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 text-white focus:outline-none focus:border-orange-500"
-                        autoFocus
-                    />
-                    <button type="button" onClick={onAdd}
-                        className="bg-green-600 hover:bg-green-500 text-white px-3 rounded-lg flex items-center gap-1 font-bold text-sm">
-                        Ekle
-                    </button>
-                    <button type="button" onClick={() => setShowFacilityInput(false)}
-                        className="bg-slate-700 hover:bg-slate-600 text-white px-3 rounded-lg">
-                        <X className="w-4 h-4" />
-                    </button>
+            {hasPendingFacility && (
+                <div className="mb-3 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-xl flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-yellow-400 flex-shrink-0" />
+                    <p className="text-xs text-yellow-400 font-medium">
+                        Manuel imkan ekleme isteğiniz inceleme bekliyor.
+                    </p>
                 </div>
-            ) : (
-                <button type="button" onClick={() => setShowFacilityInput(true)}
-                    className="w-full py-3 bg-slate-900 border border-dashed border-slate-600 rounded-xl text-slate-400 hover:text-white hover:border-slate-400 transition-colors flex items-center justify-center gap-2 font-bold text-sm">
-                    <Plus className="w-4 h-4" /> Yeni İmkan Ekle
-                </button>
             )}
+
+            <button
+                type="button"
+                onClick={onOpenModal}
+                disabled={hasPendingFacility}
+                className="w-full py-3 bg-slate-900 border border-dashed border-slate-600 rounded-xl text-slate-400 hover:text-white hover:border-slate-400 transition-colors flex items-center justify-center gap-2 font-bold text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+                <Plus className="w-4 h-4" /> Manuel İmkan Ekle
+            </button>
         </div>
     );
 };
