@@ -82,21 +82,6 @@ export const BusinessPitchSettings: React.FC = () => {
 
             <div className="p-4 space-y-6">
 
-                {/* ── Saha Fotoğrafı (sadece görüntüleme) ─────────────────── */}
-                {formData.imageUrl && (
-                    <div className="rounded-xl overflow-hidden border border-slate-700">
-                        <img
-                            src={formData.imageUrl}
-                            alt={formData.name}
-                            className="w-full h-48 object-cover"
-                        />
-                        <div className="bg-slate-800 px-4 py-2 flex items-center gap-2">
-                            <Image className="w-4 h-4 text-slate-400" />
-                            <span className="text-xs text-slate-400">Saha fotoğrafı (kayıt sırasında yüklendi)</span>
-                        </div>
-                    </div>
-                )}
-
                 {/* ── Saha Durumu (Aktif / Pasif toggle) ──────────────────── */}
                 <div className="bg-slate-800 p-5 rounded-xl border border-slate-700">
                     <div className="flex items-center justify-between">
@@ -199,6 +184,21 @@ export const BusinessPitchSettings: React.FC = () => {
                         onRemoveSlot={handleRemoveSlot}
                         onSaveSlots={handleSaveSlots}
                     />
+
+                    {/* ── Saha Fotoğrafı (sadece görüntüleme) ─────────────── */}
+                    {formData.imageUrl && (
+                        <div className="rounded-xl overflow-hidden border border-slate-700">
+                            <img
+                                src={formData.imageUrl}
+                                alt={formData.name}
+                                className="w-full h-48 object-cover"
+                            />
+                            <div className="bg-slate-800 px-4 py-2 flex items-center gap-2">
+                                <Image className="w-4 h-4 text-slate-400" />
+                                <span className="text-xs text-slate-400">Saha fotoğrafı (kayıt sırasında yüklendi)</span>
+                            </div>
+                        </div>
+                    )}
 
                     <PitchFacilitiesSection
                         allFacilities={allFacilities}

@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { Camera, TurkishLira, X, Layers, Clock } from 'lucide-react';
+import { ImageCropModal } from '../../../../../components/Modals/ImageCropModal';
 import { Input } from '../RegisterSidebar';
 import { SUBSCRIPTION_PLANS } from '../../hooks/useBusinessRegister';
 import { FacilitiesModal } from '../../../../../components/Modals/FacilitiesModal';
@@ -61,6 +62,7 @@ export const PitchesAndPlanStep: React.FC<PitchesAndPlanStepProps> = ({
     const fileInputRefs = useRef<(HTMLInputElement | null)[]>([]);
     const [facilitiesModalIdx, setFacilitiesModalIdx] = useState<number | null>(null);
     const [slotsModalIdx, setSlotsModalIdx] = useState<number | null>(null);
+    const [cropTarget, setCropTarget] = useState<{ index: number; file: File } | null>(null);
 
     const selectedCount = formData.selectedPitchCount;
     const plan = SUBSCRIPTION_PLANS[selectedCount] || SUBSCRIPTION_PLANS[5];
@@ -163,48 +165,51 @@ export const PitchesAndPlanStep: React.FC<PitchesAndPlanStepProps> = ({
                                 <label className="text-xs text-slate-400 font-bold uppercase mb-2 block">
                                     Saha Fotoğrafı <span className="text-red-500">*</span>
                                 </label>
-                                <div className="flex items-center gap-3">
-                                    {pitch.imageUrl ? (
-                                        <div className="relative shrink-0">
+                                {pitch.imageUrl ? (
+                                    <div className="space-y-2">
+                                        {/* Tam genişlik önizleme — settings sayfasıyla aynı boyut */}
+                                        <div className="relative rounded-xl overflow-hidden border border-slate-600">
                                             <img
                                                 src={pitch.imageUrl}
                                                 alt="Saha"
-                                                className="w-16 h-16 object-cover rounded-xl border border-slate-600"
+                                                className="w-full h-48 object-cover"
                                             />
                                             <button
                                                 onClick={() => {
                                                     updatePitch(index, 'photoFile', null);
                                                     updatePitch(index, 'imageUrl', '');
                                                 }}
-                                                className="absolute -top-1 -right-1 bg-red-500 rounded-full p-0.5"
+                                                className="absolute top-2 right-2 bg-black/60 rounded-full p-1.5"
                                             >
-                                                <X size={12} className="text-white" />
+                                                <X size={14} className="text-white" />
                                             </button>
                                         </div>
-                                    ) : null}
+                                        <button
+                                            onClick={() => fileInputRefs.current[index]?.click()}
+                                            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-600 text-slate-400 hover:border-slate-500 font-bold text-sm transition-colors min-h-[44px]"
+                                        >
+                                            <Camera size={16} /> Değiştir
+                                        </button>
+                                    </div>
+                                ) : (
                                     <button
                                         onClick={() => fileInputRefs.current[index]?.click()}
-                                        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border font-bold text-sm transition-colors min-h-[44px] ${
-                                            pitch.imageUrl
-                                                ? 'border-slate-600 text-slate-400 hover:border-slate-500'
-                                                : 'border-orange-500/50 text-orange-400 hover:bg-orange-500/10'
-                                        }`}
+                                        className="flex flex-col items-center justify-center gap-2 w-full h-36 rounded-xl border-2 border-dashed border-orange-500/50 text-orange-400 hover:bg-orange-500/10 transition-colors font-bold text-sm"
                                     >
-                                        <Camera size={16} />
-                                        {pitch.imageUrl ? 'Değiştir' : 'Fotoğraf Ekle'}
+                                        <Camera size={24} /> Fotoğraf Ekle
                                     </button>
-                                    <input
-                                        ref={el => { fileInputRefs.current[index] = el; }}
-                                        type="file"
-                                        accept="image/*"
-                                        className="hidden"
-                                        onChange={e => {
-                                            const file = e.target.files?.[0];
-                                            if (file) handlePhotoSelect(index, file);
-                                            e.target.value = '';
-                                        }}
-                                    />
-                                </div>
+                                )}
+                                <input
+                                    ref={el => { fileInputRefs.current[index] = el; }}
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={e => {
+                                        const file = e.target.files?.[0];
+                                        if (file) setCropTarget({ index, file });
+                                        e.target.value = '';
+                                    }}
+                                />
                             </div>
 
                             {/* Saha-özel saatler */}
@@ -315,6 +320,18 @@ export const PitchesAndPlanStep: React.FC<PitchesAndPlanStepProps> = ({
                     onToggle={(facility) => toggleFacility(facilitiesModalIdx, facility)}
                     onAddCustom={(name) => handleAddCustomFacility(facilitiesModalIdx, name)}
                     pitchName={formData.pitches[facilitiesModalIdx]?.name}
+                />
+            )}
+
+            {/* Image Crop Modal */}
+            {cropTarget !== null && (
+                <ImageCropModal
+                    file={cropTarget.file}
+                    onCrop={(croppedFile: File) => {
+                        handlePhotoSelect(cropTarget.index, croppedFile);
+                        setCropTarget(null);
+                    }}
+                    onCancel={() => setCropTarget(null)}
                 />
             )}
 

@@ -68,6 +68,13 @@ export const RegisterSidebar: React.FC<RegisterSidebarProps> = ({ currentStep })
     );
 };
 
+const scrollInputIntoView = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const el = e.target;
+    setTimeout(() => {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 350);
+};
+
 export const Input = ({ label, type = "text", value, onChange, required, textarea, icon }: any) => (
     <div className="flex flex-col gap-1 w-full min-w-0">
         <label className="text-xs text-slate-400 font-bold uppercase ml-1 block">
@@ -81,6 +88,7 @@ export const Input = ({ label, type = "text", value, onChange, required, textare
                     value={value}
                     onChange={onChange}
                     required={required}
+                    onFocus={scrollInputIntoView}
                 />
             ) : (
                 <input
@@ -89,6 +97,7 @@ export const Input = ({ label, type = "text", value, onChange, required, textare
                     value={value}
                     onChange={onChange}
                     required={required}
+                    onFocus={scrollInputIntoView}
                 />
             )}
         </div>

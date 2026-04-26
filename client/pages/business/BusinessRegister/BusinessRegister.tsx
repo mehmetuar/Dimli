@@ -6,6 +6,7 @@ import { BusinessTimePickerModal } from '../../../components/Modals/BusinessTime
 
 import { useBusinessRegister } from './hooks/useBusinessRegister';
 import { RegisterSidebar, steps } from './components/RegisterSidebar';
+import { useKeyboardHeight } from '../../../utils/useKeyboardHeight';
 
 import { WelcomeStep } from './components/steps/WelcomeStep';
 import { OwnerInfoStep } from './components/steps/OwnerInfoStep';
@@ -17,6 +18,7 @@ import { PaymentStep } from './components/steps/PaymentStep';
 import { CongratulationsStep } from './components/steps/CongratulationsStep';
 
 export const BusinessRegister: React.FC = () => {
+    const keyboardHeight = useKeyboardHeight();
     const {
         currentStep, totalSteps,
         error, isLoading,
@@ -97,7 +99,10 @@ export const BusinessRegister: React.FC = () => {
     };
 
     return (
-        <div className="min-h-[100dvh] bg-slate-950 flex flex-col items-center justify-center p-3 md:p-4 pb-safe">
+        <div
+            className="min-h-[100dvh] bg-slate-950 flex flex-col items-center justify-center p-3 md:p-4"
+            style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight + 12 : undefined }}
+        >
             <div className="w-full max-w-4xl bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-800 shadow-2xl overflow-hidden flex flex-col md:flex-row min-h-[580px] md:min-h-[600px]">
 
                 <RegisterSidebar currentStep={currentStep} />

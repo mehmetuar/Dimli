@@ -290,7 +290,7 @@ const TimeSlotsModalContent: React.FC<TimeSlotsModalProps> = ({
                     </h3>
                 </div>
                 <button
-                    onPointerDown={(e: React.PointerEvent) => { e.preventDefault(); onClose(); }}
+                    onClick={onClose}
                     style={{
                         width: 40, height: 40, borderRadius: 20, backgroundColor: '#1e293b',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -447,7 +447,7 @@ const TimeSlotsModalContent: React.FC<TimeSlotsModalProps> = ({
                 paddingBottom: 'max(20px, env(safe-area-inset-bottom))',
             }}>
                 <button
-                    onPointerDown={(e: React.PointerEvent) => { e.preventDefault(); onClose(); }}
+                    onClick={onClose}
                     style={{
                         width: '100%', backgroundColor: '#ea580c',
                         border: 'none', borderRadius: 16,
