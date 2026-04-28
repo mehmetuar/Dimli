@@ -14,6 +14,7 @@ import { Challenge } from '../challenges/challenge.entity';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { ReservationsModule } from '../reservations/reservations.module';
 import { TeamsModule } from '../teams/teams.module';
+import { RatingsModule } from '../ratings/ratings.module';
 
 @Module({
     imports: [
@@ -31,6 +32,7 @@ import { TeamsModule } from '../teams/teams.module';
         forwardRef(() => NotificationsModule),
         forwardRef(() => ReservationsModule),
         forwardRef(() => TeamsModule),
+        RatingsModule,
     ],
     controllers: [ChatController],
     providers: [ChatService],

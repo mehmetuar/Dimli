@@ -289,4 +289,9 @@ export class RatingsService {
             .andWhere('(r.teamId = :teamId OR r.opponentTeamId = :teamId)', { teamId })
             .getCount();
     }
+
+    async getTeamPlayerCount(teamId: string | null): Promise<number> {
+        if (!teamId) return 0;
+        return this.userRepo.count({ where: { teamId } });
+    }
 }

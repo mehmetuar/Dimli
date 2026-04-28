@@ -23,9 +23,14 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
     handleCancelClick,
     handleManualFillSlot
 }) => {
+    const [playerWarning, setPlayerWarning] = React.useState<{
+        isOpen: boolean; message: string; reservationId: string;
+    }>({ isOpen: false, message: '', reservationId: '' });
+
     if (!selectedSlot) return null;
 
     return (
+        <>
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={() => setSelectedSlot(null)}>
             <div className="bg-slate-800 w-full max-w-md rounded-2xl p-6 border border-slate-700 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
                 <div className="flex justify-between items-start mb-6">
@@ -217,7 +222,44 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                                             ) : (
                                                 <div className="flex gap-2">
                                                     <button
-                                                        onClick={() => openActionModal('APPROVE', res.id)}
+                                                        onClick={() => {
+                                                            const required = res.matchAnnouncement?.playerCount;
+                                                            const homeCount = res.team?.playerCount;
+                                                            const isKendiAramizda = !res.opponentTeam;
+
+                                                            if (required == null) {
+                                                                openActionModal('APPROVE', res.id);
+                                                                return;
+                                                            }
+
+                                                            let warningMsg = '';
+
+                                                            if (isKendiAramizda) {
+                                                                // Kendi aramızda: tüm oyuncular bu takımda, required * 2 gerekli
+                                                                const totalRequired = required * 2;
+                                                                if (homeCount !== undefined && homeCount < totalRequired) {
+                                                                    warningMsg = `${res.team?.name} takımının kadrosunda ${totalRequired} oyuncu bulunmuyor. Lütfen oyuncu sayılarının eksiksiz olduğunu teyit edin`;
+                                                                }
+                                                            } else {
+                                                                const awayCount = res.opponentTeam?.playerCount;
+                                                                const hasHomeWarning = homeCount !== undefined && homeCount < required;
+                                                                const hasAwayWarning = awayCount !== undefined && awayCount < required;
+
+                                                                if (hasHomeWarning && hasAwayWarning) {
+                                                                    warningMsg = `${res.team?.name} Ve ${res.opponentTeam?.name} takımlarının kadrosunda ${required} oyuncu bulunmuyor. Lütfen oyuncu sayılarını teyit ediniz`;
+                                                                } else if (hasHomeWarning) {
+                                                                    warningMsg = `${res.team?.name} takımının kadrosunda ${required} oyuncu bulunmuyor. Lütfen oyuncu sayılarının eksiksiz olduğunu teyit edin`;
+                                                                } else if (hasAwayWarning) {
+                                                                    warningMsg = `${res.opponentTeam?.name} takımının kadrosunda ${required} oyuncu bulunmuyor. Lütfen oyuncu sayılarının eksiksiz olduğunu teyit edin`;
+                                                                }
+                                                            }
+
+                                                            if (warningMsg) {
+                                                                setPlayerWarning({ isOpen: true, message: warningMsg, reservationId: res.id });
+                                                            } else {
+                                                                openActionModal('APPROVE', res.id);
+                                                            }
+                                                        }}
                                                         className="flex-[2] bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white py-3 rounded-xl font-bold text-sm transition-all shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2 group"
                                                     >
                                                         <div className="bg-white/20 p-1 rounded-full group-hover:scale-110 transition-transform">
@@ -264,5 +306,35 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                 </div>
             </div>
         </div>
+
+        {playerWarning.isOpen && (
+            <div className="fixed inset-0 bg-black/80 z-[70] flex items-center justify-center p-4">
+                <div className="bg-slate-800 w-full max-w-sm rounded-3xl border border-orange-500/30 p-6">
+                    <div className="flex items-center gap-3 mb-3">
+                        <AlertTriangle className="w-6 h-6 text-orange-400 shrink-0" />
+                        <h3 className="text-lg font-bold text-white">Kadro Uyarısı</h3>
+                    </div>
+                    <p className="text-slate-300 text-sm mb-5">{playerWarning.message}</p>
+                    <div className="flex gap-3">
+                        <button
+                            onClick={() => setPlayerWarning({ isOpen: false, message: '', reservationId: '' })}
+                            className="flex-1 bg-slate-700 text-white font-bold py-3 rounded-xl hover:bg-slate-600 transition-colors"
+                        >
+                            İptal
+                        </button>
+                        <button
+                            onClick={() => {
+                                setPlayerWarning({ isOpen: false, message: '', reservationId: '' });
+                                openActionModal('APPROVE', playerWarning.reservationId);
+                            }}
+                            className="flex-1 bg-orange-600 text-white font-bold py-3 rounded-xl hover:bg-orange-500 transition-colors"
+                        >
+                            Yine de Onayla
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
+        </>
     );
 };

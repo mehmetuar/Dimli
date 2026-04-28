@@ -392,6 +392,48 @@ export const Chat: React.FC = () => {
           </span>
         </div>
 
+        {(() => {
+          const res = activeChannel?.reservation as any;
+          if (!res || res.status !== 'PENDING' || !res.requiredPlayerCount) return null;
+          const required = res.requiredPlayerCount;
+          const isKendiAramizda = !res.opponentTeamId;
+          const warnings: string[] = [];
+
+          if (isKendiAramizda) {
+            // Kendi aramızda: tüm oyuncular aynı takımda, required * 2 oyuncu gerekli
+            const totalRequired = required * 2;
+            const myCount = res.homeTeamPlayerCount;
+            if (myCount !== undefined && myCount < totalRequired) {
+              warnings.push(`Takımınızda ${totalRequired} oyuncu bulunmuyor lütfen oyuncu sayılarınızın eksiksiz olduğundan emin olun`);
+            }
+          } else {
+            const myTeamId = (currentUser as any)?.teamId;
+            const isHomeTeam = myTeamId === res.teamId;
+            const myCount = isHomeTeam ? res.homeTeamPlayerCount : res.awayTeamPlayerCount;
+            const oppCount = isHomeTeam ? res.awayTeamPlayerCount : res.homeTeamPlayerCount;
+
+            if (myCount !== undefined && myCount < required) {
+              warnings.push(`Takımınızda ${required} oyuncu bulunmuyor lütfen oyuncu sayınızın eksiksiz olduğundan emin olun`);
+            }
+            if (oppCount !== undefined && oppCount < required) {
+              warnings.push(`Eşleştiğiniz takımın kadrosunda ${required} oyuncu bulunmuyor lütfen oyuncu sayılarını teyit ettirin`);
+            }
+          }
+
+          if (warnings.length === 0) return null;
+
+          return (
+            <div className="space-y-1 -mt-2">
+              {warnings.map((w, i) => (
+                <div key={i} className="flex items-start gap-2 bg-orange-500/10 border border-orange-500/30 rounded-xl px-3 py-2">
+                  <AlertTriangle className="w-4 h-4 text-orange-400 shrink-0 mt-0.5" />
+                  <p className="text-xs text-orange-200">{w}</p>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
+
         {messages.map((msg, index) => {
           const isNextSameTime = messages[index + 1]?.timestamp === msg.timestamp;
           const prevMsg = messages[index - 1];

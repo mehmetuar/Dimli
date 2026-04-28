@@ -13,6 +13,7 @@ import { Challenge } from '../challenges/challenge.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ReservationsService } from '../reservations/reservations.service';
 import { TeamsService } from '../teams/teams.service';
+import { RatingsService } from '../ratings/ratings.service';
 
 @Injectable()
 export class ChatService {
@@ -39,6 +40,7 @@ export class ChatService {
         @Inject(forwardRef(() => ReservationsService))
         private reservationsService: ReservationsService,
         private teamsService: TeamsService,
+        private ratingsService: RatingsService,
     ) { }
 
     async createChannel(type: 'DM' | 'MATCH_GROUP' | 'TEAM_INTERNAL' | 'JOKER_NEGOTIATION', name: string, participants: User[], relatedMatchId?: string): Promise<ChatChannel> {
@@ -82,7 +84,7 @@ export class ChatService {
 
             const lastMessage = channel.messages.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
 
-            let reservationData: { id?: string; status: string; slotTime: Date; cancelRequested?: boolean; teamId?: string; opponentTeamId?: string } | null = null;
+            let reservationData: { id?: string; status: string; slotTime: Date; cancelRequested?: boolean; teamId?: string; opponentTeamId?: string; homeTeamPlayerCount?: number; awayTeamPlayerCount?: number; requiredPlayerCount?: number | null } | null = null;
             let isJoker = false;
             if (channel.relatedMatchId) {
                 // Find reservation linked to this match announcement
@@ -121,13 +123,26 @@ export class ChatService {
                 }
 
                 if (reservation) {
+                    const matchAnn = channel.relatedMatchId
+                        ? await this.matchAnnouncementRepository.findOne({
+                            where: { id: channel.relatedMatchId },
+                            select: ['playerCount'] as any,
+                        })
+                        : null;
+
                     reservationData = {
                         id: reservation.id,
                         status: reservation.status,
                         slotTime: reservation.slotTime,
                         cancelRequested: reservation.cancelRequested,
                         teamId: reservation.teamId,
-                        opponentTeamId: reservation.opponentTeamId
+                        opponentTeamId: reservation.opponentTeamId,
+                        homeTeamPlayerCount: await this.ratingsService.getTeamPlayerCount(reservation.teamId),
+                        // undefined for kendi aramızda (no opponent) to avoid false warnings
+                        awayTeamPlayerCount: reservation.opponentTeamId
+                            ? await this.ratingsService.getTeamPlayerCount(reservation.opponentTeamId)
+                            : undefined,
+                        requiredPlayerCount: matchAnn?.playerCount ?? null,
                     } as any;
                 }
 

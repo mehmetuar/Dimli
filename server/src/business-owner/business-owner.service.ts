@@ -93,13 +93,15 @@ export class BusinessOwnerService {
                         return Math.abs(rTime.getTime() - slotTime.getTime()) < 60000;
                     });
 
-                    // Enrich reservations with playedMatchCount
+                    // Enrich reservations with playedMatchCount and playerCount
                     for (const res of slotReservations) {
                         if (res.teamId) {
                             (res.team as any).playedMatchCount = await this.ratingsService.getTeamMatchCount(res.teamId);
+                            (res.team as any).playerCount = await this.ratingsService.getTeamPlayerCount(res.teamId);
                         }
                         if (res.opponentTeamId) {
                             (res.opponentTeam as any).playedMatchCount = await this.ratingsService.getTeamMatchCount(res.opponentTeamId);
+                            (res.opponentTeam as any).playerCount = await this.ratingsService.getTeamPlayerCount(res.opponentTeamId);
                         }
                     }
 
@@ -151,13 +153,15 @@ export class BusinessOwnerService {
                         return Math.abs(rTime.getTime() - slotTime.getTime()) < 60000;
                     });
 
-                    // Enrich reservations with playedMatchCount
+                    // Enrich reservations with playedMatchCount and playerCount
                     for (const res of slotReservations) {
                         if (res.teamId) {
                             (res.team as any).playedMatchCount = await this.ratingsService.getTeamMatchCount(res.teamId);
+                            (res.team as any).playerCount = await this.ratingsService.getTeamPlayerCount(res.teamId);
                         }
                         if (res.opponentTeamId) {
                             (res.opponentTeam as any).playedMatchCount = await this.ratingsService.getTeamMatchCount(res.opponentTeamId);
+                            (res.opponentTeam as any).playerCount = await this.ratingsService.getTeamPlayerCount(res.opponentTeamId);
                         }
                     }
 
