@@ -5,6 +5,7 @@ const config: CapacitorConfig = {
   appName: 'Dimli',
   webDir: 'dist',
   server: {
+    iosScheme: 'https',
     allowNavigation: [
       "*.openstreetmap.org"
     ]

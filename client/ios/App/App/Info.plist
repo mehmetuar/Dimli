@@ -47,5 +47,16 @@
 	<true/>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Dimli needs your location to find nearby pitches and players.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.958126310110-sl03lq2qajn191e8jfg86np4qebunqr4</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>
