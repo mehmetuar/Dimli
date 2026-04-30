@@ -73,7 +73,7 @@ async function bootstrap() {
                 email: email,
                 password: hashedPassword,
                 fullName: `${business.name} Yöneticisi`,
-                phone: business.phone || '05XX XXX XX XX',
+                phone: '05XX XXX XX XX',
                 business: business
             });
 

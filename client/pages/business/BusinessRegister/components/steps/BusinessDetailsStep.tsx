@@ -18,20 +18,13 @@ export const BusinessDetailsStep: React.FC<BusinessDetailsStepProps> = ({
         <div className="space-y-4 animate-fade-in">
             <h2 className="text-lg md:text-xl font-bold text-white mb-4">İşletme Detayları</h2>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4">
                 <Input
                     label="İşletme Adı"
                     value={formData.business.name}
                     onChange={(e: any) => updateBusiness('name', e.target.value)}
                     required
                     error={fieldErrors['business.name']}
-                />
-                <Input
-                    label="İşletme Telefonu"
-                    value={formData.business.phone}
-                    onChange={(e: any) => updateBusiness('phone', e.target.value)}
-                    required
-                    error={fieldErrors['business.phone']}
                 />
             </div>
 

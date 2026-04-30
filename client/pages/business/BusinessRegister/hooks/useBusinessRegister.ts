@@ -26,7 +26,7 @@ export interface RegisterBusinessData {
     owner: { email: string; password: string; fullName: string; phone: string };
     business: {
         name: string; city: string; district: string; address: string;
-        latitude: number; longitude: number; phone: string; openTime: string; closeTime: string;
+        latitude: number; longitude: number; openTime: string; closeTime: string;
     };
     pitches: ReturnType<typeof makePitch>[];
     selectedPitchCount: number;
@@ -64,7 +64,7 @@ export const useBusinessRegister = () => {
         business: {
             name: '', city: '', district: '', address: '',
             latitude: 41.0082, longitude: 28.9784,
-            phone: '', openTime: '09:00', closeTime: '23:00',
+            openTime: '09:00', closeTime: '23:00',
         },
         pitches: [makePitch(0)],
         selectedPitchCount: 1,
@@ -165,7 +165,6 @@ export const useBusinessRegister = () => {
         if (step === 4) {
             // İşletme Detayları
             if (!formData.business.name.trim()) errors['business.name'] = 'İşletme adı zorunludur';
-            if (!formData.business.phone.trim()) errors['business.phone'] = 'İşletme telefonu zorunludur';
         }
 
         if (step === 5) {

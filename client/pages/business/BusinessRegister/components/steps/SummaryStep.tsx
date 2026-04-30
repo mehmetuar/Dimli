@@ -19,7 +19,6 @@ export const SummaryStep: React.FC<SummaryStepProps> = ({ formData }) => {
                 <SummaryItem label="Yetkili" value={`${formData.owner.fullName} (${formData.owner.email})`} />
                 <SummaryItem label="İşletme" value={`${formData.business.name}`} />
                 <SummaryItem label="Adres" value={`${formData.business.city} / ${formData.business.district}`} />
-                <SummaryItem label="Telefon" value={formData.business.phone} />
                 <SummaryItem label="Saha Sayısı" value={`${formData.pitches.length} Adet`} />
                 <div className="border-t border-slate-800 pt-2 mt-2">
                     <p className="text-slate-400 text-xs mb-1">Sahalar:</p>

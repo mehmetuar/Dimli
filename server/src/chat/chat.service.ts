@@ -430,7 +430,7 @@ export class ChatService {
         // 2. Find the match announcement with team and pitch
         const match = await this.matchAnnouncementRepository.findOne({
             where: { id: channel.relatedMatchId },
-            relations: ['team', 'pitch', 'pitch.business'],
+            relations: ['team', 'pitch', 'pitch.business', 'pitch.business.owner'],
         });
 
         if (!match) {
@@ -536,7 +536,7 @@ export class ChatService {
                 business: match.pitch.business ? {
                     id: match.pitch.business.id,
                     name: match.pitch.business.name,
-                    phone: match.pitch.business.phone,
+                    ownerPhone: match.pitch.business.owner?.phone ?? null,
                     address: match.pitch.business.address,
                 } : null,
             } : null,

@@ -43,7 +43,6 @@ export const BusinessInfoSettings: React.FC = () => {
     // Form state
     const [formData, setFormData] = useState({
         name: '',
-        phone: '',
         address: '',
         city: '',
         district: '',
@@ -69,7 +68,6 @@ export const BusinessInfoSettings: React.FC = () => {
             const b = businessResponse.data;
             setFormData({
                 name: b.name || '',
-                phone: b.phone || '',
                 address: b.address || '',
                 city: b.city || '',
                 district: b.district || '',
@@ -205,17 +203,6 @@ export const BusinessInfoSettings: React.FC = () => {
                             onChange={(e) => handleChange('name', e.target.value)}
                             className="w-full p-4 bg-slate-900 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-orange-500 transition-all font-medium"
                             required
-                        />
-                    </div>
-
-                    {/* Phone */}
-                    <div>
-                        <label className="block text-sm font-bold mb-2 text-slate-300 uppercase italic">Telefon</label>
-                        <input
-                            type="tel"
-                            value={formData.phone}
-                            onChange={(e) => handleChange('phone', e.target.value)}
-                            className="w-full p-4 bg-slate-900 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-orange-500 transition-all font-medium font-mono"
                         />
                     </div>
 

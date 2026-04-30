@@ -16,17 +16,23 @@ export class BusinessService {
         private businessRepository: Repository<Business>,
     ) { }
 
+    private mapWithOwnerPhone(b: Business & { distanceKm?: number }): any {
+        const { owner, ...rest } = b as any;
+        return { ...rest, ownerPhone: owner?.phone ?? null };
+    }
+
     async create(createBusinessDto: any) {
         const business = this.businessRepository.create(createBusinessDto);
         return await this.businessRepository.save(business);
     }
 
-    async findAll(geoFilter?: GeoFilter): Promise<(Business & { distanceKm?: number })[]> {
+    async findAll(geoFilter?: GeoFilter): Promise<any[]> {
         if (!geoFilter) {
-            return this.businessRepository.find({
+            const businesses = await this.businessRepository.find({
                 where: { status: 'active' },
-                relations: ['pitches', 'pitches.timeSlots'],
+                relations: ['pitches', 'pitches.timeSlots', 'owner'],
             });
+            return businesses.map(b => this.mapWithOwnerPhone(b));
         }
 
         const { lat, lng, radius } = geoFilter;
@@ -68,11 +74,12 @@ export class BusinessService {
             .createQueryBuilder('business')
             .leftJoinAndSelect('business.pitches', 'pitches')
             .leftJoinAndSelect('pitches.timeSlots', 'timeSlots')
+            .leftJoinAndSelect('business.owner', 'owner')
             .where('business.id IN (:...ids)', { ids })
             .getMany();
 
         const result = businesses
-            .map(b => ({ ...b, distanceKm: distanceMap.get(b.id) ?? 0 }))
+            .map(b => ({ ...this.mapWithOwnerPhone(b), distanceKm: distanceMap.get(b.id) ?? 0 }))
             .sort((a, b) => (a.distanceKm ?? 0) - (b.distanceKm ?? 0));
 
         console.log(`🏟️ Found ${result.length} businesses within ${radius}km`);
@@ -82,16 +89,17 @@ export class BusinessService {
     async findOne(id: string) {
         const business = await this.businessRepository.findOne({
             where: { id },
-            relations: ['pitches', 'pitches.timeSlots']
+            relations: ['pitches', 'pitches.timeSlots', 'owner'],
         });
         if (!business) {
             throw new NotFoundException(`Business with ID ${id} not found`);
         }
-        return business;
+        return this.mapWithOwnerPhone(business);
     }
 
     async update(id: string, updateDto: any) {
-        const business = await this.findOne(id); // Will throw if not found
+        const business = await this.businessRepository.findOne({ where: { id }, relations: ['owner'] });
+        if (!business) throw new NotFoundException(`Business with ID ${id} not found`);
         Object.assign(business, updateDto);
         return await this.businessRepository.save(business);
     }

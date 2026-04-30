@@ -324,7 +324,6 @@ export default function AdminApplicationDetail() {
             city: data.city ?? '',
             district: data.district ?? '',
             address: data.address ?? '',
-            phone: data.phone ?? '',
             openTime: data.openTime ?? '',
             closeTime: data.closeTime ?? '',
         });
@@ -527,7 +526,6 @@ export default function AdminApplicationDetail() {
                         <Row label="Şehir"        value={editBusiness.city}     editMode={editMode} onChange={v => setEditBusiness(p => ({ ...p, city: v }))} />
                         <Row label="İlçe"         value={editBusiness.district} editMode={editMode} onChange={v => setEditBusiness(p => ({ ...p, district: v }))} />
                         <Row label="Adres"        value={editBusiness.address}  editMode={editMode} onChange={v => setEditBusiness(p => ({ ...p, address: v }))} />
-                        <Row label="Telefon"      value={editBusiness.phone}    editMode={editMode} onChange={v => setEditBusiness(p => ({ ...p, phone: v }))} />
                         {!editMode ? (
                             <Row label="Çalışma Saatleri" value={`${editBusiness.openTime || '–'} – ${editBusiness.closeTime || '–'}`} />
                         ) : (

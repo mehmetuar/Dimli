@@ -393,7 +393,6 @@ export class AuthService {
             business.address = data.business.address;
             business.latitude = data.business.latitude;
             business.longitude = data.business.longitude;
-            if (data.business.phone) business.phone = data.business.phone;
             if (data.business.openTime) business.openTime = data.business.openTime;
             if (data.business.closeTime) business.closeTime = data.business.closeTime;
 

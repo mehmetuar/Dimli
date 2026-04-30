@@ -31,7 +31,7 @@ export const PitchSchedule: React.FC<PitchScheduleProps> = ({
                     <Clock className="w-4 h-4 text-turf-500" /> {selectedPitch.name.toUpperCase()} AKIŞI
                 </h4>
                 <a
-                    href={`tel:${business.phone}`}
+                    href={`tel:${business.ownerPhone || ''}`}
                     className="bg-turf-600 hover:bg-turf-500 text-white px-3 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all shadow-lg shadow-turf-600/20"
                 >
                     <Phone className="w-4 h-4" />

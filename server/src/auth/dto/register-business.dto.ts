@@ -56,10 +56,6 @@ class RegisterBusinessDetailsDto {
 
     @IsString()
     @IsOptional()
-    phone?: string;
-
-    @IsString()
-    @IsOptional()
     openTime?: string;
 
     @IsString()

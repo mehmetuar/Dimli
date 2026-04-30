@@ -655,7 +655,7 @@ export const Chat: React.FC = () => {
 
             <div className="flex flex-col p-3 gap-2">
               <a
-                href={`tel:${activeChannel?.reservation?.pitch?.business?.phone || activeChannel?.pitch?.business?.phone || '05555555555'}`}
+                href={`tel:${matchDetailData?.pitch?.business?.ownerPhone || ''}`}
                 className="w-full text-left p-4 rounded-2xl text-md font-bold text-white hover:bg-slate-700 flex items-center justify-between transition-colors shadow-sm"
                 onClick={() => setIsChatMenuOpen(false)}
               >

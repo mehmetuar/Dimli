@@ -1,5 +1,6 @@
-import { Entity, Column, PrimaryGeneratedColumn, OneToMany, CreateDateColumn, UpdateDateColumn, Index } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, OneToMany, OneToOne, CreateDateColumn, UpdateDateColumn, Index } from 'typeorm';
 import { Pitch } from '../../pitches/entities/pitch.entity';
+import { BusinessOwner } from '../../business-owner/entities/business-owner.entity';
 
 @Entity('businesses')
 export class Business {
@@ -61,6 +62,9 @@ export class Business {
 
     @Column({ nullable: true, type: 'timestamp' })
     reviewedAt: Date | null;
+
+    @OneToOne(() => BusinessOwner, (owner) => owner.business)
+    owner: BusinessOwner;
 
     @OneToMany(() => Pitch, (pitch) => pitch.business)
     pitches: Pitch[];
