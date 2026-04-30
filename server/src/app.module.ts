@@ -25,14 +25,23 @@ import { PitchChangeRequestsModule } from './pitch-change-requests/pitch-change-
   imports: [
     TypeOrmModule.forRoot({
       type: 'postgres',
-      host: 'localhost',
-      port: 5432,
-      username: 'postgres',
-      password: 'postgrespassword',
-      database: 'dimli',
+      ...(process.env.DATABASE_URL
+        ? {
+            url: process.env.DATABASE_URL,
+            ssl: {
+              rejectUnauthorized: false,
+            },
+          }
+        : {
+            host: 'localhost',
+            port: 5432,
+            username: 'postgres',
+            password: 'postgrespassword',
+            database: 'dimli',
+          }),
       entities: [__dirname + '/**/*.entity{.ts,.js}'],
       autoLoadEntities: true,
-      synchronize: true, // Auto-create tables (dev only)
+      synchronize: true, // Auto-create tables - consider disabling in production later
     }),
     ScheduleModule.forRoot(),
     AuthModule,
