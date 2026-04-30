@@ -22,6 +22,7 @@ export const BusinessRegister: React.FC = () => {
     const {
         currentStep, totalSteps,
         error, isLoading,
+        fieldErrors,
         isGeocoding, setIsGeocoding,
         isLocationModalOpen, setIsLocationModalOpen,
         locationModalStep, setLocationModalStep,
@@ -46,7 +47,7 @@ export const BusinessRegister: React.FC = () => {
             case 1:
                 return <WelcomeStep />;
             case 2:
-                return <OwnerInfoStep formData={formData} updateOwner={updateOwner} />;
+                return <OwnerInfoStep formData={formData} updateOwner={updateOwner} fieldErrors={fieldErrors} />;
             case 3:
                 return (
                     <OtpVerificationStep
@@ -65,6 +66,7 @@ export const BusinessRegister: React.FC = () => {
                         formData={formData}
                         updateBusiness={updateBusiness}
                         setIsTimePickerOpen={setIsTimePickerOpen}
+                        fieldErrors={fieldErrors}
                     />
                 );
             case 5:
@@ -74,6 +76,7 @@ export const BusinessRegister: React.FC = () => {
                         updateBusiness={updateBusiness}
                         isGeocoding={isGeocoding}
                         setIsGeocoding={setIsGeocoding}
+                        fieldErrors={fieldErrors}
                     />
                 );
             case 6:
@@ -87,12 +90,13 @@ export const BusinessRegister: React.FC = () => {
                         tempSlot={tempSlot}
                         addTimeSlot={addTimeSlot}
                         toggleFacility={toggleFacility}
+                        fieldErrors={fieldErrors}
                     />
                 );
             case 7:
                 return <PaymentStep formData={formData} isLoading={isLoading} error={error} onSubmit={handleSubmit} />;
             case 8:
-                return <CongratulationsStep ownerEmail={formData.owner.email} />;
+                return <CongratulationsStep ownerPhone={formData.owner.phone} />;
             default:
                 return null;
         }

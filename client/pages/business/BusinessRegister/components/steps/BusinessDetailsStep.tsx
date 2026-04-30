@@ -5,12 +5,14 @@ interface BusinessDetailsStepProps {
     formData: any;
     updateBusiness: (field: string, value: any) => void;
     setIsTimePickerOpen: (opts: any) => void;
+    fieldErrors?: Record<string, string>;
 }
 
 export const BusinessDetailsStep: React.FC<BusinessDetailsStepProps> = ({
     formData,
     updateBusiness,
     setIsTimePickerOpen,
+    fieldErrors = {},
 }) => {
     return (
         <div className="space-y-4 animate-fade-in">
@@ -22,12 +24,14 @@ export const BusinessDetailsStep: React.FC<BusinessDetailsStepProps> = ({
                     value={formData.business.name}
                     onChange={(e: any) => updateBusiness('name', e.target.value)}
                     required
+                    error={fieldErrors['business.name']}
                 />
                 <Input
                     label="İşletme Telefonu"
                     value={formData.business.phone}
                     onChange={(e: any) => updateBusiness('phone', e.target.value)}
                     required
+                    error={fieldErrors['business.phone']}
                 />
             </div>
 

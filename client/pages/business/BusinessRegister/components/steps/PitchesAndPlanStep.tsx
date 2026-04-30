@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Camera, TurkishLira, X, Layers, Clock } from 'lucide-react';
+import { Camera, TurkishLira, X, Layers, Clock, AlertCircle } from 'lucide-react';
 import { ImageCropModal } from '../../../../../components/Modals/ImageCropModal';
 import { Input } from '../RegisterSidebar';
 import { SUBSCRIPTION_PLANS } from '../../hooks/useBusinessRegister';
@@ -19,13 +19,21 @@ interface PitchesAndPlanStepProps {
     tempSlot?: { startTime: string; endTime: string };
     addTimeSlot?: (pitchIndex: number, startTime: string, endTime: string) => void;
     toggleFacility: (pitchIndex: number, facility: string) => void;
+    fieldErrors?: Record<string, string>;
 }
 
 /** Saatlik ücret için özel input — 0 değerini boş gösterir */
-const PriceInput: React.FC<{ value: number; onChange: (val: number) => void }> = ({ value, onChange }) => {
+const PriceInput: React.FC<{ value: number; onChange: (val: number) => void; error?: string }> = ({ value, onChange, error }) => {
     const [rawText, setRawText] = useState<string | null>(null);
     const isFocused = rawText !== null;
     const displayValue = isFocused ? rawText! : value === 0 ? '' : String(value);
+
+    const scrollInputIntoView = (e: React.FocusEvent<HTMLInputElement>) => {
+        setRawText(value === 0 ? '' : String(value));
+        setTimeout(() => {
+            e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 350);
+    };
 
     return (
         <div className="flex flex-col gap-1 w-full min-w-0">
@@ -40,9 +48,11 @@ const PriceInput: React.FC<{ value: number; onChange: (val: number) => void }> =
                     type="text"
                     inputMode="decimal"
                     placeholder="0"
-                    className="w-full bg-slate-800 border border-slate-700 text-white text-sm p-3 pl-9 rounded-xl focus:outline-none focus:border-orange-500 transition-all font-medium min-h-[44px]"
+                    className={`w-full bg-slate-800 border text-white text-sm p-3 pl-9 rounded-xl focus:outline-none transition-all font-medium min-h-[44px] ${
+                        error ? 'border-red-500 focus:border-red-400' : 'border-slate-700 focus:border-orange-500'
+                    }`}
                     value={displayValue}
-                    onFocus={() => setRawText(value === 0 ? '' : String(value))}
+                    onFocus={scrollInputIntoView}
                     onChange={(e) => {
                         const filtered = e.target.value.replace(/[^0-9.]/g, '');
                         setRawText(filtered);
@@ -52,12 +62,15 @@ const PriceInput: React.FC<{ value: number; onChange: (val: number) => void }> =
                     onBlur={() => setRawText(null)}
                 />
             </div>
+            {error && (
+                <p className="text-red-400 text-xs font-bold ml-1 mt-0.5 animate-fade-in">{error}</p>
+            )}
         </div>
     );
 };
 
 export const PitchesAndPlanStep: React.FC<PitchesAndPlanStepProps> = ({
-    formData, updatePitch, setPitchCount, setIsTimePickerOpen, toggleFacility,
+    formData, updatePitch, setPitchCount, setIsTimePickerOpen, toggleFacility, fieldErrors = {},
 }) => {
     const fileInputRefs = useRef<(HTMLInputElement | null)[]>([]);
     const [facilitiesModalIdx, setFacilitiesModalIdx] = useState<number | null>(null);
@@ -130,6 +143,11 @@ export const PitchesAndPlanStep: React.FC<PitchesAndPlanStepProps> = ({
                 {formData.pitches.map((pitch: any, index: number) => {
                     const pitchSlots: TimeSlot[] = pitch.timeSlots || [];
                     const pitchFacilities: string[] = pitch.facilities || [];
+                    const nameError = fieldErrors[`pitch.${index}.name`];
+                    const priceError = fieldErrors[`pitch.${index}.pricePerHour`];
+                    const openTimeError = fieldErrors[`pitch.${index}.openTime`];
+                    const closeTimeError = fieldErrors[`pitch.${index}.closeTime`];
+                    const photoError = fieldErrors[`pitch.${index}.imageUrl`];
 
                     return (
                         <div key={index} className="bg-slate-900/60 p-4 rounded-xl border border-slate-700 space-y-4">
@@ -142,6 +160,7 @@ export const PitchesAndPlanStep: React.FC<PitchesAndPlanStepProps> = ({
                                     value={pitch.name}
                                     onChange={(e: any) => updatePitch(index, 'name', e.target.value)}
                                     required
+                                    error={nameError}
                                 />
                                 <div className="flex flex-col gap-1">
                                     <label className="text-xs text-slate-400 font-bold uppercase">Saha Tipi</label>
@@ -157,12 +176,13 @@ export const PitchesAndPlanStep: React.FC<PitchesAndPlanStepProps> = ({
                                 <PriceInput
                                     value={pitch.pricePerHour}
                                     onChange={(val) => updatePitch(index, 'pricePerHour', val)}
+                                    error={priceError}
                                 />
                             </div>
 
                             {/* Saha fotoğrafı */}
                             <div>
-                                <label className="text-xs text-slate-400 font-bold uppercase mb-2 block">
+                                <label className={`text-xs font-bold uppercase mb-2 block ${photoError ? 'text-red-400' : 'text-slate-400'}`}>
                                     Saha Fotoğrafı <span className="text-red-500">*</span>
                                 </label>
                                 {pitch.imageUrl ? (
@@ -192,12 +212,21 @@ export const PitchesAndPlanStep: React.FC<PitchesAndPlanStepProps> = ({
                                         </button>
                                     </div>
                                 ) : (
-                                    <button
-                                        onClick={() => fileInputRefs.current[index]?.click()}
-                                        className="flex flex-col items-center justify-center gap-2 w-full h-36 rounded-xl border-2 border-dashed border-orange-500/50 text-orange-400 hover:bg-orange-500/10 transition-colors font-bold text-sm"
-                                    >
-                                        <Camera size={24} /> Fotoğraf Ekle
-                                    </button>
+                                    <div>
+                                        <button
+                                            onClick={() => fileInputRefs.current[index]?.click()}
+                                            className={`flex flex-col items-center justify-center gap-2 w-full h-36 rounded-xl border-2 border-dashed transition-colors font-bold text-sm ${
+                                                photoError
+                                                    ? 'border-red-500/50 text-red-400 hover:bg-red-500/10'
+                                                    : 'border-orange-500/50 text-orange-400 hover:bg-orange-500/10'
+                                            }`}
+                                        >
+                                            <Camera size={24} /> Fotoğraf Ekle
+                                        </button>
+                                        {photoError && (
+                                            <p className="text-red-400 text-xs font-bold ml-1 mt-1 animate-fade-in">{photoError}</p>
+                                        )}
+                                    </div>
                                 )}
                                 <input
                                     ref={el => { fileInputRefs.current[index] = el; }}
@@ -215,24 +244,38 @@ export const PitchesAndPlanStep: React.FC<PitchesAndPlanStepProps> = ({
                             {/* Saha-özel saatler */}
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="flex flex-col gap-1">
-                                    <label className="text-xs text-slate-400 font-bold uppercase ml-1">Açılış Saati</label>
+                                    <label className={`text-xs font-bold uppercase ml-1 ${openTimeError ? 'text-red-400' : 'text-slate-400'}`}>
+                                        Açılış Saati <span className="text-red-500">*</span>
+                                    </label>
                                     <button
                                         type="button"
                                         onClick={() => setIsTimePickerOpen({ open: true, type: 'PITCH_OPEN', pitchIdx: index })}
-                                        className="w-full bg-slate-800 border border-slate-700 text-white p-3 rounded-xl text-left hover:border-orange-500 transition-all font-mono font-bold text-sm min-h-[44px]"
+                                        className={`w-full bg-slate-800 border text-white p-3 rounded-xl text-left hover:border-orange-500 transition-all font-mono font-bold text-sm min-h-[44px] ${
+                                            openTimeError ? 'border-red-500' : 'border-slate-700'
+                                        }`}
                                     >
                                         {pitch.openTime || 'Seç...'}
                                     </button>
+                                    {openTimeError && (
+                                        <p className="text-red-400 text-xs font-bold ml-1 mt-0.5 animate-fade-in">{openTimeError}</p>
+                                    )}
                                 </div>
                                 <div className="flex flex-col gap-1">
-                                    <label className="text-xs text-slate-400 font-bold uppercase ml-1">Kapanış Saati</label>
+                                    <label className={`text-xs font-bold uppercase ml-1 ${closeTimeError ? 'text-red-400' : 'text-slate-400'}`}>
+                                        Kapanış Saati <span className="text-red-500">*</span>
+                                    </label>
                                     <button
                                         type="button"
                                         onClick={() => setIsTimePickerOpen({ open: true, type: 'PITCH_CLOSE', pitchIdx: index })}
-                                        className="w-full bg-slate-800 border border-slate-700 text-white p-3 rounded-xl text-left hover:border-orange-500 transition-all font-mono font-bold text-sm min-h-[44px]"
+                                        className={`w-full bg-slate-800 border text-white p-3 rounded-xl text-left hover:border-orange-500 transition-all font-mono font-bold text-sm min-h-[44px] ${
+                                            closeTimeError ? 'border-red-500' : 'border-slate-700'
+                                        }`}
                                     >
                                         {pitch.closeTime || 'Seç...'}
                                     </button>
+                                    {closeTimeError && (
+                                        <p className="text-red-400 text-xs font-bold ml-1 mt-0.5 animate-fade-in">{closeTimeError}</p>
+                                    )}
                                 </div>
                             </div>
 

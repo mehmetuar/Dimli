@@ -1,8 +1,8 @@
 import React from 'react';
-import { CheckCircle, Clock, Mail } from 'lucide-react';
+import { CheckCircle, Clock, Phone } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-export const CongratulationsStep: React.FC<{ ownerEmail: string }> = ({ ownerEmail }) => {
+export const CongratulationsStep: React.FC<{ ownerPhone: string }> = ({ ownerPhone }) => {
     const navigate = useNavigate();
 
     return (
@@ -27,9 +27,9 @@ export const CongratulationsStep: React.FC<{ ownerEmail: string }> = ({ ownerEma
                     <span className="text-slate-300 text-sm">İnceleme süreci 1-2 iş günü</span>
                 </div>
                 <div className="flex items-center gap-3 bg-slate-800/60 px-4 py-3 rounded-xl">
-                    <Mail className="text-orange-400 shrink-0" size={18} />
+                    <Phone className="text-orange-400 shrink-0" size={18} />
                     <span className="text-slate-300 text-sm">
-                        Sonuç <strong className="text-white">{ownerEmail}</strong> adresine bildirilecek
+                        Sonuç <strong className="text-white">{ownerPhone}</strong> numarasına bildirilecek
                     </span>
                 </div>
             </div>

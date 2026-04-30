@@ -68,6 +68,10 @@ export const RegisterSidebar: React.FC<RegisterSidebarProps> = ({ currentStep })
     );
 };
 
+/**
+ * Input'a focus olduğunda, elemanı klavyenin üstüne scroll eder.
+ * iOS ve Android Capacitor ortamında çalışır.
+ */
 const scrollInputIntoView = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const el = e.target;
     setTimeout(() => {
@@ -75,7 +79,20 @@ const scrollInputIntoView = (e: React.FocusEvent<HTMLInputElement | HTMLTextArea
     }, 350);
 };
 
-export const Input = ({ label, type = "text", value, onChange, required, textarea, icon }: any) => (
+interface InputProps {
+    label: string;
+    type?: string;
+    value: string | number;
+    onChange: (e: any) => void;
+    required?: boolean;
+    textarea?: boolean;
+    icon?: React.ReactNode;
+    error?: string;
+    placeholder?: string;
+    inputMode?: string;
+}
+
+export const Input: React.FC<InputProps> = ({ label, type = "text", value, onChange, required, textarea, icon, error, placeholder, inputMode }) => (
     <div className="flex flex-col gap-1 w-full min-w-0">
         <label className="text-xs text-slate-400 font-bold uppercase ml-1 block">
             {label} {required && <span className="text-red-500">*</span>}
@@ -84,22 +101,32 @@ export const Input = ({ label, type = "text", value, onChange, required, textare
             {icon && <div className="absolute left-3 top-3.5 text-slate-500">{icon}</div>}
             {textarea ? (
                 <textarea
-                    className={`w-full bg-slate-800 border border-slate-700 text-white text-sm p-3 rounded-xl focus:outline-none focus:border-orange-500 transition-all font-medium min-h-[90px] resize-none ${icon ? 'pl-10' : ''}`}
+                    className={`w-full bg-slate-800 border text-white text-sm p-3 rounded-xl focus:outline-none transition-all font-medium min-h-[90px] resize-none ${icon ? 'pl-10' : ''} ${
+                        error ? 'border-red-500 focus:border-red-400' : 'border-slate-700 focus:border-orange-500'
+                    }`}
                     value={value}
                     onChange={onChange}
                     required={required}
                     onFocus={scrollInputIntoView}
+                    placeholder={placeholder}
                 />
             ) : (
                 <input
                     type={type}
-                    className={`w-full bg-slate-800 border border-slate-700 text-white text-sm p-3 rounded-xl focus:outline-none focus:border-orange-500 transition-all font-medium ${icon ? 'pl-10' : ''}`}
+                    className={`w-full bg-slate-800 border text-white text-sm p-3 rounded-xl focus:outline-none transition-all font-medium ${icon ? 'pl-10' : ''} ${
+                        error ? 'border-red-500 focus:border-red-400' : 'border-slate-700 focus:border-orange-500'
+                    }`}
                     value={value}
                     onChange={onChange}
                     required={required}
                     onFocus={scrollInputIntoView}
+                    placeholder={placeholder}
+                    inputMode={inputMode as any}
                 />
             )}
         </div>
+        {error && (
+            <p className="text-red-400 text-xs font-bold ml-1 mt-0.5 animate-fade-in">{error}</p>
+        )}
     </div>
 );

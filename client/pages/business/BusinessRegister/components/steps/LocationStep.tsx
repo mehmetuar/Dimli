@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { APIProvider, Map, AdvancedMarker, useMap } from '@vis.gl/react-google-maps';
 import { Navigation, MapPin, Loader2, Lock } from 'lucide-react';
 import { Geolocation } from '@capacitor/geolocation';
@@ -9,6 +9,7 @@ interface LocationStepProps {
     updateBusiness: (field: string, value: any) => void;
     isGeocoding: boolean;
     setIsGeocoding: (val: boolean) => void;
+    fieldErrors?: Record<string, string>;
 }
 
 const MapEffect: React.FC<{ lat: number; lng: number; triggerFly: boolean }> = ({ lat, lng, triggerFly }) => {
@@ -26,11 +27,13 @@ export const LocationStep: React.FC<LocationStepProps> = ({
     formData,
     updateBusiness,
     isGeocoding,
-    setIsGeocoding
+    setIsGeocoding,
+    fieldErrors = {},
 }) => {
     const [isLocating, setIsLocating] = useState(false);
     const [locationError, setLocationError] = useState('');
     const [flyTrigger, setFlyTrigger] = useState(false);
+    const addressRef = useRef<HTMLTextAreaElement>(null);
 
     useEffect(() => {
         handleLocateMe(true);
@@ -88,8 +91,20 @@ export const LocationStep: React.FC<LocationStepProps> = ({
         await doReverseGeocode(lat, lng);
     };
 
+    /**
+     * Textarea'ya focus olduğunda, elemanı klavyenin üstüne kaydırır.
+     * iOS ve Android'de input klavyenin arkasında kalmaz.
+     */
+    const handleAddressFocus = () => {
+        setTimeout(() => {
+            addressRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 350);
+    };
+
     const hasLocation = !!formData.business.latitude;
     const hasCity = !!(formData.business.city || formData.business.district);
+    const addressError = fieldErrors['business.address'];
+    const cityError = fieldErrors['business.city'];
 
     return (
         <div className="space-y-4 animate-fade-in h-full flex flex-col">
@@ -124,8 +139,15 @@ export const LocationStep: React.FC<LocationStepProps> = ({
                 </div>
             )}
 
+            {cityError && (
+                <div className="text-xs text-red-400 bg-red-900/20 border border-red-500/30 px-3 py-2 rounded-lg flex items-center gap-2">
+                    <MapPin className="w-3 h-3 shrink-0" />
+                    {cityError}
+                </div>
+            )}
+
             {/* Harita */}
-            <div className="rounded-xl overflow-hidden border-2 border-slate-700 relative z-[1]" style={{ height: '320px' }}>
+            <div className={`rounded-xl overflow-hidden border-2 relative z-[1] ${cityError ? 'border-red-500' : 'border-slate-700'}`} style={{ height: '320px' }}>
                 <APIProvider apiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY}>
                     <Map
                         defaultCenter={{ lat: formData.business.latitude || 41.0082, lng: formData.business.longitude || 28.9784 }}
@@ -180,11 +202,18 @@ export const LocationStep: React.FC<LocationStepProps> = ({
                     Açık Adres <span className="text-red-500">*</span>
                 </label>
                 <textarea
-                    className="w-full bg-slate-800 border border-slate-700 text-white text-sm p-3 rounded-xl focus:outline-none focus:border-orange-500 transition-all font-medium min-h-[80px] resize-none"
+                    ref={addressRef}
+                    className={`w-full bg-slate-800 border text-white text-sm p-3 rounded-xl focus:outline-none transition-all font-medium min-h-[80px] resize-none ${
+                        addressError ? 'border-red-500 focus:border-red-400' : 'border-slate-700 focus:border-orange-500'
+                    }`}
                     placeholder="Sokak, cadde, bina no gibi detaylı adres bilgisini girin..."
                     value={formData.business.address}
                     onChange={(e) => updateBusiness('address', e.target.value)}
+                    onFocus={handleAddressFocus}
                 />
+                {addressError && (
+                    <p className="text-red-400 text-xs font-bold ml-1 mt-0.5 animate-fade-in">{addressError}</p>
+                )}
             </div>
         </div>
     );

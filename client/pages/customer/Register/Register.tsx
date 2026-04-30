@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 
 // Hooks
 import { useRegister } from './hooks/useRegister';
+import { useKeyboardHeight } from '../../../utils/useKeyboardHeight';
 
 // Components
 import { RegisterHeader } from './components/RegisterHeader';
@@ -18,10 +19,12 @@ import { PhotoUploadStep } from './components/steps/PhotoUploadStep';
 const TOTAL_STEPS = 7;
 
 export const Register: React.FC = () => {
+    const keyboardHeight = useKeyboardHeight();
     const {
         step,
         formData,
         error,
+        fieldErrors,
         loading,
         otpSent,
         otpVerified,
@@ -39,7 +42,10 @@ export const Register: React.FC = () => {
     } = useRegister();
 
     return (
-        <div className="min-h-screen bg-pitch flex flex-col items-center justify-start px-4 pt-10 pb-16">
+        <div
+            className="min-h-screen bg-pitch flex flex-col items-center justify-start px-4 pt-10 pb-16"
+            style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : undefined }}
+        >
             <div className="w-full max-w-md bg-slate-800 p-8 rounded-3xl border border-slate-700 shadow-2xl relative overflow-hidden">
 
                 <RegisterHeader step={step} totalSteps={TOTAL_STEPS} />
@@ -51,9 +57,9 @@ export const Register: React.FC = () => {
                 )}
 
                 <form onSubmit={handleRegister}>
-                    {step === 1 && <UsernameStep formData={formData} handleChange={handleChange} />}
-                    {step === 2 && <PasswordStep formData={formData} handleChange={handleChange} />}
-                    {step === 3 && <NameStep formData={formData} handleChange={handleChange} />}
+                    {step === 1 && <UsernameStep formData={formData} handleChange={handleChange} fieldErrors={fieldErrors} />}
+                    {step === 2 && <PasswordStep formData={formData} handleChange={handleChange} fieldErrors={fieldErrors} />}
+                    {step === 3 && <NameStep formData={formData} handleChange={handleChange} fieldErrors={fieldErrors} />}
                     {step === 4 && (
                         <PhoneVerificationStep
                             formData={formData}
@@ -65,10 +71,11 @@ export const Register: React.FC = () => {
                             resendCountdown={resendCountdown}
                             sendOtp={sendOtp}
                             onOtpDigitChange={onOtpDigitChange}
+                            fieldErrors={fieldErrors}
                         />
                     )}
-                    {step === 5 && <BirthDateEmailStep formData={formData} handleChange={handleChange} />}
-                    {step === 6 && <PlayerProfileStep formData={formData} handleChange={handleChange} />}
+                    {step === 5 && <BirthDateEmailStep formData={formData} handleChange={handleChange} fieldErrors={fieldErrors} />}
+                    {step === 6 && <PlayerProfileStep formData={formData} handleChange={handleChange} fieldErrors={fieldErrors} />}
                     {step === 7 && (
                         <>
                             <PhotoUploadStep

@@ -4,9 +4,10 @@ import { Shield } from 'lucide-react';
 interface PlayerProfileStepProps {
     formData: any;
     handleChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
+    fieldErrors: Record<string, string>;
 }
 
-export const PlayerProfileStep: React.FC<PlayerProfileStepProps> = ({ formData, handleChange }) => {
+export const PlayerProfileStep: React.FC<PlayerProfileStepProps> = ({ formData, handleChange, fieldErrors }) => {
     return (
         <div className="space-y-4 animate-fade-in">
             <div className="text-center mb-6">

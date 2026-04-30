@@ -1,6 +1,12 @@
 import React, { useRef } from 'react';
 import { Phone, Shield } from 'lucide-react';
 
+const scrollInputIntoView = (e: React.FocusEvent<HTMLInputElement>) => {
+    setTimeout(() => {
+        e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 350);
+};
+
 interface PhoneVerificationStepProps {
     formData: any;
     handleChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
@@ -11,6 +17,7 @@ interface PhoneVerificationStepProps {
     resendCountdown: number;
     sendOtp: () => void;
     onOtpDigitChange: (index: number, value: string) => void;
+    fieldErrors: Record<string, string>;
 }
 
 export const PhoneVerificationStep: React.FC<PhoneVerificationStepProps> = ({
@@ -23,8 +30,10 @@ export const PhoneVerificationStep: React.FC<PhoneVerificationStepProps> = ({
     resendCountdown,
     sendOtp,
     onOtpDigitChange,
+    fieldErrors,
 }) => {
     const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+    const error = fieldErrors.phone;
 
     const handleDigitChange = (index: number, value: string) => {
         const digit = value.replace(/\D/g, '').slice(-1);
@@ -61,18 +70,21 @@ export const PhoneVerificationStep: React.FC<PhoneVerificationStepProps> = ({
 
             {/* Telefon girişi */}
             <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Telefon Numarası</label>
+                <label className={`block text-xs font-bold uppercase mb-1 ${error ? 'text-red-400' : 'text-slate-400'}`}>
+                    Telefon Numarası
+                </label>
                 <div className="flex gap-2">
                     <div className="relative flex-1">
-                        <Phone className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-500 w-5 h-5" />
+                        <Phone className={`absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 transition-colors ${error ? 'text-red-400' : 'text-slate-500'}`} />
                         <input
                             type="tel"
                             name="phone"
                             value={formData.phone}
                             onChange={handleChange}
+                            onFocus={scrollInputIntoView}
                             disabled={otpSent}
                             className={`w-full bg-slate-900 text-white pl-12 pr-4 py-4 rounded-xl border focus:outline-none font-bold transition-colors
-                                ${otpSent ? 'border-slate-600 opacity-60 cursor-not-allowed' : 'border-slate-700 focus:border-turf-500'}`}
+                                ${otpSent ? 'border-slate-600 opacity-60 cursor-not-allowed' : error ? 'border-red-500 focus:border-red-400' : 'border-slate-700 focus:border-turf-500'}`}
                             placeholder="0555 555 55 55"
                         />
                     </div>
@@ -96,6 +108,9 @@ export const PhoneVerificationStep: React.FC<PhoneVerificationStepProps> = ({
                         }
                     </button>
                 </div>
+                {error && (
+                    <p className="text-red-400 text-xs font-bold ml-1 mt-1 animate-fade-in">{error}</p>
+                )}
             </div>
 
             {/* OTP kutuları */}
@@ -115,6 +130,7 @@ export const PhoneVerificationStep: React.FC<PhoneVerificationStepProps> = ({
                                 value={digit}
                                 onChange={(e) => handleDigitChange(i, e.target.value)}
                                 onKeyDown={(e) => handleKeyDown(i, e)}
+                                onFocus={scrollInputIntoView}
                                 className={`w-11 h-14 text-center text-xl font-bold bg-slate-900 text-white rounded-xl border transition-colors focus:outline-none
                                     ${digit ? 'border-turf-500' : 'border-slate-700 focus:border-turf-500'}`}
                             />

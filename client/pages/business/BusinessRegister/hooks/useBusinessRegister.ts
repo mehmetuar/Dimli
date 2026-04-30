@@ -38,6 +38,7 @@ const TOTAL_STEPS = 8;
 export const useBusinessRegister = () => {
     const [currentStep, setCurrentStep] = useState(1);
     const [error, setError] = useState('');
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const [isLoading, setIsLoading] = useState(false);
     const [isGeocoding, setIsGeocoding] = useState(false);
 
@@ -72,11 +73,29 @@ export const useBusinessRegister = () => {
 
     // ─── Updaters ─────────────────────────────────────────────────────────────
 
-    const updateOwner = (field: string, value: string) =>
+    const updateOwner = (field: string, value: string) => {
         setFormData(prev => ({ ...prev, owner: { ...prev.owner, [field]: value } }));
+        // Kullanıcı alan doldurdukça hata kaldır
+        if (value.trim()) {
+            setFieldErrors(prev => {
+                const next = { ...prev };
+                delete next[`owner.${field}`];
+                return next;
+            });
+        }
+    };
 
-    const updateBusiness = (field: string, value: any) =>
+    const updateBusiness = (field: string, value: any) => {
         setFormData(prev => ({ ...prev, business: { ...prev.business, [field]: value } }));
+        // Kullanıcı alan doldurdukça hata kaldır
+        if (value && String(value).trim()) {
+            setFieldErrors(prev => {
+                const next = { ...prev };
+                delete next[`business.${field}`];
+                return next;
+            });
+        }
+    };
 
     const updatePitch = (index: number, field: string, value: any) => {
         setFormData(prev => {
@@ -84,6 +103,14 @@ export const useBusinessRegister = () => {
             newPitches[index] = { ...newPitches[index], [field]: value };
             return { ...prev, pitches: newPitches };
         });
+        // Kullanıcı alan doldurdukça hata kaldır
+        if (value && String(value).trim()) {
+            setFieldErrors(prev => {
+                const next = { ...prev };
+                delete next[`pitch.${index}.${field}`];
+                return next;
+            });
+        }
     };
 
     const setPitchCount = (count: number) => {
@@ -117,6 +144,53 @@ export const useBusinessRegister = () => {
     const removeTimeSlot = (pitchIndex: number, slotIndex: number) => {
         const slots = [...(formData.pitches[pitchIndex].timeSlots || [])];
         updatePitch(pitchIndex, 'timeSlots', slots.filter((_, i) => i !== slotIndex));
+    };
+
+    // ─── Validation ──────────────────────────────────────────────────────────
+
+    const validateStep = (step: number): boolean => {
+        const errors: Record<string, string> = {};
+
+        if (step === 2) {
+            // Yetkili Bilgileri
+            if (!formData.owner.fullName.trim()) errors['owner.fullName'] = 'Ad Soyad zorunludur';
+            if (!formData.owner.phone.trim()) errors['owner.phone'] = 'Telefon zorunludur';
+            if (!formData.owner.email.trim()) errors['owner.email'] = 'E-Posta zorunludur';
+            if (!formData.owner.password.trim()) errors['owner.password'] = 'Şifre zorunludur';
+            if (formData.owner.password.trim() && formData.owner.password.trim().length < 6) {
+                errors['owner.password'] = 'Şifre en az 6 karakter olmalıdır';
+            }
+        }
+
+        if (step === 4) {
+            // İşletme Detayları
+            if (!formData.business.name.trim()) errors['business.name'] = 'İşletme adı zorunludur';
+            if (!formData.business.phone.trim()) errors['business.phone'] = 'İşletme telefonu zorunludur';
+        }
+
+        if (step === 5) {
+            // Konum
+            if (!formData.business.city) errors['business.city'] = 'Haritada konum seçmelisiniz';
+            if (!formData.business.address.trim()) errors['business.address'] = 'Açık adres zorunludur';
+        }
+
+        if (step === 6) {
+            // Sahalar
+            formData.pitches.forEach((pitch, i) => {
+                if (!pitch.name.trim()) errors[`pitch.${i}.name`] = 'Saha adı zorunludur';
+                if (!pitch.pricePerHour || pitch.pricePerHour <= 0) errors[`pitch.${i}.pricePerHour`] = 'Saatlik ücret zorunludur';
+                if (!pitch.openTime) errors[`pitch.${i}.openTime`] = 'Açılış saati zorunludur';
+                if (!pitch.closeTime) errors[`pitch.${i}.closeTime`] = 'Kapanış saati zorunludur';
+                if (!pitch.imageUrl) errors[`pitch.${i}.imageUrl`] = 'Saha fotoğrafı zorunludur';
+            });
+        }
+
+        setFieldErrors(errors);
+        if (Object.keys(errors).length > 0) {
+            setError('Lütfen tüm zorunlu alanları doldurun.');
+            return false;
+        }
+        return true;
     };
 
     // ─── OTP ──────────────────────────────────────────────────────────────────
@@ -215,6 +289,11 @@ export const useBusinessRegister = () => {
 
     const nextStep = () => {
         setError('');
+        setFieldErrors({});
+
+        // Validate current step before proceeding
+        if (!validateStep(currentStep)) return;
+
         if (currentStep === 2) {
             // After account info, go to OTP verification
             if (!otpSent) { sendOtp().then(() => setCurrentStep(3)); }
@@ -226,6 +305,7 @@ export const useBusinessRegister = () => {
 
     const prevStep = () => {
         setError('');
+        setFieldErrors({});
         if (currentStep > 1) setCurrentStep(c => c - 1);
     };
 
@@ -233,6 +313,7 @@ export const useBusinessRegister = () => {
         currentStep, setCurrentStep,
         totalSteps: TOTAL_STEPS,
         error, setError,
+        fieldErrors,
         isLoading,
         isGeocoding, setIsGeocoding,
         isLocationModalOpen, setIsLocationModalOpen,
