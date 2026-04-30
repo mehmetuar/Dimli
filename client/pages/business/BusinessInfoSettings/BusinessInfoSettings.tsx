@@ -1,31 +1,20 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../../services/api';
 import { Save, ArrowLeft, MapPin, AlertTriangle, Loader2, Navigation, X } from 'lucide-react';
-import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import { APIProvider, Map, AdvancedMarker, useMap } from '@vis.gl/react-google-maps';
 import { Geolocation } from '@capacitor/geolocation';
 import { BusinessNavbar } from '../../../components/Business/BusinessNavbar';
 import { LocationSelectionModal } from '../../../components/Modals/LocationSelectionModal';
 import { locationService } from '../../../services/locationService';
 
-// Fix Leaflet default icon
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-    iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-    iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-});
-
 // Sub-component: flies map to new coords
-const MapFlyTo: React.FC<{ lat: number; lng: number; trigger: number }> = ({ lat, lng, trigger }) => {
+const MapEffect: React.FC<{ lat: number; lng: number; trigger: number }> = ({ lat, lng, trigger }) => {
     const map = useMap();
-    const prev = useRef(-1);
     useEffect(() => {
-        if (trigger !== prev.current && lat && lng) {
-            map.flyTo([lat, lng], 15, { duration: 1.2 });
-            prev.current = trigger;
+        if (map && trigger > 0 && lat && lng) {
+            map.panTo({ lat, lng });
+            map.setZoom(15);
         }
     }, [trigger, lat, lng, map]);
     return null;
@@ -144,15 +133,12 @@ export const BusinessInfoSettings: React.FC = () => {
         }
     };
 
-    // Map click handler inside modal
-    const MapClickHandler = () => {
-        useMapEvents({
-            async click(e) {
-                setMapCoords({ lat: e.latlng.lat, lng: e.latlng.lng });
-                await doReverseGeocode(e.latlng.lat, e.latlng.lng);
-            },
-        });
-        return <Marker position={[mapCoords.lat, mapCoords.lng]} />;
+    const handleMapClick = async (e: any) => {
+        if (!e.detail.latLng) return;
+        const lat = e.detail.latLng.lat;
+        const lng = e.detail.latLng.lng;
+        setMapCoords({ lat, lng });
+        await doReverseGeocode(lat, lng);
     };
 
     // ── Form Submission ──────────────────────────────────────────────────────
@@ -346,18 +332,19 @@ export const BusinessInfoSettings: React.FC = () => {
 
                     {/* Map */}
                     <div className="flex-1 relative z-[1]">
-                        <MapContainer
-                            center={[mapCoords.lat, mapCoords.lng]}
-                            zoom={14}
-                            style={{ height: '100%', width: '100%' }}
-                        >
-                            <TileLayer
-                                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                            />
-                            <MapClickHandler />
-                            <MapFlyTo lat={mapCoords.lat} lng={mapCoords.lng} trigger={mapFlyTrigger} />
-                        </MapContainer>
+                        <APIProvider apiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY}>
+                            <Map
+                                defaultCenter={{ lat: mapCoords.lat, lng: mapCoords.lng }}
+                                defaultZoom={14}
+                                gestureHandling={'greedy'}
+                                disableDefaultUI={true}
+                                mapId="DEMO_MAP_ID_2"
+                                onClick={handleMapClick}
+                            >
+                                <AdvancedMarker position={{ lat: mapCoords.lat, lng: mapCoords.lng }} />
+                                <MapEffect lat={mapCoords.lat} lng={mapCoords.lng} trigger={mapFlyTrigger} />
+                            </Map>
+                        </APIProvider>
                     </div>
 
                     {/* Footer */}

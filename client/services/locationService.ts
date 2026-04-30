@@ -50,25 +50,51 @@ export const locationService = {
 
     async reverseGeocode(lat: number, lng: number): Promise<{ city: string; district: string } | null> {
         try {
-            // Use Nominatim (OpenStreetMap) for reverse geocoding
-            const response = await axios.get(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`, {
-                headers: {
-                    'Accept-Language': 'tr-TR'
+            const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+            if (!apiKey) {
+                console.warn('Google Maps API key is missing');
+                return null;
+            }
+
+            const response = await axios.get(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${apiKey}&language=tr`);
+
+            if (response.data && response.data.results && response.data.results.length > 0) {
+                const results = response.data.results;
+                
+                let city = '';
+                let district = '';
+
+                // Look through the address components of the first result (usually the most specific)
+                for (const component of results[0].address_components) {
+                    const types = component.types;
+                    
+                    // In Turkey, administrative_area_level_1 is the province (city)
+                    if (types.includes('administrative_area_level_1')) {
+                        city = component.long_name;
+                    }
+                    
+                    // In Turkey, administrative_area_level_2 is usually the district
+                    // Sometimes locality or sublocality is used depending on the region
+                    if (types.includes('administrative_area_level_2') || types.includes('locality')) {
+                        // Don't overwrite if we already found level_2 and this is locality
+                        if (!district || types.includes('administrative_area_level_2')) {
+                            district = component.long_name;
+                        }
+                    }
                 }
-            });
 
-            if (response.data && response.data.address) {
-                const addr = response.data.address;
-                // In Turkey, Nominatim usually provides:
-                // Province: province or city or state
-                // District: town or city_district or suburb or district
-                const city = addr.province || addr.city || addr.state || '';
-                const district = addr.town || addr.city_district || addr.suburb || addr.district || '';
+                // Cleanup common suffixes like "İli", "Büyükşehir Belediyesi" if they exist
+                if (city) {
+                    city = city.replace(' İlleri', '').replace(' İli', '').replace(' Büyükşehir Belediyesi', '');
+                }
+                
+                if (district) {
+                    district = district.replace(' Belediyesi', '').replace(' İlçesi', '');
+                }
 
-                return {
-                    city: city.replace(' İlleri', '').replace(' İli', '').replace(' Büyükşehir Belediyesi', ''),
-                    district: district.replace(' Belediyesi', '')
-                };
+                if (city || district) {
+                    return { city, district };
+                }
             }
             return null;
         } catch (error) {

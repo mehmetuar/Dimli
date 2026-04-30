@@ -1,18 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import React, { useState, useEffect } from 'react';
+import { APIProvider, Map, AdvancedMarker, useMap } from '@vis.gl/react-google-maps';
 import { Navigation, MapPin, Loader2, Lock } from 'lucide-react';
 import { Geolocation } from '@capacitor/geolocation';
 import { locationService } from '../../../../../services/locationService';
-
-// Fix for default marker icon in React Leaflet
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-    iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-    iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-});
 
 interface LocationStepProps {
     formData: any;
@@ -21,14 +11,13 @@ interface LocationStepProps {
     setIsGeocoding: (val: boolean) => void;
 }
 
-const MapFlyTo: React.FC<{ lat: number; lng: number; triggerFly: boolean }> = ({ lat, lng, triggerFly }) => {
+const MapEffect: React.FC<{ lat: number; lng: number; triggerFly: boolean }> = ({ lat, lng, triggerFly }) => {
     const map = useMap();
-    const prevTrigger = useRef(false);
     useEffect(() => {
-        if (triggerFly && !prevTrigger.current) {
-            map.flyTo([lat, lng], 15, { duration: 1.5 });
+        if (map && triggerFly && lat && lng) {
+            map.panTo({ lat, lng });
+            map.setZoom(15);
         }
-        prevTrigger.current = triggerFly;
     }, [triggerFly, lat, lng, map]);
     return null;
 };
@@ -90,17 +79,13 @@ export const LocationStep: React.FC<LocationStepProps> = ({
         }
     };
 
-    const LocationMarker = () => {
-        useMapEvents({
-            async click(e) {
-                updateBusiness('latitude', e.latlng.lat);
-                updateBusiness('longitude', e.latlng.lng);
-                await doReverseGeocode(e.latlng.lat, e.latlng.lng);
-            },
-        });
-        return formData.business.latitude ? (
-            <Marker position={[formData.business.latitude, formData.business.longitude]} />
-        ) : null;
+    const handleMapClick = async (e: any) => {
+        if (!e.detail.latLng) return;
+        const lat = e.detail.latLng.lat;
+        const lng = e.detail.latLng.lng;
+        updateBusiness('latitude', lat);
+        updateBusiness('longitude', lng);
+        await doReverseGeocode(lat, lng);
     };
 
     const hasLocation = !!formData.business.latitude;
@@ -141,22 +126,25 @@ export const LocationStep: React.FC<LocationStepProps> = ({
 
             {/* Harita */}
             <div className="rounded-xl overflow-hidden border-2 border-slate-700 relative z-[1]" style={{ height: '320px' }}>
-                <MapContainer
-                    center={[formData.business.latitude || 41.0082, formData.business.longitude || 28.9784]}
-                    zoom={13}
-                    style={{ height: '100%', width: '100%' }}
-                >
-                    <TileLayer
-                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                    />
-                    <LocationMarker />
-                    <MapFlyTo
-                        lat={formData.business.latitude || 41.0082}
-                        lng={formData.business.longitude || 28.9784}
-                        triggerFly={flyTrigger}
-                    />
-                </MapContainer>
+                <APIProvider apiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY}>
+                    <Map
+                        defaultCenter={{ lat: formData.business.latitude || 41.0082, lng: formData.business.longitude || 28.9784 }}
+                        defaultZoom={13}
+                        gestureHandling={'greedy'}
+                        disableDefaultUI={true}
+                        mapId="DEMO_MAP_ID"
+                        onClick={handleMapClick}
+                    >
+                        {formData.business.latitude && formData.business.longitude && (
+                            <AdvancedMarker position={{ lat: formData.business.latitude, lng: formData.business.longitude }} />
+                        )}
+                        <MapEffect
+                            lat={formData.business.latitude || 41.0082}
+                            lng={formData.business.longitude || 28.9784}
+                            triggerFly={flyTrigger}
+                        />
+                    </Map>
+                </APIProvider>
             </div>
 
             {/* Geocoding durumu */}
