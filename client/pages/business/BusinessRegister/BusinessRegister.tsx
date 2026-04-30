@@ -90,7 +90,7 @@ export const BusinessRegister: React.FC = () => {
                     />
                 );
             case 7:
-                return <PaymentStep formData={formData} isLoading={isLoading} onSubmit={handleSubmit} />;
+                return <PaymentStep formData={formData} isLoading={isLoading} error={error} onSubmit={handleSubmit} />;
             case 8:
                 return <CongratulationsStep ownerEmail={formData.owner.email} />;
             default:

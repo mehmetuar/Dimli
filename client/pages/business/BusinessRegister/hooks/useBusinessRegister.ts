@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import api from '../../../../services/api';
+import { purchasePlan, linkRevenueCatUser } from '../../../../services/revenuecatService';
 
 export const SUBSCRIPTION_PLANS: Record<number, { label: string; price: number; planType: string }> = {
-    1: { label: 'Starter', price: 1700, planType: '1_pitch' },
-    2: { label: 'Basic', price: 2950, planType: '2_pitch' },
-    3: { label: 'Pro', price: 3850, planType: '3_pitch' },
-    4: { label: 'Business', price: 4650, planType: '4_pitch' },
-    5: { label: 'Enterprise', price: 5250, planType: '5plus_pitch' },
+    1: { label: 'Starter', price: 1709.99, planType: '1_pitch' },
+    2: { label: 'Basic', price: 2999.99, planType: '2_pitch' },
+    3: { label: 'Pro', price: 3849.99, planType: '3_pitch' },
+    4: { label: 'Business', price: 4649.99, planType: '4_pitch' },
+    5: { label: 'Enterprise', price: 5399.99, planType: '5plus_pitch' },
 };
 
 export const makePitch = (index: number) => ({
@@ -128,7 +129,7 @@ export const useBusinessRegister = () => {
             await api.post('/auth/business/send-otp', { phone: formData.owner.phone });
             setOtpSent(true);
         } catch (err: any) {
-            setError(err.response?.data?.message || 'OTP gönderilemedi.');
+            setError(err.response?.data?.message || err.message || 'OTP gönderilemedi.');
         } finally {
             setOtpSending(false);
         }
@@ -140,9 +141,9 @@ export const useBusinessRegister = () => {
         try {
             await api.post('/auth/business/verify-otp', { phone: formData.owner.phone, code });
             setOtpVerified(true);
-            setCurrentStep(4); // Business details
+            setCurrentStep(4);
         } catch (err: any) {
-            setError(err.response?.data?.message || 'Kod hatalı veya süresi dolmuş.');
+            setError(err.response?.data?.message || err.message || 'Kod hatalı veya süresi dolmuş.');
         } finally {
             setIsLoading(false);
         }
@@ -154,7 +155,10 @@ export const useBusinessRegister = () => {
         setIsLoading(true);
         setError('');
         try {
-            // 1. Upload pitch photos
+            // ADIM 1: Satın alma — başarısız / iptal olursa hata fırlar, kayıt YAPILMAZ
+            const rcAnonymousId = await purchasePlan(formData.planType);
+
+            // ADIM 2: Fotoğraf yükle
             const pitchesWithImages = await Promise.all(
                 formData.pitches.map(async (pitch) => {
                     if (pitch.photoFile) {
@@ -169,7 +173,7 @@ export const useBusinessRegister = () => {
                 })
             );
 
-            // 2. Submit registration
+            // ADIM 3: Satın alma başarılı → kayıt API'sini çağır
             const payload = {
                 owner: formData.owner,
                 business: formData.business,
@@ -184,11 +188,24 @@ export const useBusinessRegister = () => {
                     imageUrl: p.imageUrl,
                 })),
                 planType: formData.planType,
+                revenuecatAnonymousId: rcAnonymousId,
             };
-            await api.post('/auth/business/register', payload);
+            const response = await api.post('/auth/business/register', payload);
+
+            // ADIM 4: Anonim RC kullanıcısını gerçek ownerId'ye bağla
+            const ownerId = response.data?.owner?.id;
+            if (ownerId) {
+                await linkRevenueCatUser(ownerId).catch(() => {});
+            }
+
             setCurrentStep(8); // Congratulations
         } catch (err: any) {
-            setError(err.response?.data?.message || 'Kayıt sırasında bir hata oluştu.');
+            // Satın alma iptali veya doğrulama hatası
+            const msg = err?.message?.includes('cancel') || err?.code === 'PURCHASE_CANCELLED'
+                ? 'Satın alma iptal edildi. Kaydı tamamlamak için ödeme gereklidir.'
+                : err.response?.data?.message || err?.message || 'Bir hata oluştu. Lütfen tekrar deneyin.';
+            setError(msg);
+            // currentStep değişmez — kullanıcı PaymentStep'te kalır
         } finally {
             setIsLoading(false);
         }

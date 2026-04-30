@@ -44,7 +44,7 @@ export const useForgotPassword = () => {
             setResendCountdown(60);
             setStep(2);
         } catch (err: any) {
-            setError(err.response?.data?.message || 'SMS gönderilemedi. Lütfen tekrar deneyin.');
+            setError(err.response?.data?.message || err.message || 'SMS gönderilemedi. Lütfen tekrar deneyin.');
         } finally {
             setLoading(false);
         }
@@ -59,7 +59,7 @@ export const useForgotPassword = () => {
             setOtpDigits(['', '', '', '', '', '']);
             setResendCountdown(60);
         } catch (err: any) {
-            setError(err.response?.data?.message || 'SMS gönderilemedi. Lütfen tekrar deneyin.');
+            setError(err.response?.data?.message || err.message || 'SMS gönderilemedi. Lütfen tekrar deneyin.');
         } finally {
             setLoading(false);
         }
@@ -72,7 +72,7 @@ export const useForgotPassword = () => {
             await api.post('/auth/forgot-password/verify-otp', { phone, code });
             setTimeout(() => setStep(3), 400);
         } catch (err: any) {
-            setError(err.response?.data?.message || 'Geçersiz doğrulama kodu.');
+            setError(err.response?.data?.message || err.message || 'Geçersiz doğrulama kodu.');
             setOtpDigits(['', '', '', '', '', '']);
         } finally {
             setLoading(false);

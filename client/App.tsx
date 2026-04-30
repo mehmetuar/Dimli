@@ -12,6 +12,7 @@ import { ProtectedRoute } from './components/Layout/ProtectedRoute';
 import { RatingModal } from './components/Modals/RatingModal';
 import { PendingRating } from './types';
 import { initializePushNotifications } from './services/pushNotificationService';
+import { initRevenueCat } from './services/revenuecatService';
 import { LocationProvider, useLocationContext } from './contexts/LocationContext';
 import { useKeyboardScroll } from './utils/useKeyboardScroll';
 
@@ -89,7 +90,7 @@ function AppContent() {
   const [pendingRatings, setPendingRatings] = useState<PendingRating[]>([]);
   const { updateCoords } = useLocationContext();
 
-  // Android & iOS: StatusBar + SplashScreen on first mount
+  // Android & iOS: StatusBar + SplashScreen + RevenueCat on first mount
   useEffect(() => {
     if (Capacitor.isNativePlatform()) {
       StatusBar.setStyle({ style: Style.Dark });
@@ -98,6 +99,8 @@ function AppContent() {
       }
       // Hide splash screen now that React has mounted
       SplashScreen.hide({ fadeOutDuration: 300 }).catch(() => { });
+      // RevenueCat SDK başlat
+      initRevenueCat().catch(() => { });
     }
   }, []);
 

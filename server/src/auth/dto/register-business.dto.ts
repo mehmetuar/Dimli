@@ -121,4 +121,8 @@ export class RegisterBusinessDto {
     @IsString()
     @IsOptional()
     planType?: string;
+
+    @IsString()
+    @IsOptional()
+    revenuecatAnonymousId?: string;
 }

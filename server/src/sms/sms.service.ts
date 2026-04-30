@@ -6,48 +6,61 @@ export class SmsService {
     private readonly logger = new Logger(SmsService.name);
 
     async sendSms(phone: string, message: string): Promise<void> {
-        const apiUrl = process.env.DIMLI_API_URL;
-        const apiKey = process.env.DIMLI_API_KEY;
-        const sender = process.env.DIMLI_SENDER || 'DIMLI';
+        const userCode = process.env.NETGSM_USER_CODE;
+        const password = process.env.NETGSM_PASSWORD;
+        const header = process.env.NETGSM_HEADER; // Gönderen olarak direkt numara görünecek
 
-        if (!apiUrl || !apiKey) {
-            this.logger.warn(`DIMLI_API_URL veya DIMLI_API_KEY tanımlı değil. SMS gönderilmedi. Kod: ${message}`);
+        if (!userCode || !password || !header) {
+            this.logger.warn(`NETGSM credentials eksik (USER_CODE, PASSWORD, HEADER zorunlu). SMS gönderilmedi. Kod: ${message}`);
             return;
         }
 
-        // Türkiye formatına çevir: 05xx -> 905xx
         const normalizedPhone = this.normalizePhone(phone);
 
         try {
-            await axios.post(
-                apiUrl,
+            // MOCK MODE: NetGSM başlık onayı gelene kadar SMS'leri sadece logluyoruz.
+            // Gerçek gönderim kodları yoruma alındı.
+            this.logger.log(`[MOCK SMS] Alıcı: ${normalizedPhone} | Mesaj: ${message}`);
+            return;
+
+            /*
+            const authHeader = Buffer.from(`${userCode}:${password}`).toString('base64');
+
+            const response = await axios.post(
+                'https://api.netgsm.com.tr/sms/rest/v2/otp',
                 {
-                    to: normalizedPhone,
-                    message,
-                    from: sender,
+                    msgheader: header, // .env'den gelen 8503084905
+                    msg: message,
+                    no: normalizedPhone
                 },
                 {
                     headers: {
-                        Authorization: `Bearer ${apiKey}`,
-                        'Content-Type': 'application/json',
-                    },
-                },
+                        'Authorization': `Basic ${authHeader}`,
+                        'Content-Type': 'application/json'
+                    }
+                }
             );
-            this.logger.log(`SMS başarıyla gönderildi: ${normalizedPhone}`);
+
+            const responseData = response.data;
+
+            if (responseData.code !== '00') {
+                throw new Error(`NetGSM hata kodu: ${responseData.code} - ${responseData.description || 'Bilinmeyen hata'}`);
+            }
+
+            this.logger.log(`OTP SMS başarıyla gönderildi: ${normalizedPhone} (Job ID: ${responseData.jobid})`);
+            */
         } catch (error: any) {
-            this.logger.error(`SMS gönderilemedi: ${error?.response?.data || error.message}`);
+            const errorMessage = error?.response?.data?.description || error?.response?.data?.code || error.message;
+            this.logger.error(`SMS gönderilemedi: ${errorMessage}`);
             throw new Error('SMS gönderilemedi. Lütfen daha sonra tekrar deneyin.');
         }
     }
 
     private normalizePhone(phone: string): string {
         const digits = phone.replace(/\D/g, '');
-        if (digits.startsWith('0')) {
-            return '90' + digits.slice(1);
-        }
-        if (digits.startsWith('90')) {
-            return digits;
-        }
-        return '90' + digits;
+        // OTP API'si genellikle başında sıfır olmadan 10 haneli format ister: 537XXXXXXX
+        if (digits.startsWith('0')) return digits.slice(1);
+        if (digits.startsWith('90')) return digits.slice(2);
+        return digits;
     }
 }

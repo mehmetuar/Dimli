@@ -65,7 +65,7 @@ export const useRegister = () => {
             setOtpDigits(['', '', '', '', '', '']);
             setResendCountdown(60);
         } catch (err: any) {
-            setError(err.response?.data?.message || 'SMS gönderilemedi. Lütfen tekrar deneyin.');
+            setError(err.response?.data?.message || err.message || 'SMS gönderilemedi. Lütfen tekrar deneyin.');
         } finally {
             setOtpLoading(false);
         }
@@ -79,7 +79,7 @@ export const useRegister = () => {
             setOtpVerified(true);
             setTimeout(() => setStep(5), 600);
         } catch (err: any) {
-            setError(err.response?.data?.message || 'Geçersiz doğrulama kodu.');
+            setError(err.response?.data?.message || err.message || 'Geçersiz doğrulama kodu.');
             setOtpDigits(['', '', '', '', '', '']);
         } finally {
             setOtpLoading(false);

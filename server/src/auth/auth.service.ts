@@ -448,7 +448,11 @@ export class AuthService {
             // 5. Trial abonelik oluştur (planType varsa)
             if (data.planType) {
                 try {
-                    await this.subscriptionService.createTrialSubscription(savedOwner.id, data.planType);
+                    await this.subscriptionService.createTrialSubscription(
+                        savedOwner.id,
+                        data.planType,
+                        data.revenuecatAnonymousId,
+                    );
                 } catch {
                     // Abonelik oluşturma hatası kayıt işlemini geri almaz
                 }

@@ -1,14 +1,15 @@
 import React from 'react';
-import { CheckCircle, Loader2, ShieldCheck } from 'lucide-react';
+import { AlertCircle, CheckCircle, Loader2, ShieldCheck } from 'lucide-react';
 import { SUBSCRIPTION_PLANS } from '../../hooks/useBusinessRegister';
 
 interface PaymentStepProps {
     formData: any;
     isLoading: boolean;
+    error: string;
     onSubmit: () => void;
 }
 
-export const PaymentStep: React.FC<PaymentStepProps> = ({ formData, isLoading, onSubmit }) => {
+export const PaymentStep: React.FC<PaymentStepProps> = ({ formData, isLoading, error, onSubmit }) => {
     const count = formData.selectedPitchCount;
     const plan = SUBSCRIPTION_PLANS[count] || SUBSCRIPTION_PLANS[5];
 
@@ -67,6 +68,14 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ formData, isLoading, o
                 </span>
             </div>
 
+            {/* Hata mesajı */}
+            {error && (
+                <div className="flex items-start gap-2 bg-red-900/30 border border-red-700/60 rounded-xl p-3">
+                    <AlertCircle size={16} className="shrink-0 mt-0.5 text-red-400" />
+                    <p className="text-sm text-red-300">{error}</p>
+                </div>
+            )}
+
             {/* Submit butonu */}
             <button
                 onClick={onSubmit}
@@ -74,9 +83,9 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ formData, isLoading, o
                 className="w-full bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-500 hover:to-red-500 disabled:opacity-50 text-white py-4 rounded-2xl font-black text-base flex items-center justify-center gap-2 transition-all shadow-lg shadow-orange-900/30"
             >
                 {isLoading ? (
-                    <><Loader2 className="animate-spin" size={20} /> Gönderiliyor...</>
+                    <><Loader2 className="animate-spin" size={20} /> İşleniyor...</>
                 ) : (
-                    <><CheckCircle size={20} /> Başvuruyu Tamamla</>
+                    <><CheckCircle size={20} /> Satın Al ve Kaydı Tamamla</>
                 )}
             </button>
         </div>
