@@ -25,7 +25,11 @@ export class SubscriptionService {
         }));
     }
 
-    async createTrialSubscription(ownerId: string, planType: string): Promise<Subscription> {
+    async createTrialSubscription(
+        ownerId: string,
+        planType: string,
+        revenuecatCustomerId?: string,
+    ): Promise<Subscription> {
         const plan = SUBSCRIPTION_PLANS[planType];
         if (!plan) throw new NotFoundException('Geçersiz plan tipi.');
 
@@ -39,6 +43,7 @@ export class SubscriptionService {
             pricePerMonth: plan.pricePerMonth,
             status: SubscriptionStatus.TRIAL,
             trialEndsAt,
+            ...(revenuecatCustomerId && { revenuecatCustomerId }),
         });
 
         return this.subscriptionRepository.save(subscription);
@@ -61,15 +66,25 @@ export class SubscriptionService {
     async handleWebhook(event: any): Promise<void> {
         const { type, app_user_id } = event;
 
-        const subscription = await this.subscriptionRepository.findOne({
+        // Önce revenuecatCustomerId ile ara (anonim ID veya önceki logIn ID'si)
+        // Bulamazsa ownerId ile dene — logIn(ownerId) çağrısı sonrası app_user_id = ownerId olur
+        let subscription = await this.subscriptionRepository.findOne({
             where: { revenuecatCustomerId: app_user_id },
         });
+
+        if (!subscription) {
+            subscription = await this.subscriptionRepository.findOne({
+                where: { ownerId: app_user_id },
+            });
+        }
 
         if (!subscription) return;
 
         switch (type) {
             case 'INITIAL_PURCHASE':
             case 'RENEWAL':
+                // Her zaman güncel RC customer ID'yi kaydet
+                subscription.revenuecatCustomerId = app_user_id;
                 subscription.status = SubscriptionStatus.ACTIVE;
                 if (event.expiration_at_ms) {
                     subscription.expiresAt = new Date(event.expiration_at_ms);
