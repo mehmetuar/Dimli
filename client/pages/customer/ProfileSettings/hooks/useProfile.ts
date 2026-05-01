@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api, { getProfile, updateProfile, changePassword } from '../../../../services/api';
 
 export const useProfile = () => {
+    const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState<'profile' | 'password'>('profile');
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
     const [profileData, setProfileData] = useState<{
         full_name: string;
@@ -157,6 +160,12 @@ export const useProfile = () => {
         }
     };
 
+    const deleteAccount = async (reason: string, note: string, password: string): Promise<void> => {
+        await api.delete('/users/me', { data: { reason, note, password } });
+        localStorage.clear();
+        navigate('/login');
+    };
+
     return {
         activeTab,
         setActiveTab,
@@ -172,6 +181,9 @@ export const useProfile = () => {
         uploadAvatar,
         removeAvatar,
         handleProfileUpdate,
-        handlePasswordChange
+        handlePasswordChange,
+        isDeleteModalOpen,
+        setIsDeleteModalOpen,
+        deleteAccount,
     };
 };

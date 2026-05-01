@@ -14,10 +14,10 @@ export class ChatMessage {
     @JoinColumn({ name: 'channelId' })
     channel: ChatChannel;
 
-    @Column()
-    senderId: string;
+    @Column({ nullable: true, type: 'varchar' })
+    senderId: string | null;
 
-    @ManyToOne(() => User)
+    @ManyToOne(() => User, { nullable: true })
     @JoinColumn({ name: 'senderId' })
     sender: User;
 

@@ -6,6 +6,7 @@ import { LoadingSpinner } from '../UI/LoadingSpinner';
 import { SkillLevel, Business, ReservationStatus } from '../../types';
 import api, { getReservationsByPitch, getBusinesses } from '../../services/api';
 import { useLocationContext } from '../../contexts/LocationContext';
+import { useKeyboardHeight } from '../../utils/useKeyboardHeight';
 
 import { DateSelectionModal } from './DateSelectionModal';
 import { TimeSelectionModal } from './TimeSelectionModal';
@@ -25,6 +26,7 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
     if (!isOpen) return null;
 
     const navigate = useNavigate();
+    const keyboardHeight = useKeyboardHeight();
     const [businesses, setBusinesses] = useState<Business[]>([]);
 
     // Selection state
@@ -209,8 +211,11 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
 
     return (
         <>
-            <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-black/90 backdrop-blur-sm animate-fade-in">
-                <div className="bg-slate-800 w-full max-w-lg sm:rounded-3xl rounded-t-3xl border border-slate-700 shadow-2xl shadow-turf-500/10 overflow-hidden flex flex-col max-h-[90vh]">
+            <div
+                className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-black/90 backdrop-blur-sm animate-fade-in"
+                style={keyboardHeight > 0 ? { bottom: keyboardHeight } : undefined}
+            >
+                <div className="bg-slate-800 w-full max-w-lg sm:rounded-3xl rounded-t-3xl border border-slate-700 shadow-2xl shadow-turf-500/10 overflow-hidden flex flex-col max-h-[90%]">
 
                     {/* Header */}
                     <div className="p-6 border-b border-slate-700 bg-slate-900 flex justify-between items-center sticky top-0 z-10">
@@ -463,6 +468,10 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
                                         placeholder="Örn: Forma rengimiz siyah. İddialıyız."
                                         value={note}
                                         onChange={(e) => setNote(e.target.value)}
+                                        onFocus={(e) => {
+                                            const el = e.target;
+                                            setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 400);
+                                        }}
                                     />
                                 </div>
                             </div>

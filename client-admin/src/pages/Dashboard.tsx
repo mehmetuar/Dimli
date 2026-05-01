@@ -28,6 +28,14 @@ interface Stats {
     monthlyGrowth: Array<{ month: string; newBusinesses: number; approvedBusinesses: number }>;
 }
 
+interface DeletionReport {
+    total: number;
+    thisMonth: number;
+    reasonBreakdown: Array<{ key: string; label: string; count: number }>;
+    monthlyTrend: Array<{ month: string; count: number }>;
+    recent: Array<{ id: string; reason: string; note?: string; userName?: string; userEmail?: string; userUsername?: string; deletedAt: string }>;
+}
+
 const formatMonth = (m: string) => {
     const [year, month] = m.split('-');
     const months = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
@@ -77,16 +85,32 @@ const CustomTooltip: React.FC<any> = ({ active, payload, label }) => {
     );
 };
 
+const REASON_COLORS: Record<string, string> = {
+    NOT_USING: '#f97316',
+    PRIVACY: '#a855f7',
+    DIFFERENT_APP: '#3b82f6',
+    NOT_SATISFIED: '#ef4444',
+    TECHNICAL: '#eab308',
+    OTHER: '#64748b',
+};
+
 export default function Dashboard() {
     const navigate = useNavigate();
     const [stats, setStats] = useState<Stats | null>(null);
     const [loading, setLoading] = useState(true);
+    const [deletionReport, setDeletionReport] = useState<DeletionReport | null>(null);
+    const [deletionLoading, setDeletionLoading] = useState(true);
 
     useEffect(() => {
         adminApi.get('/admin/statistics')
             .then(r => setStats(r.data))
             .catch(console.error)
             .finally(() => setLoading(false));
+
+        adminApi.get('/admin/deletion-report')
+            .then(r => setDeletionReport(r.data))
+            .catch(console.error)
+            .finally(() => setDeletionLoading(false));
     }, []);
 
     const today = new Date().toLocaleDateString('tr-TR', {
@@ -311,6 +335,113 @@ export default function Dashboard() {
                         )}
                     </div>
                 </div>
+            </div>
+
+            {/* Hesap Silme Raporu */}
+            <div>
+                <h2 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-3">Hesap Silme Raporu</h2>
+
+                {/* Özet kartlar */}
+                <div className="grid grid-cols-2 gap-4 mb-5">
+                    <div className="bg-red-950/30 border border-red-900/40 rounded-2xl p-5">
+                        <p className="text-3xl font-black text-red-400 tabular-nums">
+                            {deletionLoading ? '—' : deletionReport?.total ?? 0}
+                        </p>
+                        <p className="text-sm font-bold text-[#dde8f5] mt-1">Toplam Silinen Hesap</p>
+                    </div>
+                    <div className="bg-orange-950/30 border border-orange-900/40 rounded-2xl p-5">
+                        <p className="text-3xl font-black text-orange-400 tabular-nums">
+                            {deletionLoading ? '—' : deletionReport?.thisMonth ?? 0}
+                        </p>
+                        <p className="text-sm font-bold text-[#dde8f5] mt-1">Bu Ay Silinen</p>
+                    </div>
+                </div>
+
+                {/* Sebep dağılımı */}
+                {!deletionLoading && deletionReport && deletionReport.reasonBreakdown.length > 0 && (
+                    <div className="bg-[#162032] border border-slate-700/40 rounded-2xl p-5 mb-5">
+                        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">Sebep Dağılımı</p>
+                        <ResponsiveContainer width="100%" height={180}>
+                            <BarChart
+                                data={deletionReport.reasonBreakdown}
+                                margin={{ top: 4, right: 4, left: -25, bottom: 0 }}
+                            >
+                                <CartesianGrid strokeDasharray="3 3" stroke="#2a3d5a" vertical={false} />
+                                <XAxis
+                                    dataKey="label"
+                                    tick={{ fill: '#7b9ab8', fontSize: 9 }}
+                                    axisLine={{ stroke: '#2a3d5a' }}
+                                    tickLine={false}
+                                    interval={0}
+                                    width={60}
+                                    tickFormatter={(v: string) => v.split(' ').slice(0, 2).join(' ')}
+                                />
+                                <YAxis
+                                    tick={{ fill: '#7b9ab8', fontSize: 10 }}
+                                    axisLine={false}
+                                    tickLine={false}
+                                    allowDecimals={false}
+                                />
+                                <Tooltip content={<CustomTooltip />} cursor={{ fill: '#ffffff08' }} />
+                                <Bar dataKey="count" name="Kişi" radius={[6, 6, 0, 0]} fill="#ef4444" />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                )}
+
+                {/* Son 30 silme tablosu */}
+                {!deletionLoading && deletionReport && deletionReport.recent.length > 0 && (
+                    <div className="bg-[#162032] border border-slate-700/40 rounded-2xl overflow-hidden">
+                        <div className="px-5 py-3.5 border-b border-slate-700/40">
+                            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Son Silmeler</p>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead>
+                                    <tr className="border-b border-slate-700/40">
+                                        <th className="text-left px-5 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Kullanıcı</th>
+                                        <th className="text-left px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Sebep</th>
+                                        <th className="text-left px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Tarih</th>
+                                        <th className="text-left px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">Not</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {deletionReport.recent.map((d, i) => (
+                                        <tr key={d.id} className={`border-b border-slate-800/60 ${i % 2 === 0 ? '' : 'bg-white/[0.02]'}`}>
+                                            <td className="px-5 py-3">
+                                                <p className="font-bold text-[#dde8f5] text-xs">{d.userName || '—'}</p>
+                                                <p className="text-slate-500 text-[10px]">{d.userEmail || d.userUsername || ''}</p>
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <span
+                                                    className="text-[10px] font-bold px-2 py-1 rounded-full"
+                                                    style={{
+                                                        background: `${REASON_COLORS[d.reason] || '#64748b'}20`,
+                                                        color: REASON_COLORS[d.reason] || '#64748b',
+                                                    }}
+                                                >
+                                                    {deletionReport.reasonBreakdown.find(r => r.key === d.reason)?.label || d.reason}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3 text-slate-400 text-xs">
+                                                {new Date(d.deletedAt).toLocaleDateString('tr-TR')}
+                                            </td>
+                                            <td className="px-4 py-3 text-slate-500 text-xs max-w-[200px] truncate">
+                                                {d.note || '—'}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )}
+
+                {!deletionLoading && deletionReport?.total === 0 && (
+                    <div className="bg-[#162032] border border-slate-700/40 rounded-2xl p-8 text-center text-slate-600 text-sm">
+                        Henüz hesap silme kaydı bulunmuyor.
+                    </div>
+                )}
             </div>
 
             {/* Alt boşluk */}

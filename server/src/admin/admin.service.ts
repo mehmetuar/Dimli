@@ -16,6 +16,7 @@ import { Pitch } from '../pitches/entities/pitch.entity';
 import { TimeSlot } from '../pitches/entities/time-slot.entity';
 import { PitchChangeRequest } from '../pitches/entities/pitch-change-request.entity';
 import { Notification } from '../notifications/notification.entity';
+import { AccountDeletion } from '../account-deletions/account-deletion.entity';
 
 const PLAN_LABELS: Record<string, string> = {
     '1_pitch': 'Starter',
@@ -44,6 +45,8 @@ export class AdminService {
         private changeRequestRepository: Repository<PitchChangeRequest>,
         @InjectRepository(Notification)
         private notificationRepository: Repository<Notification>,
+        @InjectRepository(AccountDeletion)
+        private accountDeletionRepository: Repository<AccountDeletion>,
         private jwtService: JwtService,
     ) { }
 
@@ -439,6 +442,51 @@ export class AdminService {
                 byPlan,
             },
             monthlyGrowth,
+        };
+    }
+
+    // ─── Deletion Report ──────────────────────────────────────────────────────
+
+    async getDeletionReport() {
+        const deletions = await this.accountDeletionRepository.find({
+            order: { deletedAt: 'DESC' },
+        });
+
+        const REASON_LABELS: Record<string, string> = {
+            NOT_USING: 'Artık kullanmak istemiyorum',
+            PRIVACY: 'Gizlilik endişelerim var',
+            DIFFERENT_APP: 'Farklı bir uygulama kullanıyorum',
+            NOT_SATISFIED: 'Beklentilerimi karşılamıyor',
+            TECHNICAL: 'Teknik sorunlar yaşıyorum',
+            OTHER: 'Diğer',
+        };
+
+        const reasonBreakdown = Object.entries(
+            deletions.reduce((acc, d) => {
+                acc[d.reason] = (acc[d.reason] || 0) + 1;
+                return acc;
+            }, {} as Record<string, number>),
+        ).map(([key, count]) => ({ key, label: REASON_LABELS[key] || key, count }));
+
+        // Son 6 aylık trend
+        const now = new Date();
+        const monthlyTrend: { month: string; count: number }[] = [];
+        for (let i = 5; i >= 0; i--) {
+            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const monthStr = d.toISOString().slice(0, 7);
+            const count = deletions.filter(del => del.deletedAt.toISOString().slice(0, 7) === monthStr).length;
+            monthlyTrend.push({ month: monthStr, count });
+        }
+
+        const thisMonth = now.toISOString().slice(0, 7);
+        const thisMonthCount = deletions.filter(d => d.deletedAt.toISOString().slice(0, 7) === thisMonth).length;
+
+        return {
+            total: deletions.length,
+            thisMonth: thisMonthCount,
+            reasonBreakdown,
+            monthlyTrend,
+            recent: deletions.slice(0, 30),
         };
     }
 }

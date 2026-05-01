@@ -71,6 +71,12 @@ export class AdminController {
         return this.adminService.getStatistics();
     }
 
+    @UseGuards(AdminJwtAuthGuard)
+    @Get('deletion-report')
+    async getDeletionReport() {
+        return this.adminService.getDeletionReport();
+    }
+
     // ─── Businesses ───────────────────────────────────────────────────────────
 
     @UseGuards(AdminJwtAuthGuard)

@@ -1,4 +1,4 @@
-import { Controller, Get, Request, UseGuards, Post, Body, Patch, HttpCode, HttpStatus, Query } from '@nestjs/common';
+import { Controller, Get, Request, UseGuards, Post, Body, Patch, Delete, HttpCode, HttpStatus, Query } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -75,6 +75,17 @@ export class UsersController {
     @HttpCode(HttpStatus.OK)
     async changePassword(@Request() req, @Body() changePasswordDto: ChangePasswordDto) {
         return this.usersService.changePassword(req.user.id, changePasswordDto);
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Delete('me')
+    @HttpCode(HttpStatus.OK)
+    async deleteAccount(
+        @Request() req,
+        @Body() body: { reason: string; note?: string; password: string },
+    ) {
+        await this.usersService.deleteAccount(req.user.id, body);
+        return { success: true };
     }
 
     @Post('seed-feet')

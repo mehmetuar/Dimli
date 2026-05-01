@@ -7,12 +7,24 @@ import * as bcrypt from 'bcrypt';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { AccountDeletion } from '../account-deletions/account-deletion.entity';
+import { JoinRequest } from '../join-requests/join-request.entity';
+import { Notification } from '../notifications/notification.entity';
+import { Team } from '../teams/team.entity';
 
 @Injectable()
 export class UsersService {
     constructor(
         @InjectRepository(User)
         private usersRepository: Repository<User>,
+        @InjectRepository(AccountDeletion)
+        private accountDeletionRepository: Repository<AccountDeletion>,
+        @InjectRepository(JoinRequest)
+        private joinRequestRepository: Repository<JoinRequest>,
+        @InjectRepository(Notification)
+        private notificationRepository: Repository<Notification>,
+        @InjectRepository(Team)
+        private teamRepository: Repository<Team>,
     ) { }
 
     normalizePhone(phone: string): string {
@@ -33,7 +45,6 @@ export class UsersService {
                 throw new Error('Password is required');
             }
 
-            // Check if username already exists
             const existing = await this.usersRepository.findOne({ where: { username: userData.username } });
             if (existing) {
                 throw new Error('Username already exists');
@@ -122,7 +133,6 @@ export class UsersService {
             .sort((a, b) => a.distanceKm - b.distanceKm);
     }
 
-
     async update(id: string, updateUserDto: UpdateUserDto): Promise<User | null> {
         await this.usersRepository.update(id, updateUserDto);
         return this.usersRepository.findOne({ where: { id }, relations: ['team'] });
@@ -149,6 +159,82 @@ export class UsersService {
 
         const hashedPassword = await bcrypt.hash(changePasswordDto.newPassword, 10);
         await this.usersRepository.update(id, { password: hashedPassword });
+    }
+
+    async deleteAccount(userId: string, data: { reason: string; note?: string; password: string }): Promise<void> {
+        const user = await this.usersRepository.findOne({ where: { id: userId } });
+        if (!user) throw new NotFoundException('Kullanıcı bulunamadı');
+
+        const isValid = await bcrypt.compare(data.password, user.password);
+        if (!isValid) throw new UnauthorizedException('Şifre hatalı');
+
+        // 1. JoinRequests sil
+        await this.joinRequestRepository.delete({ userId });
+
+        // 3. Notifications sil
+        await this.notificationRepository.delete({ userId });
+
+        // 4. ChatParticipants hard-delete (FK kısıtlaması soft-delete ile çözülmez)
+        await this.usersRepository.query(
+            `DELETE FROM "chat_participants_v2" WHERE "userId" = $1`,
+            [userId],
+        );
+
+        // 5. ChatMessages senderId null yap (raw SQL — entity tipi union sorununu aşar)
+        await this.usersRepository.query(
+            `UPDATE "chat_messages" SET "senderId" = NULL WHERE "senderId" = $1`,
+            [userId],
+        );
+
+        // 6. Takım kaptanlığı devret / kullanıcıyı takımdan çıkar
+        const userWithTeam = await this.usersRepository.findOne({ where: { id: userId }, relations: ['team'] });
+        if (userWithTeam?.team) {
+            const team = await this.teamRepository.findOne({
+                where: { id: userWithTeam.team.id },
+                relations: ['players'],
+            });
+            if (team) {
+                if (team.captainId === userId) {
+                    const viceCaptainIds: string[] = (team.viceCaptainIds || []).filter(id => id !== userId);
+                    const newCaptainId: string | null = viceCaptainIds[0]
+                        ?? team.players?.find(p => p.id !== userId)?.id
+                        ?? null;
+                    // Raw SQL — TypeORM update() undefined değerini NULL yazmaz
+                    await this.teamRepository.query(
+                        `UPDATE "team" SET "captainId" = $1, "viceCaptainIds" = $2 WHERE id = $3`,
+                        [newCaptainId, viceCaptainIds.filter(id => id !== newCaptainId).join(','), team.id],
+                    );
+                } else {
+                    const cleaned = (team.viceCaptainIds || []).filter(id => id !== userId);
+                    await this.teamRepository.query(
+                        `UPDATE "team" SET "viceCaptainIds" = $1 WHERE id = $2`,
+                        [cleaned.join(','), team.id],
+                    );
+                }
+            }
+        }
+
+        // Team'in captain FK referansını temizle (FK_... constraint hatası önlenir)
+        await this.teamRepository.query(
+            `UPDATE "team" SET "captainId" = NULL WHERE "captainId" = $1`,
+            [userId],
+        );
+
+        // Kullanıcıyı takımdan çıkar (user tarafındaki FK)
+        await this.usersRepository.query(`UPDATE "user" SET "team_id" = NULL WHERE id = $1`, [userId]);
+
+        // 7. Kullanıcıyı sil
+        await this.usersRepository.delete(userId);
+
+        // 8. Silme kaydını kaydet — SADECE başarılı silmeden sonra
+        await this.accountDeletionRepository.save({
+            reason: data.reason,
+            note: data.note || null,
+            userName: user.full_name,
+            userEmail: user.email,
+            userPhone: user.phone,
+            userUsername: user.username,
+        });
     }
 
     async seedFeet(): Promise<string> {
