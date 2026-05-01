@@ -395,6 +395,7 @@ export const Chat: React.FC = () => {
         {(() => {
           const res = activeChannel?.reservation as any;
           if (!res || res.status !== 'PENDING' || !res.requiredPlayerCount) return null;
+          if (res.slotTime && new Date(res.slotTime) < new Date()) return null;
           const required = res.requiredPlayerCount;
           const isKendiAramizda = !res.opponentTeamId;
           const warnings: string[] = [];

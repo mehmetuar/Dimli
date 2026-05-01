@@ -17,8 +17,10 @@ export class BusinessService {
     ) { }
 
     private mapWithOwnerPhone(b: Business & { distanceKm?: number }): any {
-        const { owner, ...rest } = b as any;
-        return { ...rest, ownerPhone: owner?.phone ?? null };
+        return {
+            ...b,
+            ownerPhone: b.owner?.phone ?? null,
+        };
     }
 
     async create(createBusinessDto: any) {
@@ -47,15 +49,15 @@ export class BusinessService {
                 )) AS distance_km
              FROM businesses
              WHERE latitude IS NOT NULL
-               AND longitude IS NOT NULL
-               AND status = 'active'
-               AND (
-                   6371 * acos(
-                       cos(radians($1)) * cos(radians(latitude))
-                       * cos(radians(longitude) - radians($2))
-                       + sin(radians($1)) * sin(radians(latitude))
-                   )
-               ) <= $3
+                AND longitude IS NOT NULL
+                AND status = 'active'
+                AND (
+                    6371 * acos(
+                        cos(radians($1)) * cos(radians(latitude))
+                        * cos(radians(longitude) - radians($2))
+                        + sin(radians($1)) * sin(radians(latitude))
+                    )
+                ) <= $3
              ORDER BY distance_km ASC`,
             [lat, lng, radius],
         );

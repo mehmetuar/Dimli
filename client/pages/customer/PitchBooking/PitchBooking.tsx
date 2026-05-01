@@ -35,13 +35,13 @@ export const PitchBooking: React.FC = () => {
       selectedDate, setSelectedDate,
       reservations, slotDetailModal, setSlotDetailModal,
       currentUser, pitchAnnouncements,
-      isAuthorized, getFilteredBusinesses,
+      isAuthorized, filteredBusinesses,
       handleSendOffer, handleConfirmCancel, handleConfirmDeleteAd,
       handleCreateAd, handleReserve, handleReservationSuccess, openSlotDetail,
-      handleCancelClick, handleDeleteAdClick
+      handleCancelClick, handleDeleteAdClick,
+      isLoadingBusinesses
    } = usePitchBooking();
 
-   const filteredBusinesses = getFilteredBusinesses();
 
    return (
       <div className="pb-28 pt-20 px-4 max-w-3xl mx-auto min-h-screen bg-pitch">
@@ -152,35 +152,50 @@ export const PitchBooking: React.FC = () => {
                   <p className="mt-4 text-sm font-medium">Konumunuz alınıyor...</p>
                   <p className="text-xs text-slate-500 mt-1">Yakınındaki sahalar yükleniyor</p>
                </div>
+            ) : filteredBusinesses.length === 0 && isLoadingBusinesses ? (
+               <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+                  <LoadingSpinner />
+                  <p className="mt-4 text-sm font-medium">İşletmeler yükleniyor...</p>
+               </div>
             ) : filteredBusinesses.length === 0 ? (
                <div className="text-center py-12 text-slate-400 bg-slate-800/50 rounded-3xl border border-dashed border-slate-700">
                   <MapPin className="w-8 h-8 mx-auto mb-3 text-slate-600" />
                   Seçilen konumda halı saha işletmesi bulunamadı.
                </div>
-            ) : filteredBusinesses.map((business) => (
-               <BusinessListItem
-                  key={business.id}
-                  business={business}
-                  isExpanded={expandedBusinessId === business.id}
-                  setExpandedBusinessId={setExpandedBusinessId}
-                  selectedPitchIdInBusiness={selectedPitchIdInBusiness}
-                  setSelectedPitchIdInBusiness={setSelectedPitchIdInBusiness}
-                  selectedDate={selectedDate}
-                  pitchAnnouncements={pitchAnnouncements}
-                  reservations={reservations}
-                  isAuthorized={isAuthorized()}
-                  currentUser={currentUser}
-                  myChallenges={myChallenges}
-                  openSlotDetail={openSlotDetail}
-                  handleCreateAd={handleCreateAd}
-                  handleReserve={handleReserve}
-                  setViewingTeam={setViewingTeam}
-                  setOfferMode={setOfferMode}
-                  handleDeleteAdClick={handleDeleteAdClick}
-                  handleCancelClick={handleCancelClick}
-                  distanceKm={business.distanceKm}
-               />
-            ))}
+            ) : (
+               <>
+                  {isLoadingBusinesses && (
+                     <div className="flex items-center justify-center gap-2 mb-4 animate-pulse">
+                        <div className="w-2 h-2 bg-turf-500 rounded-full"></div>
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Liste Güncelleniyor...</span>
+                     </div>
+                  )}
+                  {filteredBusinesses.map((business) => (
+                     <BusinessListItem
+                        key={business.id}
+                        business={business}
+                        isExpanded={expandedBusinessId === business.id}
+                        setExpandedBusinessId={setExpandedBusinessId}
+                        selectedPitchIdInBusiness={selectedPitchIdInBusiness}
+                        setSelectedPitchIdInBusiness={setSelectedPitchIdInBusiness}
+                        selectedDate={selectedDate}
+                        pitchAnnouncements={pitchAnnouncements}
+                        reservations={reservations}
+                        isAuthorized={isAuthorized()}
+                        currentUser={currentUser}
+                        myChallenges={myChallenges}
+                        openSlotDetail={openSlotDetail}
+                        handleCreateAd={handleCreateAd}
+                        handleReserve={handleReserve}
+                        setViewingTeam={setViewingTeam}
+                        setOfferMode={setOfferMode}
+                        handleDeleteAdClick={handleDeleteAdClick}
+                        handleCancelClick={handleCancelClick}
+                        distanceKm={business.distanceKm}
+                     />
+                  ))}
+               </>
+            )}
          </div>
       </div>
    );

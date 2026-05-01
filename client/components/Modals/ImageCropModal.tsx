@@ -6,17 +6,18 @@ interface ImageCropModalProps {
     file: File;
     onCrop: (croppedFile: File) => void;
     onCancel: () => void;
+    /** Kırpma çerçevesi en-boy oranı (genişlik / yükseklik). Varsayılan: 16/9 */
+    aspectRatio?: number;
 }
 
-// Kırpma çerçevesinin ekran boyutları
 const CROP_W = 320;
-const CROP_H = Math.round(CROP_W * (9 / 16)); // = 180px
 
-function computeInitialScale(natW: number, natH: number): number {
-    return Math.max(CROP_W / natW, CROP_H / natH);
+function computeInitialScale(natW: number, natH: number, cropH: number): number {
+    return Math.max(CROP_W / natW, cropH / natH);
 }
 
-const ImageCropModalContent: React.FC<ImageCropModalProps> = ({ file, onCrop, onCancel }) => {
+const ImageCropModalContent: React.FC<ImageCropModalProps> = ({ file, onCrop, onCancel, aspectRatio = 16 / 9 }) => {
+    const CROP_H = Math.round(CROP_W / aspectRatio);
     const [scale, setScale] = useState(1);
     const [offset, setOffset] = useState({ x: 0, y: 0 });
     const [naturalSize, setNaturalSize] = useState({ w: 0, h: 0 });
@@ -89,7 +90,7 @@ const ImageCropModalContent: React.FC<ImageCropModalProps> = ({ file, onCrop, on
         const natW = img.naturalWidth;
         const natH = img.naturalHeight;
         setNaturalSize({ w: natW, h: natH });
-        setScale(computeInitialScale(natW, natH));
+        setScale(computeInitialScale(natW, natH, CROP_H));
         setOffset({ x: 0, y: 0 });
     };
 
@@ -251,7 +252,7 @@ const ImageCropModalContent: React.FC<ImageCropModalProps> = ({ file, onCrop, on
                 textAlign: 'center', color: '#94a3b8', fontSize: 12,
                 margin: '0 0 8px', flexShrink: 0, zIndex: 3,
             }}>
-                Kaydır ve yakınlaştır / uzaklaştır
+                Sahalar sayfasında tam bu boyutta görünecek
             </p>
 
             {/* ── Görüntü alanı ── */}

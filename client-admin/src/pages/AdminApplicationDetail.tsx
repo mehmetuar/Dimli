@@ -653,7 +653,7 @@ export default function AdminApplicationDetail() {
                                                 <div className="space-y-2">
                                                     {ep.imageUrl && (
                                                         <img src={ep.imageUrl} alt="Önizleme"
-                                                            className="w-full h-36 object-cover rounded-lg border border-slate-600/50"
+                                                            className="w-full aspect-video object-cover rounded-lg border border-slate-600/50"
                                                             onError={e => (e.currentTarget.style.display = 'none')}
                                                         />
                                                     )}
@@ -666,7 +666,7 @@ export default function AdminApplicationDetail() {
                                                 </div>
                                             ) : pitch.imageUrl ? (
                                                 <img src={pitch.imageUrl} alt={pitch.name}
-                                                    className="w-full h-36 object-cover rounded-lg border border-slate-600/50"
+                                                    className="w-full aspect-video object-cover rounded-lg border border-slate-600/50"
                                                 />
                                             ) : (
                                                 <p className="text-slate-500 text-xs italic">Fotoğraf yüklenmemiş</p>

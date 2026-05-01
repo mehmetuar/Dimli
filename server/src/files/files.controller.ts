@@ -27,7 +27,7 @@ function uploadToCloudinary(buffer: Buffer): Promise<string> {
                 folder: 'dimli/logos',
                 resource_type: 'image',
                 transformation: [
-                    { width: 400, height: 400, crop: 'fill', gravity: 'center' },
+                    { width: 1280, crop: 'limit' },
                     { quality: 'auto', fetch_format: 'auto' },
                 ],
             },

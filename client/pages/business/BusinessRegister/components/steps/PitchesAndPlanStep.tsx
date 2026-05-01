@@ -192,7 +192,7 @@ export const PitchesAndPlanStep: React.FC<PitchesAndPlanStepProps> = ({
                                             <img
                                                 src={pitch.imageUrl}
                                                 alt="Saha"
-                                                className="w-full h-48 object-cover"
+                                                className="w-full aspect-video object-cover"
                                             />
                                             <button
                                                 onClick={() => {

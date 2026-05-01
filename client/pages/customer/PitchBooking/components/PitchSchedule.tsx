@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock, Phone, AlertCircle } from 'lucide-react';
+import { Clock, Phone, AlertCircle, Navigation } from 'lucide-react';
 import { generateSlots, isPastSlot } from '../utils/pitchUtils';
 
 interface PitchScheduleProps {
@@ -18,6 +18,17 @@ export const PitchSchedule: React.FC<PitchScheduleProps> = ({
     business, selectedPitch, selectedDate, pitchAnnouncements, reservations,
     isAuthorized, openSlotDetail, handleCreateAd, handleReserve
 }) => {
+    const openDirections = () => {
+        const lat = business.latitude;
+        const lng = business.longitude;
+        if (!lat || !lng) return;
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        const url = isIOS
+            ? `maps://?daddr=${lat},${lng}`
+            : `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+        window.open(url, '_system');
+    };
+
     // Check if pitch is closed (passive or closed on this specific day)
     const dayName = new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long' });
     const isPitchClosed =
@@ -26,18 +37,29 @@ export const PitchSchedule: React.FC<PitchScheduleProps> = ({
 
     return (
         <div className="mb-8">
-            <div className="flex items-center justify-between mb-3">
-                <h4 className="text-white font-bold text-sm flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-turf-500" /> {selectedPitch.name.toUpperCase()} AKIŞI
+            <div className="flex items-center gap-2 mb-3">
+                <h4 className="flex-1 min-w-0 text-white font-bold text-xs sm:text-sm flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-turf-500 shrink-0" />
+                    <span className="truncate">{selectedPitch.name.toUpperCase()} AKIŞI</span>
                 </h4>
-                <a
-                    href={`tel:${business.ownerPhone || ''}`}
-                    className="bg-turf-600 hover:bg-turf-500 text-white px-3 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all shadow-lg shadow-turf-600/20"
-                >
-                    <Phone className="w-4 h-4" />
-                    <span className="hidden sm:inline">Rezervasyon Yap</span>
-                    <span className="sm:hidden">Ara</span>
-                </a>
+                <div className="flex items-center gap-1.5 shrink-0">
+                    {(business.latitude && business.longitude) && (
+                        <button
+                            onClick={openDirections}
+                            className="bg-slate-700 hover:bg-slate-600 text-white px-2.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1 transition-all shadow-lg"
+                        >
+                            <Navigation className="w-3.5 h-3.5 text-turf-400 shrink-0" />
+                            <span>Yol Tarifi</span>
+                        </button>
+                    )}
+                    <a
+                        href={`tel:${business.ownerPhone || ''}`}
+                        className="bg-turf-600 hover:bg-turf-500 text-white px-2.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1 transition-all shadow-lg shadow-turf-600/20"
+                    >
+                        <Phone className="w-3.5 h-3.5 shrink-0" />
+                        <span>Ara</span>
+                    </a>
+                </div>
             </div>
 
             {/* ── SAHA KAPALI overlay ── */}

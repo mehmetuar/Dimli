@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import api from '../../../../services/api';
 import { getBusinesses } from '../../../../services/api';
 import { Business, Team } from '../../../../types';
@@ -8,7 +8,21 @@ import { useLocationContext } from '../../../../contexts/LocationContext';
 export const usePitchBooking = () => {
     const { coords, radius, isLocating, setRadius } = useLocationContext();
 
-    const [businesses, setBusinesses] = useState<Business[]>([]);
+    const [businesses, setBusinesses] = useState<Business[]>(() => {
+        const cached = localStorage.getItem('cached_businesses');
+        return cached ? JSON.parse(cached) : [];
+    });
+
+    // Clear potentially corrupted cache once to handle schema changes
+    useEffect(() => {
+        const hasCleared = localStorage.getItem('cache_cleared_v3');
+        if (!hasCleared) {
+            localStorage.removeItem('cached_businesses');
+            localStorage.setItem('cache_cleared_v3', 'true');
+        }
+    }, []);
+
+    const [isLoadingBusinesses, setIsLoadingBusinesses] = useState(false);
     const [expandedBusinessId, setExpandedBusinessId] = useState<string | null>(null);
     const [selectedPitchIdInBusiness, setSelectedPitchIdInBusiness] = useState<Record<string, string>>({});
 
@@ -79,26 +93,26 @@ export const usePitchBooking = () => {
     // Re-fetch businesses whenever coords or radius changes (context-driven)
     useEffect(() => {
         if (!coords) {
-            setBusinesses([]);
             return;
         }
         let cancelled = false;
         const fetchBusinessesWithCoords = async () => {
+            setIsLoadingBusinesses(true);
             try {
                 const bList: Business[] = await getBusinesses({ lat: coords.lat, lng: coords.lng, radius });
-                if (!cancelled) setBusinesses(bList);
+                if (!cancelled) {
+                    setBusinesses(bList);
+                    localStorage.setItem('cached_businesses', JSON.stringify(bList));
+                }
             } catch (error) {
                 console.error('Failed to fetch businesses:', error);
+            } finally {
+                if (!cancelled) setIsLoadingBusinesses(false);
             }
         };
         fetchBusinessesWithCoords();
         return () => { cancelled = true; };
     }, [coords, radius]); // eslint-disable-line react-hooks/exhaustive-deps
-
-    // Delegate filter change to global context
-    const applyLocationFilter = (filter: LocationFilter) => {
-        if (filter.radius) setRadius(filter.radius);
-    };
 
     useEffect(() => {
         if (expandedBusinessId && selectedPitchIdInBusiness[expandedBusinessId]) {
@@ -148,8 +162,13 @@ export const usePitchBooking = () => {
         }
     }, [expandedBusinessId, businesses, selectedPitchIdInBusiness]);
 
+    // Delegate filter change to global context
+    const applyLocationFilter = (filter: LocationFilter) => {
+        if (filter.radius) setRadius(filter.radius);
+    };
+
     // Server zaten radius'a göre filtreledi ve mesafeye göre sıraladı
-    const getFilteredBusinesses = () => [...businesses];
+    const filteredBusinesses = useMemo(() => [...businesses], [businesses]);
 
     const handleSendOffer = async (note: string) => {
         if (!currentUser?.team || !offerMode) return;
@@ -250,8 +269,9 @@ export const usePitchBooking = () => {
         selectedDate, setSelectedDate,
         reservations, slotDetailModal, setSlotDetailModal,
         currentUser, pitchAnnouncements,
-        isAuthorized, getFilteredBusinesses,
+        isAuthorized, filteredBusinesses,
         applyLocationFilter,
+        isLoadingBusinesses,
         handleSendOffer, handleConfirmCancel, handleConfirmDeleteAd,
         handleCreateAd, handleReserve, handleReservationSuccess, openSlotDetail,
         handleCancelClick, handleDeleteAdClick

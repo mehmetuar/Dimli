@@ -231,10 +231,10 @@ export default function ChangeRequestsPage() {
                                             <img
                                                 src={selectedRequest.currentData.imageUrl}
                                                 alt="Mevcut"
-                                                className="w-full h-36 object-cover"
+                                                className="w-full aspect-video object-cover"
                                             />
                                         ) : (
-                                            <div className="w-full h-36 flex items-center justify-center text-slate-600 text-xs">Fotoğraf yok</div>
+                                            <div className="w-full aspect-video flex items-center justify-center text-slate-600 text-xs">Fotoğraf yok</div>
                                         )}
                                     </div>
                                     <div className="bg-orange-500/10 rounded-xl overflow-hidden border border-orange-500/30">
@@ -243,10 +243,10 @@ export default function ChangeRequestsPage() {
                                             <img
                                                 src={selectedRequest.requestedData.imageUrl}
                                                 alt="Yeni"
-                                                className="w-full h-36 object-cover"
+                                                className="w-full aspect-video object-cover"
                                             />
                                         ) : (
-                                            <div className="w-full h-36 flex items-center justify-center text-slate-600 text-xs">Görüntü yok</div>
+                                            <div className="w-full aspect-video flex items-center justify-center text-slate-600 text-xs">Görüntü yok</div>
                                         )}
                                     </div>
                                 </div>

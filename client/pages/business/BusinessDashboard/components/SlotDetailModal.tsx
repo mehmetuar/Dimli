@@ -29,6 +29,13 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
 
     if (!selectedSlot) return null;
 
+    const isSlotPast = (() => {
+        const [hours, minutes] = selectedSlot.startTime.split(':').map(Number);
+        const slotDate = new Date(selectedDate);
+        slotDate.setHours(hours, minutes, 0, 0);
+        return slotDate < new Date();
+    })();
+
     return (
         <>
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={() => setSelectedSlot(null)}>
@@ -71,8 +78,8 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                                                 onClick={() => handleCancelClick(res.id)}
                                                 className="w-full bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2"
                                             >
-                                                <X className="w-4 h-4 text-red-400" />
-                                                Saati Boşa Çıkar
+                                                <X className="w-4 h-4 text-red-400 shrink-0" />
+                                                <span>Saati Boşa Çıkar</span>
                                             </button>
                                         </div>
                                     </div>
@@ -202,15 +209,15 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                                                             onClick={() => openActionModal('SEND_NOTE', res.id)}
                                                             className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-2 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2"
                                                         >
-                                                            <MessageSquare className="w-4 h-4 text-orange-400" />
-                                                            Not Gönder
+                                                            <MessageSquare className="w-4 h-4 text-orange-400 shrink-0" />
+                                                            <span>Not Gönder</span>
                                                         </button>
                                                         <button
                                                             onClick={() => handleCancelClick(res.id)}
-                                                            className="bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 hover:border-red-500/50 p-2 rounded-xl transition-all"
+                                                            className="bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 hover:border-red-500/50 p-2 rounded-xl transition-all flex items-center justify-center"
                                                             title="Onayı Geri Al"
                                                         >
-                                                            <X className="w-5 h-5" />
+                                                            <X className="w-5 h-5 shrink-0" />
                                                         </button>
                                                     </div>
                                                 </div>
@@ -223,6 +230,11 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                                                 <div className="flex gap-2">
                                                     <button
                                                         onClick={() => {
+                                                            if (isSlotPast) {
+                                                                openActionModal('APPROVE', res.id);
+                                                                return;
+                                                            }
+
                                                             const required = res.matchAnnouncement?.playerCount;
                                                             const homeCount = res.team?.playerCount;
                                                             const isKendiAramizda = !res.opponentTeam;
@@ -262,18 +274,18 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                                                         }}
                                                         className="flex-[2] bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white py-3 rounded-xl font-bold text-sm transition-all shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2 group"
                                                     >
-                                                        <div className="bg-white/20 p-1 rounded-full group-hover:scale-110 transition-transform">
-                                                            <Check className="w-4 h-4" />
+                                                        <div className="bg-white/20 p-1 rounded-full group-hover:scale-110 transition-transform shrink-0">
+                                                            <Check className="w-4 h-4 shrink-0" />
                                                         </div>
-                                                        Bu İsteği Onayla
+                                                        <span>Bu İsteği Onayla</span>
                                                     </button>
                                                     <button
                                                         onClick={() => openActionModal('SEND_NOTE', res.id)}
                                                         className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-2 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2"
                                                         title="Mesaj Gönder"
                                                     >
-                                                        <MessageSquare className="w-4 h-4 text-orange-400" />
-                                                        Not
+                                                        <MessageSquare className="w-4 h-4 text-orange-400 shrink-0" />
+                                                        <span>Not</span>
                                                     </button>
                                                 </div>
                                             )}
@@ -298,8 +310,8 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                                 }}
                                 className="w-full bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 border border-slate-600"
                             >
-                                <AlertTriangle className="w-5 h-5 text-orange-400" />
-                                İşletme Olarak Saati Kapat (Doluya Çevir)
+                                <AlertTriangle className="w-5 h-5 text-orange-400 shrink-0" />
+                                <span>İşletme Olarak Saati Kapat (Doluya Çevir)</span>
                             </button>
                         </div>
                     )}

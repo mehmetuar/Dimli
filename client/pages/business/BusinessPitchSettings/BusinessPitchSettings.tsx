@@ -73,6 +73,7 @@ export const BusinessPitchSettings: React.FC = () => {
     // Fotoğraf yükleme state'i
     const [cropFile, setCropFile] = useState<File | null>(null);
     const [uploadingPhoto, setUploadingPhoto] = useState(false);
+    const [pendingPhotoUrl, setPendingPhotoUrl] = useState<string | null>(null);
     const photoInputRef = useRef<HTMLInputElement>(null);
 
     if (loading) return <BusinessLoadingSpinner fullScreen />;
@@ -102,8 +103,7 @@ export const BusinessPitchSettings: React.FC = () => {
             const uploadResp = await api.post('/files/upload', formDataUpload, {
                 headers: { 'Content-Type': 'multipart/form-data' },
             });
-            const imageUrl = uploadResp.data.url;
-            await handleSubmitPhotoRequest(imageUrl);
+            setPendingPhotoUrl(uploadResp.data.url);
         } catch (error) {
             console.error('Photo upload error:', error);
             alert('Fotoğraf yüklenirken hata oluştu.');
@@ -229,39 +229,71 @@ export const BusinessPitchSettings: React.FC = () => {
 
                     {/* ── Saha Fotoğrafı ───────────────────────────────────── */}
                     <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
-                        {formData.imageUrl ? (
+                        {pendingPhotoUrl ? (
+                            <>
+                                <div className="px-4 pt-3 pb-1 flex items-center gap-2">
+                                    <span className="text-orange-400 text-xs font-bold uppercase tracking-wider">Yeni Fotoğraf Önizlemesi</span>
+                                </div>
+                                <img
+                                    src={pendingPhotoUrl}
+                                    alt="Önizleme"
+                                    className="w-full aspect-video object-cover"
+                                />
+                                <div className="px-4 py-3 flex gap-2">
+                                    <button
+                                        type="button"
+                                        disabled={submittingPhoto}
+                                        onClick={() => setPendingPhotoUrl(null)}
+                                        className="flex-1 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-white text-xs font-bold px-3 py-2 rounded-lg transition-colors"
+                                    >
+                                        İptal
+                                    </button>
+                                    <button
+                                        type="button"
+                                        disabled={submittingPhoto}
+                                        onClick={async () => { await handleSubmitPhotoRequest(pendingPhotoUrl); setPendingPhotoUrl(null); }}
+                                        className="flex-1 flex items-center justify-center gap-1.5 bg-orange-600 hover:bg-orange-500 disabled:bg-slate-600 text-white text-xs font-bold px-3 py-2 rounded-lg transition-colors"
+                                    >
+                                        <Camera className="w-3.5 h-3.5" />
+                                        {submittingPhoto ? 'Gönderiliyor...' : 'Onay İsteği Gönder'}
+                                    </button>
+                                </div>
+                            </>
+                        ) : formData.imageUrl ? (
                             <img
                                 src={formData.imageUrl}
                                 alt={formData.name}
-                                className="w-full h-48 object-cover"
+                                className="w-full aspect-video object-cover"
                             />
                         ) : (
-                            <div className="w-full h-48 bg-slate-900 flex items-center justify-center">
+                            <div className="w-full aspect-video bg-slate-900 flex items-center justify-center">
                                 <Image className="w-10 h-10 text-slate-600" />
                             </div>
                         )}
-                        <div className="bg-slate-800 px-4 py-3 flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-2">
-                                <Image className="w-4 h-4 text-slate-400" />
-                                <span className="text-xs text-slate-400">Saha fotoğrafı</span>
-                            </div>
-                            {hasPendingPhoto ? (
-                                <div className="flex items-center gap-1 text-yellow-400">
-                                    <Clock className="w-3.5 h-3.5" />
-                                    <span className="text-xs font-medium">İnceleme bekliyor</span>
+                        {!pendingPhotoUrl && (
+                            <div className="bg-slate-800 px-4 py-3 flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2">
+                                    <Image className="w-4 h-4 text-slate-400" />
+                                    <span className="text-xs text-slate-400">Saha fotoğrafı</span>
                                 </div>
-                            ) : (
-                                <button
-                                    type="button"
-                                    disabled={uploadingPhoto || submittingPhoto}
-                                    onClick={() => photoInputRef.current?.click()}
-                                    className="flex items-center gap-1.5 bg-orange-600 hover:bg-orange-500 disabled:bg-slate-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors"
-                                >
-                                    <Camera className="w-3.5 h-3.5" />
-                                    {uploadingPhoto || submittingPhoto ? 'Yükleniyor...' : 'Fotoğrafı Güncelle'}
-                                </button>
-                            )}
-                        </div>
+                                {hasPendingPhoto ? (
+                                    <div className="flex items-center gap-1 text-yellow-400">
+                                        <Clock className="w-3.5 h-3.5" />
+                                        <span className="text-xs font-medium">İnceleme bekliyor</span>
+                                    </div>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        disabled={uploadingPhoto || submittingPhoto}
+                                        onClick={() => photoInputRef.current?.click()}
+                                        className="flex items-center gap-1.5 bg-orange-600 hover:bg-orange-500 disabled:bg-slate-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors"
+                                    >
+                                        <Camera className="w-3.5 h-3.5" />
+                                        {uploadingPhoto ? 'Yükleniyor...' : 'Fotoğrafı Güncelle'}
+                                    </button>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     {/* Gizli file input */}

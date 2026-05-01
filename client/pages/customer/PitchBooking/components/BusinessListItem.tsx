@@ -26,7 +26,7 @@ interface BusinessListItemProps {
     distanceKm?: number;
 }
 
-export const BusinessListItem: React.FC<BusinessListItemProps> = ({
+export const BusinessListItem = React.memo<BusinessListItemProps>(({
     business, isExpanded, setExpandedBusinessId, selectedPitchIdInBusiness, setSelectedPitchIdInBusiness,
     selectedDate, pitchAnnouncements, reservations, isAuthorized, currentUser, myChallenges,
     openSlotDetail, handleCreateAd, handleReserve, setViewingTeam, setOfferMode,
@@ -38,6 +38,8 @@ export const BusinessListItem: React.FC<BusinessListItemProps> = ({
 
     if (!business.pitches || business.pitches.length === 0) return null;
 
+    const displayName = business.name.length > 16 ? business.name.slice(0, 16) + '..' : business.name;
+
     const activeMatches = pitchAnnouncements
         .filter(a => a.matchType !== 'kendi_aramizda')
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -46,7 +48,7 @@ export const BusinessListItem: React.FC<BusinessListItemProps> = ({
         <div className={`bg-slate-800 rounded-3xl overflow-hidden border transition-all duration-300 ${isExpanded ? 'border-turf-500 shadow-neon' : 'border-slate-700 shadow-lg'}`}>
             {/* Business Card Header */}
             <div
-                className="h-44 relative cursor-pointer group"
+                className="aspect-video relative cursor-pointer group"
                 onClick={() => setExpandedBusinessId(isExpanded ? null : business.id)}
             >
                 <img src={displayPitch?.imageUrl || "https://images.unsplash.com/photo-1529900748604-07564a03e7a6?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80"} alt={business.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
@@ -59,20 +61,24 @@ export const BusinessListItem: React.FC<BusinessListItemProps> = ({
                     </div>
                 )}
 
-                <div className="absolute bottom-4 left-4 right-16 overflow-hidden">
-                    <h2 className="text-3xl font-sport font-black text-white italic uppercase drop-shadow-md truncate">{business.name}</h2>
-                    <div className="flex items-center gap-2 mt-1">
-                        <div className="flex items-center gap-1 text-slate-200 text-sm font-medium">
-                            <MapPin className="w-4 h-4 text-turf-500" /> {business.district}, {business.city}
-                        </div>
-                        {distanceKm !== undefined && (
-                            <div className="flex items-center gap-1 bg-turf-600/30 border border-turf-500/50 px-2 py-0.5 rounded-full ml-1 backdrop-blur-sm shadow-md">
-                                <Navigation className="w-3 h-3 text-turf-400" />
-                                <span className="text-[11px] font-black text-white">{distanceKm} km</span>
+                {!isExpanded && (
+                    <div className="absolute bottom-4 left-4 right-12 z-20 pointer-events-none">
+                        <h2 className="text-2xl sm:text-3xl font-sport font-black text-white italic uppercase drop-shadow-2xl mb-0.5">
+                            {displayName}
+                        </h2>
+                        <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1 text-slate-200 text-sm font-medium drop-shadow-md">
+                                <MapPin className="w-3.5 h-3.5 text-turf-500" /> {business.district}, {business.city}
                             </div>
-                        )}
+                            {distanceKm !== undefined && (
+                                <div className="flex items-center gap-1 bg-turf-600/40 border border-turf-500/50 px-2 py-0.5 rounded-full ml-1 backdrop-blur-sm shadow-md">
+                                    <Navigation className="w-3 h-3 text-turf-400" />
+                                    <span className="text-[11px] font-black text-white">{distanceKm} km</span>
+                                </div>
+                            )}
+                        </div>
                     </div>
-                </div>
+                )}
 
                 <div className="absolute top-4 right-4 bg-slate-900/80 backdrop-blur px-3 py-1 rounded-lg flex items-center gap-1.5 border border-slate-700">
                     <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
@@ -92,6 +98,26 @@ export const BusinessListItem: React.FC<BusinessListItemProps> = ({
             {/* Expanded Content */}
             {isExpanded && (
                 <div className="p-5 animate-fade-in bg-slate-900/50">
+                    {/* FULL NAME & ADDRESS FOR CLARITY */}
+                    <div className="mb-4 border-b border-slate-700/60 pb-3">
+                        <div className="flex items-start justify-between gap-2">
+                            <h3 className="text-xl font-sport font-black text-white uppercase italic leading-tight">{business.name}</h3>
+                            {distanceKm !== undefined && (
+                                <div className="flex items-center gap-1 bg-turf-600/20 border border-turf-500/40 px-2.5 py-1 rounded-full shrink-0">
+                                    <Navigation className="w-3 h-3 text-turf-400" />
+                                    <span className="text-xs font-black text-turf-300">{distanceKm} km</span>
+                                </div>
+                            )}
+                        </div>
+                        <div className="flex items-start gap-1.5 mt-1.5">
+                            <MapPin className="w-3.5 h-3.5 text-turf-500 shrink-0 mt-0.5" />
+                            <div>
+                                <p className="text-xs font-semibold text-turf-400">{business.district}, {business.city}</p>
+                                {business.address && <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">{business.address}</p>}
+                            </div>
+                        </div>
+                    </div>
+
                     {/* PITCH TABS */}
                     {business.pitches && business.pitches.length > 1 && (
                         <div className="flex gap-2 overflow-x-auto mb-6 pb-2 scrollbar-hide border-b border-slate-700">
@@ -156,4 +182,4 @@ export const BusinessListItem: React.FC<BusinessListItemProps> = ({
             )}
         </div>
     );
-};
+});

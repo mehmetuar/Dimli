@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Lock, CalendarX, Settings } from 'lucide-react';
 
 interface PitchGridProps {
     pitches: any[];
@@ -14,6 +16,7 @@ export const PitchGrid: React.FC<PitchGridProps> = ({
     setSelectedSlot
 }) => {
     const [activePitchIndex, setActivePitchIndex] = useState(0);
+    const navigate = useNavigate();
 
     const formatTimeRange = (time: string): string => {
         if (time.includes(' - ')) return time;
@@ -68,6 +71,34 @@ export const PitchGrid: React.FC<PitchGridProps> = ({
                         </h2>
                     </div>
 
+                    {activePitch.isClosed ? (
+                        <div className="flex flex-col items-center justify-center py-16 bg-slate-800/50 rounded-2xl border border-dashed border-slate-700 text-center px-6">
+                            {activePitch.closedReason === 'PASSIVE' ? (
+                                <>
+                                    <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mb-4 border border-red-500/20">
+                                        <Lock className="w-7 h-7 text-red-400" />
+                                    </div>
+                                    <h3 className="text-white font-black text-lg uppercase tracking-wide mb-2">SAHA KAPALI</h3>
+                                    <p className="text-slate-400 text-sm mb-6">Bu saha şu an pasif konumdadır. Rezervasyon alınamaz.</p>
+                                    <button
+                                        onClick={() => navigate(`/business/settings/pitches/${activePitch.pitchId}`)}
+                                        className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-bold px-5 py-3 rounded-xl transition-all shadow-lg shadow-orange-500/20"
+                                    >
+                                        <Settings className="w-4 h-4 shrink-0" />
+                                        <span>Ayarlara Git</span>
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="w-16 h-16 bg-slate-700/50 rounded-full flex items-center justify-center mb-4 border border-slate-600/50">
+                                        <CalendarX className="w-7 h-7 text-slate-400" />
+                                    </div>
+                                    <h3 className="text-white font-black text-lg uppercase tracking-wide mb-2">BUGÜN KAPALI</h3>
+                                    <p className="text-slate-400 text-sm">Bu gün için saha kapalı olarak ayarlanmıştır.</p>
+                                </>
+                            )}
+                        </div>
+                    ) : (
                     <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
                         {activePitch.slots.map((slot: any, slotIdx: number) => {
                             const isPast = isPastSlot(slot.time, selectedDate);
@@ -137,6 +168,7 @@ export const PitchGrid: React.FC<PitchGridProps> = ({
                             );
                         })}
                     </div>
+                    )}
                 </div>
             )}
         </div>

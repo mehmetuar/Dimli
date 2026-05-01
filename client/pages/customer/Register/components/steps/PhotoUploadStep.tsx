@@ -1,6 +1,7 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { Camera, Check, ChevronRight } from 'lucide-react';
 import { LoadingSpinner } from '../../../../../components/UI/LoadingSpinner';
+import { ImageCropModal } from '../../../../../components/Modals/ImageCropModal';
 
 interface PhotoUploadStepProps {
     fullName: string;
@@ -18,10 +19,22 @@ export const PhotoUploadStep: React.FC<PhotoUploadStepProps> = ({
     onUpload,
 }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [cropFile, setCropFile] = useState<File | null>(null);
 
     const initials = fullName
         ? fullName.trim().split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
         : '?';
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) setCropFile(file);
+        e.target.value = '';
+    };
+
+    const handleCropComplete = (croppedFile: File) => {
+        setCropFile(null);
+        onUpload(croppedFile);
+    };
 
     return (
         <div className="space-y-6">
@@ -77,16 +90,20 @@ export const PhotoUploadStep: React.FC<PhotoUploadStepProps> = ({
                 type="file"
                 accept="image/*"
                 className="hidden"
-                onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) onUpload(file);
-                    e.target.value = '';
-                }}
+                onChange={handleFileChange}
             />
+
+            {cropFile && (
+                <ImageCropModal
+                    file={cropFile}
+                    aspectRatio={1}
+                    onCrop={handleCropComplete}
+                    onCancel={() => setCropFile(null)}
+                />
+            )}
 
             {/* Aksiyon butonları */}
             <div className="flex gap-3 mt-6">
-                {/* Atla — her zaman görünür */}
                 <button
                     type="submit"
                     disabled={registerLoading || uploadLoading}
@@ -95,7 +112,6 @@ export const PhotoUploadStep: React.FC<PhotoUploadStepProps> = ({
                     Atla <ChevronRight className="w-4 h-4" />
                 </button>
 
-                {/* Kaydı Tamamla — sadece fotoğraf yüklendiyse */}
                 {avatarUrl && (
                     <button
                         type="submit"
