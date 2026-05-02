@@ -32,9 +32,9 @@ export class TeamsController {
         return this.teamsService.findOne(id);
     }
 
-    @Get('search/:name')
-    searchByName(@Param('name') name: string) {
-        return this.teamsService.searchByName(name);
+    @Get('search/:term')
+    searchByTerm(@Param('term') term: string) {
+        return this.teamsService.searchByTerm(term);
     }
 
     @UseGuards(JwtAuthGuard)

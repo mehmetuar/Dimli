@@ -30,9 +30,12 @@ export const JoinRequestsTab: React.FC<JoinRequestsTabProps> = ({ joinRequests, 
                     <div className="absolute right-0 top-0 w-20 h-full bg-gradient-to-l from-blue-600/10 to-transparent pointer-events-none"></div>
                     <div className="relative">
                         <img
-                            src={`https://ui-avatars.com/api/?name=${request.user.full_name || request.user.username}&background=0D8ABC&color=fff`}
+                            src={request.user.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(request.user.full_name || request.user.username)}&background=0D8ABC&color=fff`}
                             alt={request.user.username}
                             className="w-16 h-16 rounded-full object-cover border-2 border-slate-600 group-hover:border-turf-500 transition-colors"
+                            onError={(e) => {
+                                (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(request.user.full_name || request.user.username)}&background=0D8ABC&color=fff`;
+                            }}
                         />
                     </div>
                     <div className="flex-1 min-w-0 relative z-10">

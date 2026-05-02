@@ -49,6 +49,7 @@ export interface Player {
 
 export interface Team {
   id: string;
+  shortId?: string;
   name: string;
   logoUrl: string;
   primaryColor: string; // Tailwind class e.g. "bg-red-600"
@@ -64,6 +65,8 @@ export interface Team {
   description: string;
   guestPlayerIds?: string[]; // IDs of jokers playing temporarily
   players?: any[]; // Team roster from API
+  playedMatchCount?: number;
+  captain?: { full_name?: string; username?: string };
 }
 
 export interface MatchAnnouncement {

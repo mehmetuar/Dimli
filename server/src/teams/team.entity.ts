@@ -6,6 +6,9 @@ export class Team {
     @PrimaryGeneratedColumn('uuid')
     id: string;
 
+    @Column({ name: 'short_id', nullable: true, unique: true })
+    shortId: string;
+
     @Column()
     name: string;
 

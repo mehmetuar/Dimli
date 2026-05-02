@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Team } from './team.entity';
@@ -7,13 +7,43 @@ import { UsersService } from '../users/users.service';
 import { RatingsService } from '../ratings/ratings.service';
 
 @Injectable()
-export class TeamsService {
+export class TeamsService implements OnModuleInit {
     constructor(
         @InjectRepository(Team)
         private teamsRepository: Repository<Team>,
         private usersService: UsersService,
         private ratingsService: RatingsService,
     ) { }
+
+    async onModuleInit() {
+        const teams = await this.teamsRepository.find();
+        for (const team of teams) {
+            if (!team.shortId) {
+                team.shortId = await this.generateUniqueShortId();
+                await this.teamsRepository.save(team);
+            }
+        }
+    }
+
+    private generateShortId(): string {
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+        const digits = '0123456789';
+        const letters = Array.from({ length: 3 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+        const numbers = Array.from({ length: 3 }, () => digits[Math.floor(Math.random() * digits.length)]).join('');
+        return `${letters}-${numbers}`;
+    }
+
+    private async generateUniqueShortId(): Promise<string> {
+        let shortId: string;
+        let attempts = 0;
+        do {
+            shortId = this.generateShortId();
+            const existing = await this.teamsRepository.findOne({ where: { shortId } });
+            if (!existing) return shortId;
+            attempts++;
+        } while (attempts < 10);
+        throw new Error('Could not generate unique shortId');
+    }
 
     async create(createTeamDto: any, user: User): Promise<Team> {
         // Prevent frontend mock captainId from overriding
@@ -29,8 +59,11 @@ export class TeamsService {
             throw new Error('Zaten bir takımın kaptanısınız. Yeni takım kurmak için mevcut takımı devretmeli veya silmelisiniz.');
         }
 
+        const shortId = await this.generateUniqueShortId();
+
         const team = this.teamsRepository.create({
             ...createTeamDto,
+            shortId,
             captain: managedUser,
             captainId: managedUser.id,
             players: [managedUser] // This is safe now because managedUser is tracked
@@ -61,23 +94,34 @@ export class TeamsService {
         return teams;
     }
 
-    async searchByName(name: string): Promise<Team | null> {
-        const team = await this.teamsRepository
-            .createQueryBuilder('team')
-            .leftJoinAndSelect('team.captain', 'captain')
-            .where('LOWER(team.name) = LOWER(:name)', { name })
-            .getOne();
+    async searchByTerm(term: string): Promise<any[]> {
+        const shortIdPattern = /^[A-Z]{3}-\d{3}$/;
+        let teams: Team[];
 
-        if (!team) return null;
+        if (shortIdPattern.test(term.toUpperCase())) {
+            // Search by shortId
+            const team = await this.teamsRepository
+                .createQueryBuilder('team')
+                .leftJoinAndSelect('team.captain', 'captain')
+                .where('UPPER(team.short_id) = :shortId', { shortId: term.toUpperCase() })
+                .getOne();
+            teams = team ? [team] : [];
+        } else {
+            // Partial name search (ILIKE)
+            teams = await this.teamsRepository
+                .createQueryBuilder('team')
+                .leftJoinAndSelect('team.captain', 'captain')
+                .where('LOWER(team.name) LIKE LOWER(:name)', { name: `%${term}%` })
+                .limit(10)
+                .getMany();
+        }
 
-        // Load players
-        team.players = await this.usersService['usersRepository']
-            .createQueryBuilder('user')
-            .leftJoinAndSelect('user.team', 'userTeam')
-            .where('userTeam.id = :teamId', { teamId: team.id })
-            .getMany();
+        const results = await Promise.all(teams.map(async (team) => {
+            const playedMatchCount = await this.ratingsService.getTeamMatchCount(team.id);
+            return { ...team, playedMatchCount };
+        }));
 
-        return team;
+        return results;
     }
 
     async findOne(id: string): Promise<Team | null> {

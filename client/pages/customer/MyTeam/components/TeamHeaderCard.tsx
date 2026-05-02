@@ -75,6 +75,11 @@ export const TeamHeaderCard: React.FC<TeamHeaderCardProps> = ({
                         <div className="flex flex-wrap items-center gap-2 mt-1">
                             <LevelBadge level={myTeam.level} />
                             <FairPlayScore score={myTeam.fairPlayScore} count={myTeam.fairPlayRatingCount} />
+                            {(myTeam.id || (myTeam as any).shortId) && (
+                                <span className="text-[10px] font-mono text-slate-500 bg-slate-900/60 px-1.5 py-0.5 rounded border border-slate-700">
+                                    #{(myTeam as any).shortId || myTeam.id?.slice(0, 8).toUpperCase()}
+                                </span>
+                            )}
                         </div>
                     </div>
                 </div>
