@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Notification } from './notification.entity';
@@ -6,6 +6,7 @@ import { Challenge } from '../challenges/challenge.entity';
 import { ChatChannel } from '../chat/chat-channel.entity';
 import { MatchAnnouncement } from '../match-announcements/match-announcement.entity';
 import { TeamsService } from '../teams/teams.service';
+import { AppGateway } from '../gateway/app.gateway';
 
 @Injectable()
 export class NotificationsService {
@@ -19,6 +20,7 @@ export class NotificationsService {
         @InjectRepository(MatchAnnouncement)
         private matchAnnouncementsRepository: Repository<MatchAnnouncement>,
         private teamsService: TeamsService,
+        @Optional() private gateway: AppGateway,
     ) { }
 
     async createJoinRequestNotification(teamId: string, joinRequestId: string, requesterId: string): Promise<Notification> {
@@ -34,12 +36,18 @@ export class NotificationsService {
             read: false,
         });
 
-        return this.notificationsRepository.save(notification);
+        const saved = await this.notificationsRepository.save(notification);
+        this.gateway?.server?.to(saved.userId).emit('notification', { type: saved.type, relatedId: saved.relatedId });
+        return saved;
     }
 
     async create(data: Partial<Notification>): Promise<Notification> {
         const notification = this.notificationsRepository.create(data);
-        return this.notificationsRepository.save(notification);
+        const saved = await this.notificationsRepository.save(notification);
+        if (saved.userId) {
+            this.gateway?.server?.to(saved.userId).emit('notification', { type: saved.type, title: saved.title, message: saved.message });
+        }
+        return saved;
     }
 
     async sendJokerInvite(jokerId: string, matchId: string, inviterId: string, note?: string): Promise<Notification> {
@@ -81,7 +89,9 @@ export class NotificationsService {
             }
         });
 
-        return this.notificationsRepository.save(notification);
+        const saved = await this.notificationsRepository.save(notification);
+        this.gateway?.server?.to(jokerId).emit('notification', { type: 'JOKER_INVITE', relatedId: matchId });
+        return saved;
     }
 
     async getSentJokerInvites(inviterId: string, jokerId: string): Promise<string[]> {

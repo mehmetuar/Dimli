@@ -15,6 +15,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { ReservationsModule } from '../reservations/reservations.module';
 import { TeamsModule } from '../teams/teams.module';
 import { RatingsModule } from '../ratings/ratings.module';
+import { GatewayModule } from '../gateway/gateway.module';
 
 @Module({
     imports: [
@@ -33,6 +34,7 @@ import { RatingsModule } from '../ratings/ratings.module';
         forwardRef(() => ReservationsModule),
         forwardRef(() => TeamsModule),
         RatingsModule,
+        GatewayModule,
     ],
     controllers: [ChatController],
     providers: [ChatService],

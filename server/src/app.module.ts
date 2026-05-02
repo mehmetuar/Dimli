@@ -20,6 +20,7 @@ import { FilesModule } from './files/files.module';
 import { AdminModule } from './admin/admin.module';
 import { SubscriptionModule } from './subscription/subscription.module';
 import { PitchChangeRequestsModule } from './pitch-change-requests/pitch-change-requests.module';
+import { GatewayModule } from './gateway/gateway.module';
 
 @Module({
   imports: [
@@ -61,6 +62,7 @@ import { PitchChangeRequestsModule } from './pitch-change-requests/pitch-change-
     AdminModule,
     SubscriptionModule,
     PitchChangeRequestsModule,
+    GatewayModule,
   ],
   controllers: [AppController],
   providers: [AppService],

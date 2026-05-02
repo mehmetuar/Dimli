@@ -7,6 +7,7 @@ import { MatchAnnouncement } from '../match-announcements/match-announcement.ent
 import { NotificationsService } from './notifications.service';
 import { NotificationsController } from './notifications.controller';
 import { TeamsModule } from '../teams/teams.module';
+import { GatewayModule } from '../gateway/gateway.module';
 
 @Module({
     imports: [
@@ -17,6 +18,7 @@ import { TeamsModule } from '../teams/teams.module';
             MatchAnnouncement
         ]),
         forwardRef(() => TeamsModule),
+        GatewayModule,
     ],
     controllers: [NotificationsController],
     providers: [NotificationsService],

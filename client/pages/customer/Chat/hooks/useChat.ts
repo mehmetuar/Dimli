@@ -4,6 +4,7 @@ import api from '../../../../services/api';
 import { getTacticalAdvice } from '../../../../services/geminiService';
 import { SkillLevel } from '../../../../types';
 import { formatMessageDate } from '../utils/chatUtils';
+import { useSocket } from '../../../../contexts/SocketContext';
 
 export const useChat = () => {
     const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
@@ -41,6 +42,7 @@ export const useChat = () => {
 
     const [refreshTrigger, setRefreshTrigger] = useState(0);
 
+    const socket = useSocket();
     const location = useLocation();
     const navigate = useNavigate();
 
@@ -66,9 +68,22 @@ export const useChat = () => {
             }
         };
         fetchChannels();
-        const interval = setInterval(fetchChannels, 10000);
+        // 60s fallback — socket koptuğunda liste güncel kalır
+        const interval = setInterval(fetchChannels, 60000);
+
+        if (socket) {
+            const onChannelCreated = () => fetchChannels();
+            const onNewMessage = () => fetchChannels();
+            socket.on('channelCreated', onChannelCreated);
+            socket.on('newMessage', onNewMessage);
+            return () => {
+                clearInterval(interval);
+                socket.off('channelCreated', onChannelCreated);
+                socket.off('newMessage', onNewMessage);
+            };
+        }
         return () => clearInterval(interval);
-    }, [refreshTrigger]);
+    }, [refreshTrigger, socket]);
 
     useEffect(() => {
         if (location.state?.channelId) {
@@ -116,14 +131,21 @@ export const useChat = () => {
         // Kanala girildiğinde oku
         markRead(channelIdAtMount);
 
-        const interval = setInterval(fetchMessages, 3000);
+        // 60s fallback — socket koptuğunda mesajlar güncel kalır
+        const interval = setInterval(fetchMessages, 60000);
+
+        const onNewMessage = (data: any) => {
+            if (data?.channelId === channelIdAtMount) fetchMessages();
+        };
+        if (socket) socket.on('newMessage', onNewMessage);
 
         // Kanaldan çıkılırken de oku — kanalda görülen sistem mesajları okunmuş sayılsın
         return () => {
             clearInterval(interval);
+            if (socket) socket.off('newMessage', onNewMessage);
             markRead(channelIdAtMount);
         };
-    }, [selectedChannelId, currentUser, refreshTrigger]);
+    }, [selectedChannelId, currentUser, refreshTrigger, socket]);
 
     const activeChannel = channels.find(c => c.id === selectedChannelId);
 

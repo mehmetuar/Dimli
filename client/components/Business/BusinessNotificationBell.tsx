@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Bell } from 'lucide-react';
 import api from '../../services/api';
+import { useSocket } from '../../contexts/SocketContext';
 
 interface BusinessNotificationBellProps {
     onClick: () => void;
@@ -9,11 +10,20 @@ interface BusinessNotificationBellProps {
 export const BusinessNotificationBell: React.FC<BusinessNotificationBellProps> = ({ onClick }) => {
     const [unreadCount, setUnreadCount] = useState(0);
 
+    const socket = useSocket();
+
     useEffect(() => {
         fetchUnreadCount();
-        const interval = setInterval(fetchUnreadCount, 30000);
-        return () => clearInterval(interval);
-    }, []);
+
+        if (!socket) return;
+        const onNotification = () => fetchUnreadCount();
+        socket.on('businessNotification', onNotification);
+        socket.on('notification', onNotification);
+        return () => {
+            socket.off('businessNotification', onNotification);
+            socket.off('notification', onNotification);
+        };
+    }, [socket]);
 
     const fetchUnreadCount = async () => {
         try {

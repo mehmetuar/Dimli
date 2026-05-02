@@ -1,4 +1,4 @@
-import React, { useEffect, useState, lazy, Suspense } from 'react';
+import React, { useEffect, useRef, useState, lazy, Suspense } from 'react';
 import { HashRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { Geolocation } from '@capacitor/geolocation';
 import { Capacitor } from '@capacitor/core';
@@ -14,7 +14,17 @@ import { PendingRating } from './types';
 import { initializePushNotifications } from './services/pushNotificationService';
 import { initRevenueCat } from './services/revenuecatService';
 import { LocationProvider, useLocationContext } from './contexts/LocationContext';
+import { SocketProvider } from './contexts/SocketContext';
 import { useKeyboardScroll } from './utils/useKeyboardScroll';
+
+// Haversine — iki koordinat arası km mesafe
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
 // ── Lazy page imports (code splitting — reduces initial bundle from ~1.17MB → ~200KB) ──
 const Marketplace = lazy(() => import('./pages/customer/Marketplace/Marketplace').then(m => ({ default: m.Marketplace })));
@@ -89,6 +99,8 @@ function AppContent() {
   const [watchId, setWatchId] = useState<string | null>(null);
   const [pendingRatings, setPendingRatings] = useState<PendingRating[]>([]);
   const { updateCoords } = useLocationContext();
+  const prevGpsRef = useRef<{ lat: number; lng: number } | null>(null);
+  const prevLocationNameRef = useRef<string | null>(null);
 
   // Android & iOS: StatusBar + SplashScreen + RevenueCat on first mount
   useEffect(() => {
@@ -217,20 +229,24 @@ function AppContent() {
         if (permission.location !== 'granted') return;
 
         currentWatchId = await Geolocation.watchPosition(
-          // enableHighAccuracy: false — Android'de daha hızlı ve stabil
-          // maximumAge: 0 → taze GPS kullan, cache'den dönme
-          { enableHighAccuracy: false, timeout: 15000, maximumAge: 0 },
+          { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 },
           async (position, err) => {
             if (err || !position) return;
             try {
               const { latitude, longitude } = position.coords;
-              // Context'i de güncelle (tüm sayfalar anlık konumu görsün)
               updateCoords({ lat: latitude, lng: longitude });
+
+              // 50 metreden az hareket ettiyse backend'e PATCH atma
+              const prev = prevGpsRef.current;
+              if (prev && haversineKm(prev.lat, prev.lng, latitude, longitude) < 0.05) return;
+              prevGpsRef.current = { lat: latitude, lng: longitude };
+
               const response = await axios.get(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
               if (response.data && response.data.address) {
                 const address = response.data.address;
                 const locationName = address.district || address.city || address.town || address.state;
-                if (locationName) {
+                if (locationName && locationName !== prevLocationNameRef.current) {
+                  prevLocationNameRef.current = locationName;
                   await api.patch('/users/me', { location: locationName });
                 }
               }
@@ -304,9 +320,11 @@ function AppContent() {
 function App() {
   return (
     <LocationProvider>
-      <HashRouter>
-        <AppContent />
-      </HashRouter>
+      <SocketProvider>
+        <HashRouter>
+          <AppContent />
+        </HashRouter>
+      </SocketProvider>
     </LocationProvider>
   );
 }

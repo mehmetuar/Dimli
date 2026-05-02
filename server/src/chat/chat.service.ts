@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, ForbiddenException, NotFoundException, Logger, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, BadRequestException, ForbiddenException, NotFoundException, Logger, Inject, Optional, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull } from 'typeorm';
 import { ChatChannel } from './chat-channel.entity';
@@ -14,6 +14,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { ReservationsService } from '../reservations/reservations.service';
 import { TeamsService } from '../teams/teams.service';
 import { RatingsService } from '../ratings/ratings.service';
+import { AppGateway } from '../gateway/app.gateway';
 
 @Injectable()
 export class ChatService {
@@ -41,6 +42,7 @@ export class ChatService {
         private reservationsService: ReservationsService,
         private teamsService: TeamsService,
         private ratingsService: RatingsService,
+        @Optional() private gateway: AppGateway,
     ) { }
 
     async createChannel(type: 'DM' | 'MATCH_GROUP' | 'TEAM_INTERNAL' | 'JOKER_NEGOTIATION', name: string, participants: User[], relatedMatchId?: string): Promise<ChatChannel> {
@@ -58,6 +60,10 @@ export class ChatService {
                 userId: user.id
             });
             await this.chatParticipantRepository.save(participant);
+        }
+
+        if (this.gateway?.server) {
+            participants.forEach(u => this.gateway.server.to(u.id).emit('channelCreated', { channelId: savedChannel.id }));
         }
 
         return savedChannel;
@@ -319,6 +325,16 @@ export class ChatService {
         });
 
         if (!savedMessage) throw new Error('Failed to create message');
+
+        if (this.gateway?.server) {
+            const participants = await this.chatParticipantRepository.find({
+                where: { channelId, deletedAt: IsNull() },
+                select: ['userId'],
+            });
+            const payload = { channelId, message: { id: savedMessage.id, senderId: savedMessage.senderId, content: savedMessage.content, createdAt: savedMessage.createdAt } };
+            participants.forEach(p => this.gateway.server.to(p.userId).emit('newMessage', payload));
+        }
+
         return savedMessage;
     }
 

@@ -3,6 +3,7 @@ import React from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { Search, Zap, MessageSquare, User, Bell, Trophy } from 'lucide-react';
 import api from '../../services/api';
+import { useSocket } from '../../contexts/SocketContext';
 
 export const Navbar: React.FC = () => {
   const navigate = useNavigate();
@@ -12,6 +13,7 @@ export const Navbar: React.FC = () => {
   const showBell = true;
   const [unreadCount, setUnreadCount] = React.useState(0);
   const [unreadChatCount, setUnreadChatCount] = React.useState(0);
+  const socket = useSocket();
 
   React.useEffect(() => {
     if (!isLoggedIn) return;
@@ -30,9 +32,17 @@ export const Navbar: React.FC = () => {
     };
 
     fetchCounts();
-    const interval = setInterval(fetchCounts, 5000);
-    return () => clearInterval(interval);
-  }, [isLoggedIn]);
+
+    if (!socket) return;
+    const onNotification = () => fetchCounts();
+    const onNewMessage = () => fetchCounts();
+    socket.on('notification', onNotification);
+    socket.on('newMessage', onNewMessage);
+    return () => {
+      socket.off('notification', onNotification);
+      socket.off('newMessage', onNewMessage);
+    };
+  }, [isLoggedIn, socket]);
 
   if (isAuthPage) {
     return null;
