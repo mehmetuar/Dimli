@@ -102,21 +102,23 @@ export const BusinessStats: React.FC = () => {
 
             {/* Header */}
             <div className="bg-gradient-to-b from-[#0a1628] to-[#0f1e3a] p-4 border-b border-blue-900/60 shadow-xl">
-                <div className="flex justify-between items-center">
-                    <div>
-                        <h1 className="font-sport font-black text-[clamp(18px,5.5vw,24px)] text-orange-500 italic tracking-tighter uppercase drop-shadow-sm !whitespace-nowrap overflow-hidden text-ellipsis">
+                <div className="flex justify-between items-center gap-2">
+                    <div className="min-w-0 flex-1">
+                        <h1 className="font-sport font-black text-[clamp(13px,4.2vw,24px)] text-orange-500 italic tracking-tighter uppercase drop-shadow-sm leading-tight break-words">
                             {stats.businessName}
                         </h1>
                         <div className="text-[clamp(8px,2.2vw,10px)] text-blue-300/60 font-bold uppercase tracking-widest mt-0.5">
                             Özet & İstatistik
                         </div>
                     </div>
-                    <button
-                        onClick={refetch}
-                        className="p-2.5 bg-blue-900/40 rounded-xl border border-blue-800/50 text-blue-300/60 hover:text-white transition-colors active:scale-95"
-                    >
-                        <RotateCw className="w-4 h-4" />
-                    </button>
+                    <div className="shrink-0">
+                        <button
+                            onClick={refetch}
+                            className="p-2.5 bg-blue-900/40 rounded-xl border border-blue-800/50 text-blue-300/60 hover:text-white transition-colors active:scale-95"
+                        >
+                            <RotateCw className="w-4 h-4" />
+                        </button>
+                    </div>
                 </div>
             </div>
 

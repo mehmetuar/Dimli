@@ -1,9 +1,13 @@
 import React, { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { UserProfile } from '../UserProfile/UserProfile';
 import { MyTeam } from '../MyTeam/MyTeam';
 
 export const TeamProfile: React.FC = () => {
-    const [activeTab, setActiveTab] = useState<'PLAYER' | 'TEAM'>('PLAYER');
+    const location = useLocation();
+    // Dışarıdan openModal state geliyorsa doğrudan TAKIMIM tabını aç
+    const hasTeamModal = !!(location.state as any)?.openModal;
+    const [activeTab, setActiveTab] = useState<'PLAYER' | 'TEAM'>(hasTeamModal ? 'TEAM' : 'PLAYER');
 
     return (
         <div className="pb-28 pt-20 px-4 max-w-3xl mx-auto min-h-screen bg-pitch relative">

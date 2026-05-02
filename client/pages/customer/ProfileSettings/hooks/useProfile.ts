@@ -75,8 +75,17 @@ export const useProfile = () => {
         setTimeout(() => setMessage(null), 3000);
     };
 
+    const deleteCloudImage = async (url: string) => {
+        try {
+            await api.post('/files/delete-cloud', { url });
+        } catch (err) {
+            console.error('Failed to delete cloud image:', err);
+        }
+    };
+
     const uploadAvatar = async (file: File): Promise<void> => {
         setIsUploadingAvatar(true);
+        const oldUrl = profileData.avatarUrl;
         try {
             const formData = new FormData();
             formData.append('file', file);
@@ -86,6 +95,9 @@ export const useProfile = () => {
             const fullUrl: string = res.data.url;
             setProfileData(prev => ({ ...prev, avatarUrl: fullUrl }));
             await api.patch('/users/me', { avatarUrl: fullUrl });
+            if (oldUrl && oldUrl.includes('cloudinary.com')) {
+                await deleteCloudImage(oldUrl);
+            }
             showSuccess('Profil fotoğrafı güncellendi!');
         } catch (err: any) {
             showError(err.response?.data?.message || 'Fotoğraf yüklenemedi.');
@@ -95,9 +107,13 @@ export const useProfile = () => {
     };
 
     const removeAvatar = async (): Promise<void> => {
+        const oldUrl = profileData.avatarUrl;
         setProfileData(prev => ({ ...prev, avatarUrl: null }));
         try {
             await api.patch('/users/me', { avatarUrl: null });
+            if (oldUrl && oldUrl.includes('cloudinary.com')) {
+                await deleteCloudImage(oldUrl);
+            }
         } catch (err) {
             console.error('Failed to remove avatar', err);
         }

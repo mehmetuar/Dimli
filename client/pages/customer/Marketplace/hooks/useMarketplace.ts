@@ -23,6 +23,10 @@ export const useMarketplace = () => {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [isDateFilterOpen, setIsDateFilterOpen] = useState(false);
 
+  // Sort
+  const [sortBy, setSortBy] = useState<'date_desc' | 'date_asc' | 'price_desc' | 'price_asc' | 'fair_play' | 'distance'>('date_desc');
+  const [isSortOpen, setIsSortOpen] = useState(false);
+
   // Location modal visibility (local UI state only)
   const [isLocationFilterOpen, setIsLocationFilterOpen] = useState(false);
 
@@ -121,14 +125,28 @@ export const useMarketplace = () => {
       ? matches
       : matches.filter(m => m.date === selectedDate);
 
-    const myTeamId = myTeam?.id;
-    if (!myTeamId) return filtered;
-
-    return [...filtered].sort((a, b) => {
-      const aOwn = a.teamId === myTeamId ? 0 : 1;
-      const bOwn = b.teamId === myTeamId ? 0 : 1;
-      return aOwn - bOwn;
-    });
+    const sorted = [...filtered];
+    switch (sortBy) {
+      case 'date_asc':
+        sorted.sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+        break;
+      case 'date_desc':
+        sorted.sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time));
+        break;
+      case 'price_asc':
+        sorted.sort((a, b) => (getPitchDetails(a.pitchId).pitch?.pricePerHour ?? 0) - (getPitchDetails(b.pitchId).pitch?.pricePerHour ?? 0));
+        break;
+      case 'price_desc':
+        sorted.sort((a, b) => (getPitchDetails(b.pitchId).pitch?.pricePerHour ?? 0) - (getPitchDetails(a.pitchId).pitch?.pricePerHour ?? 0));
+        break;
+      case 'fair_play':
+        sorted.sort((a, b) => (b.team?.fairPlayScore ?? 0) - (a.team?.fairPlayScore ?? 0));
+        break;
+      case 'distance':
+        sorted.sort((a, b) => (getPitchDetails(a.pitchId).pitch?.distanceKm ?? 999) - (getPitchDetails(b.pitchId).pitch?.distanceKm ?? 999));
+        break;
+    }
+    return sorted;
   };
 
   return {
@@ -162,5 +180,9 @@ export const useMarketplace = () => {
     setSelectedDate,
     isDateFilterOpen,
     setIsDateFilterOpen,
+    sortBy,
+    setSortBy,
+    isSortOpen,
+    setIsSortOpen,
   };
 };

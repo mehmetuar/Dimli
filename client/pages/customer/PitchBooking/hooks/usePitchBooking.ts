@@ -39,9 +39,9 @@ export const usePitchBooking = () => {
     const [createModalStartTime, setCreateModalStartTime] = useState<string | undefined>(undefined);
 
     const [isDateFilterOpen, setIsDateFilterOpen] = useState(false);
-    const [isReservationModalOpen, setIsReservationModalOpen] = useState(false);
-    const [reservationPitchId, setReservationPitchId] = useState<string | undefined>(undefined);
-    const [reservationStartTime, setReservationStartTime] = useState<string | undefined>(undefined);
+    const [needTeamRoleModal, setNeedTeamRoleModal] = useState<{ isOpen: boolean; reason: 'no_team' | 'no_role' }>({ isOpen: false, reason: 'no_team' });
+    const [sortBy, setSortBy] = useState<'distance' | 'price_asc' | 'price_desc' | 'rating' | 'rating_count'>('distance');
+    const [isSortOpen, setIsSortOpen] = useState(false);
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
     const [reservations, setReservations] = useState<any[]>([]);
 
@@ -167,8 +167,22 @@ export const usePitchBooking = () => {
         if (filter.radius) setRadius(filter.radius);
     };
 
-    // Server zaten radius'a göre filtreledi ve mesafeye göre sıraladı
-    const filteredBusinesses = useMemo(() => [...businesses], [businesses]);
+    const filteredBusinesses = useMemo(() => {
+        const sorted = [...businesses];
+        switch (sortBy) {
+            case 'price_asc':
+                return sorted.sort((a, b) => (a.pitches?.[0]?.pricePerHour ?? 0) - (b.pitches?.[0]?.pricePerHour ?? 0));
+            case 'price_desc':
+                return sorted.sort((a, b) => (b.pitches?.[0]?.pricePerHour ?? 0) - (a.pitches?.[0]?.pricePerHour ?? 0));
+            case 'rating':
+                return sorted.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
+            case 'rating_count':
+                return sorted.sort((a, b) => (b.ratingCount ?? 0) - (a.ratingCount ?? 0));
+            case 'distance':
+            default:
+                return sorted.sort((a, b) => (a.distanceKm ?? 999) - (b.distanceKm ?? 999));
+        }
+    }, [businesses, sortBy]);
 
     const handleSendOffer = async (note: string) => {
         if (!currentUser?.team || !offerMode) return;
@@ -224,18 +238,11 @@ export const usePitchBooking = () => {
         setIsCreateModalOpen(true);
     };
 
-    const handleReserve = (pitchId: string, startTime: string) => {
-        setReservationPitchId(pitchId);
-        setReservationStartTime(startTime);
-        setIsReservationModalOpen(true);
-    };
-
-    const handleReservationSuccess = () => {
-        if (reservationPitchId) {
-            api.get(`/reservations/pitch/${reservationPitchId}?date=${selectedDate}`)
-                .then(res => setReservations(res.data))
-                .catch(err => console.error('Failed to refresh reservations:', err));
-        }
+    const handleUnauthorizedSlotClick = () => {
+        const reason = currentUser?.team
+            ? 'no_role'  // takımı var ama kaptan/yardımcı kaptan değil
+            : 'no_team'; // hiç takımı yok
+        setNeedTeamRoleModal({ isOpen: true, reason });
     };
 
     const openSlotDetail = (slotTime: string, slotEndTime: string, resList: any[], announcements: any[], approvedReservation?: any) => {
@@ -264,8 +271,8 @@ export const usePitchBooking = () => {
         isCreateModalOpen, setIsCreateModalOpen,
         createModalPitchId, createModalStartTime,
         isDateFilterOpen, setIsDateFilterOpen,
-        isReservationModalOpen, setIsReservationModalOpen,
-        reservationPitchId, reservationStartTime,
+        needTeamRoleModal, setNeedTeamRoleModal,
+        sortBy, setSortBy, isSortOpen, setIsSortOpen,
         selectedDate, setSelectedDate,
         reservations, slotDetailModal, setSlotDetailModal,
         currentUser, pitchAnnouncements,
@@ -273,7 +280,7 @@ export const usePitchBooking = () => {
         applyLocationFilter,
         isLoadingBusinesses,
         handleSendOffer, handleConfirmCancel, handleConfirmDeleteAd,
-        handleCreateAd, handleReserve, handleReservationSuccess, openSlotDetail,
+        handleCreateAd, handleUnauthorizedSlotClick, openSlotDetail,
         handleCancelClick, handleDeleteAdClick
     };
 };

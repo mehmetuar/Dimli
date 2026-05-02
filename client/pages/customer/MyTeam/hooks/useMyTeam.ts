@@ -179,7 +179,7 @@ export const useMyTeam = (modals: any) => {
             if (roster.length <= 1) {
                 modals.setConfirmModal({
                     isOpen: true,
-                    title: '⚠️ Takımı Sil',
+                    title: 'Takımı Sil',
                     message: `Takımda sadece sen varsın. Ayrılırsan "${myTeam.name}" takımı tamamen silinecek. Bunu onaylıyor musun?`,
                     onConfirm: async () => {
                         try {

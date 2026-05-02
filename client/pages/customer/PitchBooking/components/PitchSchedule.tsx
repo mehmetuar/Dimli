@@ -1,5 +1,5 @@
-import React from 'react';
-import { Clock, Phone, AlertCircle, Navigation } from 'lucide-react';
+import React, { useState } from 'react';
+import { Clock, Phone, AlertCircle, Navigation, X } from 'lucide-react';
 import { generateSlots, isPastSlot } from '../utils/pitchUtils';
 
 interface PitchScheduleProps {
@@ -11,13 +11,15 @@ interface PitchScheduleProps {
     isAuthorized: boolean;
     openSlotDetail: (slotTime: string, slotEndTime: string, resList: any[], announcements: any[], approvedReservation?: any) => void;
     handleCreateAd: (pitchId: string, startTime: string) => void;
-    handleReserve: (pitchId: string, startTime: string) => void;
+    handleUnauthorizedSlotClick: () => void;
 }
 
 export const PitchSchedule: React.FC<PitchScheduleProps> = ({
     business, selectedPitch, selectedDate, pitchAnnouncements, reservations,
-    isAuthorized, openSlotDetail, handleCreateAd, handleReserve
+    isAuthorized, openSlotDetail, handleCreateAd, handleUnauthorizedSlotClick
 }) => {
+    const [showDirectionsModal, setShowDirectionsModal] = useState(false);
+
     const openDirections = () => {
         const lat = business.latitude;
         const lng = business.longitude;
@@ -27,6 +29,7 @@ export const PitchSchedule: React.FC<PitchScheduleProps> = ({
             ? `maps://?daddr=${lat},${lng}`
             : `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
         window.open(url, '_system');
+        setShowDirectionsModal(false);
     };
 
     // Check if pitch is closed (passive or closed on this specific day)
@@ -36,6 +39,40 @@ export const PitchSchedule: React.FC<PitchScheduleProps> = ({
         (selectedPitch.closedDays && selectedPitch.closedDays.includes(dayName));
 
     return (
+        <>
+        {showDirectionsModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
+                <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                            <Navigation className="w-5 h-5 text-turf-400" />
+                            <h3 className="text-white font-bold text-base">Yol Tarifi</h3>
+                        </div>
+                        <button onClick={() => setShowDirectionsModal(false)} className="text-slate-400 hover:text-white transition-colors">
+                            <X className="w-5 h-5" />
+                        </button>
+                    </div>
+                    <p className="text-slate-300 text-sm mb-6">
+                        <span className="font-semibold text-white">{business.name}</span> için haritalar uygulaması açılacak. Devam etmek istiyor musunuz?
+                    </p>
+                    <div className="flex gap-3">
+                        <button
+                            onClick={() => setShowDirectionsModal(false)}
+                            className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-2.5 rounded-xl font-bold text-sm transition-all"
+                        >
+                            İptal
+                        </button>
+                        <button
+                            onClick={openDirections}
+                            className="flex-1 bg-turf-600 hover:bg-turf-500 text-white py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5 transition-all"
+                        >
+                            <Navigation className="w-4 h-4" />
+                            Haritayı Aç
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
         <div className="mb-8">
             <div className="flex items-center gap-2 mb-3">
                 <h4 className="flex-1 min-w-0 text-white font-bold text-xs sm:text-sm flex items-center gap-1.5">
@@ -45,7 +82,7 @@ export const PitchSchedule: React.FC<PitchScheduleProps> = ({
                 <div className="flex items-center gap-1.5 shrink-0">
                     {(business.latitude && business.longitude) && (
                         <button
-                            onClick={openDirections}
+                            onClick={() => setShowDirectionsModal(true)}
                             className="bg-slate-700 hover:bg-slate-600 text-white px-2.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1 transition-all shadow-lg"
                         >
                             <Navigation className="w-3.5 h-3.5 text-turf-400 shrink-0" />
@@ -154,7 +191,7 @@ export const PitchSchedule: React.FC<PitchScheduleProps> = ({
                         } else if (slot.status === 'AVAILABLE') {
                             slotClass = 'bg-slate-800 border-slate-700 text-slate-300 hover:border-turf-500 hover:text-white cursor-pointer';
                             label = 'BOŞ';
-                            action = () => handleReserve(selectedPitch.id, slot.startTime);
+                            action = () => handleUnauthorizedSlotClick();
                         } else {
                             slotClass = 'bg-slate-800 border-slate-700 text-slate-500 opacity-60 cursor-not-allowed';
                             label = 'BOŞ';
@@ -200,5 +237,6 @@ export const PitchSchedule: React.FC<PitchScheduleProps> = ({
                 </p>
             )}
         </div>
+        </>
     );
 };

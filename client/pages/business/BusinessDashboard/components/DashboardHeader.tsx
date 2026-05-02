@@ -17,16 +17,18 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
 }) => {
     return (
         <div className="bg-gradient-to-b from-[#0a1628] to-[#0f1e3a] backdrop-blur-md p-4 sticky top-0 z-10 border-b border-blue-900/60 shadow-2xl">
-            <div className="flex justify-between items-center mb-4">
-                <div>
-                    <h1 className="font-sport font-black text-[clamp(18px,5.5vw,24px)] text-orange-500 italic tracking-tighter uppercase drop-shadow-sm !whitespace-nowrap overflow-hidden text-ellipsis">
+            <div className="flex justify-between items-center mb-4 gap-2">
+                <div className="min-w-0 flex-1">
+                    <h1 className="font-sport font-black text-[clamp(13px,4.2vw,24px)] text-orange-500 italic tracking-tighter uppercase drop-shadow-sm leading-tight break-words">
                         {businessName}
                     </h1>
                     <div className="text-[clamp(8px,2.2vw,10px)] text-blue-300/60 font-bold uppercase tracking-widest mt-0.5">
                         Yönetim Paneli
                     </div>
                 </div>
-                <BusinessNotificationBell onClick={() => navigate('/business/notifications')} />
+                <div className="shrink-0">
+                    <BusinessNotificationBell onClick={() => navigate('/business/notifications')} />
+                </div>
             </div>
 
             <button

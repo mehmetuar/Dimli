@@ -38,12 +38,12 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
 
     return (
         <>
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={() => setSelectedSlot(null)}>
-            <div className="bg-slate-800 w-full max-w-md rounded-2xl p-6 border border-slate-700 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setSelectedSlot(null)}>
+            <div className="bg-slate-800 w-[min(calc(100vw-2rem),448px)] rounded-2xl p-[clamp(1rem,5vw,1.5rem)] border border-slate-700 max-h-[90vh] overflow-y-auto animate-scale-in shadow-2xl" onClick={e => e.stopPropagation()}>
                 <div className="flex justify-between items-start mb-6">
                     <div>
-                        <h3 className="text-2xl font-black text-white">{selectedSlot.startTime} - {selectedSlot.endTime}</h3>
-                        <p className="text-slate-400 text-sm">
+                        <h3 className="text-[clamp(1.25rem,6vw,1.5rem)] font-black text-white leading-tight">{selectedSlot.startTime} - {selectedSlot.endTime}</h3>
+                        <p className="text-slate-400 text-[clamp(0.75rem,3.5vw,0.875rem)] font-medium">
                             {selectedSlot.status === 'FULL'
                                 ? 'Kesinleşmiş Maç'
                                 : selectedSlot.reservations?.[0]?.matchAnnouncement?.matchType === 'kendi_aramizda'
@@ -71,14 +71,14 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                                         <div className="w-16 h-16 bg-slate-900 rounded-full mb-3 border-2 border-slate-600 flex items-center justify-center shadow-[0_0_15px_rgba(255,255,255,0.05)]">
                                             <Clock className="w-6 h-6 text-slate-400" />
                                         </div>
-                                        <h4 className="text-xl font-black text-white uppercase tracking-wider text-center mb-1">MANUEL DOLU</h4>
-                                        <p className="text-slate-400 text-xs text-center mb-5 max-w-[200px] mx-auto">Bu saat işletme tarafından manuel olarak kapatılmıştır.</p>
+                                        <h4 className="text-[clamp(1.1rem,5vw,1.25rem)] font-black text-white uppercase tracking-wider text-center mb-1">MANUEL DOLU</h4>
+                                        <p className="text-slate-400 text-[clamp(0.7rem,3vw,0.75rem)] text-center mb-5 max-w-[200px] mx-auto">Bu saat işletme tarafından manuel olarak kapatılmıştır.</p>
                                         <div className="flex gap-2 w-full px-4">
                                             <button
                                                 onClick={() => handleCancelClick(res.id)}
-                                                className="w-full bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2"
+                                                className="w-full bg-slate-700/50 hover:bg-slate-600 text-white py-[clamp(0.6rem,2.5vw,0.75rem)] rounded-xl font-bold text-[clamp(0.7rem,3.5vw,0.875rem)] transition-all flex items-center justify-center gap-2 border border-slate-600/50"
                                             >
-                                                <X className="w-4 h-4 text-red-400 shrink-0" />
+                                                <X className="w-[clamp(0.9rem,3.5vw,1.1rem)] h-[clamp(0.9rem,3.5vw,1.1rem)] text-red-400 shrink-0" />
                                                 <span>Saati Boşa Çıkar</span>
                                             </button>
                                         </div>
@@ -295,24 +295,26 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                             </div>
                         ))
                     ) : (
-                        <div className="text-center text-slate-500 py-12 flex flex-col items-center bg-slate-800/50 rounded-2xl border border-dashed border-slate-700">
-                            <Clock className="w-12 h-12 text-slate-700 mb-3" />
-                            <p>Bu saat için henüz bir istek bulunmuyor.</p>
+                        <div className="text-center py-[clamp(2rem,10vw,3rem)] px-4 flex flex-col items-center bg-slate-900/30 rounded-2xl border border-dashed border-slate-700/50">
+                            <div className="w-[clamp(3.5rem,15vw,4.5rem)] h-[clamp(3.5rem,15vw,4.5rem)] bg-slate-800/80 rounded-full flex items-center justify-center mb-4 border border-slate-700 shadow-inner">
+                                <Clock className="w-[40%] h-[40%] text-slate-500" />
+                            </div>
+                            <p className="text-slate-400 text-[clamp(0.85rem,4vw,1rem)] font-medium max-w-[200px] leading-relaxed">Bu saat için henüz bir istek bulunmuyor.</p>
                         </div>
                     )}
 
                     {selectedSlot.status !== 'FULL' && (
                         <div className="mt-4 border-t border-slate-700 pt-4">
-                            <button
-                                onClick={() => {
-                                    const manualFillDate = `${selectedDate}T${selectedSlot.startTime.padStart(5, '0')}:00`;
-                                    handleManualFillSlot(selectedSlot.pitchId, manualFillDate);
-                                }}
-                                className="w-full bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 border border-slate-600"
-                            >
-                                <AlertTriangle className="w-5 h-5 text-orange-400 shrink-0" />
-                                <span>İşletme Olarak Saati Kapat (Doluya Çevir)</span>
-                            </button>
+                                <button
+                                    onClick={() => {
+                                        const manualFillDate = `${selectedDate}T${selectedSlot.startTime.padStart(5, '0')}:00`;
+                                        handleManualFillSlot(selectedSlot.pitchId, manualFillDate);
+                                    }}
+                                    className="w-full bg-slate-700/50 hover:bg-slate-700 text-white py-[clamp(0.75rem,3vw,1rem)] px-4 rounded-xl font-bold text-[clamp(0.75rem,3.5vw,0.875rem)] transition-all flex items-center justify-center gap-2 border border-slate-600/50 hover:border-slate-500"
+                                >
+                                    <AlertTriangle className="w-[clamp(1.1rem,4vw,1.25rem)] h-[clamp(1.1rem,4vw,1.25rem)] text-orange-400 shrink-0" />
+                                    <span className="truncate">İşletme Olarak Saati Kapat (Doluya Çevir)</span>
+                                </button>
                         </div>
                     )}
                 </div>
@@ -320,17 +322,17 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
         </div>
 
         {playerWarning.isOpen && (
-            <div className="fixed inset-0 bg-black/80 z-[70] flex items-center justify-center p-4">
-                <div className="bg-slate-800 w-full max-w-sm rounded-3xl border border-orange-500/30 p-6">
+            <div className="fixed inset-0 bg-black/80 z-[70] flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in">
+                <div className="bg-slate-800 w-[min(calc(100vw-2rem),384px)] rounded-3xl border border-orange-500/30 p-[clamp(1.25rem,5vw,1.5rem)] animate-scale-in">
                     <div className="flex items-center gap-3 mb-3">
-                        <AlertTriangle className="w-6 h-6 text-orange-400 shrink-0" />
-                        <h3 className="text-lg font-bold text-white">Kadro Uyarısı</h3>
+                        <AlertTriangle className="w-[clamp(1.25rem,5vw,1.5rem)] h-[clamp(1.25rem,5vw,1.5rem)] text-orange-400 shrink-0" />
+                        <h3 className="text-[clamp(1.1rem,5vw,1.25rem)] font-bold text-white leading-tight">Kadro Uyarısı</h3>
                     </div>
-                    <p className="text-slate-300 text-sm mb-5">{playerWarning.message}</p>
+                    <p className="text-slate-300 text-[clamp(0.75rem,3.5vw,0.875rem)] mb-5 leading-relaxed">{playerWarning.message}</p>
                     <div className="flex gap-3">
                         <button
                             onClick={() => setPlayerWarning({ isOpen: false, message: '', reservationId: '' })}
-                            className="flex-1 bg-slate-700 text-white font-bold py-3 rounded-xl hover:bg-slate-600 transition-colors"
+                            className="flex-1 bg-slate-700/50 text-white font-bold py-[clamp(0.75rem,3vw,1rem)] rounded-xl hover:bg-slate-600 transition-colors text-[clamp(0.8rem,3.5vw,0.9rem)]"
                         >
                             İptal
                         </button>
@@ -339,7 +341,7 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                                 setPlayerWarning({ isOpen: false, message: '', reservationId: '' });
                                 openActionModal('APPROVE', playerWarning.reservationId);
                             }}
-                            className="flex-1 bg-orange-600 text-white font-bold py-3 rounded-xl hover:bg-orange-500 transition-colors"
+                            className="flex-1 bg-orange-600 text-white font-bold py-[clamp(0.75rem,3vw,1rem)] rounded-xl hover:bg-orange-500 transition-colors text-[clamp(0.8rem,3.5vw,0.9rem)] shadow-lg shadow-orange-600/20"
                         >
                             Yine de Onayla
                         </button>

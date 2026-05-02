@@ -6,6 +6,7 @@ import { TeamDetailModal } from '../../../components/Modals/TeamDetailModal';
 import { SuccessModal } from '../../../components/Modals/SuccessModal';
 import { ConfirmModal } from '../../../components/Modals/ConfirmModal';
 import { LocationFilterModal } from '../../../components/Modals/LocationFilterModal';
+import { SortModal } from '../../../components/Modals/SortModal';
 
 import { useMarketplace } from './hooks/useMarketplace';
 import { useMarketplaceActions } from './hooks/useMarketplaceActions';
@@ -41,7 +42,11 @@ export const Marketplace: React.FC = () => {
     selectedDate,
     setSelectedDate,
     isDateFilterOpen,
-    setIsDateFilterOpen
+    setIsDateFilterOpen,
+    sortBy,
+    setSortBy,
+    isSortOpen,
+    setIsSortOpen,
   } = useMarketplace();
 
   const {
@@ -136,12 +141,30 @@ export const Marketplace: React.FC = () => {
         isDangerous={true}
       />
 
+      <SortModal
+        isOpen={isSortOpen}
+        onClose={() => setIsSortOpen(false)}
+        title="Sıralama"
+        value={sortBy}
+        onChange={(key) => setSortBy(key as typeof sortBy)}
+        options={[
+          { key: 'date_desc',  label: 'Tarihe Göre (Önce En Yeni)' },
+          { key: 'date_asc',   label: 'Tarihe Göre (Önce En Eski)' },
+          { key: 'price_asc',  label: 'Fiyata Göre (Önce En Düşük)' },
+          { key: 'price_desc', label: 'Fiyata Göre (Önce En Yüksek)' },
+          { key: 'fair_play',  label: 'Fair Play Skoruna Göre' },
+          { key: 'distance',   label: 'Yakınlığa Göre' },
+        ]}
+      />
+
       <MarketplaceHeader
         locationFilter={locationFilter}
         setLocationFilter={setLocationFilter}
         setIsLocationFilterOpen={setIsLocationFilterOpen}
         selectedDate={selectedDate}
         onOpenDateFilter={() => setIsDateFilterOpen(true)}
+        sortBy={sortBy}
+        onOpenSort={() => setIsSortOpen(true)}
       />
 
       {locationPermissionDenied && (

@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { LoadingSpinner } from '../../../components/UI/LoadingSpinner';
 import { MOCK_JOKERS } from '../../../constants';
 import { Check, X, Shield, Crown, Trash2, ShieldX, ChevronRight, MoreVertical } from 'lucide-react';
@@ -17,7 +18,21 @@ import { NoTeamView } from './components/NoTeamView';
 import { TeamSettingsMenu } from './components/TeamSettingsMenu';
 
 export const MyTeam: React.FC = () => {
+    const location = useLocation();
+    const navigate = useNavigate();
     const modals = useTeamModals();
+
+    // Dışarıdan gelen navigate state ile modal aç (NeedTeamRoleModal → buton tıklaması)
+    useEffect(() => {
+        const state = location.state as { openModal?: string } | null;
+        if (state?.openModal === 'createTeam') {
+            modals.setIsCreateTeamModalOpen(true);
+            navigate('/team', { replace: true, state: {} });
+        } else if (state?.openModal === 'joinTeam') {
+            modals.setIsJoinTeamModalOpen(true);
+            navigate('/team', { replace: true, state: {} });
+        }
+    }, [location.state]);
     const {
         currentUser, isLoading, myTeam, setMyTeam, roster, setRoster,
         businesses, bio, setBio, isEditingBio, setIsEditingBio,

@@ -18,7 +18,7 @@ interface BusinessListItemProps {
     myChallenges: any[];
     openSlotDetail: (slotTime: string, slotEndTime: string, resList: any[], announcements: any[], approvedReservation?: any) => void;
     handleCreateAd: (pitchId: string, startTime?: string) => void;
-    handleReserve: (pitchId: string, startTime: string) => void;
+    handleUnauthorizedSlotClick: () => void;
     setViewingTeam: (team: any) => void;
     setOfferMode: (mode: { matchId: string, teamName: string }) => void;
     handleDeleteAdClick: (adId: string) => void;
@@ -29,7 +29,7 @@ interface BusinessListItemProps {
 export const BusinessListItem = React.memo<BusinessListItemProps>(({
     business, isExpanded, setExpandedBusinessId, selectedPitchIdInBusiness, setSelectedPitchIdInBusiness,
     selectedDate, pitchAnnouncements, reservations, isAuthorized, currentUser, myChallenges,
-    openSlotDetail, handleCreateAd, handleReserve, setViewingTeam, setOfferMode,
+    openSlotDetail, handleCreateAd, handleUnauthorizedSlotClick, setViewingTeam, setOfferMode,
     handleDeleteAdClick, handleCancelClick, distanceKm
 }) => {
     const selectedPitchId = selectedPitchIdInBusiness[business.id];
@@ -146,7 +146,7 @@ export const BusinessListItem = React.memo<BusinessListItemProps>(({
                                 isAuthorized={isAuthorized}
                                 openSlotDetail={openSlotDetail}
                                 handleCreateAd={handleCreateAd}
-                                handleReserve={handleReserve}
+                                handleUnauthorizedSlotClick={handleUnauthorizedSlotClick}
                             />
 
                             <div className="mb-6">

@@ -4,6 +4,7 @@ import {
     UnauthorizedException,
     ConflictException,
 } from '@nestjs/common';
+import { v2 as cloudinary } from 'cloudinary';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
@@ -305,9 +306,18 @@ export class AdminService {
                 });
             }
         } else if (request.type === 'PHOTO_UPDATE') {
+            const oldImageUrl = request.pitch?.imageUrl;
             await this.pitchRepository.update(request.pitchId, {
                 imageUrl: request.requestedData.imageUrl,
             });
+            if (oldImageUrl && oldImageUrl.includes('cloudinary.com')) {
+                const match = oldImageUrl.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\.[^.]+)?$/);
+                if (match) {
+                    cloudinary.uploader.destroy(match[1]).catch(err =>
+                        console.error('Failed to delete old pitch image from Cloudinary:', err),
+                    );
+                }
+            }
         }
 
         await this.changeRequestRepository.update(requestId, {

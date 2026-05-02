@@ -11,13 +11,14 @@ import { BusinessListItem } from './components/BusinessListItem';
 import { CreateMatchModal } from '../../../components/Modals/CreateMatchModal';
 import { OfferModal } from '../../../components/Modals/OfferModal';
 import { ConfirmModal } from '../../../components/Modals/ConfirmModal';
-import { ReservationModal } from '../../../components/Modals/ReservationModal';
+import { NeedTeamRoleModal } from '../../../components/Modals/NeedTeamRoleModal';
 import { LocationFilterModal } from '../../../components/Modals/LocationFilterModal';
 import { SlotDetailModal } from '../../../components/Modals/SlotDetailModal';
+import { SortModal } from '../../../components/Modals/SortModal';
 
 export const PitchBooking: React.FC = () => {
    const {
-      businesses, expandedBusinessId, setExpandedBusinessId,
+      expandedBusinessId, setExpandedBusinessId,
       selectedPitchIdInBusiness, setSelectedPitchIdInBusiness,
       viewingTeam, setViewingTeam,
       offerMode, setOfferMode,
@@ -30,14 +31,14 @@ export const PitchBooking: React.FC = () => {
       isCreateModalOpen, setIsCreateModalOpen,
       createModalPitchId, createModalStartTime,
       isDateFilterOpen, setIsDateFilterOpen,
-      isReservationModalOpen, setIsReservationModalOpen,
-      reservationPitchId, reservationStartTime,
+      needTeamRoleModal, setNeedTeamRoleModal,
+      sortBy, setSortBy, isSortOpen, setIsSortOpen,
       selectedDate, setSelectedDate,
       reservations, slotDetailModal, setSlotDetailModal,
       currentUser, pitchAnnouncements,
       isAuthorized, filteredBusinesses,
       handleSendOffer, handleConfirmCancel, handleConfirmDeleteAd,
-      handleCreateAd, handleReserve, handleReservationSuccess, openSlotDetail,
+      handleCreateAd, handleUnauthorizedSlotClick, openSlotDetail,
       handleCancelClick, handleDeleteAdClick,
       isLoadingBusinesses
    } = usePitchBooking();
@@ -118,18 +119,11 @@ export const PitchBooking: React.FC = () => {
             preSelectedDate={selectedDate}
          />
 
-         {selectedDate && expandedBusinessId && reservationPitchId && (
-            <ReservationModal
-               isOpen={isReservationModalOpen}
-               onClose={() => setIsReservationModalOpen(false)}
-               pitch={businesses.find(b => b.id === expandedBusinessId)?.pitches?.find(p => p.id === reservationPitchId) || {} as any}
-               business={businesses.find(b => b.id === expandedBusinessId) || {} as any}
-               selectedDate={selectedDate}
-               selectedStartTime={reservationStartTime || '18:00'}
-               teamId={currentUser?.team?.id || ''}
-               onSuccess={handleReservationSuccess}
-            />
-         )}
+         <NeedTeamRoleModal
+            isOpen={needTeamRoleModal.isOpen}
+            onClose={() => setNeedTeamRoleModal({ ...needTeamRoleModal, isOpen: false })}
+            reason={needTeamRoleModal.reason}
+         />
 
          <header className="mb-8">
             <h1 className="font-sport font-black text-5xl text-white uppercase italic tracking-tighter">
@@ -138,11 +132,28 @@ export const PitchBooking: React.FC = () => {
             <p className="text-slate-400">Favori sahanı bul, takvimi incele ve maçı ayarla.</p>
          </header>
 
+         <SortModal
+            isOpen={isSortOpen}
+            onClose={() => setIsSortOpen(false)}
+            title="Sıralama"
+            value={sortBy}
+            onChange={(key) => setSortBy(key as typeof sortBy)}
+            options={[
+               { key: 'distance',     label: 'Yakınlığa Göre' },
+               { key: 'price_asc',    label: 'Fiyata Göre (Önce En Düşük)' },
+               { key: 'price_desc',   label: 'Fiyata Göre (Önce En Yüksek)' },
+               { key: 'rating_count', label: 'Değerlendirme Sayısına Göre' },
+               { key: 'rating',       label: 'Puana Göre' },
+            ]}
+         />
+
          <FilterBar
             locationFilter={locationFilter}
             selectedDate={selectedDate}
+            sortBy={sortBy}
             onOpenLocationFilter={() => setIsLocationFilterOpen(true)}
             onOpenDateFilter={() => setIsDateFilterOpen(true)}
+            onOpenSort={() => setIsSortOpen(true)}
          />
 
          <div className="space-y-6">
@@ -186,7 +197,7 @@ export const PitchBooking: React.FC = () => {
                         myChallenges={myChallenges}
                         openSlotDetail={openSlotDetail}
                         handleCreateAd={handleCreateAd}
-                        handleReserve={handleReserve}
+                        handleUnauthorizedSlotClick={handleUnauthorizedSlotClick}
                         setViewingTeam={setViewingTeam}
                         setOfferMode={setOfferMode}
                         handleDeleteAdClick={handleDeleteAdClick}
