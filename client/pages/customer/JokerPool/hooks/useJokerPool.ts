@@ -13,6 +13,8 @@ export const useJokerPool = () => {
     const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
     const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
     const [isLocationFilterOpen, setIsLocationFilterOpen] = useState(false);
+    const [sortBy, setSortBy] = useState<string>('distance');
+    const [isSortOpen, setIsSortOpen] = useState(false);
 
     // Computed location filter (for UI components that expect LocationFilter shape)
     const locationFilter: LocationFilter = { type: 'NEARBY', radius, coords: coords ?? undefined };
@@ -59,12 +61,37 @@ export const useJokerPool = () => {
         if (filter.radius) setRadius(filter.radius);
     };
 
-    const visibleJokers = currentUser
-        ? [
-            ...jokers.filter(j => j.id === currentUser.id),
-            ...jokers.filter(j => j.id !== currentUser.id)
-          ]
-        : jokers;
+    const visibleJokers = (() => {
+        let list = currentUser
+            ? [...jokers.filter(j => j.id === currentUser.id), ...jokers.filter(j => j.id !== currentUser.id)]
+            : [...jokers];
+
+        switch (sortBy) {
+            case 'kaleci':
+                list = list.filter(j => j.position === 'Kaleci' || j.secondaryPosition === 'Kaleci');
+                break;
+            case 'orta_saha':
+                list = list.filter(j => j.position === 'Orta Saha' || j.secondaryPosition === 'Orta Saha');
+                break;
+            case 'forvet':
+                list = list.filter(j => j.position === 'Forvet' || j.secondaryPosition === 'Forvet');
+                break;
+            case 'defans':
+                list = list.filter(j => j.position === 'Defans' || j.secondaryPosition === 'Defans');
+                break;
+            case 'ucreteOrtak':
+                list = list.filter(j => j.sharesFee === true);
+                break;
+            case 'ucreteOrtakDegil':
+                list = list.filter(j => j.sharesFee === false);
+                break;
+            case 'distance':
+            default:
+                list.sort((a, b) => (a.distanceKm ?? 999) - (b.distanceKm ?? 999));
+                break;
+        }
+        return list;
+    })();
 
     const handleSaveProfile = async (data: any) => {
         try {
@@ -87,6 +114,7 @@ export const useJokerPool = () => {
         isInviteModalOpen, setIsInviteModalOpen,
         isProfileModalOpen, setIsProfileModalOpen,
         isLocationFilterOpen, setIsLocationFilterOpen,
+        sortBy, setSortBy, isSortOpen, setIsSortOpen,
         locationFilter,
         applyLocationFilter,
         visibleJokers,

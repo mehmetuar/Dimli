@@ -3,6 +3,7 @@ import { Loader2, MapPin } from 'lucide-react';
 import { InviteJokerModal } from '../../../components/Modals/InviteJokerModal';
 import { JokerProfileModal } from '../../../components/Modals/JokerProfileModal';
 import { LocationFilterModal } from '../../../components/Modals/LocationFilterModal';
+import { SortModal } from '../../../components/Modals/SortModal';
 
 // Hooks
 import { useJokerPool } from './hooks/useJokerPool';
@@ -23,6 +24,7 @@ export const JokerPool: React.FC = () => {
       isInviteModalOpen, setIsInviteModalOpen,
       isProfileModalOpen, setIsProfileModalOpen,
       isLocationFilterOpen, setIsLocationFilterOpen,
+      sortBy, setSortBy, isSortOpen, setIsSortOpen,
       locationFilter,
       applyLocationFilter,
       visibleJokers,
@@ -61,6 +63,23 @@ export const JokerPool: React.FC = () => {
             onApply={applyLocationFilter}
          />
 
+         <SortModal
+            isOpen={isSortOpen}
+            onClose={() => setIsSortOpen(false)}
+            title="Sıralama"
+            value={sortBy}
+            onChange={setSortBy}
+            options={[
+               { key: 'distance',         label: 'Yakınlığa Göre' },
+               { key: 'kaleci',           label: 'Kaleci' },
+               { key: 'orta_saha',        label: 'Orta Saha' },
+               { key: 'forvet',           label: 'Forvet' },
+               { key: 'defans',           label: 'Defans' },
+               { key: 'ucreteOrtak',      label: 'Ücrete Ortak' },
+               { key: 'ucreteOrtakDegil', label: 'Ücrete Ortak Değil' },
+            ]}
+         />
+
          {/* Header */}
          <JokerPoolHeader
             currentUser={currentUser}
@@ -71,6 +90,8 @@ export const JokerPool: React.FC = () => {
          <JokerLocationFilter
             locationFilter={locationFilter}
             setIsLocationFilterOpen={setIsLocationFilterOpen}
+            sortBy={sortBy}
+            setIsSortOpen={setIsSortOpen}
          />
 
          {/* Joker List */}

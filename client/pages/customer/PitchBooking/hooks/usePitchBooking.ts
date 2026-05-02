@@ -4,9 +4,11 @@ import { getBusinesses } from '../../../../services/api';
 import { Business, Team } from '../../../../types';
 import { LocationFilter } from '../../../../components/Modals/LocationFilterModal';
 import { useLocationContext } from '../../../../contexts/LocationContext';
+import { useFilterContext } from '../../../../contexts/FilterContext';
 
 export const usePitchBooking = () => {
     const { coords, radius, isLocating, setRadius } = useLocationContext();
+    const { selectedDate, setSelectedDate, pitchSortBy, setPitchSortBy } = useFilterContext();
 
     const [businesses, setBusinesses] = useState<Business[]>(() => {
         const cached = localStorage.getItem('cached_businesses');
@@ -40,9 +42,11 @@ export const usePitchBooking = () => {
 
     const [isDateFilterOpen, setIsDateFilterOpen] = useState(false);
     const [needTeamRoleModal, setNeedTeamRoleModal] = useState<{ isOpen: boolean; reason: 'no_team' | 'no_role' }>({ isOpen: false, reason: 'no_team' });
-    const [sortBy, setSortBy] = useState<'distance' | 'price_asc' | 'price_desc' | 'rating' | 'rating_count'>('distance');
+    // Sort — shared via FilterContext (persisted to localStorage)
+    const sortBy = pitchSortBy as 'distance' | 'price_asc' | 'price_desc' | 'rating' | 'rating_count';
+    const setSortBy = setPitchSortBy;
     const [isSortOpen, setIsSortOpen] = useState(false);
-    const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+    // selectedDate — shared via FilterContext (synced with Marketplace, persisted)
     const [reservations, setReservations] = useState<any[]>([]);
 
     const [slotDetailModal, setSlotDetailModal] = useState<{

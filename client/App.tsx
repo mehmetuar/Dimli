@@ -14,6 +14,7 @@ import { PendingRating } from './types';
 import { initializePushNotifications } from './services/pushNotificationService';
 import { initRevenueCat } from './services/revenuecatService';
 import { LocationProvider, useLocationContext } from './contexts/LocationContext';
+import { FilterProvider } from './contexts/FilterContext';
 import { SocketProvider } from './contexts/SocketContext';
 import { useKeyboardScroll } from './utils/useKeyboardScroll';
 
@@ -320,11 +321,13 @@ function AppContent() {
 function App() {
   return (
     <LocationProvider>
-      <SocketProvider>
-        <HashRouter>
-          <AppContent />
-        </HashRouter>
-      </SocketProvider>
+      <FilterProvider>
+        <SocketProvider>
+          <HashRouter>
+            <AppContent />
+          </HashRouter>
+        </SocketProvider>
+      </FilterProvider>
     </LocationProvider>
   );
 }

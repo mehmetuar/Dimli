@@ -3,9 +3,11 @@ import api from '../../../../services/api';
 import { Business } from '../../../../types';
 import { LocationFilter } from '../../../../components/Modals/LocationFilterModal';
 import { useLocationContext } from '../../../../contexts/LocationContext';
+import { useFilterContext } from '../../../../contexts/FilterContext';
 
 export const useMarketplace = () => {
   const { coords, radius, permissionStatus, setRadius } = useLocationContext();
+  const { selectedDate, setSelectedDate, marketplaceSortBy, setMarketplaceSortBy } = useFilterContext();
 
   const [matches, setMatches] = useState<any[]>([]);
   const [businesses, setBusinesses] = useState<Business[]>([]);
@@ -19,12 +21,12 @@ export const useMarketplace = () => {
   const [selectedMatch, setSelectedMatch] = useState<any>(null);
   const [myChallenges, setMyChallenges] = useState<any[]>([]);
 
-  // Date
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  // Date — shared via FilterContext (persisted to localStorage)
   const [isDateFilterOpen, setIsDateFilterOpen] = useState(false);
 
-  // Sort
-  const [sortBy, setSortBy] = useState<'date_desc' | 'date_asc' | 'price_desc' | 'price_asc' | 'fair_play' | 'distance'>('date_desc');
+  // Sort — shared via FilterContext (persisted to localStorage)
+  const sortBy = marketplaceSortBy as 'date_desc' | 'date_asc' | 'price_desc' | 'price_asc' | 'fair_play' | 'distance';
+  const setSortBy = setMarketplaceSortBy;
   const [isSortOpen, setIsSortOpen] = useState(false);
 
   // Location modal visibility (local UI state only)
