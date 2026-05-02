@@ -84,19 +84,22 @@ export const TeamHomeBusiness: React.FC<TeamHomeBusinessProps> = ({
             ) : (
                 selectedHomeBusiness ? (
                     <div className="relative group">
-                        {selectedHomeBusiness.coverImageUrl ? (
-                            <img
-                                src={selectedHomeBusiness.coverImageUrl}
-                                className="w-full h-32 object-cover opacity-60"
-                                alt="Business"
-                                onError={(e) => {
-                                    const t = e.target as HTMLImageElement;
-                                    t.style.display = 'none';
-                                    t.nextElementSibling?.classList.remove('hidden');
-                                }}
-                            />
-                        ) : null}
-                        <div className={`w-full h-32 bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 flex items-center justify-center ${selectedHomeBusiness.coverImageUrl ? 'hidden' : ''}`}>
+                        {(() => {
+                            const pitchImage = selectedHomeBusiness.pitches?.[0]?.imageUrl;
+                            return pitchImage ? (
+                                <img
+                                    src={pitchImage}
+                                    className="w-full h-32 object-cover opacity-60"
+                                    alt="Business"
+                                    onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                                        const t = e.target as HTMLImageElement;
+                                        t.style.display = 'none';
+                                        t.nextElementSibling?.classList.remove('hidden');
+                                    }}
+                                />
+                            ) : null;
+                        })()}
+                        <div className={`w-full h-32 bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 flex items-center justify-center ${selectedHomeBusiness.pitches?.[0]?.imageUrl ? 'hidden' : ''}`}>
                             <svg viewBox="0 0 120 80" className="w-24 h-16 opacity-20" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <rect x="5" y="5" width="110" height="70" rx="4" stroke="white" strokeWidth="3"/>
                                 <line x1="60" y1="5" x2="60" y2="75" stroke="white" strokeWidth="2"/>

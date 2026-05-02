@@ -26,9 +26,9 @@ export const ProtectedRoute: React.FC = () => {
         return null;
     }
 
-    // If no valid token, redirect to login
+    // If no valid token, redirect to register (first-time entry)
     if (!hasValidToken) {
-        return <Navigate to="/login" replace />;
+        return <Navigate to="/register" replace />;
     }
 
     return <Outlet />;
