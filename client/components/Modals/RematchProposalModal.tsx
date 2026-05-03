@@ -6,6 +6,7 @@ import { Business, Pitch, ReservationStatus } from '../../types';
 import api, { getReservationsByPitch } from '../../services/api';
 import { DateSelectionModal } from './DateSelectionModal';
 import { TimeSelectionModal } from './TimeSelectionModal';
+import { useLocationContext } from '../../contexts/LocationContext';
 
 interface RematchProposalModalProps {
     isOpen: boolean;
@@ -24,6 +25,8 @@ export const RematchProposalModal: React.FC<RematchProposalModalProps> = ({
     previousPitchId,
     previousPlayerCount,
 }) => {
+    const { coords, radius } = useLocationContext();
+
     if (!isOpen) return null;
 
     // Wizard step: 1=İşletme, 2=Saha, 3=Tarih, 4=Saat, 5=Özet
@@ -58,7 +61,8 @@ export const RematchProposalModal: React.FC<RematchProposalModalProps> = ({
         const fetchData = async () => {
             setIsFetchingData(true);
             try {
-                const res = await api.get('/businesses');
+                const params = coords ? { lat: coords.lat, lng: coords.lng, radius } : undefined;
+                const res = await api.get('/businesses', { params });
                 const fetched: Business[] = res.data;
                 setBusinesses(fetched);
 

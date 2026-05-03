@@ -6,6 +6,7 @@ import { Business, Pitch, ReservationStatus } from '../../types';
 import api, { getReservationsByPitch } from '../../services/api';
 import { DateSelectionModal } from './DateSelectionModal';
 import { TimeSelectionModal } from './TimeSelectionModal';
+import { useLocationContext } from '../../contexts/LocationContext';
 
 interface KendiAramizdaNewMatchModalProps {
     isOpen: boolean;
@@ -20,6 +21,8 @@ export const KendiAramizdaNewMatchModal: React.FC<KendiAramizdaNewMatchModalProp
     channelId,
     previousPitchId,
 }) => {
+    const { coords, radius } = useLocationContext();
+
     if (!isOpen) return null;
 
     // Wizard step: 1=İşletme, 2=Saha, 3=Tarih+Kadro, 4=Saat, 5=Özet
@@ -54,7 +57,8 @@ export const KendiAramizdaNewMatchModal: React.FC<KendiAramizdaNewMatchModalProp
         const fetchData = async () => {
             setIsFetchingData(true);
             try {
-                const res = await api.get('/businesses');
+                const params = coords ? { lat: coords.lat, lng: coords.lng, radius } : undefined;
+                const res = await api.get('/businesses', { params });
                 const fetched: Business[] = res.data;
                 setBusinesses(fetched);
 
