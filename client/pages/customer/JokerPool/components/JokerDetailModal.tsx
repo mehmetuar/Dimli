@@ -1,5 +1,6 @@
 import React from 'react';
 import { MapPin, X, UserPlus, Handshake, Edit } from 'lucide-react';
+import { calculateAge } from '../../../../utils/calculateAge';
 
 interface JokerDetailModalProps {
     selectedJoker: any;
@@ -71,7 +72,7 @@ export const JokerDetailModal: React.FC<JokerDetailModalProps> = ({
                             <div className="bg-white/5 rounded-xl p-2 sm:p-3 border border-white/10 flex flex-col items-center justify-center min-w-0">
                                 <span className="text-[clamp(8px,2.2vw,10px)] text-slate-400 font-bold uppercase mb-0.5">YAŞ</span>
                                 <span className="font-sport text-[clamp(16px,5vw,24px)] font-black text-white !whitespace-nowrap overflow-hidden text-ellipsis">
-                                    {selectedJoker.birthDate ? new Date().getFullYear() - new Date(selectedJoker.birthDate).getFullYear() : '-'}
+                                    {selectedJoker.birthDate ? calculateAge(selectedJoker.birthDate) : '-'}
                                 </span>
                             </div>
                             <div className="bg-white/5 rounded-xl p-2 sm:p-3 border border-white/10 flex flex-col items-center justify-center min-w-0">

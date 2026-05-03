@@ -3,6 +3,7 @@ import { X, MapPin, Handshake, Star, MessageCircle, UserPlus, Edit } from 'lucid
 import { Player } from '../../types';
 import { MOCK_PITCHES } from '../../constants';
 import { getBusinesses } from '../../services/api';
+import { calculateAge } from '../../utils/calculateAge';
 
 interface PlayerDetailModalProps {
     isOpen: boolean;
@@ -96,7 +97,7 @@ export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
                             <div className="bg-white/5 rounded-xl p-2 sm:p-3 border border-white/10 flex flex-col items-center justify-center min-w-0">
                                 <span className="text-[clamp(8px,2.2vw,10px)] text-slate-400 font-bold uppercase mb-0.5">YAŞ</span>
                                 <span className="font-sport text-[clamp(16px,5vw,24px)] font-black text-white !whitespace-nowrap overflow-hidden text-ellipsis">
-                                    {player.birthDate ? new Date().getFullYear() - new Date(player.birthDate).getFullYear() : '-'}
+                                    {player.birthDate ? calculateAge(player.birthDate) : '-'}
                                 </span>
                             </div>
                             {/* Foot */}

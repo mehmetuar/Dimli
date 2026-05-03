@@ -1,6 +1,7 @@
 import React from 'react';
 import { X, Calendar, MapPin, Map, Phone, Users, User, Shield, Handshake, ChevronRight } from 'lucide-react';
 import { getTacticalAdvice } from '../../services/geminiService';
+import { calculateAge } from '../../utils/calculateAge';
 
 interface Props {
     isOpen: boolean;
@@ -103,7 +104,7 @@ export const JokerDMChatInfoModal: React.FC<Props> = ({ isOpen, onClose, channel
                             <div className="bg-slate-900/50 rounded-xl p-3 border border-slate-700/50 flex flex-col items-center">
                                 <span className="text-[10px] text-slate-500 font-bold uppercase mb-1">Yaş</span>
                                 <span className="text-white font-sport text-lg">
-                                    {opponent?.birthDate ? new Date().getFullYear() - new Date(opponent.birthDate).getFullYear() : '-'}
+                                    {opponent?.birthDate ? calculateAge(opponent.birthDate) : '-'}
                                 </span>
                             </div>
                             <div className="bg-slate-900/50 rounded-xl p-3 border border-slate-700/50 flex flex-col items-center">
