@@ -7,6 +7,7 @@ import { Geolocation } from '@capacitor/geolocation';
 import { BusinessNavbar } from '../../../components/Business/BusinessNavbar';
 import { LocationSelectionModal } from '../../../components/Modals/LocationSelectionModal';
 import { locationService } from '../../../services/locationService';
+import { LocationPermissionSheet, LocationErrorType } from '../../../components/LocationPermissionSheet';
 
 // Sub-component: flies map to new coords
 const MapEffect: React.FC<{ lat: number; lng: number; trigger: number }> = ({ lat, lng, trigger }) => {
@@ -39,6 +40,7 @@ export const BusinessInfoSettings: React.FC = () => {
     const [isLocating, setIsLocating] = useState(false);
     const [isGeocoding, setIsGeocoding] = useState(false);
     const [mapLocationLabel, setMapLocationLabel] = useState('');
+    const [locationErrorType, setLocationErrorType] = useState<LocationErrorType | null>(null);
 
     // Form state
     const [formData, setFormData] = useState({
@@ -107,15 +109,21 @@ export const BusinessInfoSettings: React.FC = () => {
         setIsLocating(true);
         try {
             const permission = await Geolocation.requestPermissions();
-            if (permission.location === 'denied') return;
+            if (permission.location === 'denied') {
+                setLocationErrorType('permission_denied');
+                return;
+            }
             const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 10000 });
             const lat = pos.coords.latitude;
             const lng = pos.coords.longitude;
             setMapCoords({ lat, lng });
             setMapFlyTrigger(t => t + 1);
             await doReverseGeocode(lat, lng);
-        } catch (err) {
+        } catch (err: any) {
             console.error(err);
+            const code = err?.code;
+            if (code === 1) setLocationErrorType('permission_denied');
+            else if (code === 2) setLocationErrorType('gps_disabled');
         } finally {
             setIsLocating(false);
         }
@@ -365,6 +373,12 @@ export const BusinessInfoSettings: React.FC = () => {
                     </div>
                 </div>
             )}
+
+            {/* ── Konum İzni / GPS Bottom Sheet ───────────────────────────── */}
+            <LocationPermissionSheet
+                errorType={locationErrorType}
+                onClose={() => setLocationErrorType(null)}
+            />
 
             {/* ── Confirmation Modal ───────────────────────────────────────── */}
             {showConfirmModal && (

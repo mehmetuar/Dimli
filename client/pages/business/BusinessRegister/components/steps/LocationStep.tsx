@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { APIProvider, Map, AdvancedMarker, useMap } from '@vis.gl/react-google-maps';
-import { Navigation, MapPin, Loader2, Lock } from 'lucide-react';
+import { Navigation, MapPin, Loader2, Lock, Settings } from 'lucide-react';
 import { Geolocation } from '@capacitor/geolocation';
 import { locationService } from '../../../../../services/locationService';
+import { openLocationSettings } from '../../../../../utils/openLocationSettings';
 
 interface LocationStepProps {
     formData: any;
@@ -32,6 +33,7 @@ export const LocationStep: React.FC<LocationStepProps> = ({
 }) => {
     const [isLocating, setIsLocating] = useState(false);
     const [locationError, setLocationError] = useState('');
+    const [locationNeedsSettings, setLocationNeedsSettings] = useState(false);
     const [flyTrigger, setFlyTrigger] = useState(false);
     const addressRef = useRef<HTMLTextAreaElement>(null);
 
@@ -57,10 +59,14 @@ export const LocationStep: React.FC<LocationStepProps> = ({
     const handleLocateMe = async (silent = false) => {
         setIsLocating(true);
         setLocationError('');
+        setLocationNeedsSettings(false);
         try {
             const permission = await Geolocation.requestPermissions();
             if (permission.location === 'denied') {
-                if (!silent) setLocationError('Konum izni reddedildi. Lütfen ayarlardan izin verin.');
+                if (!silent) {
+                    setLocationError('Konum izni reddedildi. Ayarlardan konum iznini etkinleştirin.');
+                    setLocationNeedsSettings(true);
+                }
                 return;
             }
             const position = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 10000 });
@@ -73,10 +79,19 @@ export const LocationStep: React.FC<LocationStepProps> = ({
 
             await doReverseGeocode(lat, lng);
         } catch (err: any) {
-            if (!silent) {
-                setLocationError('Konum alınamadı. Haritaya tıklayarak konumunuzu seçebilirsiniz.');
-            }
             console.error('Geolocation error:', err);
+            if (!silent) {
+                const code = err?.code;
+                if (code === 1) {
+                    setLocationError('Konum izni reddedildi. Ayarlardan konum iznini etkinleştirin.');
+                    setLocationNeedsSettings(true);
+                } else if (code === 2) {
+                    setLocationError('GPS kapalı. Cihazınızın konum servislerini açın.');
+                    setLocationNeedsSettings(true);
+                } else {
+                    setLocationError('Konum alınamadı. Haritaya tıklayarak konumunuzu seçebilirsiniz.');
+                }
+            }
         } finally {
             setIsLocating(false);
         }
@@ -133,9 +148,19 @@ export const LocationStep: React.FC<LocationStepProps> = ({
             </div>
 
             {locationError && (
-                <div className="text-xs text-amber-400 bg-amber-900/20 border border-amber-500/30 px-3 py-2 rounded-lg flex items-center gap-2">
-                    <MapPin className="w-3 h-3 shrink-0" />
-                    {locationError}
+                <div className="text-xs text-amber-400 bg-amber-900/20 border border-amber-500/30 px-3 py-2 rounded-lg flex items-start gap-2">
+                    <MapPin className="w-3 h-3 shrink-0 mt-0.5" />
+                    <span className="flex-1">{locationError}</span>
+                    {locationNeedsSettings && (
+                        <button
+                            type="button"
+                            onClick={openLocationSettings}
+                            className="flex items-center gap-1 text-orange-400 hover:text-orange-300 font-bold shrink-0 transition-colors"
+                        >
+                            <Settings className="w-3 h-3" />
+                            Ayarlar
+                        </button>
+                    )}
                 </div>
             )}
 

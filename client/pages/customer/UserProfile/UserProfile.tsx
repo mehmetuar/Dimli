@@ -8,6 +8,7 @@ import { useUserProfile } from './hooks/useUserProfile';
 // Components
 import { ProfileHeaderCard } from './components/ProfileHeaderCard';
 import { ProfileSettingsMenu } from './components/ProfileSettingsMenu';
+import { LocationPermissionSheet } from '../../../components/LocationPermissionSheet';
 
 export const UserProfile: React.FC = () => {
     const navigate = useNavigate();
@@ -18,6 +19,8 @@ export const UserProfile: React.FC = () => {
         isModalOpen, setIsModalOpen,
         errorMessage,
         successMessage,
+        locationErrorType,
+        clearLocationError,
         handleUpdateLocation,
         calculateAge
     } = useUserProfile();
@@ -70,6 +73,12 @@ export const UserProfile: React.FC = () => {
                     <p className="font-bold text-sm">{errorMessage}</p>
                 </div>
             )}
+
+            {/* Konum izni / GPS kapalı bottom sheet */}
+            <LocationPermissionSheet
+                errorType={locationErrorType}
+                onClose={clearLocationError}
+            />
         </div>
     );
 };

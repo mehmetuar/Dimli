@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { Geolocation } from '@capacitor/geolocation';
 import { App as CapApp } from '@capacitor/app';
+import { LocationErrorType } from '../components/LocationPermissionSheet';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -16,6 +17,10 @@ interface LocationContextValue {
   permissionStatus: PermissionStatus;
   /** True while a GPS request is in flight */
   isLocating: boolean;
+  /** Set when a location error occurs that requires user action */
+  locationError: LocationErrorType | null;
+  /** Clear the location error */
+  clearLocationError: () => void;
   /** Update the global radius and persist to localStorage */
   setRadius: (r: number) => void;
   /** Trigger a GPS permission request + position fetch */
@@ -51,6 +56,7 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [radius, setRadiusState] = useState<number>(getSavedRadius);
   const [permissionStatus, setPermissionStatus] = useState<PermissionStatus>('unknown');
   const [isLocating, setIsLocating] = useState(false);
+  const [locationError, setLocationError] = useState<LocationErrorType | null>(null);
   const isLocatingRef = useRef(false);
 
   // Persist coords to sessionStorage and update state
@@ -64,6 +70,8 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setRadiusState(r);
     try { localStorage.setItem(RADIUS_KEY, String(r)); } catch { /* ignore */ }
   }, []);
+
+  const clearLocationError = useCallback(() => setLocationError(null), []);
 
   // Request GPS permission + get position
   const requestLocation = useCallback(async () => {
@@ -84,8 +92,12 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       // maximumAge: 0 → OS'un GPS cache'ini asla kullanma, her zaman taze konum al
       const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 15000, maximumAge: 0 });
       updateCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-    } catch (err) {
+    } catch (err: any) {
       console.warn('LocationContext GPS error:', err);
+      const code = err?.code;
+      if (code === 2) {
+        setLocationError('gps_disabled');
+      }
     } finally {
       isLocatingRef.current = false;
       setIsLocating(false);
@@ -109,7 +121,7 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <LocationContext.Provider value={{ coords, radius, permissionStatus, isLocating, setRadius, requestLocation, updateCoords }}>
+    <LocationContext.Provider value={{ coords, radius, permissionStatus, isLocating, locationError, clearLocationError, setRadius, requestLocation, updateCoords }}>
       {children}
     </LocationContext.Provider>
   );

@@ -45,14 +45,14 @@ export class AuthService {
         return Math.floor(100000 + Math.random() * 900000).toString();
     }
 
-    private async checkRateLimit(phone: string): Promise<void> {
+    private async checkRateLimit(phone: string, purpose: string): Promise<void> {
         const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
         const recentCount = await this.otpRepository.count({
-            where: { phone, createdAt: MoreThanOrEqual(oneHourAgo) },
+            where: { phone, purpose, createdAt: MoreThanOrEqual(oneHourAgo) },
         });
         if (recentCount >= 3) {
             throw new HttpException(
-                'Çok fazla kod isteği gönderildi. Lütfen 1 saat sonra tekrar deneyin.',
+                'Çok fazla doğrulama kodu isteğinde bulundunuz. Lütfen 1 saat sonra tekrar deneyin.',
                 HttpStatus.TOO_MANY_REQUESTS,
             );
         }
@@ -61,14 +61,14 @@ export class AuthService {
     async sendOtp(phone: string): Promise<void> {
         phone = this.normalizePhone(phone);
 
-        // Telefon zaten kayıtlıysa OTP gönderme
+        // Telefon zaten kayıtlıysa OTP gönderme (sadece kullanıcı tablosu kontrol edilir)
         const existingUser = await this.usersService.findByPhone(phone);
         if (existingUser) {
-            throw new ConflictException('Bu telefon numarası zaten kayıtlı.');
+            throw new ConflictException('Bu telefon numarası zaten bir kullanıcı hesabına kayıtlıdır. Giriş yapmayı deneyin.');
         }
 
-        // Saatte maksimum 3 OTP isteği
-        await this.checkRateLimit(phone);
+        // Saatte maksimum 3 OTP isteği (sadece kullanıcı kayıt OTP'leri sayılır)
+        await this.checkRateLimit(phone, 'registration');
 
         // Önceki bekleyen kayıt kodlarını sil
         await this.otpRepository.delete({ phone, verified: false, purpose: 'registration' });
@@ -139,14 +139,14 @@ export class AuthService {
     async sendBusinessOwnerOtp(phone: string): Promise<void> {
         phone = this.normalizePhone(phone);
 
-        // Telefon başka bir işletme sahibine ait mi?
+        // Telefon başka bir işletme sahibine ait mi? (sadece işletme sahibi tablosu kontrol edilir)
         const existingOwner = await this.businessOwnerService.findByPhone(phone);
         if (existingOwner) {
-            throw new ConflictException('Bu telefon numarası zaten kayıtlı.');
+            throw new ConflictException('Bu telefon numarası zaten bir işletme sahibi hesabına kayıtlıdır. İşletme girişi sayfasından giriş yapabilirsiniz.');
         }
 
-        // Saatte maksimum 3 OTP isteği
-        await this.checkRateLimit(phone);
+        // Saatte maksimum 3 OTP isteği (sadece işletme kayıt OTP'leri sayılır)
+        await this.checkRateLimit(phone, 'business_registration');
 
         // Önceki bekleyen kodları sil
         await this.otpRepository.delete({ phone, verified: false, purpose: 'business_registration' });
@@ -217,8 +217,8 @@ export class AuthService {
             throw new NotFoundException('Bu telefon numarasıyla kayıtlı hesap bulunamadı.');
         }
 
-        // Saatte maksimum 3 OTP isteği
-        await this.checkRateLimit(phone);
+        // Saatte maksimum 3 OTP isteği (sadece şifre sıfırlama OTP'leri sayılır)
+        await this.checkRateLimit(phone, 'password_reset');
 
         // Önceki bekleyen şifre sıfırlama kodlarını sil
         await this.otpRepository.delete({ phone, verified: false, purpose: 'password_reset' });
@@ -361,7 +361,7 @@ export class AuthService {
                 const normalizedPhone = this.normalizePhone(data.owner.phone);
                 const existingPhone = await this.businessOwnerService.findByPhone(normalizedPhone);
                 if (existingPhone) {
-                    throw new ConflictException('Bu telefon numarası zaten kayıtlı.');
+                    throw new ConflictException('Bu telefon numarası zaten bir işletme sahibi hesabına kayıtlıdır.');
                 }
 
                 // 3. Telefon doğrulama kontrolü
