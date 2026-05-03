@@ -1,4 +1,4 @@
-import { PushNotifications, Token, PushNotificationSchema, ActionPerformed } from '@capacitor/push-notifications';
+import { FirebaseMessaging } from '@capacitor-firebase/messaging';
 import { LocalNotifications, LocalNotificationSchema } from '@capacitor/local-notifications';
 import { Capacitor } from '@capacitor/core';
 import api from './api';
@@ -20,7 +20,6 @@ export const sendPushTokenToServer = async (tokenValue: string, retries = 1): Pr
     }
 };
 
-// Her uygulama açılışında localStorage'daki token'ı sunucuyla senkronize et
 export const syncPushToken = async (): Promise<void> => {
     if (!Capacitor.isNativePlatform()) return;
     const token = localStorage.getItem('pushToken');
@@ -32,31 +31,26 @@ export const initializePushNotifications = async () => {
     if (_initialized) return;
 
     try {
-        let permStatus = await PushNotifications.checkPermissions();
-        if (permStatus.receive === 'prompt') {
-            permStatus = await PushNotifications.requestPermissions();
-        }
-        if (permStatus.receive !== 'granted') {
+        const result = await FirebaseMessaging.requestPermissions();
+        if (result.receive !== 'granted') {
             console.warn('Push notification permission denied');
             return;
         }
 
-        // Listener'ları register() ÖNCE ekle — race condition'ı önler
-        PushNotifications.addListener('registration', async (token: Token) => {
-            localStorage.setItem('pushToken', token.value);  // önce localStorage'a yaz
-            await sendPushTokenToServer(token.value);        // sonra API'ye gönder (retry'lı)
+        // FCM token geldiğinde kaydet
+        FirebaseMessaging.addListener('tokenReceived', async (event) => {
+            localStorage.setItem('pushToken', event.token);
+            await sendPushTokenToServer(event.token);
         });
 
-        PushNotifications.addListener('registrationError', (error: any) => {
-            console.error('Push registration error:', JSON.stringify(error));
+        // Uygulama açıkken bildirim geldiğinde
+        FirebaseMessaging.addListener('notificationReceived', () => {
+            // Foreground — gerekirse local notification gösterilebilir
         });
 
-        PushNotifications.addListener('pushNotificationReceived', (notification: PushNotificationSchema) => {
-            console.log('Push received (foreground):', notification.title);
-        });
-
-        PushNotifications.addListener('pushNotificationActionPerformed', (notification: ActionPerformed) => {
-            handleNotificationClick(notification.notification.data);
+        // Bildirime tıklandığında yönlendir
+        FirebaseMessaging.addListener('notificationActionPerformed', (event) => {
+            handleNotificationClick(event.notification.data);
         });
 
         // Local notifications
@@ -69,7 +63,13 @@ export const initializePushNotifications = async () => {
         });
 
         _initialized = true;
-        await PushNotifications.register();
+
+        // FCM token'ı tetikle
+        const { token } = await FirebaseMessaging.getToken();
+        if (token) {
+            localStorage.setItem('pushToken', token);
+            await sendPushTokenToServer(token);
+        }
 
     } catch (e) {
         console.error('Push notification setup failed:', e);
