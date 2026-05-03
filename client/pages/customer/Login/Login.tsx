@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../../../services/api';
+import { initializePushNotifications } from '../../../services/pushNotificationService';
 
 export const Login: React.FC = () => {
     const [username, setUsername] = useState('');
@@ -21,6 +22,7 @@ export const Login: React.FC = () => {
             const response = await api.post('/auth/login', { username, password });
             console.log('Login response:', response);
             localStorage.setItem('token', response.data.access_token);
+            initializePushNotifications();
             navigate('/'); // Redirect to home (Marketplace) after login
         } catch (err: any) {
             console.error('Login error:', err);

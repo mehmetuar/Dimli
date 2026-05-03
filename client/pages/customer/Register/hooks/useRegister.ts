@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../../../services/api';
+import { initializePushNotifications } from '../../../../services/pushNotificationService';
 
 export const useRegister = () => {
     const [step, setStep] = useState(1);
@@ -231,6 +232,7 @@ export const useRegister = () => {
 
             const token = loginResponse.data.access_token;
             localStorage.setItem('token', token);
+            initializePushNotifications();
 
             // Adım 3: Seçili fotoğraf varsa şimdi yükle (artık JWT var)
             if (selectedAvatarFile) {

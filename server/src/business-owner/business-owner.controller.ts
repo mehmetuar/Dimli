@@ -14,7 +14,7 @@ export class BusinessOwnerController {
     @Patch('push-token')
     async updatePushToken(@Request() req: any, @Body('token') token: string) {
         if (!token) return { success: false };
-        await this.businessOwnerService.updatePushToken(req.user.sub, token);
+        await this.businessOwnerService.updatePushToken(req.user.id, token);
         return { success: true };
     }
 

@@ -1,80 +1,75 @@
 import { PushNotifications, Token, PushNotificationSchema, ActionPerformed } from '@capacitor/push-notifications';
-import { LocalNotifications, ScheduleOptions, LocalNotificationSchema } from '@capacitor/local-notifications';
+import { LocalNotifications, LocalNotificationSchema } from '@capacitor/local-notifications';
 import { Capacitor } from '@capacitor/core';
 import api from './api';
 
-// Listeners'ın birden fazla kez eklenmesini önle
 let _initialized = false;
 
-export const initializePushNotifications = async () => {
-    if (!Capacitor.isNativePlatform()) {
-        console.log('Push notifications are only available on native platforms.');
-        return;
+export const sendPushTokenToServer = async (tokenValue: string, retries = 1): Promise<void> => {
+    try {
+        const role = localStorage.getItem('role');
+        const endpoint = role === 'business_owner'
+            ? '/business-owner/push-token'
+            : '/users/push-token';
+        await api.patch(endpoint, { token: tokenValue });
+    } catch {
+        if (retries > 0) {
+            await new Promise(r => setTimeout(r, 3000));
+            return sendPushTokenToServer(tokenValue, retries - 1);
+        }
     }
+};
 
-    if (_initialized) {
-        console.log('Push notifications already initialized, skipping.');
-        return;
-    }
+// Her uygulama açılışında localStorage'daki token'ı sunucuyla senkronize et
+export const syncPushToken = async (): Promise<void> => {
+    if (!Capacitor.isNativePlatform()) return;
+    const token = localStorage.getItem('pushToken');
+    if (token) await sendPushTokenToServer(token);
+};
+
+export const initializePushNotifications = async () => {
+    if (!Capacitor.isNativePlatform()) return;
+    if (_initialized) return;
 
     try {
-        // Request permission to use push notifications
-        // iOS will prompt user and return if they granted permission or not
-        // Android will just grant without prompting
         let permStatus = await PushNotifications.checkPermissions();
-
         if (permStatus.receive === 'prompt') {
             permStatus = await PushNotifications.requestPermissions();
         }
-
         if (permStatus.receive !== 'granted') {
-            console.warn('User denied push notification permission');
+            console.warn('Push notification permission denied');
             return;
         }
 
-        _initialized = true;
-        await PushNotifications.register();
-
+        // Listener'ları register() ÖNCE ekle — race condition'ı önler
         PushNotifications.addListener('registration', async (token: Token) => {
-            console.log('Push registration success, token: ' + token.value);
-            try {
-                const role = localStorage.getItem('role');
-                const endpoint = role === 'business_owner'
-                    ? '/business-owner/push-token'
-                    : '/users/push-token';
-                await api.patch(endpoint, { token: token.value });
-                localStorage.setItem('pushToken', token.value);
-            } catch (error) {
-                console.error('Error saving push token to backend:', error);
-            }
+            localStorage.setItem('pushToken', token.value);  // önce localStorage'a yaz
+            await sendPushTokenToServer(token.value);        // sonra API'ye gönder (retry'lı)
         });
 
         PushNotifications.addListener('registrationError', (error: any) => {
-            console.error('Error on registration: ' + JSON.stringify(error));
+            console.error('Push registration error:', JSON.stringify(error));
         });
 
         PushNotifications.addListener('pushNotificationReceived', (notification: PushNotificationSchema) => {
-            console.log('Push received: ' + JSON.stringify(notification));
-            // When app is open, push notification may not show in system tray on all platforms.
-            // We can show a local notification to ensure they see it if they are using the app.
+            console.log('Push received (foreground):', notification.title);
         });
 
         PushNotifications.addListener('pushNotificationActionPerformed', (notification: ActionPerformed) => {
-            console.log('Push action performed: ' + JSON.stringify(notification));
-            // Navigate based on payload
             handleNotificationClick(notification.notification.data);
         });
 
-        // Setup Local Notifications for local trigger (e.g. from websocket or background sync)
+        // Local notifications
         let localPermStatus = await LocalNotifications.checkPermissions();
         if (localPermStatus.display === 'prompt') {
             localPermStatus = await LocalNotifications.requestPermissions();
         }
-
         LocalNotifications.addListener('localNotificationActionPerformed', (notification) => {
-            console.log('Local notification action performed', notification.notification);
             handleNotificationClick(notification.notification.extra);
         });
+
+        _initialized = true;
+        await PushNotifications.register();
 
     } catch (e) {
         console.error('Push notification setup failed:', e);
@@ -89,18 +84,14 @@ export const showLocalNotification = async (title: string, body: string, data?: 
         body,
         id: new Date().getTime(),
         extra: data,
-        schedule: { at: new Date(Date.now() + 100) }, // schedule immediately (100ms)
+        schedule: { at: new Date(Date.now() + 100) },
     };
 
-    await LocalNotifications.schedule({
-        notifications: [notification]
-    });
+    await LocalNotifications.schedule({ notifications: [notification] });
 };
 
 const handleNotificationClick = (data: any) => {
     if (!data) return;
-
-    // HashRouter kullandığımız için window.location.hash kullanıyoruz
     if (data.type === 'CHAT' || data.isChatRedirect) {
         window.location.hash = '#/chat';
     } else {

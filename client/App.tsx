@@ -12,7 +12,7 @@ import { ProtectedRoute } from './components/Layout/ProtectedRoute';
 import { BusinessProtectedRoute } from './components/Layout/BusinessProtectedRoute';
 import { RatingModal } from './components/Modals/RatingModal';
 import { PendingRating } from './types';
-import { initializePushNotifications } from './services/pushNotificationService';
+import { initializePushNotifications, syncPushToken } from './services/pushNotificationService';
 import { initRevenueCat } from './services/revenuecatService';
 import { LocationProvider, useLocationContext } from './contexts/LocationContext';
 import { FilterProvider } from './contexts/FilterContext';
@@ -202,6 +202,7 @@ function AppContent() {
       initTimer = setTimeout(async () => {
         // Initialize Push Notifications
         await initializePushNotifications();
+        await syncPushToken();
 
         // Check for pending match ratings
         try {
