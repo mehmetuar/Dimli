@@ -65,62 +65,27 @@ export class NotificationsService {
         if (saved.userId) {
             this.gateway?.server?.to(saved.userId).emit('notification', { type: saved.type, title: saved.title, message: saved.message });
         }
-        if (saved.type === 'SYSTEM' && saved.metadata?.type === 'MATCH_APPROVED' && saved.userId) {
-            this.usersRepository.findOne({ where: { id: saved.userId } }).then(user => {
-                if (user?.pushToken) {
-                    this.firebaseService.sendToDevice(
-                        user.pushToken,
-                        'Maçınız Kesinleşti! ⚽',
-                        saved.message || 'Rezervasyonunuz onaylandı.',
-                        { type: 'MATCH_APPROVED' },
-                    );
-                }
-            }).catch(() => {});
-        }
-        if (saved.type === 'CHALLENGE' && saved.userId) {
+        const userPushTypes = new Set([
+            'CHALLENGE', 'MATCH_REMINDER',
+        ]);
+        const userSystemPushTypes = new Set([
+            'MATCH_APPROVED', 'MATCH_REVOKED_TO_PENDING', 'MATCH_CANCELLED_BY_CAPTAIN',
+            'TIME_CONFLICT_CANCELLED', 'TIME_CONFLICT_OPPONENT_CANCELLED',
+            'MATCH_REJECTED_PASSIVE', 'MANUAL_FILL_REJECTED',
+            'ANNOUNCEMENT_SLOT_TAKEN', 'MATCH_RESTORED_TO_PENDING', 'BUSINESS_NOTE',
+        ]);
+        const isUserPush = saved.userId && (
+            userPushTypes.has(saved.type) ||
+            (saved.type === 'SYSTEM' && userSystemPushTypes.has(saved.metadata?.type))
+        );
+        if (isUserPush) {
             this.usersRepository.findOne({ where: { id: saved.userId } }).then(user => {
                 if (user?.pushToken) {
                     this.firebaseService.sendToDevice(
                         user.pushToken,
                         saved.title || 'Yeni Bildirim',
                         saved.message || '',
-                        { type: 'CHALLENGE' },
-                    );
-                }
-            }).catch(() => {});
-        }
-        if (saved.type === 'MATCH_REMINDER' && saved.userId) {
-            this.usersRepository.findOne({ where: { id: saved.userId } }).then(user => {
-                if (user?.pushToken) {
-                    this.firebaseService.sendToDevice(
-                        user.pushToken,
-                        saved.title || '⏳ Maçın Başlamasına 2 Saat Kaldı!',
-                        saved.message || '',
-                        { type: 'MATCH_REMINDER' },
-                    );
-                }
-            }).catch(() => {});
-        }
-        if (saved.type === 'SYSTEM' && saved.metadata?.type === 'MATCH_REVOKED_TO_PENDING' && saved.userId) {
-            this.usersRepository.findOne({ where: { id: saved.userId } }).then(user => {
-                if (user?.pushToken) {
-                    this.firebaseService.sendToDevice(
-                        user.pushToken,
-                        saved.title || '⚠️ İşletme Onayı Kaldırdı',
-                        saved.message || 'Kesinleşen maçınızın onayı kaldırıldı.',
-                        { type: 'MATCH_REVOKED_TO_PENDING' },
-                    );
-                }
-            }).catch(() => {});
-        }
-        if (saved.type === 'SYSTEM' && saved.metadata?.type === 'MATCH_CANCELLED_BY_CAPTAIN' && saved.userId) {
-            this.usersRepository.findOne({ where: { id: saved.userId } }).then(user => {
-                if (user?.pushToken) {
-                    this.firebaseService.sendToDevice(
-                        user.pushToken,
-                        saved.title || '🚫 Maç İptal Edildi',
-                        saved.message || 'Kaptanınız maçı iptal etti.',
-                        { type: 'MATCH_CANCELLED_BY_CAPTAIN' },
+                        { type: saved.metadata?.type || saved.type },
                     );
                 }
             }).catch(() => {});
@@ -181,6 +146,16 @@ export class NotificationsService {
 
         const saved = await this.notificationsRepository.save(notification);
         this.gateway?.server?.to(jokerId).emit('notification', { type: 'JOKER_INVITE', relatedId: matchId });
+        this.usersRepository.findOne({ where: { id: jokerId } }).then(user => {
+            if (user?.pushToken) {
+                this.firebaseService.sendToDevice(
+                    user.pushToken,
+                    'Joker Daveti ⚡',
+                    saved.message || 'Seni maça joker olarak davet ediyorlar!',
+                    { type: 'JOKER_INVITE' },
+                );
+            }
+        }).catch(() => {});
         return saved;
     }
 
