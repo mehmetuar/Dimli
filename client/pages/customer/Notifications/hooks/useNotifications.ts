@@ -85,6 +85,7 @@ export const useNotifications = () => {
             const unreadIds = fetchedNotifications.filter((n: any) => !n.read).map((n: any) => n.id);
             if (unreadIds.length > 0) {
                 await Promise.all(unreadIds.map((id: string) => api.patch(`/notifications/${id}/read`)));
+                window.dispatchEvent(new CustomEvent('notificationsCleared'));
             }
 
             const teamsResponse = await api.get('/teams');

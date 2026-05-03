@@ -10,10 +10,16 @@ export const NotificationBell: React.FC = () => {
     useEffect(() => {
         fetchUnreadCount();
 
-        if (!socket) return;
+        const onCleared = () => setUnreadCount(0);
+        window.addEventListener('notificationsCleared', onCleared);
+
+        if (!socket) return () => window.removeEventListener('notificationsCleared', onCleared);
         const onNotification = () => fetchUnreadCount();
         socket.on('notification', onNotification);
-        return () => { socket.off('notification', onNotification); };
+        return () => {
+            socket.off('notification', onNotification);
+            window.removeEventListener('notificationsCleared', onCleared);
+        };
     }, [socket]);
 
     const fetchUnreadCount = async () => {
