@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Search, CheckCircle, AlertCircle } from 'lucide-react';
+import { X, Search, CheckCircle, AlertCircle, Loader2, Clock, Users } from 'lucide-react';
 import { Team } from '../../types';
 import api from '../../services/api';
 
@@ -16,24 +16,33 @@ export const JoinTeamModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const [foundTeams, setFoundTeams] = useState<Team[]>([]);
   const [error, setError] = useState('');
   const [isSearching, setIsSearching] = useState(false);
-  const [sentTeamId, setSentTeamId] = useState<string | null>(null);
+  const [pendingRequests, setPendingRequests] = useState<Record<string, string>>({});
+  const [flashTeamId, setFlashTeamId] = useState<string | null>(null);
+  const [cancellingTeamId, setCancellingTeamId] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    api.get('/join-requests/my-pending').then((res) => {
+      const map: Record<string, string> = {};
+      for (const req of res.data) map[req.teamId] = req.id;
+      setPendingRequests(map);
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-
     if (searchTerm.trim().length < 2) {
       setFoundTeams([]);
       setError('');
       return;
     }
-
     debounceRef.current = setTimeout(async () => {
       setIsSearching(true);
       setError('');
       try {
-        const response = await api.get(`/teams/search/${encodeURIComponent(searchTerm.trim())}`);
-        const teams: Team[] = Array.isArray(response.data) ? response.data : (response.data ? [response.data] : []);
+        const res = await api.get(`/teams/search/${encodeURIComponent(searchTerm.trim())}`);
+        const teams: Team[] = Array.isArray(res.data) ? res.data : res.data ? [res.data] : [];
         setFoundTeams(teams);
         if (teams.length === 0) setError('Eşleşen takım bulunamadı.');
       } catch {
@@ -43,127 +52,243 @@ export const JoinTeamModal: React.FC<Props> = ({ isOpen, onClose }) => {
         setIsSearching(false);
       }
     }, 400);
-
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [searchTerm]);
 
   const handleJoinRequest = async (team: Team) => {
+    setError('');
     try {
-      await api.post('/join-requests', { teamId: team.id, message: '' });
-      setSentTeamId(team.id);
-      setTimeout(() => {
-        onClose();
-        setSearchTerm('');
-        setFoundTeams([]);
-        setSentTeamId(null);
-      }, 2000);
+      const res = await api.post('/join-requests', { teamId: team.id, message: '' });
+      setPendingRequests(prev => ({ ...prev, [team.id]: res.data.id }));
+      setFlashTeamId(team.id);
+      if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+      flashTimerRef.current = setTimeout(() => setFlashTeamId(null), 2500);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Katılma isteği gönderilemedi.');
     }
   };
 
+  const handleCancelRequest = async (team: Team) => {
+    const requestId = pendingRequests[team.id];
+    if (!requestId) return;
+    setError('');
+    setCancellingTeamId(team.id);
+    try {
+      await api.patch(`/join-requests/${requestId}/cancel`);
+      setPendingRequests(prev => { const n = { ...prev }; delete n[team.id]; return n; });
+      if (flashTeamId === team.id) setFlashTeamId(null);
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'İstek iptal edilemedi.');
+    } finally {
+      setCancellingTeamId(null);
+    }
+  };
+
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center px-4 bg-black/90 backdrop-blur-sm animate-fade-in">
-      <div className="bg-slate-800 w-full max-w-md rounded-3xl border border-slate-700 shadow-2xl flex flex-col overflow-hidden max-h-[85vh]">
-
+    /* Overlay — always centered, safe-area aware for iOS/Android */
+    <div
+      className="fixed inset-0 z-[70] flex items-center justify-center p-4"
+      style={{ backgroundColor: 'rgba(0,0,0,0.82)', backdropFilter: 'blur(6px)' }}
+    >
+      <div
+        className="w-full max-w-sm rounded-3xl flex flex-col overflow-hidden"
+        style={{
+          background: '#0f1923',
+          border: '1px solid rgba(255,255,255,0.07)',
+          boxShadow: '0 32px 80px rgba(0,0,0,0.6)',
+          maxHeight: 'calc(100vh - 80px)',
+        }}
+      >
         {/* Header */}
-        <div className="p-5 border-b border-slate-700 bg-slate-900 flex justify-between items-center shrink-0">
-          <div>
-            <h2 className="font-sport font-black text-2xl text-white italic uppercase tracking-wide">
-              TAKIM <span className="text-blue-500">BUL</span>
-            </h2>
-            <p className="text-slate-400 text-xs">İsim veya takım kodu ile ara.</p>
+        <div
+          className="px-5 pt-5 pb-4 shrink-0"
+          style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}
+        >
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <h2 className="font-sport font-black text-2xl text-white italic uppercase tracking-wide leading-none">
+                TAKIM <span className="text-blue-500">BUL</span>
+              </h2>
+              <p className="text-slate-500 text-xs mt-1">İsim veya takım kodu ile ara</p>
+            </div>
+            <button
+              onClick={onClose}
+              className="w-8 h-8 flex items-center justify-center rounded-xl text-slate-500 hover:text-white transition-colors"
+              style={{ background: 'rgba(255,255,255,0.06)' }}
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
-          <button onClick={onClose} className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white hover:bg-red-500 transition-colors">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
 
-        {/* Content */}
-        <div className="p-6 space-y-4 overflow-y-auto">
-
-          {/* Search Input */}
+          {/* Search input */}
           <div className="relative">
             <input
               type="text"
               value={searchTerm}
-              onChange={(e) => { setSearchTerm(e.target.value); setSentTeamId(null); }}
+              onChange={(e) => { setSearchTerm(e.target.value); setError(''); }}
               placeholder="Takım adı veya kod (örn: KNY-042)"
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl py-3 pl-4 pr-12 text-white text-sm focus:border-blue-500 focus:outline-none"
+              className="w-full rounded-2xl py-3 pl-10 pr-4 text-white text-sm placeholder:text-slate-600 focus:outline-none transition-all"
+              style={{
+                background: 'rgba(255,255,255,0.06)',
+                border: '1px solid rgba(255,255,255,0.09)',
+              }}
               autoFocus
             />
-            <div className="absolute right-3 top-3 text-slate-400">
-              <Search className={`w-5 h-5 ${isSearching ? 'animate-pulse text-blue-400' : ''}`} />
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">
+              {isSearching
+                ? <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
+                : <Search className="w-4 h-4" />}
             </div>
           </div>
+        </div>
 
+        {/* Scrollable body */}
+        <div className="flex-1 overflow-y-auto overscroll-contain">
+          {/* Error banner */}
           {error && (
-            <div className="flex items-center gap-2 text-red-400 text-sm bg-red-900/20 p-3 rounded-xl border border-red-900/50">
-              <AlertCircle className="w-4 h-4 shrink-0" /> {error}
+            <div className="mx-4 mt-4 flex items-start gap-2 text-red-400 text-sm p-3 rounded-xl" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)' }}>
+              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+              <span>{error}</span>
             </div>
           )}
 
-          {/* Results List */}
+          {/* Empty state */}
+          {!isSearching && foundTeams.length === 0 && !error && (
+            <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-3" style={{ background: 'rgba(255,255,255,0.05)' }}>
+                <Users className="w-7 h-7 text-slate-600" />
+              </div>
+              <p className="text-slate-600 text-sm">Aramak için en az 2 karakter gir</p>
+            </div>
+          )}
+
+          {/* Team cards */}
           {foundTeams.length > 0 && (
-            <div className="space-y-3">
-              {foundTeams.map(team => (
-                <div key={team.id} className="bg-slate-900 rounded-xl p-4 border border-slate-700 animate-fade-in">
-                  {sentTeamId === team.id ? (
-                    <div className="text-center py-4">
-                      <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-3 animate-bounce">
-                        <CheckCircle className="w-6 h-6 text-white" />
-                      </div>
-                      <p className="text-white font-bold text-sm">İstek Gönderildi!</p>
-                      <p className="text-slate-400 text-xs mt-1">Kaptan onayladığında kadroya dahil olacaksın.</p>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="flex items-center gap-3 mb-3">
-                        {team.logoUrl ? (
-                          <img src={team.logoUrl} className="w-14 h-14 rounded-full border-2 border-slate-600 object-cover bg-slate-800 shrink-0" alt={team.name} />
-                        ) : (
-                          <div className="w-14 h-14 rounded-full bg-slate-700 flex items-center justify-center text-white font-black text-lg shrink-0">
-                            {team.name?.slice(0, 2).toUpperCase()}
-                          </div>
-                        )}
-                        <div className="min-w-0">
-                          <h3 className="font-sport font-black text-xl text-white italic uppercase truncate">{team.name}</h3>
-                          <span className="text-xs text-slate-500 font-mono">
+            <div className="p-4 space-y-3">
+              {foundTeams.map(team => {
+                const isPending = !!pendingRequests[team.id];
+                const isFlashing = flashTeamId === team.id;
+                const isCancelling = cancellingTeamId === team.id;
+
+                return (
+                  <div
+                    key={team.id}
+                    className="rounded-2xl overflow-hidden"
+                    style={{
+                      background: 'rgba(255,255,255,0.03)',
+                      border: `1px solid ${isPending ? 'rgba(59,130,246,0.22)' : 'rgba(255,255,255,0.07)'}`,
+                    }}
+                  >
+                    {/* Team row */}
+                    <div className="flex items-center gap-3 px-4 pt-4 pb-3">
+                      {team.logoUrl ? (
+                        <img
+                          src={team.logoUrl}
+                          className="w-11 h-11 rounded-xl object-cover shrink-0"
+                          style={{ border: '1px solid rgba(255,255,255,0.1)' }}
+                          alt={team.name}
+                        />
+                      ) : (
+                        <div
+                          className="w-11 h-11 rounded-xl flex items-center justify-center text-blue-400 font-black text-sm shrink-0"
+                          style={{ background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.2)' }}
+                        >
+                          {team.name?.slice(0, 2).toUpperCase()}
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-sport font-black text-lg text-white italic uppercase leading-none truncate">
+                          {team.name}
+                        </h3>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-[11px] text-slate-600 font-mono">
                             #{team.shortId || team.id?.slice(0, 8).toUpperCase()}
                           </span>
+                          {isPending && (
+                            <span
+                              className="flex items-center gap-1 text-[10px] font-bold text-blue-400 px-2 py-0.5 rounded-full"
+                              style={{ background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.25)' }}
+                            >
+                              <Clock className="w-2.5 h-2.5" /> Beklemede
+                            </span>
+                          )}
                         </div>
                       </div>
+                    </div>
 
-                      <div className="grid grid-cols-3 gap-2 mb-3 text-center">
-                        <div className="bg-slate-800 p-2 rounded-lg">
-                          <div className="text-[10px] text-slate-500 uppercase font-bold">Oynanan Maç</div>
-                          <div className="text-white font-bold">{(team as any).playedMatchCount ?? 0}</div>
+                    {/* Stats */}
+                    <div className="grid grid-cols-3 gap-2 px-4 pb-3">
+                      {[
+                        { label: 'Maç', value: (team as any).playedMatchCount ?? 0, cls: 'text-white' },
+                        {
+                          label: 'Kaptan',
+                          value: team.captain?.full_name?.split(' ')[0] || team.captain?.username || '—',
+                          cls: 'text-white',
+                        },
+                        { label: 'FP Puanı', value: team.fairPlayScore, cls: 'text-yellow-400' },
+                      ].map(({ label, value, cls }) => (
+                        <div key={label} className="rounded-xl p-2 text-center" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                          <div className="text-[9px] text-slate-600 uppercase font-bold tracking-wide">{label}</div>
+                          <div className={`text-sm font-bold mt-0.5 truncate ${cls}`}>{value}</div>
                         </div>
-                        <div className="bg-slate-800 p-2 rounded-lg">
-                          <div className="text-[10px] text-slate-500 uppercase font-bold">Kaptan</div>
-                          <div className="text-white font-bold truncate px-1 text-sm">
-                            {team.captain?.full_name || team.captain?.username || 'Bilinmiyor'}
+                      ))}
+                    </div>
+
+                    {/* Action */}
+                    <div className="px-4 pb-4">
+                      {isFlashing ? (
+                        <div
+                          className="flex items-center gap-3 rounded-xl px-4 py-3"
+                          style={{ background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.22)' }}
+                        >
+                          <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center shrink-0">
+                            <CheckCircle className="w-4 h-4 text-white" />
+                          </div>
+                          <div>
+                            <p className="text-green-400 font-bold text-sm leading-none">İstek Gönderildi!</p>
+                            <p className="text-green-700 text-xs mt-0.5">Kaptan onayladığında kadroya dahil olacaksın</p>
                           </div>
                         </div>
-                        <div className="bg-slate-800 p-2 rounded-lg">
-                          <div className="text-[10px] text-slate-500 uppercase font-bold">FP Puanı</div>
-                          <div className="text-yellow-500 font-bold">{team.fairPlayScore}</div>
-                        </div>
-                      </div>
-
-                      <button
-                        onClick={() => handleJoinRequest(team)}
-                        className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 rounded-xl transition-colors shadow-lg shadow-blue-600/20 text-sm"
-                      >
-                        Katılma İsteği Gönder
-                      </button>
-                    </>
-                  )}
-                </div>
-              ))}
+                      ) : isPending ? (
+                        <button
+                          onClick={() => handleCancelRequest(team)}
+                          disabled={isCancelling}
+                          className="w-full font-semibold py-2.5 rounded-xl transition-all text-sm flex items-center justify-center gap-2 active:scale-95"
+                          style={{
+                            background: 'rgba(255,255,255,0.05)',
+                            border: '1px solid rgba(255,255,255,0.1)',
+                            color: '#94a3b8',
+                          }}
+                          onMouseEnter={e => {
+                            (e.currentTarget as HTMLButtonElement).style.background = 'rgba(239,68,68,0.12)';
+                            (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(239,68,68,0.25)';
+                            (e.currentTarget as HTMLButtonElement).style.color = '#f87171';
+                          }}
+                          onMouseLeave={e => {
+                            (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.05)';
+                            (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(255,255,255,0.1)';
+                            (e.currentTarget as HTMLButtonElement).style.color = '#94a3b8';
+                          }}
+                        >
+                          {isCancelling
+                            ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> İptal ediliyor...</>
+                            : 'İsteği Geri Çek'}
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleJoinRequest(team)}
+                          className="w-full bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-bold py-2.5 rounded-xl transition-all text-sm"
+                          style={{ boxShadow: '0 4px 20px rgba(59,130,246,0.25)' }}
+                        >
+                          Katılma İsteği Gönder
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
-
         </div>
       </div>
     </div>

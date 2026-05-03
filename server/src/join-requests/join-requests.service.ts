@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ConflictException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JoinRequest } from './join-request.entity';
@@ -13,6 +13,13 @@ export class JoinRequestsService {
     ) { }
 
     async create(userId: string, teamId: string, message?: string): Promise<JoinRequest> {
+        const existing = await this.joinRequestsRepository.findOne({
+            where: { userId, teamId, status: 'PENDING' },
+        });
+        if (existing) {
+            throw new ConflictException('Bu takıma zaten bekleyen bir katılma isteğin var.');
+        }
+
         const joinRequest = this.joinRequestsRepository.create({
             userId,
             teamId,
@@ -25,6 +32,19 @@ export class JoinRequestsService {
         await this.notificationsService.createJoinRequestNotification(teamId, saved.id, userId);
 
         return saved;
+    }
+
+    async findPendingByUser(userId: string): Promise<JoinRequest[]> {
+        return this.joinRequestsRepository.find({
+            where: { userId, status: 'PENDING' },
+        });
+    }
+
+    async cancelRequest(id: string, userId: string): Promise<void> {
+        const request = await this.joinRequestsRepository.findOne({ where: { id } });
+        if (!request) throw new Error('Join request not found');
+        if (request.userId !== userId) throw new ForbiddenException('Bu isteği iptal etme yetkiniz yok.');
+        await this.joinRequestsRepository.update(id, { status: 'CANCELLED' });
     }
 
     async findByTeam(teamId: string): Promise<JoinRequest[]> {

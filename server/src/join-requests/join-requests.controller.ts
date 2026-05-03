@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Patch, Param, Body, UseGuards, Request } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Param, Body, UseGuards, Request, HttpCode, HttpStatus } from '@nestjs/common';
 import { JoinRequestsService } from './join-requests.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { TeamsService } from '../teams/teams.service';
@@ -14,6 +14,12 @@ export class JoinRequestsController {
     @Post()
     async create(@Body() dto: { teamId: string; message?: string }, @Request() req) {
         return this.joinRequestsService.create(req.user.id, dto.teamId, dto.message);
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Get('my-pending')
+    async getMyPending(@Request() req) {
+        return this.joinRequestsService.findPendingByUser(req.user.id);
     }
 
     @UseGuards(JwtAuthGuard)
@@ -39,5 +45,12 @@ export class JoinRequestsController {
     @Patch(':id/reject')
     async reject(@Param('id') id: string) {
         return this.joinRequestsService.updateStatus(id, 'REJECTED');
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @HttpCode(HttpStatus.NO_CONTENT)
+    @Patch(':id/cancel')
+    async cancel(@Param('id') id: string, @Request() req) {
+        return this.joinRequestsService.cancelRequest(id, req.user.id);
     }
 }

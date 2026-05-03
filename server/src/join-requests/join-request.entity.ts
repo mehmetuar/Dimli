@@ -25,7 +25,7 @@ export class JoinRequest {
     message: string;
 
     @Column({ default: 'PENDING' })
-    status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
+    status: 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED';
 
     @CreateDateColumn()
     createdAt: Date;
