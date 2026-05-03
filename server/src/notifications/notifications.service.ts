@@ -46,6 +46,16 @@ export class NotificationsService {
 
         const saved = await this.notificationsRepository.save(notification);
         this.gateway?.server?.to(saved.userId).emit('notification', { type: saved.type, relatedId: saved.relatedId });
+        this.usersRepository.findOne({ where: { id: saved.userId } }).then(user => {
+            if (user?.pushToken) {
+                this.firebaseService.sendToDevice(
+                    user.pushToken,
+                    'Katılım İsteği',
+                    'Takımına yeni bir katılım isteği var',
+                    { type: 'JOIN_REQUEST' },
+                );
+            }
+        }).catch(() => {});
         return saved;
     }
 
@@ -75,6 +85,42 @@ export class NotificationsService {
                         saved.title || 'Yeni Bildirim',
                         saved.message || '',
                         { type: 'CHALLENGE' },
+                    );
+                }
+            }).catch(() => {});
+        }
+        if (saved.type === 'MATCH_REMINDER' && saved.userId) {
+            this.usersRepository.findOne({ where: { id: saved.userId } }).then(user => {
+                if (user?.pushToken) {
+                    this.firebaseService.sendToDevice(
+                        user.pushToken,
+                        saved.title || '⏳ Maçın Başlamasına 2 Saat Kaldı!',
+                        saved.message || '',
+                        { type: 'MATCH_REMINDER' },
+                    );
+                }
+            }).catch(() => {});
+        }
+        if (saved.type === 'SYSTEM' && saved.metadata?.type === 'MATCH_REVOKED_TO_PENDING' && saved.userId) {
+            this.usersRepository.findOne({ where: { id: saved.userId } }).then(user => {
+                if (user?.pushToken) {
+                    this.firebaseService.sendToDevice(
+                        user.pushToken,
+                        saved.title || '⚠️ İşletme Onayı Kaldırdı',
+                        saved.message || 'Kesinleşen maçınızın onayı kaldırıldı.',
+                        { type: 'MATCH_REVOKED_TO_PENDING' },
+                    );
+                }
+            }).catch(() => {});
+        }
+        if (saved.type === 'SYSTEM' && saved.metadata?.type === 'MATCH_CANCELLED_BY_CAPTAIN' && saved.userId) {
+            this.usersRepository.findOne({ where: { id: saved.userId } }).then(user => {
+                if (user?.pushToken) {
+                    this.firebaseService.sendToDevice(
+                        user.pushToken,
+                        saved.title || '🚫 Maç İptal Edildi',
+                        saved.message || 'Kaptanınız maçı iptal etti.',
+                        { type: 'MATCH_CANCELLED_BY_CAPTAIN' },
                     );
                 }
             }).catch(() => {});
