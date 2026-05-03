@@ -90,14 +90,18 @@ export class NotificationsService {
                 }
             }).catch(() => {});
         }
-        if (saved.type === 'RESERVATION_REQUEST' && saved.userId) {
+        const businessPushTypes = new Set([
+            'RESERVATION_REQUEST', 'CANCEL_REQUEST', 'CANCEL_REQUEST_UNDONE',
+            'PITCH_CHANGE_APPROVED', 'PITCH_CHANGE_REJECTED',
+        ]);
+        if (businessPushTypes.has(saved.type) && saved.userId) {
             this.businessOwnerRepository.findOne({ where: { id: saved.userId } }).then(owner => {
                 if (owner?.pushToken) {
                     this.firebaseService.sendToDevice(
                         owner.pushToken,
-                        'Rezervasyon İsteği',
-                        'Yeni 1 rezervasyon isteğiniz var',
-                        { type: 'RESERVATION_REQUEST' },
+                        saved.title || 'Yeni Bildirim',
+                        saved.message || '',
+                        { type: saved.type },
                     );
                 }
             }).catch(() => {});
