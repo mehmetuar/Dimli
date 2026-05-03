@@ -22,7 +22,7 @@ import { SubscriptionModule } from '../subscription/subscription.module';
     TypeOrmModule.forFeature([OtpCode]),
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'SECRET_KEY',
-      signOptions: { expiresIn: '60m' },
+      signOptions: { expiresIn: '365d' },
     }),
   ],
   providers: [AuthService, LocalStrategy, JwtStrategy],

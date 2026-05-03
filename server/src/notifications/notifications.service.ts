@@ -6,6 +6,7 @@ import { Challenge } from '../challenges/challenge.entity';
 import { ChatChannel } from '../chat/chat-channel.entity';
 import { MatchAnnouncement } from '../match-announcements/match-announcement.entity';
 import { BusinessOwner } from '../business-owner/entities/business-owner.entity';
+import { User } from '../users/user.entity';
 import { TeamsService } from '../teams/teams.service';
 import { AppGateway } from '../gateway/app.gateway';
 import { FirebaseService } from '../firebase/firebase.service';
@@ -23,6 +24,8 @@ export class NotificationsService {
         private matchAnnouncementsRepository: Repository<MatchAnnouncement>,
         @InjectRepository(BusinessOwner)
         private businessOwnerRepository: Repository<BusinessOwner>,
+        @InjectRepository(User)
+        private usersRepository: Repository<User>,
         private teamsService: TeamsService,
         @Optional() private gateway: AppGateway,
         private firebaseService: FirebaseService,
@@ -51,6 +54,30 @@ export class NotificationsService {
         const saved = await this.notificationsRepository.save(notification);
         if (saved.userId) {
             this.gateway?.server?.to(saved.userId).emit('notification', { type: saved.type, title: saved.title, message: saved.message });
+        }
+        if (saved.type === 'SYSTEM' && saved.metadata?.type === 'MATCH_APPROVED' && saved.userId) {
+            this.usersRepository.findOne({ where: { id: saved.userId } }).then(user => {
+                if (user?.pushToken) {
+                    this.firebaseService.sendToDevice(
+                        user.pushToken,
+                        'Maçınız Kesinleşti! ⚽',
+                        saved.message || 'Rezervasyonunuz onaylandı.',
+                        { type: 'MATCH_APPROVED' },
+                    );
+                }
+            }).catch(() => {});
+        }
+        if (saved.type === 'CHALLENGE' && saved.userId) {
+            this.usersRepository.findOne({ where: { id: saved.userId } }).then(user => {
+                if (user?.pushToken) {
+                    this.firebaseService.sendToDevice(
+                        user.pushToken,
+                        saved.title || 'Yeni Bildirim',
+                        saved.message || '',
+                        { type: 'CHALLENGE' },
+                    );
+                }
+            }).catch(() => {});
         }
         if (saved.type === 'RESERVATION_REQUEST' && saved.userId) {
             this.businessOwnerRepository.findOne({ where: { id: saved.userId } }).then(owner => {
