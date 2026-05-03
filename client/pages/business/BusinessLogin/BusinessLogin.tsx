@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../../../services/api';
 import { Briefcase } from 'lucide-react';
+import { initializePushNotifications } from '../../../services/pushNotificationService';
 
 export const BusinessLogin: React.FC = () => {
     const [email, setEmail] = useState('');
@@ -16,6 +17,7 @@ export const BusinessLogin: React.FC = () => {
             localStorage.setItem('token', response.data.access_token);
             localStorage.setItem('role', 'business_owner');
             localStorage.setItem('ownerId', response.data.ownerId); // Use ownerId from response
+            initializePushNotifications();
             navigate('/business/dashboard');
         } catch (err) {
             setError('Giriş başarısız. Lütfen bilgilerinizi kontrol edin.');

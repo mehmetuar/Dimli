@@ -29,6 +29,10 @@ export class BusinessOwnerService {
         return Array.isArray(saved) ? saved[0] : saved;
     }
 
+    async updatePushToken(id: string, pushToken: string): Promise<void> {
+        await this.businessOwnerRepository.update(id, { pushToken });
+    }
+
     async findByEmail(email: string): Promise<BusinessOwner | null> {
         return this.businessOwnerRepository.findOne({ where: { email }, relations: ['business'] });
     }

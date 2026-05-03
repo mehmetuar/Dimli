@@ -9,6 +9,7 @@ import axios from 'axios';
 import api from './services/api';
 import { Navbar } from './components/Layout/Navbar';
 import { ProtectedRoute } from './components/Layout/ProtectedRoute';
+import { BusinessProtectedRoute } from './components/Layout/BusinessProtectedRoute';
 import { RatingModal } from './components/Modals/RatingModal';
 import { PendingRating } from './types';
 import { initializePushNotifications } from './services/pushNotificationService';
@@ -283,14 +284,16 @@ function AppContent() {
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/business/login" element={<BusinessLogin />} />
             <Route path="/business/register" element={<BusinessRegister />} />
-            <Route path="/business/dashboard" element={<BusinessDashboard />} />
-            <Route path="/business/settings" element={<BusinessSettingsHub />} />
-            <Route path="/business/settings/info" element={<BusinessInfoSettings />} />
-            <Route path="/business/settings/pitches" element={<BusinessPitchList />} />
-            <Route path="/business/settings/pitches/:pitchId" element={<BusinessPitchSettings />} />
-            <Route path="/business/settings/password" element={<BusinessPasswordSettings />} />
-            <Route path="/business/notifications" element={<BusinessNotificationsPage />} />
-            <Route path="/business/stats" element={<BusinessStats />} />
+            <Route element={<BusinessProtectedRoute />}>
+              <Route path="/business/dashboard" element={<BusinessDashboard />} />
+              <Route path="/business/settings" element={<BusinessSettingsHub />} />
+              <Route path="/business/settings/info" element={<BusinessInfoSettings />} />
+              <Route path="/business/settings/pitches" element={<BusinessPitchList />} />
+              <Route path="/business/settings/pitches/:pitchId" element={<BusinessPitchSettings />} />
+              <Route path="/business/settings/password" element={<BusinessPasswordSettings />} />
+              <Route path="/business/notifications" element={<BusinessNotificationsPage />} />
+              <Route path="/business/stats" element={<BusinessStats />} />
+            </Route>
             <Route element={<ProtectedRoute />}>
               <Route path="/" element={<Marketplace />} />
               <Route path="/pitches" element={<PitchBooking />} />

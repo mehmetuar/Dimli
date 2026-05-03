@@ -38,8 +38,11 @@ export const initializePushNotifications = async () => {
         PushNotifications.addListener('registration', async (token: Token) => {
             console.log('Push registration success, token: ' + token.value);
             try {
-                // Send the token to the backend
-                await api.patch('/users/push-token', { token: token.value });
+                const role = localStorage.getItem('role');
+                const endpoint = role === 'business_owner'
+                    ? '/business-owner/push-token'
+                    : '/users/push-token';
+                await api.patch(endpoint, { token: token.value });
                 localStorage.setItem('pushToken', token.value);
             } catch (error) {
                 console.error('Error saving push token to backend:', error);

@@ -21,6 +21,9 @@ export class BusinessOwner {
     @Column({ default: false })
     phoneVerified: boolean;
 
+    @Column({ nullable: true })
+    pushToken: string;
+
     @OneToOne(() => Business, { nullable: true })
     @JoinColumn()
     business: Business;

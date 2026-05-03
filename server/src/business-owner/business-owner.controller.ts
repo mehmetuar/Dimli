@@ -1,6 +1,7 @@
-import { Controller, Post, Body, Get, Param, Request, Query } from '@nestjs/common';
+import { Controller, Post, Patch, Body, Get, Param, Request, Query, UseGuards } from '@nestjs/common';
 import { BusinessOwnerService } from './business-owner.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('business-owner')
 export class BusinessOwnerController {
@@ -8,6 +9,14 @@ export class BusinessOwnerController {
         private readonly businessOwnerService: BusinessOwnerService,
         private readonly notificationsService: NotificationsService,
     ) { }
+
+    @UseGuards(JwtAuthGuard)
+    @Patch('push-token')
+    async updatePushToken(@Request() req: any, @Body('token') token: string) {
+        if (!token) return { success: false };
+        await this.businessOwnerService.updatePushToken(req.user.sub, token);
+        return { success: true };
+    }
 
     @Get('notifications')
     async getNotifications(@Query('ownerId') ownerId: string) {

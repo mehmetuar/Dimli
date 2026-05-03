@@ -5,8 +5,10 @@ import { Notification } from './notification.entity';
 import { Challenge } from '../challenges/challenge.entity';
 import { ChatChannel } from '../chat/chat-channel.entity';
 import { MatchAnnouncement } from '../match-announcements/match-announcement.entity';
+import { BusinessOwner } from '../business-owner/entities/business-owner.entity';
 import { TeamsService } from '../teams/teams.service';
 import { AppGateway } from '../gateway/app.gateway';
+import { FirebaseService } from '../firebase/firebase.service';
 
 @Injectable()
 export class NotificationsService {
@@ -19,8 +21,11 @@ export class NotificationsService {
         private chatChannelsRepository: Repository<ChatChannel>,
         @InjectRepository(MatchAnnouncement)
         private matchAnnouncementsRepository: Repository<MatchAnnouncement>,
+        @InjectRepository(BusinessOwner)
+        private businessOwnerRepository: Repository<BusinessOwner>,
         private teamsService: TeamsService,
         @Optional() private gateway: AppGateway,
+        private firebaseService: FirebaseService,
     ) { }
 
     async createJoinRequestNotification(teamId: string, joinRequestId: string, requesterId: string): Promise<Notification> {
@@ -46,6 +51,18 @@ export class NotificationsService {
         const saved = await this.notificationsRepository.save(notification);
         if (saved.userId) {
             this.gateway?.server?.to(saved.userId).emit('notification', { type: saved.type, title: saved.title, message: saved.message });
+        }
+        if (saved.type === 'RESERVATION_REQUEST' && saved.userId) {
+            this.businessOwnerRepository.findOne({ where: { id: saved.userId } }).then(owner => {
+                if (owner?.pushToken) {
+                    this.firebaseService.sendToDevice(
+                        owner.pushToken,
+                        'Rezervasyon İsteği',
+                        'Yeni 1 rezervasyon isteğiniz var',
+                        { type: 'RESERVATION_REQUEST' },
+                    );
+                }
+            }).catch(() => {});
         }
         return saved;
     }
