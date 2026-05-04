@@ -1,6 +1,6 @@
 import UIKit
 import Capacitor
-import Firebase
+import FirebaseCore
 import FirebaseMessaging
 
 @UIApplicationMain
