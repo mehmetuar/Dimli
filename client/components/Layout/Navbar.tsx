@@ -33,7 +33,12 @@ export const Navbar: React.FC = () => {
 
     fetchCounts();
 
-    if (!socket) return;
+    const onCleared = () => setUnreadCount(0);
+    window.addEventListener('notificationsCleared', onCleared);
+
+    if (!socket) {
+      return () => window.removeEventListener('notificationsCleared', onCleared);
+    }
     const onNotification = () => fetchCounts();
     const onNewMessage = () => fetchCounts();
     socket.on('notification', onNotification);
@@ -41,6 +46,7 @@ export const Navbar: React.FC = () => {
     return () => {
       socket.off('notification', onNotification);
       socket.off('newMessage', onNewMessage);
+      window.removeEventListener('notificationsCleared', onCleared);
     };
   }, [isLoggedIn, socket]);
 
