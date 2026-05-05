@@ -12,7 +12,7 @@ interface RatingModalProps {
     onSkip: () => void;
 }
 
-function StarRating({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+function StarRating({ value, onChange, green }: { value: number; onChange: (v: number) => void; green?: boolean }) {
     return (
         <div className="flex gap-2 justify-center">
             {[1, 2, 3, 4, 5].map((star) => (
@@ -25,7 +25,7 @@ function StarRating({ value, onChange }: { value: number; onChange: (v: number) 
                     <Star
                         className={`w-9 h-9 transition-colors ${
                             star <= value
-                                ? 'text-yellow-400 fill-yellow-400'
+                                ? green ? 'text-green-500 fill-green-500' : 'text-yellow-400 fill-yellow-400'
                                 : 'text-slate-600'
                         }`}
                     />
@@ -158,7 +158,7 @@ export const RatingModal: React.FC<RatingModalProps> = ({ pending, onSubmit, onS
                                     <p className="text-slate-400 text-xs">Rakip takımın fair play'ini değerlendir</p>
                                 </div>
                             </div>
-                            <StarRating value={fairPlayScore} onChange={setFairPlayScore} />
+                            <StarRating value={fairPlayScore} onChange={setFairPlayScore} green />
                             <p className="text-center text-slate-400 text-xs mt-2 h-4">
                                 {FP_LABELS[fairPlayScore] ?? ''}
                             </p>

@@ -56,20 +56,40 @@ export class MatchAnnouncementsService {
             );
         }
 
-        // Max 8 aktif ilan limiti (yalnızca PENDING — CONFIRMED/CANCELLED/EXPIRED dahil değil)
-        const activeCount = await this.matchAnnouncementsRepository.count({
-            where: {
-                teamId: user.team.id,
-                status: 'PENDING'
+        // rakip_araniyor: max 8 PENDING ilan (CONFIRMED/kesinlesti maçlar limite dahil değil)
+        if (!data.matchType || data.matchType === 'rakip_araniyor') {
+            const rakipCount = await this.matchAnnouncementsRepository.count({
+                where: {
+                    teamId: user.team.id,
+                    matchType: 'rakip_araniyor',
+                    status: 'PENDING'
+                }
+            });
+            if (rakipCount >= 8) {
+                throw new HttpException(
+                    'Aynı anda en fazla 8 aktif "Rakip Aranıyor" ilanı oluşturabilirsiniz. Mevcut ilanlarınızdan birini iptal ederek yeni ilan açabilirsiniz.',
+                    HttpStatus.BAD_REQUEST
+                );
             }
-        });
-
-        if (activeCount >= 8) {
-            throw new HttpException(
-                'Bir takım en fazla 8 aktif ilan açabilir. Mevcut ilanlarınızdan birini kaldırarak yeni ilan açabilirsiniz.',
-                HttpStatus.BAD_REQUEST
-            );
         }
+
+        // kendi_aramizda (onay_bekliyor): max 10 PENDING
+        if (data.matchType === 'kendi_aramizda') {
+            const kendiCount = await this.matchAnnouncementsRepository.count({
+                where: {
+                    teamId: user.team.id,
+                    matchType: 'kendi_aramizda',
+                    status: 'PENDING'
+                }
+            });
+            if (kendiCount >= 10) {
+                throw new HttpException(
+                    'Aynı anda en fazla 10 onay bekleyen "Kendi Aramızda" maçınız olabilir. Bir maç onaylandıktan veya iptal edildikten sonra yeni ilan oluşturabilirsiniz.',
+                    HttpStatus.BAD_REQUEST
+                );
+            }
+        }
+        // Kesinleşmiş (CONFIRMED) maçlar herhangi bir limite dahil değildir.
 
         // Validate date and time - 🆕 IMPROVED: Reject past times strictly
         if (!data.date || !data.time) {

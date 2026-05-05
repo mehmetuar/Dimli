@@ -142,8 +142,8 @@ export const MatchHistoryModal: React.FC<MatchHistoryModalProps> = ({
                         </div>
                         <div className="bg-slate-900/60 p-3 rounded-xl text-center border border-slate-700/50">
                             <div className="flex items-center justify-center gap-1">
-                                <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
-                                <span className="text-yellow-400 font-sport font-bold text-2xl">
+                                <Star className="w-4 h-4 text-green-500 fill-green-500" />
+                                <span className="text-green-500 font-sport font-bold text-2xl">
                                     {(teamFairPlayScore || 5.0).toFixed(1)}
                                 </span>
                             </div>
@@ -228,12 +228,12 @@ export const MatchHistoryModal: React.FC<MatchHistoryModalProps> = ({
                                                     )}
                                                     {match.fairPlayScore !== null && (
                                                         <div className="flex items-center gap-1">
-                                                            <Shield className="w-3 h-3 text-indigo-400" />
+                                                            <Shield className="w-3 h-3 text-green-500" />
                                                             <div className="flex gap-0.5">
                                                                 {[1,2,3,4,5].map(s => (
                                                                     <Star
                                                                         key={s}
-                                                                        className={`w-2.5 h-2.5 ${s <= (match.fairPlayScore || 0) ? 'text-indigo-400 fill-indigo-400' : 'text-slate-600'}`}
+                                                                        className={`w-2.5 h-2.5 ${s <= (match.fairPlayScore || 0) ? 'text-green-500 fill-green-500' : 'text-slate-600'}`}
                                                                     />
                                                                 ))}
                                                             </div>

@@ -298,17 +298,17 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({ isOpen, onCl
                                 {/* Fair Play */}
                                 <div className="flex items-center justify-between py-2 border-b border-slate-700/30">
                                     <div className="flex items-center gap-1 w-16">
-                                        <span className="text-sm font-bold text-yellow-400">{data.homeTeam.fairPlayScore.toFixed(1)}</span>
+                                        <span className="text-sm font-bold text-green-500">{data.homeTeam.fairPlayScore.toFixed(1)}</span>
                                         {(data.homeTeam.fairPlayRatingCount ?? 0) > 0 && (
                                             <span className="text-[10px] text-slate-500">({data.homeTeam.fairPlayRatingCount})</span>
                                         )}
                                     </div>
-                                    <span className="text-[11px] text-slate-400 flex items-center gap-1"><Star className="w-3 h-3" /> Fair Play</span>
+                                    <span className="text-[11px] text-slate-400 flex items-center gap-1"><Star className="w-3 h-3 text-green-500 fill-green-500" /> Fair Play</span>
                                     <div className="flex items-center justify-end gap-1 w-16">
                                         {(data.awayTeam.fairPlayRatingCount ?? 0) > 0 && (
                                             <span className="text-[10px] text-slate-500">({data.awayTeam.fairPlayRatingCount})</span>
                                         )}
-                                        <span className="text-sm font-bold text-yellow-400">{data.awayTeam.fairPlayScore.toFixed(1)}</span>
+                                        <span className="text-sm font-bold text-green-500">{data.awayTeam.fairPlayScore.toFixed(1)}</span>
                                     </div>
                                 </div>
 

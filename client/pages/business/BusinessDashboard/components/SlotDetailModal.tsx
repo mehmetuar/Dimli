@@ -105,7 +105,7 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                                                     </div>
                                                     <div className="flex gap-3 mt-2 pt-2 border-t border-slate-700/50">
                                                         <div className="flex items-center gap-1" title="Fair Play Skoru">
-                                                            <Star className="w-3 h-3 text-yellow-500 fill-yellow-500/20" />
+                                                            <Star className="w-3 h-3 text-green-500 fill-green-500/20" />
                                                             <span className="text-[10px] font-bold text-slate-300">{res.team?.fairPlayScore || '0.0'}</span>
                                                         </div>
                                                         <div className="flex items-center gap-1" title="Oynadığı Maç Sayısı">
@@ -158,7 +158,7 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                                                         </div>
                                                         <div className="flex gap-3 mt-2 pt-2 border-t border-slate-700/50">
                                                             <div className="flex items-center gap-1" title="Fair Play Skoru">
-                                                                <Star className="w-3 h-3 text-yellow-500 fill-yellow-500/20" />
+                                                                <Star className="w-3 h-3 text-green-500 fill-green-500/20" />
                                                                 <span className="text-[10px] font-bold text-slate-300">{res.opponentTeam?.fairPlayScore || '0.0'}</span>
                                                             </div>
                                                             <div className="flex items-center gap-1" title="Oynadığı Maç Sayısı">

@@ -1,16 +1,19 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleInit, HttpException, HttpStatus } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Team } from './team.entity';
 import { User } from '../users/user.entity';
 import { UsersService } from '../users/users.service';
 import { RatingsService } from '../ratings/ratings.service';
+import { MatchAnnouncement } from '../match-announcements/match-announcement.entity';
 
 @Injectable()
 export class TeamsService implements OnModuleInit {
     constructor(
         @InjectRepository(Team)
         private teamsRepository: Repository<Team>,
+        @InjectRepository(MatchAnnouncement)
+        private matchAnnouncementsRepository: Repository<MatchAnnouncement>,
         private usersService: UsersService,
         private ratingsService: RatingsService,
     ) { }
@@ -321,6 +324,35 @@ export class TeamsService implements OnModuleInit {
 
         const isCaptain = (team.captain && team.captain.id === userId) || team.captainId === userId;
         if (!isCaptain) throw new Error('Sadece kaptan takımı silebilir.');
+
+        // Kesinleşmiş maç kontrolü
+        const confirmedCount = await this.matchAnnouncementsRepository.count({
+            where: { teamId, status: 'CONFIRMED' }
+        });
+        if (confirmedCount > 0) {
+            throw new HttpException(
+                `Bu takımın ${confirmedCount} adet kesinleşmiş maçı bulunuyor. Kesinleşmiş maçı olan bir takım silinemez.`,
+                HttpStatus.BAD_REQUEST
+            );
+        }
+
+        // Onay bekleyen (kendi_aramizda) maç kontrolü
+        const pendingKendiCount = await this.matchAnnouncementsRepository.count({
+            where: { teamId, matchType: 'kendi_aramizda', status: 'PENDING' }
+        });
+        if (pendingKendiCount > 0) {
+            throw new HttpException(
+                `Bu takımın ${pendingKendiCount} adet onay bekleyen maçı bulunuyor. Onay aşamasındaki maçlar sona ermeden takım silinemez. Lütfen önce bu maçları iptal edin.`,
+                HttpStatus.BAD_REQUEST
+            );
+        }
+
+        // Aktif "Rakip Aranıyor" ilanlarını otomatik sil
+        await this.matchAnnouncementsRepository.delete({
+            teamId,
+            matchType: 'rakip_araniyor',
+            status: 'PENDING'
+        });
 
         if (team.players && team.players.length > 0) {
             for (const player of team.players) {

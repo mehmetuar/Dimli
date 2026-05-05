@@ -180,7 +180,7 @@ export const useMyTeam = (modals: any) => {
                 modals.setConfirmModal({
                     isOpen: true,
                     title: 'Takımı Sil',
-                    message: `Takımda sadece sen varsın. Ayrılırsan "${myTeam.name}" takımı tamamen silinecek. Bunu onaylıyor musun?`,
+                    message: `Takımda sadece sen varsın. Ayrılırsan "${myTeam.name}" takımı tamamen silinecek.\n\nAktif "Rakip Aranıyor" ilanların varsa otomatik olarak iptal edilecektir.\n\nBu işlemi onaylıyor musun?`,
                     onConfirm: async () => {
                         try {
                             await api.delete(`/teams/${myTeam.id}`);
@@ -188,7 +188,14 @@ export const useMyTeam = (modals: any) => {
                             setRoster([]);
                             navigate('/team');
                         } catch (err: any) {
-                            setErrorMessage(err.response?.data?.message || 'Takım silinemedi.');
+                            const msg = err.response?.data?.message || 'Takım silinemedi.';
+                            modals.setConfirmModal({
+                                isOpen: true,
+                                title: 'Takım Silinemez',
+                                message: msg,
+                                onConfirm: () => {},
+                                isDangerous: false,
+                            });
                         }
                     },
                     isDangerous: true
