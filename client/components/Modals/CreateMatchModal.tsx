@@ -172,8 +172,9 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
             }
         } catch (error: any) {
             console.error('❌ Failed to create announcement:', error);
-            if (error.response?.status === 409) {
-                setErrorMessage(error.response.data.message || 'Bu saat için zaten aktif bir ilanınız var');
+            const serverMessage = error.response?.data?.message;
+            if (serverMessage) {
+                setErrorMessage(serverMessage);
             } else {
                 setErrorMessage('İlan oluşturulurken bir hata oluştu');
             }

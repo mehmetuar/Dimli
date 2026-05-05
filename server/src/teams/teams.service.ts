@@ -6,6 +6,7 @@ import { User } from '../users/user.entity';
 import { UsersService } from '../users/users.service';
 import { RatingsService } from '../ratings/ratings.service';
 import { MatchAnnouncement } from '../match-announcements/match-announcement.entity';
+import { Reservation, ReservationStatus } from '../reservations/entities/reservation.entity';
 
 @Injectable()
 export class TeamsService implements OnModuleInit {
@@ -14,6 +15,8 @@ export class TeamsService implements OnModuleInit {
         private teamsRepository: Repository<Team>,
         @InjectRepository(MatchAnnouncement)
         private matchAnnouncementsRepository: Repository<MatchAnnouncement>,
+        @InjectRepository(Reservation)
+        private reservationsRepository: Repository<Reservation>,
         private usersService: UsersService,
         private ratingsService: RatingsService,
     ) { }
@@ -325,24 +328,37 @@ export class TeamsService implements OnModuleInit {
         const isCaptain = (team.captain && team.captain.id === userId) || team.captainId === userId;
         if (!isCaptain) throw new Error('Sadece kaptan takımı silebilir.');
 
-        // Kesinleşmiş maç kontrolü
-        const confirmedCount = await this.matchAnnouncementsRepository.count({
+        // 1. Kesinleşmiş maç kontrolü:
+        //    - rakip_araniyor: match_announcement.status = 'CONFIRMED'
+        //    - kendi_aramizda: reservation.status = 'APPROVED'
+        const confirmedAnnouncementCount = await this.matchAnnouncementsRepository.count({
             where: { teamId, status: 'CONFIRMED' }
         });
-        if (confirmedCount > 0) {
+        const approvedReservationCount = await this.reservationsRepository.count({
+            where: [
+                { teamId, status: ReservationStatus.APPROVED },
+                { opponentTeamId: teamId, status: ReservationStatus.APPROVED }
+            ]
+        });
+        const totalConfirmed = confirmedAnnouncementCount + approvedReservationCount;
+        if (totalConfirmed > 0) {
             throw new HttpException(
-                `Bu takımın ${confirmedCount} adet kesinleşmiş maçı bulunuyor. Kesinleşmiş maçı olan bir takım silinemez.`,
+                `Bu takımın ${totalConfirmed} adet kesinleşmiş maçı bulunuyor. Kesinleşmiş maçı olan bir takım silinemez.`,
                 HttpStatus.BAD_REQUEST
             );
         }
 
-        // Onay bekleyen (kendi_aramizda) maç kontrolü
-        const pendingKendiCount = await this.matchAnnouncementsRepository.count({
-            where: { teamId, matchType: 'kendi_aramizda', status: 'PENDING' }
+        // 2. Onay bekleyen maç kontrolü:
+        //    - kendi_aramizda: reservation.status = 'PENDING'
+        const pendingReservationCount = await this.reservationsRepository.count({
+            where: [
+                { teamId, status: ReservationStatus.PENDING },
+                { opponentTeamId: teamId, status: ReservationStatus.PENDING }
+            ]
         });
-        if (pendingKendiCount > 0) {
+        if (pendingReservationCount > 0) {
             throw new HttpException(
-                `Bu takımın ${pendingKendiCount} adet onay bekleyen maçı bulunuyor. Onay aşamasındaki maçlar sona ermeden takım silinemez. Lütfen önce bu maçları iptal edin.`,
+                `Bu takımın ${pendingReservationCount} adet onay bekleyen maçı bulunuyor. Onay aşamasındaki maçlar sonuçlanmadan takım silinemez. Lütfen önce bu maçları iptal edin.`,
                 HttpStatus.BAD_REQUEST
             );
         }
