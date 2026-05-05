@@ -5,6 +5,7 @@ import { SuccessType } from '../../../../components/Modals/SuccessModal';
 export const useBusinessDashboard = () => {
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
     const [dashboardData, setDashboardData] = useState<any>(null);
+    const [subscription, setSubscription] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [selectedSlot, setSelectedSlot] = useState<any>(null);
     const [showDatePicker, setShowDatePicker] = useState(false);
@@ -41,8 +42,12 @@ export const useBusinessDashboard = () => {
             const ownerId = localStorage.getItem('ownerId');
             if (!ownerId) return;
 
-            const response = await api.get(`/business-owner/dashboard?date=${selectedDate}&ownerId=${ownerId}`);
-            setDashboardData(response.data);
+            const [dashboardRes, subRes] = await Promise.all([
+                api.get(`/business-owner/dashboard?date=${selectedDate}&ownerId=${ownerId}`),
+                api.get(`/subscription/owner/${ownerId}`).catch(() => ({ data: null }))
+            ]);
+            setDashboardData(dashboardRes.data);
+            setSubscription(subRes.data);
         } catch (error) {
             console.error('Error fetching dashboard:', error);
         } finally {
@@ -202,6 +207,7 @@ export const useBusinessDashboard = () => {
         selectedDate,
         setSelectedDate,
         dashboardData,
+        subscription,
         loading,
         selectedSlot,
         setSelectedSlot,

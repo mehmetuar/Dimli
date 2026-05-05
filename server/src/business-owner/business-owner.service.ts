@@ -1,12 +1,14 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, Not, IsNull } from 'typeorm';
+import { Repository, Between, Not, IsNull, In, MoreThanOrEqual } from 'typeorm';
 import { BusinessOwner } from './entities/business-owner.entity';
 import { ReservationsService } from '../reservations/reservations.service';
 import { Pitch } from '../pitches/entities/pitch.entity';
 import { Reservation, ReservationStatus } from '../reservations/entities/reservation.entity';
 import { Business } from '../business/entities/business.entity';
 import { RatingsService } from '../ratings/ratings.service';
+import { Subscription } from '../subscription/entities/subscription.entity';
+import { TimeSlot } from '../pitches/entities/time-slot.entity';
 
 @Injectable()
 export class BusinessOwnerService {
@@ -329,5 +331,60 @@ export class BusinessOwnerService {
                 },
             },
         };
+    }
+
+    async deleteAccount(ownerId: string): Promise<{ success: boolean; message?: string }> {
+        const owner = await this.businessOwnerRepository.findOne({
+            where: { id: ownerId },
+            relations: ['business', 'business.pitches'],
+        });
+
+        if (!owner) throw new NotFoundException('İşletme sahibi bulunamadı');
+
+        const now = new Date();
+        
+        if (owner.business && owner.business.pitches && owner.business.pitches.length > 0) {
+            const pitchIds = owner.business.pitches.map(p => p.id);
+            const futureReservationsCount = await this.reservationRepository.count({
+                where: {
+                    pitch: { id: In(pitchIds) },
+                    status: ReservationStatus.APPROVED,
+                    slotTime: MoreThanOrEqual(now)
+                }
+            });
+
+            if (futureReservationsCount > 0) {
+                throw new BadRequestException('İleri tarihli kesinleşmiş rezervasyonunuz bulunduğu için hesabınızı şu an silemezsiniz.');
+            }
+        }
+
+        const queryRunner = this.businessOwnerRepository.manager.connection.createQueryRunner();
+        await queryRunner.connect();
+        await queryRunner.startTransaction();
+
+        try {
+            if (owner.business) {
+                await queryRunner.manager.delete(Subscription, { ownerId: owner.id });
+                
+                if (owner.business.pitches && owner.business.pitches.length > 0) {
+                    const pitchIds = owner.business.pitches.map(p => p.id);
+                    await queryRunner.manager.delete(Reservation, { pitch: { id: In(pitchIds) } });
+                    await queryRunner.manager.delete(TimeSlot, { pitchId: In(pitchIds) });
+                    await queryRunner.manager.delete(Pitch, { business: { id: owner.business.id } });
+                }
+                
+                await queryRunner.manager.delete(Business, { id: owner.business.id });
+            }
+            
+            await queryRunner.manager.delete(BusinessOwner, { id: owner.id });
+
+            await queryRunner.commitTransaction();
+            return { success: true, message: 'Hesap başarıyla silindi.' };
+        } catch (error) {
+            await queryRunner.rollbackTransaction();
+            throw new InternalServerErrorException('Hesap silinirken bir hata oluştu.');
+        } finally {
+            await queryRunner.release();
+        }
     }
 }

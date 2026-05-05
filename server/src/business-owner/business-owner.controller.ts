@@ -1,4 +1,4 @@
-import { Controller, Post, Patch, Body, Get, Param, Request, Query, UseGuards } from '@nestjs/common';
+import { Controller, Post, Patch, Body, Get, Param, Request, Query, UseGuards, Delete } from '@nestjs/common';
 import { BusinessOwnerService } from './business-owner.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -55,5 +55,11 @@ export class BusinessOwnerController {
     @Get(':id')
     findOne(@Param('id') id: string) {
         return this.businessOwnerService.findOne(id);
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Delete('account')
+    deleteAccount(@Request() req: any) {
+        return this.businessOwnerService.deleteAccount(req.user.id);
     }
 }

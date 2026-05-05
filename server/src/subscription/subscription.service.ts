@@ -4,11 +4,11 @@ import { Repository } from 'typeorm';
 import { Subscription, SubscriptionStatus } from './entities/subscription.entity';
 
 export const SUBSCRIPTION_PLANS: Record<string, { pitchCount: number; pricePerMonth: number; label: string }> = {
-    '1_pitch': { pitchCount: 1, pricePerMonth: 1700, label: 'Starter' },
-    '2_pitch': { pitchCount: 2, pricePerMonth: 2950, label: 'Basic' },
-    '3_pitch': { pitchCount: 3, pricePerMonth: 3850, label: 'Pro' },
-    '4_pitch': { pitchCount: 4, pricePerMonth: 4650, label: 'Business' },
-    '5plus_pitch': { pitchCount: 5, pricePerMonth: 5250, label: 'Enterprise' },
+    '1_pitch': { pitchCount: 1, pricePerMonth: 1709.99, label: 'Starter' },
+    '2_pitch': { pitchCount: 2, pricePerMonth: 2999.99, label: 'Basic' },
+    '3_pitch': { pitchCount: 3, pricePerMonth: 3849.99, label: 'Pro' },
+    '4_pitch': { pitchCount: 4, pricePerMonth: 4649.99, label: 'Business' },
+    '5plus_pitch': { pitchCount: 5, pricePerMonth: 5399.99, label: 'Enterprise' },
 };
 
 @Injectable()

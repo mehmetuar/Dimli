@@ -21,6 +21,7 @@ export const BusinessDashboard: React.FC = () => {
         selectedDate,
         setSelectedDate,
         dashboardData,
+        subscription,
         loading,
         selectedSlot,
         setSelectedSlot,
@@ -51,8 +52,17 @@ export const BusinessDashboard: React.FC = () => {
     if (loading) return <BusinessLoadingSpinner fullScreen />;
     if (!dashboardData) return <div className="min-h-screen bg-slate-800 flex items-center justify-center text-white font-bold italic">Veri bulunamadı.</div>;
 
+    const hasActiveSubscription = subscription && ['active', 'trial'].includes(subscription.status);
+
     return (
         <div className="min-h-screen bg-slate-800 text-white pb-24">
+            {/* Warning Banner for Inactive Subscription */}
+            {!hasActiveSubscription && (
+                <div className="bg-red-500 text-white p-4 text-center font-bold text-sm shadow-md">
+                    Aktif bir aboneliğiniz bulunmamaktadır. Saha ve rezervasyon işlemlerine devam edebilmek için <button onClick={() => navigate('/business/settings/subscription')} className="underline">Plan Satın Alınız</button>.
+                </div>
+            )}
+
             {/* Header */}
             <DashboardHeader
                 businessName={dashboardData.businessName}
@@ -62,12 +72,18 @@ export const BusinessDashboard: React.FC = () => {
             />
 
             {/* Pitches & Slots */}
-            <PitchGrid
-                pitches={dashboardData.pitches}
-                selectedDate={selectedDate}
-                isPastSlot={isPastSlot}
-                setSelectedSlot={setSelectedSlot}
-            />
+            {hasActiveSubscription ? (
+                <PitchGrid
+                    pitches={dashboardData.pitches}
+                    selectedDate={selectedDate}
+                    isPastSlot={isPastSlot}
+                    setSelectedSlot={setSelectedSlot}
+                />
+            ) : (
+                <div className="flex items-center justify-center h-64 text-slate-400 font-medium px-6 text-center">
+                    Aboneliğiniz olmadığı için sahalarınız liste dışıdır ve işlem yapılamaz. Lütfen ayarlar sekmesinden bir plan satın alın.
+                </div>
+            )}
 
             {/* Modal for Slot Details */}
             <SlotDetailModal

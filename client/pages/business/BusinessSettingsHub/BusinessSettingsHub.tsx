@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, MapPin, Lock, LogOut, ChevronRight } from 'lucide-react';
+import { Building2, MapPin, Lock, LogOut, ChevronRight, CreditCard } from 'lucide-react';
 import { BusinessNavbar } from '../../../components/Business/BusinessNavbar';
 import { ConfirmModal } from '../../../components/Modals/ConfirmModal';
 
@@ -45,6 +45,16 @@ export const BusinessSettingsHub: React.FC = () => {
             bg: 'bg-indigo-500/10',
             border: 'border-indigo-500/20',
             iconBg: 'bg-indigo-500/10',
+        },
+        {
+            title: 'Abonelik ve Planlar',
+            description: 'Mevcut planını yönet, iptal et veya yükselt',
+            icon: CreditCard,
+            path: '/business/settings/subscription',
+            color: 'text-emerald-400',
+            bg: 'bg-emerald-500/10',
+            border: 'border-emerald-500/20',
+            iconBg: 'bg-emerald-500/10',
         }
     ];
 

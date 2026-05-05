@@ -30,37 +30,33 @@ export class BusinessService {
 
     async findAll(geoFilter?: GeoFilter): Promise<any[]> {
         if (!geoFilter) {
-            const businesses = await this.businessRepository.find({
-                where: { status: 'active' },
-                relations: ['pitches', 'pitches.timeSlots', 'owner'],
-            });
+            const businesses = await this.businessRepository.createQueryBuilder('business')
+                .leftJoinAndSelect('business.pitches', 'pitches')
+                .leftJoinAndSelect('pitches.timeSlots', 'timeSlots')
+                .leftJoinAndSelect('business.owner', 'owner')
+                .innerJoin('Subscription', 'subscription', 'subscription.ownerId = owner.id')
+                .where('business.status = :status', { status: 'active' })
+                .andWhere('subscription.status IN (:...subStatuses)', { subStatuses: ['active', 'trial'] })
+                .getMany();
             return businesses.map(b => this.mapWithOwnerPhone(b));
         }
 
         const { lat, lng, radius } = geoFilter;
         console.log(`🌍 Business geo filter: lat=${lat}, lng=${lng}, radius=${radius}km`);
 
-        const raw: any[] = await this.businessRepository.query(
-            `SELECT id,
-                (6371 * acos(
-                    cos(radians($1)) * cos(radians(latitude))
-                    * cos(radians(longitude) - radians($2))
-                    + sin(radians($1)) * sin(radians(latitude))
-                )) AS distance_km
-             FROM businesses
-             WHERE latitude IS NOT NULL
-                AND longitude IS NOT NULL
-                AND status = 'active'
-                AND (
-                    6371 * acos(
-                        cos(radians($1)) * cos(radians(latitude))
-                        * cos(radians(longitude) - radians($2))
-                        + sin(radians($1)) * sin(radians(latitude))
-                    )
-                ) <= $3
-             ORDER BY distance_km ASC`,
-            [lat, lng, radius],
-        );
+        const raw = await this.businessRepository.createQueryBuilder('business')
+            .select('business.id', 'id')
+            .addSelect(`(6371 * acos(cos(radians(:lat)) * cos(radians(business.latitude)) * cos(radians(business.longitude) - radians(:lng)) + sin(radians(:lat)) * sin(radians(business.latitude))))`, 'distance_km')
+            .innerJoin('business.owner', 'owner')
+            .innerJoin('Subscription', 'subscription', 'subscription.ownerId = owner.id')
+            .where('business.latitude IS NOT NULL')
+            .andWhere('business.longitude IS NOT NULL')
+            .andWhere('business.status = :status', { status: 'active' })
+            .andWhere('subscription.status IN (:...subStatuses)', { subStatuses: ['active', 'trial'] })
+            .having(`(6371 * acos(cos(radians(:lat)) * cos(radians(business.latitude)) * cos(radians(business.longitude) - radians(:lng)) + sin(radians(:lat)) * sin(radians(business.latitude)))) <= :radius`)
+            .setParameters({ lat, lng, radius })
+            .orderBy('distance_km', 'ASC')
+            .getRawMany();
 
         if (raw.length === 0) {
             console.log(`🏟️ No businesses within ${radius}km`);
@@ -77,7 +73,9 @@ export class BusinessService {
             .leftJoinAndSelect('business.pitches', 'pitches')
             .leftJoinAndSelect('pitches.timeSlots', 'timeSlots')
             .leftJoinAndSelect('business.owner', 'owner')
+            .innerJoin('Subscription', 'subscription', 'subscription.ownerId = owner.id')
             .where('business.id IN (:...ids)', { ids })
+            .andWhere('subscription.status IN (:...subStatuses)', { subStatuses: ['active', 'trial'] })
             .getMany();
 
         const result = businesses
