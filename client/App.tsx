@@ -12,7 +12,7 @@ import { ProtectedRoute } from './components/Layout/ProtectedRoute';
 import { BusinessProtectedRoute } from './components/Layout/BusinessProtectedRoute';
 import { RatingModal } from './components/Modals/RatingModal';
 import { PendingRating } from './types';
-import { initializePushNotifications, syncPushToken } from './services/pushNotificationService';
+import { initializePushNotifications, syncPushToken, clearBadge } from './services/pushNotificationService';
 import { initRevenueCat } from './services/revenuecatService';
 import { LocationProvider, useLocationContext } from './contexts/LocationContext';
 import { FilterProvider } from './contexts/FilterContext';
@@ -283,6 +283,7 @@ function AppContent() {
     // Uygulama arka plana alınınca interval dur, ön plana gelince yeniden başla
     CapApp.addListener('appStateChange', (state) => {
       if (state.isActive) {
+        clearBadge();
         startLocationTracking();
       } else {
         stopLocationTracking();

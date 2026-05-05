@@ -76,6 +76,14 @@ export const initializePushNotifications = async () => {
     }
 };
 
+export const clearBadge = async (): Promise<void> => {
+    if (!Capacitor.isNativePlatform()) return;
+    try {
+        await FirebaseMessaging.setBadge({ count: 0 });
+        await LocalNotifications.removeAllDeliveredNotifications();
+    } catch {}
+};
+
 export const showLocalNotification = async (title: string, body: string, data?: any) => {
     if (!Capacitor.isNativePlatform()) return;
 
