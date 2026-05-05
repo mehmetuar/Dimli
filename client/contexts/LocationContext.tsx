@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { Geolocation } from '@capacitor/geolocation';
 import { App as CapApp } from '@capacitor/app';
 import { LocationErrorType } from '../components/LocationPermissionSheet';
+import { calculateDistance } from '../utils/location';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -59,10 +60,15 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [locationError, setLocationError] = useState<LocationErrorType | null>(null);
   const isLocatingRef = useRef(false);
 
-  // Persist coords to sessionStorage and update state
-  const updateCoords = useCallback((c: Coords) => {
-    try { sessionStorage.setItem(COORD_CACHE_KEY, JSON.stringify(c)); } catch { /* ignore */ }
-    setCoords(c);
+  // Persist coords to sessionStorage and update state — only if moved >250m
+  const updateCoords = useCallback((newCoords: Coords) => {
+    setCoords(prev => {
+      if (prev && calculateDistance(prev.lat, prev.lng, newCoords.lat, newCoords.lng) < 0.25) {
+        return prev;
+      }
+      try { sessionStorage.setItem(COORD_CACHE_KEY, JSON.stringify(newCoords)); } catch { /* ignore */ }
+      return newCoords;
+    });
   }, []);
 
   // Update radius globally and persist to localStorage

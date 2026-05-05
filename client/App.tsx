@@ -98,11 +98,11 @@ function AppContent() {
     location.pathname === '/forgot-password' ||
     location.pathname.startsWith('/business') ||
     location.pathname.startsWith('/settings');
-  const [watchId, setWatchId] = useState<string | null>(null);
   const [pendingRatings, setPendingRatings] = useState<PendingRating[]>([]);
   const { updateCoords } = useLocationContext();
   const prevGpsRef = useRef<{ lat: number; lng: number } | null>(null);
   const prevLocationNameRef = useRef<string | null>(null);
+  const locationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Android & iOS: StatusBar + SplashScreen + RevenueCat on first mount
   useEffect(() => {
@@ -189,9 +189,58 @@ function AppContent() {
   };
 
   useEffect(() => {
-    let currentWatchId: string | null = null;
     let initTimer: ReturnType<typeof setTimeout>;
     let watchTimer: ReturnType<typeof setTimeout>;
+    let stateListener: { remove: () => void } | null = null;
+
+    // iOS: 3 dk, Android: 2 dk — GPS modülü aralarında kapalı kalır
+    const LOCATION_INTERVAL_MS = Capacitor.getPlatform() === 'ios'
+      ? 3 * 60 * 1000
+      : 2 * 60 * 1000;
+
+    const poll = async () => {
+      try {
+        const position = await Geolocation.getCurrentPosition({
+          enableHighAccuracy: false,
+          timeout: 10000,
+          maximumAge: 60000,
+        });
+        const { latitude, longitude } = position.coords;
+        updateCoords({ lat: latitude, lng: longitude });
+
+        // 250 metreden az hareket ettiyse backend'e PATCH atma
+        const prev = prevGpsRef.current;
+        if (prev && haversineKm(prev.lat, prev.lng, latitude, longitude) < 0.25) return;
+        prevGpsRef.current = { lat: latitude, lng: longitude };
+
+        const response = await axios.get(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+        if (response.data && response.data.address) {
+          const address = response.data.address;
+          const locationName = address.district || address.city || address.town || address.state;
+          if (locationName && locationName !== prevLocationNameRef.current) {
+            prevLocationNameRef.current = locationName;
+            await api.patch('/users/me', { location: locationName });
+          }
+        }
+      } catch {
+        // GPS hatası veya konum izni yok — sessizce geç
+      }
+    };
+
+    const startLocationTracking = () => {
+      const token = localStorage.getItem('token');
+      if (!token || isAuthPage) return;
+      if (locationIntervalRef.current) clearInterval(locationIntervalRef.current);
+      poll();
+      locationIntervalRef.current = setInterval(poll, LOCATION_INTERVAL_MS);
+    };
+
+    const stopLocationTracking = () => {
+      if (locationIntervalRef.current) {
+        clearInterval(locationIntervalRef.current);
+        locationIntervalRef.current = null;
+      }
+    };
 
     const initServices = async () => {
       const token = localStorage.getItem('token');
@@ -219,59 +268,34 @@ function AppContent() {
         }
       }, 3000); // 3 saniye bekle
 
-      // Arka plan konum takibini daha da geciktir
-      watchTimer = setTimeout(() => startWatching(), 5000);
+      // Konum takibini daha da geciktir
+      watchTimer = setTimeout(async () => {
+        try {
+          const permission = await Geolocation.checkPermissions();
+          if (permission.location !== 'granted') return;
+          startLocationTracking();
+        } catch {
+          // İzin yoksa sessizce geç
+        }
+      }, 5000);
     };
 
-    const startWatching = async () => {
-      const token = localStorage.getItem('token');
-      if (!token || isAuthPage) return;
-
-      try {
-        const permission = await Geolocation.checkPermissions();
-        if (permission.location !== 'granted') return;
-
-        currentWatchId = await Geolocation.watchPosition(
-          { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 },
-          async (position, err) => {
-            if (err || !position) return;
-            try {
-              const { latitude, longitude } = position.coords;
-              updateCoords({ lat: latitude, lng: longitude });
-
-              // 50 metreden az hareket ettiyse backend'e PATCH atma
-              const prev = prevGpsRef.current;
-              if (prev && haversineKm(prev.lat, prev.lng, latitude, longitude) < 0.05) return;
-              prevGpsRef.current = { lat: latitude, lng: longitude };
-
-              const response = await axios.get(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
-              if (response.data && response.data.address) {
-                const address = response.data.address;
-                const locationName = address.district || address.city || address.town || address.state;
-                if (locationName && locationName !== prevLocationNameRef.current) {
-                  prevLocationNameRef.current = locationName;
-                  await api.patch('/users/me', { location: locationName });
-                }
-              }
-            } catch {
-              // Sessizce geç
-            }
-          }
-        );
-        setWatchId(currentWatchId);
-      } catch {
-        // Konum izni yoksa sessizce geç
+    // Uygulama arka plana alınınca interval dur, ön plana gelince yeniden başla
+    CapApp.addListener('appStateChange', (state) => {
+      if (state.isActive) {
+        startLocationTracking();
+      } else {
+        stopLocationTracking();
       }
-    };
+    }).then(h => { stateListener = h; });
 
     initServices();
 
     return () => {
       clearTimeout(initTimer);
       clearTimeout(watchTimer);
-      if (currentWatchId) {
-        Geolocation.clearWatch({ id: currentWatchId });
-      }
+      stopLocationTracking();
+      if (stateListener) stateListener.remove();
     };
   }, [isAuthPage]);
 
