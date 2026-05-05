@@ -35,6 +35,10 @@ export class BusinessOwnerService {
         await this.businessOwnerRepository.update(id, { pushToken });
     }
 
+    async updatePassword(id: string, passwordHash: string): Promise<void> {
+        await this.businessOwnerRepository.update(id, { password: passwordHash });
+    }
+
     async findByEmail(email: string): Promise<BusinessOwner | null> {
         return this.businessOwnerRepository.findOne({ where: { email }, relations: ['business'] });
     }

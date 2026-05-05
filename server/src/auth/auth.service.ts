@@ -292,6 +292,110 @@ export class AuthService {
         await this.otpRepository.delete({ phone, purpose: 'password_reset' });
     }
 
+    // ─── İşletme Şifremi Unuttum Akışı ──────────────────────────────────────────
+
+    private maskPhone(phone: string): string {
+        if (!phone || phone.length < 10) return phone;
+        // Örn: 905321234567 -> +90 53* *** ** 67
+        const lastTwo = phone.slice(-2);
+        const prefix = phone.startsWith('90') ? '+90 ' + phone.slice(2, 4) : phone.slice(0, 3);
+        return `${prefix}* *** ** ${lastTwo}`;
+    }
+
+    async sendBusinessPasswordResetOtp(email: string): Promise<{ maskedPhone: string }> {
+        const owner = await this.businessOwnerService.findByEmail(email);
+        if (!owner) {
+            throw new NotFoundException('Bu e-posta adresiyle kayıtlı işletme bulunamadı.');
+        }
+
+        if (!owner.phone) {
+            throw new BadRequestException('Bu işletme hesabına tanımlı bir telefon numarası bulunmamaktadır. Lütfen sistem yöneticisiyle iletişime geçin.');
+        }
+
+        const phone = this.normalizePhone(owner.phone);
+
+        // Saatte maksimum 3 OTP isteği
+        await this.checkRateLimit(phone, 'business_password_reset');
+
+        // Önceki bekleyen şifre sıfırlama kodlarını sil
+        await this.otpRepository.delete({ phone, verified: false, purpose: 'business_password_reset' });
+
+        const code = this.generateOtpCode();
+        const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 dakika
+
+        const otp = this.otpRepository.create({
+            phone,
+            code,
+            verified: false,
+            expiresAt,
+            purpose: 'business_password_reset',
+            attempts: 0,
+        });
+        await this.otpRepository.save(otp);
+
+        await this.smsService.sendSms(phone, `Dimli İşletme Paneli şifre sıfırlama kodunuz: ${code}`);
+
+        return { maskedPhone: this.maskPhone(phone) };
+    }
+
+    async verifyBusinessPasswordResetOtp(email: string, code: string): Promise<void> {
+        const owner = await this.businessOwnerService.findByEmail(email);
+        if (!owner || !owner.phone) {
+            throw new BadRequestException('İşletme veya telefon numarası bulunamadı.');
+        }
+
+        const phone = this.normalizePhone(owner.phone);
+
+        const otp = await this.otpRepository.findOne({
+            where: { phone, verified: false, purpose: 'business_password_reset' },
+        });
+
+        if (!otp) {
+            throw new BadRequestException('Geçersiz doğrulama kodu.');
+        }
+
+        // Deneme sınırı kontrolü
+        otp.attempts += 1;
+        if (otp.attempts >= 5) {
+            await this.otpRepository.delete({ id: otp.id });
+            throw new BadRequestException('Çok fazla yanlış deneme. Lütfen yeni kod isteyin.');
+        }
+
+        if (otp.code !== code) {
+            await this.otpRepository.save(otp);
+            throw new BadRequestException('Geçersiz doğrulama kodu.');
+        }
+
+        if (new Date() > otp.expiresAt) {
+            await this.otpRepository.delete({ id: otp.id });
+            throw new BadRequestException('Doğrulama kodunun süresi dolmuş. Lütfen yeni kod isteyin.');
+        }
+
+        otp.verified = true;
+        await this.otpRepository.save(otp);
+    }
+
+    async resetBusinessPassword(email: string, newPassword: string): Promise<void> {
+        const owner = await this.businessOwnerService.findByEmail(email);
+        if (!owner || !owner.phone) {
+            throw new NotFoundException('İşletme bulunamadı.');
+        }
+
+        const phone = this.normalizePhone(owner.phone);
+
+        const otp = await this.otpRepository.findOne({
+            where: { phone, verified: true, purpose: 'business_password_reset' },
+        });
+
+        if (!otp || new Date() > otp.expiresAt) {
+            throw new BadRequestException('Doğrulama süresi dolmuş. Lütfen tekrar deneyin.');
+        }
+
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        await this.businessOwnerService.updatePassword(owner.id, hashedPassword);
+        await this.otpRepository.delete({ phone, purpose: 'business_password_reset' });
+    }
+
     // ─── Mevcut Auth Metodları ───────────────────────────────────────────────────
 
     async validateUser(username: string, pass: string): Promise<any> {

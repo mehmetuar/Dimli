@@ -3,11 +3,13 @@ import { useNavigate, Link } from 'react-router-dom';
 import api from '../../../services/api';
 import { Briefcase } from 'lucide-react';
 import { initializePushNotifications } from '../../../services/pushNotificationService';
+import { BusinessForgotPasswordModal } from './BusinessForgotPasswordModal';
 
 export const BusinessLogin: React.FC = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+    const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
     const navigate = useNavigate();
 
     const handleLogin = async (e: React.FormEvent) => {
@@ -56,7 +58,16 @@ export const BusinessLogin: React.FC = () => {
                         />
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Şifre</label>
+                        <div className="flex justify-between items-center mb-1">
+                            <label className="block text-xs font-bold text-slate-400 uppercase">Şifre</label>
+                            <button
+                                type="button"
+                                onClick={() => setIsForgotModalOpen(true)}
+                                className="text-orange-500 text-sm font-bold hover:underline focus:outline-none"
+                            >
+                                Şifremi Unuttum
+                            </button>
+                        </div>
                         <input
                             type="password"
                             value={password}
@@ -91,6 +102,11 @@ export const BusinessLogin: React.FC = () => {
                     </Link>
                 </div>
             </div>
+
+            <BusinessForgotPasswordModal 
+                isOpen={isForgotModalOpen} 
+                onClose={() => setIsForgotModalOpen(false)} 
+            />
         </div>
     );
 };

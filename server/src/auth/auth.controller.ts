@@ -80,6 +80,24 @@ export class AuthController {
 
     // ─── Business Auth ───────────────────────────────────────────────────────────
 
+    @Post('business/forgot-password/send-otp')
+    async businessForgotPasswordSendOtp(@Body() body: { email: string }) {
+        const result = await this.authService.sendBusinessPasswordResetOtp(body.email);
+        return { success: true, maskedPhone: result.maskedPhone };
+    }
+
+    @Post('business/forgot-password/verify-otp')
+    async businessForgotPasswordVerifyOtp(@Body() body: { email: string; code: string }) {
+        await this.authService.verifyBusinessPasswordResetOtp(body.email, body.code);
+        return { verified: true };
+    }
+
+    @Post('business/forgot-password/reset')
+    async businessResetPassword(@Body() body: { email: string; newPassword: string }) {
+        await this.authService.resetBusinessPassword(body.email, body.newPassword);
+        return { success: true };
+    }
+
     @Post('business/send-otp')
     async businessSendOtp(@Body() body: { phone: string }) {
         await this.authService.sendBusinessOwnerOtp(body.phone);
