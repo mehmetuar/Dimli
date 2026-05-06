@@ -72,7 +72,8 @@ export class BusinessOwnerController {
 
     @UseGuards(JwtAuthGuard)
     @Delete('account')
-    deleteAccount(@Request() req: any) {
-        return this.businessOwnerService.deleteAccount(req.user.id);
+    async deleteAccount(@Request() req: any, @Body('password') password: string) {
+        if (!password) throw new BadRequestException('Şifre doğrulaması gereklidir.');
+        return this.businessOwnerService.deleteAccount(req.user.id, password);
     }
 }

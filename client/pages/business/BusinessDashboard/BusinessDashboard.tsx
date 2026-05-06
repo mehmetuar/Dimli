@@ -56,13 +56,6 @@ export const BusinessDashboard: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-slate-800 text-white pb-24">
-            {/* Warning Banner for Inactive Subscription */}
-            {!hasActiveSubscription && (
-                <div className="bg-red-500 text-white p-4 text-center font-bold text-sm shadow-md">
-                    Aktif bir aboneliğiniz bulunmamaktadır. Saha ve rezervasyon işlemlerine devam edebilmek için <button onClick={() => navigate('/business/settings/subscription')} className="underline">Plan Satın Alınız</button>.
-                </div>
-            )}
-
             {/* Header */}
             <DashboardHeader
                 businessName={dashboardData.businessName}
@@ -80,8 +73,26 @@ export const BusinessDashboard: React.FC = () => {
                     setSelectedSlot={setSelectedSlot}
                 />
             ) : (
-                <div className="flex items-center justify-center h-64 text-slate-400 font-medium px-6 text-center">
-                    Aboneliğiniz olmadığı için sahalarınız liste dışıdır ve işlem yapılamaz. Lütfen ayarlar sekmesinden bir plan satın alın.
+                <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
+                    <div className="w-20 h-20 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center mb-6">
+                        <svg className="w-10 h-10 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                        </svg>
+                    </div>
+                    <h2 className="text-xl font-bold text-white mb-3">Abonelik Gerekli</h2>
+                    <p className="text-slate-400 text-sm leading-relaxed mb-8 max-w-xs">
+                        Sahalarınızı yayına almak ve rezervasyon almak için aktif bir aboneliğe ihtiyacınız var.
+                    </p>
+                    <button
+                        onClick={() => navigate('/business/settings/subscription')}
+                        className="bg-orange-500 hover:bg-orange-600 active:scale-95 text-white font-bold px-8 py-4 rounded-2xl transition-all shadow-lg shadow-orange-500/25 flex items-center gap-2"
+                    >
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" />
+                        </svg>
+                        Plan Seç ve Başla
+                    </button>
+                    <p className="text-slate-500 text-xs mt-4">90 gün ücretsiz deneme süresi</p>
                 </div>
             )}
 

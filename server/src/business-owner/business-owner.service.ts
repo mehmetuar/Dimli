@@ -351,13 +351,15 @@ export class BusinessOwnerService {
         };
     }
 
-    async deleteAccount(ownerId: string): Promise<{ success: boolean; message?: string }> {
+    async deleteAccount(ownerId: string, password: string): Promise<{ success: boolean; message?: string }> {
         const owner = await this.businessOwnerRepository.findOne({
             where: { id: ownerId },
             relations: ['business', 'business.pitches'],
         });
 
         if (!owner) throw new NotFoundException('İşletme sahibi bulunamadı');
+        const isMatch = await bcrypt.compare(password, owner.password);
+        if (!isMatch) throw new BadRequestException('Şifre yanlış. Lütfen tekrar deneyin.');
 
         const now = new Date();
         
