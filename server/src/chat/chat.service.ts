@@ -1245,4 +1245,24 @@ export class ChatService {
             this.gateway?.server?.to(userId).emit('channelCreated', { channelId: channel.id });
         }
     }
+
+    async removeUserFromTeamActiveMatchChannels(userId: string, teamId: string): Promise<void> {
+        const today = new Date().toISOString().split('T')[0];
+        const activeMatches = await this.matchAnnouncementRepository.find({
+            where: { teamId, status: In(['PENDING', 'CONFIRMED']) },
+        });
+        const upcomingMatches = activeMatches.filter(m => m.date >= today);
+        if (upcomingMatches.length === 0) return;
+
+        for (const match of upcomingMatches) {
+            const channel = await this.chatChannelRepository.findOne({
+                where: { relatedMatchId: match.id },
+            });
+            if (!channel) continue;
+
+            await this.chatParticipantRepository.delete({ channelId: channel.id, userId });
+
+            this.gateway?.server?.to(userId).emit('channelRemoved', { channelId: channel.id });
+        }
+    }
 }

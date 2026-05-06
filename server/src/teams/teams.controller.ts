@@ -1,10 +1,14 @@
 import { Controller, Get, Post, Body, Param, UseGuards, Request, Delete, Patch, HttpException, HttpStatus } from '@nestjs/common';
 import { TeamsService } from './teams.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { ChatService } from '../chat/chat.service';
 
 @Controller('teams')
 export class TeamsController {
-    constructor(private readonly teamsService: TeamsService) { }
+    constructor(
+        private readonly teamsService: TeamsService,
+        private readonly chatService: ChatService,
+    ) { }
 
     @UseGuards(JwtAuthGuard)
     @Post()
@@ -45,8 +49,10 @@ export class TeamsController {
 
     @UseGuards(JwtAuthGuard)
     @Delete(':id/players/:playerId')
-    removePlayer(@Param('id') id: string, @Param('playerId') playerId: string) {
-        return this.teamsService.removePlayer(id, playerId);
+    async removePlayer(@Param('id') id: string, @Param('playerId') playerId: string) {
+        const result = await this.teamsService.removePlayer(id, playerId);
+        await this.chatService.removeUserFromTeamActiveMatchChannels(playerId, id);
+        return result;
     }
 
     @UseGuards(JwtAuthGuard)
@@ -106,8 +112,10 @@ export class TeamsController {
 
     @UseGuards(JwtAuthGuard)
     @Delete(':id/leave')
-    leaveTeam(@Param('id') id: string, @Request() req) {
-        return this.teamsService.leaveTeam(id, req.user.id);
+    async leaveTeam(@Param('id') id: string, @Request() req: any) {
+        const result = await this.teamsService.leaveTeam(id, req.user.id);
+        await this.chatService.removeUserFromTeamActiveMatchChannels(req.user.id, id);
+        return result;
     }
 
     @UseGuards(JwtAuthGuard)
