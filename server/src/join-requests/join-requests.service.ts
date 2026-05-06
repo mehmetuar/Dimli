@@ -70,4 +70,17 @@ export class JoinRequestsService {
         await this.joinRequestsRepository.update(id, { status });
         return this.findById(id);
     }
+
+    async cancelAllPendingExcept(userId: string, exceptId: string): Promise<void> {
+        await this.joinRequestsRepository
+            .createQueryBuilder()
+            .update()
+            .set({ status: 'CANCELLED' })
+            .where('userId = :userId AND status = :status AND id != :exceptId', {
+                userId,
+                status: 'PENDING',
+                exceptId,
+            })
+            .execute();
+    }
 }

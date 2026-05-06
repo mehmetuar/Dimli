@@ -1220,12 +1220,17 @@ export class ChatService {
     }
 
     async addUserToTeamActiveMatchChannels(userId: string, teamId: string): Promise<void> {
-        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        const nowTurkey = new Date(Date.now() + 3 * 60 * 60 * 1000);
+        const todayTurkey = nowTurkey.toISOString().split('T')[0];
+        const timeTurkey = nowTurkey.toISOString().split('T')[1].slice(0, 5);
         const activeMatches = await this.matchAnnouncementRepository.find({
             where: { teamId, status: In(['PENDING', 'CONFIRMED']) },
         });
-        // Tarihi geçmiş maçları (oynanmış) dışarıda bırak
-        const upcomingMatches = activeMatches.filter(m => m.date >= today);
+        const upcomingMatches = activeMatches.filter(m => {
+            if (m.date > todayTurkey) return true;
+            if (m.date === todayTurkey) return m.time > timeTurkey;
+            return false;
+        });
         if (upcomingMatches.length === 0) return;
 
         for (const match of upcomingMatches) {
@@ -1247,11 +1252,17 @@ export class ChatService {
     }
 
     async removeUserFromTeamActiveMatchChannels(userId: string, teamId: string): Promise<void> {
-        const today = new Date().toISOString().split('T')[0];
+        const nowTurkey = new Date(Date.now() + 3 * 60 * 60 * 1000);
+        const todayTurkey = nowTurkey.toISOString().split('T')[0];
+        const timeTurkey = nowTurkey.toISOString().split('T')[1].slice(0, 5);
         const activeMatches = await this.matchAnnouncementRepository.find({
             where: { teamId, status: In(['PENDING', 'CONFIRMED']) },
         });
-        const upcomingMatches = activeMatches.filter(m => m.date >= today);
+        const upcomingMatches = activeMatches.filter(m => {
+            if (m.date > todayTurkey) return true;
+            if (m.date === todayTurkey) return m.time > timeTurkey;
+            return false;
+        });
         if (upcomingMatches.length === 0) return;
 
         for (const match of upcomingMatches) {

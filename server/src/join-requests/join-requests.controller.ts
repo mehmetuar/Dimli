@@ -36,6 +36,7 @@ export class JoinRequestsController {
         const joinRequest = await this.joinRequestsService.findById(id);
         await this.teamsService.addPlayer(joinRequest.teamId, joinRequest.userId);
         await this.chatService.addUserToTeamActiveMatchChannels(joinRequest.userId, joinRequest.teamId);
+        await this.joinRequestsService.cancelAllPendingExcept(joinRequest.userId, id);
         return this.joinRequestsService.updateStatus(id, 'ACCEPTED');
     }
 
