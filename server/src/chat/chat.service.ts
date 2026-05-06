@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException, ForbiddenException, NotFoundException, Logger, Inject, Optional, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, IsNull } from 'typeorm';
+import { Repository, IsNull, In } from 'typeorm';
 import { ChatChannel } from './chat-channel.entity';
 import { ChatMessage } from './chat-message.entity';
 import { ChatParticipant } from './chat-participant.entity';
@@ -1217,5 +1217,29 @@ export class ChatService {
         }
 
         return { success: true };
+    }
+
+    async addUserToTeamActiveMatchChannels(userId: string, teamId: string): Promise<void> {
+        const activeMatches = await this.matchAnnouncementRepository.find({
+            where: { teamId, status: In(['PENDING', 'CONFIRMED']) },
+        });
+        if (activeMatches.length === 0) return;
+
+        for (const match of activeMatches) {
+            const channel = await this.chatChannelRepository.findOne({
+                where: { relatedMatchId: match.id },
+            });
+            if (!channel) continue;
+
+            const existing = await this.chatParticipantRepository.findOne({
+                where: { channelId: channel.id, userId },
+            });
+            if (existing) continue;
+
+            const participant = this.chatParticipantRepository.create({ channelId: channel.id, userId });
+            await this.chatParticipantRepository.save(participant);
+
+            this.gateway?.server?.to(userId).emit('channelCreated', { channelId: channel.id });
+        }
     }
 }

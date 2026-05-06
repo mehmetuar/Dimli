@@ -2,12 +2,14 @@ import { Controller, Post, Get, Patch, Param, Body, UseGuards, Request, HttpCode
 import { JoinRequestsService } from './join-requests.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { TeamsService } from '../teams/teams.service';
+import { ChatService } from '../chat/chat.service';
 
 @Controller('join-requests')
 export class JoinRequestsController {
     constructor(
         private readonly joinRequestsService: JoinRequestsService,
         private readonly teamsService: TeamsService,
+        private readonly chatService: ChatService,
     ) { }
 
     @UseGuards(JwtAuthGuard)
@@ -31,13 +33,9 @@ export class JoinRequestsController {
     @UseGuards(JwtAuthGuard)
     @Patch(':id/accept')
     async accept(@Param('id') id: string, @Request() req) {
-        // Get join request
         const joinRequest = await this.joinRequestsService.findById(id);
-
-        // Add user to team
         await this.teamsService.addPlayer(joinRequest.teamId, joinRequest.userId);
-
-        // Update status
+        await this.chatService.addUserToTeamActiveMatchChannels(joinRequest.userId, joinRequest.teamId);
         return this.joinRequestsService.updateStatus(id, 'ACCEPTED');
     }
 
