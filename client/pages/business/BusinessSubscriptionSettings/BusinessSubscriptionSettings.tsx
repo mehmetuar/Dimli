@@ -7,7 +7,7 @@ import {
 import { Capacitor } from '@capacitor/core';
 import { BusinessNavbar } from '../../../components/Business/BusinessNavbar';
 import api from '../../../services/api';
-import { purchasePlan } from '../../../services/revenuecatService';
+import { purchasePlan, linkRevenueCatUser } from '../../../services/revenuecatService';
 import { SUBSCRIPTION_PLANS } from '../BusinessRegister/hooks/useBusinessRegister';
 
 /* ─── helpers ─── */
@@ -254,11 +254,17 @@ export const BusinessSubscriptionSettings: React.FC = () => {
         setShowPlanPicker(false);
         setPurchaseLoading(true);
         try {
-            const rcId = await purchasePlan(planType);
-            if (rcId) {
-                showToast('Aboneliğiniz başarıyla güncellendi.', 'success');
-                await fetchSubscription();
-            }
+            const rcCustomerId = await purchasePlan(planType);
+            const ownerId = localStorage.getItem('ownerId') ?? '';
+
+            // Webhook'tan bağımsız garantili backend güncelleme
+            await api.post('/subscription/confirm-purchase', { ownerId, planType, rcCustomerId });
+
+            // RC anonim kullanıcıyı gerçek ownerId ile eşle — gelecek webhook olayları eşleşsin
+            await linkRevenueCatUser(ownerId);
+
+            showToast('Aboneliğiniz başarıyla güncellendi.', 'success');
+            await fetchSubscription();
         } catch (err: any) {
             showToast(err?.message || 'Satın alma işlemi başarısız oldu.', 'error');
         } finally {

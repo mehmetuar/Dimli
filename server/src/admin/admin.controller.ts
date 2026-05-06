@@ -119,4 +119,21 @@ export class AdminController {
     ) {
         return this.adminService.rejectChangeRequest(id, body.reason);
     }
+
+    // ─── Maintenance ──────────────────────────────────────────────────────────
+
+    /**
+     * Aboneliği olmayan veya yanlış planla eşleşmiş işletmeleri otomatik düzeltir.
+     * POST /admin/maintenance/seed-subscriptions
+     * Body: { secret: "ADMIN_SEED_SECRET" }  (ek güvenlik katmanı)
+     */
+    @Post('maintenance/seed-subscriptions')
+    async seedSubscriptions(@Body('secret') secret: string) {
+        const expected = process.env.ADMIN_SEED_SECRET || 'dimli-seed-2026';
+        if (secret !== expected) {
+            return { success: false, message: 'Geçersiz secret.' };
+        }
+        const result = await this.adminService.seedMissingSubscriptions();
+        return { success: true, ...result };
+    }
 }

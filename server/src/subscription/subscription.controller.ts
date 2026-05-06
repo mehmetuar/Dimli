@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Headers, UnauthorizedException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Headers, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { SubscriptionService } from './subscription.service';
 
 @Controller('subscription')
@@ -13,6 +13,15 @@ export class SubscriptionController {
     @Get('owner/:ownerId')
     findByOwner(@Param('ownerId') ownerId: string) {
         return this.subscriptionService.findByOwner(ownerId);
+    }
+
+    // Satın alma başarısız olduğunda veya RC webhook'u gelmediğinde frontend tarafından çağrılır
+    @Post('confirm-purchase')
+    async confirmPurchase(
+        @Body() body: { ownerId: string; planType: string; rcCustomerId: string },
+    ) {
+        if (!body.ownerId || !body.planType) throw new BadRequestException('ownerId ve planType zorunludur.');
+        return this.subscriptionService.confirmPurchase(body.ownerId, body.planType, body.rcCustomerId ?? '');
     }
 
     // RevenueCat webhook — abonelik durumu değişikliklerini dinler

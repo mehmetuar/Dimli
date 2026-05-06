@@ -63,6 +63,33 @@ export class SubscriptionService {
         await this.subscriptionRepository.save(subscription);
     }
 
+    async confirmPurchase(
+        ownerId: string,
+        planType: string,
+        rcCustomerId: string,
+    ): Promise<Subscription> {
+        const plan = SUBSCRIPTION_PLANS[planType];
+        if (!plan) throw new NotFoundException('Geçersiz plan tipi.');
+
+        let subscription = await this.findByOwner(ownerId);
+        if (!subscription) {
+            // Henüz abonelik yoksa oluştur
+            subscription = this.subscriptionRepository.create({ ownerId });
+        }
+
+        const trialEndsAt = new Date();
+        trialEndsAt.setDate(trialEndsAt.getDate() + 90);
+
+        subscription.planType = planType;
+        subscription.pitchCount = plan.pitchCount;
+        subscription.pricePerMonth = plan.pricePerMonth;
+        subscription.revenuecatCustomerId = rcCustomerId;
+        subscription.status = SubscriptionStatus.ACTIVE;
+        if (!subscription.trialEndsAt) subscription.trialEndsAt = trialEndsAt;
+
+        return this.subscriptionRepository.save(subscription);
+    }
+
     async handleWebhook(event: any): Promise<void> {
         const { type, app_user_id } = event;
 

@@ -26,8 +26,18 @@ export const useBusinessPitchList = () => {
                 api.get(`/subscription/owner/${ownerId}`).catch(() => ({ data: null })),
             ]);
 
-            setPitches(pitchesResponse.data);
-            setSubscription(subscriptionResponse.data);
+            const sub = subscriptionResponse.data ?? null;
+            const hasActiveSub = sub && ['active', 'trial'].includes(sub.status);
+
+            // Abonelik yoksa veya süresi dolmuşsa saha göstermiyoruz
+            // Aktif abonelikte pitchCount kadar saha gösterilir (planın saha limiti)
+            const allPitches: any[] = pitchesResponse.data ?? [];
+            const visiblePitches = hasActiveSub
+                ? allPitches.slice(0, sub.pitchCount)
+                : [];
+
+            setPitches(visiblePitches);
+            setSubscription(sub);
             setLoading(false);
         } catch (error) {
             console.error('Error fetching pitches:', error);
