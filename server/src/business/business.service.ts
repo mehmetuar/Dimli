@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Business } from './entities/business.entity';
+import { SubscriptionService } from '../subscription/subscription.service';
 
 interface GeoFilter {
     lat: number;
@@ -14,6 +15,7 @@ export class BusinessService {
     constructor(
         @InjectRepository(Business)
         private businessRepository: Repository<Business>,
+        private subscriptionService: SubscriptionService,
     ) { }
 
     private mapWithOwnerPhone(b: Business & { distanceKm?: number }): any {
@@ -93,6 +95,10 @@ export class BusinessService {
         });
         if (!business) {
             throw new NotFoundException(`Business with ID ${id} not found`);
+        }
+        const subscription = await this.subscriptionService.findByOwner(business.owner.id);
+        if (!subscription || !['active', 'trial'].includes(subscription.status)) {
+            throw new ForbiddenException('Bu işletmenin aboneliği aktif değil.');
         }
         return this.mapWithOwnerPhone(business);
     }

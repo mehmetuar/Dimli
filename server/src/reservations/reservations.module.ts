@@ -5,6 +5,7 @@ import { ReservationsController } from './reservations.controller';
 import { Reservation } from './entities/reservation.entity';
 import { ChatModule } from '../chat/chat.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { SubscriptionModule } from '../subscription/subscription.module';
 import { ChatChannel } from '../chat/chat-channel.entity';
 import { ChatParticipant } from '../chat/chat-participant.entity';
 import { Pitch } from '../pitches/entities/pitch.entity';
@@ -16,7 +17,8 @@ import { User } from '../users/user.entity';
     imports: [
         TypeOrmModule.forFeature([Reservation, ChatChannel, ChatParticipant, Pitch, BusinessOwner, MatchAnnouncement, User]),
         ChatModule,
-        NotificationsModule
+        NotificationsModule,
+        SubscriptionModule,
     ],
     controllers: [ReservationsController],
     providers: [ReservationsService],

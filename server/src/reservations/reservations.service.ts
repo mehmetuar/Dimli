@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository, In, LessThan, MoreThan, Between, MoreThanOrEqual, Not, Equal, IsNull } from 'typeorm';
 import { Reservation, ReservationStatus } from './entities/reservation.entity';
@@ -12,6 +12,7 @@ import { Pitch } from '../pitches/entities/pitch.entity';
 import { BusinessOwner } from '../business-owner/entities/business-owner.entity';
 import { MatchAnnouncement } from '../match-announcements/match-announcement.entity';
 import { User } from '../users/user.entity';
+import { SubscriptionService } from '../subscription/subscription.service';
 
 @Injectable()
 export class ReservationsService {
@@ -32,7 +33,8 @@ export class ReservationsService {
         private notificationsService: NotificationsService,
         @InjectRepository(ChatChannel)
         private chatChannelRepository: Repository<ChatChannel>,
-        private dataSource: DataSource
+        private dataSource: DataSource,
+        private subscriptionService: SubscriptionService,
     ) { }
 
     // ... existing methods ...
@@ -235,6 +237,17 @@ export class ReservationsService {
     }
 
     async create(createReservationDto: any) {
+        const pitch = await this.pitchRepository.findOne({
+            where: { id: createReservationDto.pitchId },
+            relations: ['business', 'business.owner'],
+        });
+        if (pitch?.business?.owner?.id) {
+            const subscription = await this.subscriptionService.findByOwner(pitch.business.owner.id);
+            if (!subscription || !['active', 'trial'].includes(subscription.status)) {
+                throw new ForbiddenException('Bu işletmenin aboneliği aktif değil, rezervasyon yapılamaz.');
+            }
+        }
+
         const reservation = this.reservationRepository.create(createReservationDto);
         const savedReservation = await this.reservationRepository.save(reservation) as unknown as Reservation;
 
