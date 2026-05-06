@@ -7,8 +7,18 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    overscroll-behavior: none;
+    height: 100%;
+  }
   body {
     @apply bg-slate-900 text-slate-100;
+    overscroll-behavior: none;
+    height: 100%;
+  }
+  #root {
+    height: 100%;
+    overscroll-behavior: none;
   }
 }
 

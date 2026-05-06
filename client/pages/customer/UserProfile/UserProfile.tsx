@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { LoadingSpinner } from '../../../components/UI/LoadingSpinner';
 
 // Hooks
@@ -11,7 +11,6 @@ import { ProfileSettingsMenu } from './components/ProfileSettingsMenu';
 import { LocationPermissionSheet } from '../../../components/LocationPermissionSheet';
 
 export const UserProfile: React.FC = () => {
-    const navigate = useNavigate();
     const {
         currentUser,
         isLoading,
@@ -30,17 +29,7 @@ export const UserProfile: React.FC = () => {
     }
 
     if (!currentUser) {
-        return (
-            <div className="min-h-screen bg-pitch flex flex-col items-center justify-center text-white gap-4">
-                <p>Kullanıcı bulunamadı. Lütfen giriş yapın.</p>
-                <button
-                    onClick={() => navigate('/login')}
-                    className="px-6 py-3 bg-turf-600 text-white font-bold rounded-xl hover:bg-turf-500 transition-colors"
-                >
-                    Giriş Yap
-                </button>
-            </div>
-        );
+        return <Navigate to="/login" replace />;
     }
 
     return (

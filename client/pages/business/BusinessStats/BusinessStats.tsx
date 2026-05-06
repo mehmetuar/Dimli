@@ -1,5 +1,5 @@
 import React from 'react';
-import { Star, TrendingUp, Calendar, RotateCw, Lock } from 'lucide-react';
+import { Star, TrendingUp, RotateCw, Lock, Trophy, Zap, Calendar } from 'lucide-react';
 import { BusinessNavbar } from '../../../components/Business/BusinessNavbar';
 import { BusinessLoadingSpinner } from '../../../components/Business/BusinessLoadingSpinner';
 import { useBusinessStats, PitchStats } from './hooks/useBusinessStats';
@@ -11,67 +11,60 @@ const formatCurrency = (amount: number): string => {
 const StatCell: React.FC<{ label: string; value: string; sub?: string; accent?: boolean }> = ({
     label, value, sub, accent
 }) => (
-    <div className="flex flex-col items-center justify-center py-3 px-1 min-w-0">
-        <span className="text-[clamp(8px,2.2vw,10px)] font-bold uppercase tracking-widest text-blue-300/50 mb-1 !whitespace-nowrap overflow-hidden text-ellipsis w-full text-center">{label}</span>
-        <span className={`text-[clamp(14px,4vw,18px)] font-black leading-none !whitespace-nowrap overflow-hidden text-ellipsis ${accent ? 'text-green-600' : 'text-white'}`}>{value}</span>
-        {sub && <span className="text-[clamp(8px,2.2vw,10px)] text-slate-500 mt-1 font-medium !whitespace-nowrap overflow-hidden text-ellipsis">{sub}</span>}
+    <div className="flex flex-col items-center justify-center py-4 px-2 min-w-0">
+        <span className="text-[clamp(9px,2.4vw,11px)] font-bold uppercase tracking-widest text-slate-400 mb-1.5 whitespace-nowrap">{label}</span>
+        <span className={`text-[clamp(16px,4.5vw,22px)] font-black leading-none whitespace-nowrap ${accent ? 'text-emerald-400' : 'text-white'}`}>
+            {value}
+        </span>
+        {sub && <span className="text-[clamp(9px,2.2vw,10px)] text-slate-500 mt-1 font-medium whitespace-nowrap">{sub}</span>}
     </div>
 );
 
 const PitchCard: React.FC<{ pitch: PitchStats }> = ({ pitch }) => (
-    <div className="bg-[#0e1e3a] rounded-2xl border border-blue-900/40 overflow-hidden">
-        {/* Pitch header */}
-        <div className="flex items-center justify-between px-4 py-3 bg-[#0a1628] border-b border-blue-900/40">
-            <div className="flex items-center gap-2">
-                <div className="w-1 h-5 bg-blue-500 rounded-full" />
-                <span className="font-black italic uppercase tracking-tight text-white text-sm">
+    <div className="bg-slate-800/70 rounded-2xl border border-slate-700/60 overflow-hidden shadow-lg">
+        <div className="flex items-center justify-between px-4 py-3.5 bg-slate-900/60 border-b border-slate-700/50">
+            <div className="flex items-center gap-2.5">
+                <div className="w-1 h-6 bg-orange-500 rounded-full" />
+                <span className="font-black italic uppercase tracking-tight text-white text-[clamp(12px,3.5vw,15px)]">
                     {pitch.pitchName}
                 </span>
             </div>
-            <span className="text-xs font-black text-indigo-300 italic">
-                {formatCurrency(pitch.pricePerHour)}/saat
-            </span>
+            <div className="flex items-center gap-1.5 bg-orange-500/10 px-2.5 py-1 rounded-full border border-orange-500/20">
+                <Zap className="w-3 h-3 text-orange-400" />
+                <span className="text-[clamp(10px,2.8vw,12px)] font-black text-orange-400 italic">
+                    {formatCurrency(pitch.pricePerHour)}/sa
+                </span>
+            </div>
         </div>
 
-        {/* Stats grid: 2 columns (Bugün | Bu Ay) */}
-        <div className="grid grid-cols-2 divide-x divide-blue-900/40">
-            {/* Bugün */}
+        <div className="grid grid-cols-2 divide-x divide-slate-700/50">
             <div className="flex flex-col">
-                <div className="text-center py-2 bg-blue-950/30 border-b border-blue-900/30">
-                    <span className="text-xs font-black uppercase tracking-widest text-slate-100">
+                <div className="text-center py-2.5 bg-slate-900/30 border-b border-slate-700/40">
+                    <span className="text-[clamp(9px,2.5vw,11px)] font-black uppercase tracking-widest text-slate-300">
                         Bugün
                     </span>
                 </div>
                 <StatCell label="Maç" value={String(pitch.today.confirmedCount)} />
-                <div className="border-t border-blue-900/30">
+                <div className="border-t border-slate-700/40 bg-emerald-950/10">
                     <StatCell label="Kazanç" value={formatCurrency(pitch.today.earnings)} accent />
                 </div>
-                <div className="border-t border-blue-900/30">
-                    <StatCell
-                        label="Manuel"
-                        value={String(pitch.today.manualFillCount)}
-                        sub="saha kapalı"
-                    />
+                <div className="border-t border-slate-700/40">
+                    <StatCell label="Manuel" value={String(pitch.today.manualFillCount)} sub="saha kapalı" />
                 </div>
             </div>
 
-            {/* Bu Ay */}
             <div className="flex flex-col">
-                <div className="text-center py-2 bg-blue-950/30 border-b border-blue-900/30">
-                    <span className="text-xs font-black uppercase tracking-widest text-slate-100">
+                <div className="text-center py-2.5 bg-slate-900/30 border-b border-slate-700/40">
+                    <span className="text-[clamp(9px,2.5vw,11px)] font-black uppercase tracking-widest text-slate-300">
                         Bu Ay
                     </span>
                 </div>
                 <StatCell label="Maç" value={String(pitch.thisMonth.confirmedCount)} />
-                <div className="border-t border-blue-900/30">
+                <div className="border-t border-slate-700/40 bg-emerald-950/10">
                     <StatCell label="Kazanç" value={formatCurrency(pitch.thisMonth.earnings)} accent />
                 </div>
-                <div className="border-t border-blue-900/30">
-                    <StatCell
-                        label="Manuel"
-                        value={String(pitch.thisMonth.manualFillCount)}
-                        sub="saha kapalı"
-                    />
+                <div className="border-t border-slate-700/40">
+                    <StatCell label="Manuel" value={String(pitch.thisMonth.manualFillCount)} sub="saha kapalı" />
                 </div>
             </div>
         </div>
@@ -85,11 +78,15 @@ export const BusinessStats: React.FC = () => {
 
     if (error || !stats) {
         return (
-            <div className="min-h-screen bg-gradient-to-b from-[#060e1c] to-[#0a1628] flex flex-col items-center justify-center gap-4 text-white pb-24">
-                <span className="text-slate-400 font-bold text-sm">{error || 'Veri bulunamadı.'}</span>
+            <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 flex flex-col items-center justify-center gap-4 text-white pb-32">
+                <div className="p-4 bg-slate-800/60 rounded-2xl border border-slate-700/60">
+                    <TrendingUp className="w-10 h-10 text-slate-500 mx-auto mb-2" />
+                    <p className="text-slate-400 font-bold text-sm text-center">{error || 'Veri bulunamadı.'}</p>
+                </div>
                 <button
                     onClick={refetch}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-orange-500 rounded-xl font-black uppercase italic text-sm"
+                    className="flex items-center gap-2 px-6 py-3 bg-orange-500 rounded-xl font-black uppercase italic text-sm shadow-lg shadow-orange-500/20 active:scale-95 transition-transform"
+                    style={{ WebkitTapHighlightColor: 'transparent' }}
                 >
                     <RotateCw className="w-4 h-4" /> Tekrar Dene
                 </button>
@@ -98,90 +95,101 @@ export const BusinessStats: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-b from-[#060e1c] to-[#0a1628] text-white pb-28">
+        <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-900 to-slate-800 text-white pb-32">
 
             {/* Header */}
-            <div className="bg-gradient-to-b from-[#0a1628] to-[#0f1e3a] p-4 border-b border-blue-900/60 shadow-xl">
-                <div className="flex justify-between items-center gap-2">
+            <div
+                className="px-4 pt-4 pb-4 border-b border-slate-700/60"
+                style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)' }}
+            >
+                <div className="flex justify-between items-start gap-3">
                     <div className="min-w-0 flex-1">
-                        <h1 className="font-sport font-black text-[clamp(13px,4.2vw,24px)] text-orange-500 italic tracking-tighter uppercase drop-shadow-sm leading-tight break-words">
+                        <div className="flex items-center gap-2 mb-1">
+                            <Trophy className="w-4 h-4 text-orange-500 flex-shrink-0" />
+                            <span className="text-[clamp(9px,2.4vw,11px)] text-orange-500/80 font-black uppercase tracking-[0.2em]">
+                                Özet & İstatistik
+                            </span>
+                        </div>
+                        <h1 className="font-sport font-black text-[clamp(16px,5vw,26px)] text-white italic tracking-tighter uppercase leading-tight break-words">
                             {stats.businessName}
                         </h1>
-                        <div className="text-[clamp(8px,2.2vw,10px)] text-blue-300/60 font-bold uppercase tracking-widest mt-0.5">
-                            Özet & İstatistik
-                        </div>
                     </div>
-                    <div className="shrink-0">
-                        <button
-                            onClick={refetch}
-                            className="p-2.5 bg-blue-900/40 rounded-xl border border-blue-800/50 text-blue-300/60 hover:text-white transition-colors active:scale-95"
-                        >
-                            <RotateCw className="w-4 h-4" />
-                        </button>
-                    </div>
+                    <button
+                        onClick={refetch}
+                        className="flex-shrink-0 p-2.5 bg-slate-700/60 rounded-xl border border-slate-600/50 text-slate-300 active:scale-95 transition-all mt-1"
+                        style={{ WebkitTapHighlightColor: 'transparent' }}
+                    >
+                        <RotateCw className="w-4 h-4" />
+                    </button>
                 </div>
             </div>
 
             <div className="p-4 space-y-4">
 
                 {/* Değerlendirme Kartı */}
-                <div className="bg-[#0e1e3a] rounded-2xl border border-blue-900/40 p-4 flex items-center gap-3 sm:gap-4">
-                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-yellow-400/10 border border-yellow-400/20 flex items-center justify-center shrink-0">
-                        <Star className="w-6 h-6 sm:w-7 sm:h-7 text-yellow-400 fill-yellow-400/20" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <div className="flex items-baseline gap-1">
-                            <span className="text-[clamp(24px,7.5vw,30px)] font-black text-white leading-none">
-                                {stats.rating?.toFixed(1) ?? '—'}
-                            </span>
-                            <span className="text-xs font-bold text-slate-500">/ 5.0</span>
+                <div className="bg-slate-800/70 rounded-2xl border border-slate-700/60 p-4 overflow-hidden shadow-lg">
+                    <div className="flex items-center gap-4">
+                        <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0"
+                            style={{ background: 'linear-gradient(135deg, rgba(234,179,8,0.15) 0%, rgba(234,179,8,0.05) 100%)', border: '1px solid rgba(234,179,8,0.25)' }}>
+                            <Star className="w-7 h-7 text-yellow-400 fill-yellow-400/30" />
                         </div>
-                        <div className="text-[clamp(8px,2.2vw,10px)] text-blue-200/70 font-black uppercase tracking-tight mt-1 !whitespace-nowrap overflow-hidden text-ellipsis">
-                            {stats.ratingCount} değerlendirme
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-baseline gap-1.5 mb-1">
+                                <span className="text-[clamp(26px,8vw,34px)] font-black text-white leading-none">
+                                    {stats.rating?.toFixed(1) ?? '—'}
+                                </span>
+                                <span className="text-sm font-bold text-slate-500">/ 5.0</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <div className="flex">
+                                    {[1, 2, 3, 4, 5].map((s) => (
+                                        <Star
+                                            key={s}
+                                            className={`w-4 h-4 ${s <= Math.round(stats.rating ?? 0) ? 'text-yellow-400 fill-yellow-400' : 'text-slate-700 fill-slate-700'}`}
+                                        />
+                                    ))}
+                                </div>
+                                <span className="text-[clamp(9px,2.5vw,11px)] text-slate-400 font-semibold">
+                                    {stats.ratingCount} değerlendirme
+                                </span>
+                            </div>
                         </div>
-                    </div>
-                    <div className="flex shrink-0">
-                        {[1, 2, 3, 4, 5].map((s) => (
-                            <Star
-                                key={s}
-                                className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${s <= Math.round(stats.rating ?? 0) ? 'text-yellow-400 fill-yellow-500' : 'text-slate-700 fill-slate-700'}`}
-                            />
-                        ))}
                     </div>
                 </div>
 
                 {/* Genel Toplam Kartı */}
-                <div className="bg-[#0e1e3a] rounded-2xl border border-blue-900/40 overflow-hidden">
-                    <div className="flex items-center gap-2 px-4 py-3 bg-green-950/20 border-b border-green-900/10">
-                        <TrendingUp className="w-4 h-4 text-green-600" />
-                        <span className="font-black italic uppercase tracking-tight text-green-600 text-sm">
+                <div className="bg-slate-800/70 rounded-2xl border border-slate-700/60 overflow-hidden shadow-lg">
+                    <div className="flex items-center gap-2.5 px-4 py-3.5 border-b border-slate-700/50"
+                        style={{ background: 'linear-gradient(90deg, rgba(16,185,129,0.08) 0%, transparent 100%)' }}>
+                        <div className="p-1.5 bg-emerald-500/15 rounded-lg">
+                            <TrendingUp className="w-4 h-4 text-emerald-400" />
+                        </div>
+                        <span className="font-black italic uppercase tracking-tight text-emerald-400 text-[clamp(12px,3.5vw,14px)]">
                             Genel Toplam
                         </span>
                     </div>
-                    <div className="grid grid-cols-2 divide-x divide-blue-900/40">
-                        {/* Bugün */}
+                    <div className="grid grid-cols-2 divide-x divide-slate-700/50">
                         <div className="flex flex-col">
-                            <div className="text-center py-2 bg-blue-950/30 border-b border-blue-900/30">
-                                <span className="text-xs font-black uppercase tracking-widest text-slate-100">Bugün</span>
+                            <div className="text-center py-2.5 bg-slate-900/30 border-b border-slate-700/40">
+                                <span className="text-[clamp(9px,2.5vw,11px)] font-black uppercase tracking-widest text-slate-300">Bugün</span>
                             </div>
                             <StatCell label="Maç" value={String(stats.totals.today.confirmedCount)} />
-                            <div className="border-t border-blue-900/30">
+                            <div className="border-t border-slate-700/40 bg-emerald-950/10">
                                 <StatCell label="Kazanç" value={formatCurrency(stats.totals.today.earnings)} accent />
                             </div>
-                            <div className="border-t border-blue-900/30">
+                            <div className="border-t border-slate-700/40">
                                 <StatCell label="Manuel" value={String(stats.totals.today.manualFillCount)} sub="saha kapalı" />
                             </div>
                         </div>
-                        {/* Bu Ay */}
                         <div className="flex flex-col">
-                            <div className="text-center py-2 bg-blue-950/30 border-b border-blue-900/30">
-                                <span className="text-xs font-black uppercase tracking-widest text-slate-100">Bu Ay</span>
+                            <div className="text-center py-2.5 bg-slate-900/30 border-b border-slate-700/40">
+                                <span className="text-[clamp(9px,2.5vw,11px)] font-black uppercase tracking-widest text-slate-300">Bu Ay</span>
                             </div>
                             <StatCell label="Maç" value={String(stats.totals.thisMonth.confirmedCount)} />
-                            <div className="border-t border-blue-900/30">
+                            <div className="border-t border-slate-700/40 bg-emerald-950/10">
                                 <StatCell label="Kazanç" value={formatCurrency(stats.totals.thisMonth.earnings)} accent />
                             </div>
-                            <div className="border-t border-blue-900/30">
+                            <div className="border-t border-slate-700/40">
                                 <StatCell label="Manuel" value={String(stats.totals.thisMonth.manualFillCount)} sub="saha kapalı" />
                             </div>
                         </div>
@@ -191,9 +199,9 @@ export const BusinessStats: React.FC = () => {
                 {/* Saha saha kırılım */}
                 {stats.pitches.length > 0 && (
                     <div className="space-y-3">
-                        <div className="flex items-center gap-2 px-1">
-                            <div className="w-1 h-5 bg-blue-500 rounded-full" />
-                            <span className="text-xs font-black uppercase tracking-widest text-blue-300/60">
+                        <div className="flex items-center gap-2 px-1 pt-1">
+                            <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                            <span className="text-[clamp(9px,2.5vw,11px)] font-black uppercase tracking-widest text-slate-400">
                                 Saha Kırılımı
                             </span>
                         </div>
@@ -204,11 +212,11 @@ export const BusinessStats: React.FC = () => {
                 )}
 
                 {/* Bilgi notu */}
-                <div className="flex items-start gap-3 bg-blue-950/40 border border-blue-900/40 rounded-xl p-3">
-                    <Lock className="w-4 h-4 text-blue-400/60 mt-0.5 shrink-0" />
-                    <p className="text-[11px] text-blue-300/50 leading-relaxed font-medium">
-                        Kazanç hesabı; kesinleşmiş maçlar üzerinden yapılır. İptal edilen maçlar otomatik olarak düşülür.
-                        Manuel kapatmalar (saha kapalı) gelir hesabına dahil edilmez.
+                <div className="flex items-start gap-3 bg-slate-800/40 border border-slate-700/40 rounded-xl p-3.5">
+                    <Lock className="w-4 h-4 text-slate-500 mt-0.5 flex-shrink-0" />
+                    <p className="text-[clamp(10px,2.8vw,12px)] text-slate-400 leading-relaxed font-medium">
+                        Kazanç hesabı kesinleşmiş maçlar üzerinden yapılır. İptal edilen maçlar otomatik düşülür.
+                        Manuel kapatmalar gelir hesabına dahil edilmez.
                     </p>
                 </div>
 

@@ -55,7 +55,7 @@ export const BusinessDashboard: React.FC = () => {
     const hasActiveSubscription = subscription && ['active', 'trial'].includes(subscription.status);
 
     return (
-        <div className="min-h-screen bg-slate-800 text-white pb-24">
+        <div className="min-h-screen bg-slate-900 text-white pb-32">
             {/* Header */}
             <DashboardHeader
                 businessName={dashboardData.businessName}

@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { LoadingSpinner } from '../../../components/UI/LoadingSpinner';
 import { MOCK_JOKERS } from '../../../constants';
 import { Check, X, Shield, Crown, Trash2, ShieldX, ChevronRight, MoreVertical } from 'lucide-react';
@@ -55,17 +55,7 @@ export const MyTeam: React.FC = () => {
     }
 
     if (!currentUser) {
-        return (
-            <div className="min-h-screen bg-pitch flex flex-col items-center justify-center text-white gap-4">
-                <p>Kullanıcı bulunamadı. Lütfen giriş yapın.</p>
-                <button
-                    onClick={() => window.location.href = '/login'}
-                    className="px-6 py-3 bg-turf-600 text-white font-bold rounded-xl hover:bg-turf-500 transition-colors"
-                >
-                    Giriş Yap
-                </button>
-            </div>
-        );
+        return <Navigate to="/login" replace />;
     }
 
     const isCaptain = myTeam ? ((myTeam.captain && (myTeam.captain as any).id === currentUser?.id) || myTeam.captainId === currentUser?.id) : false;

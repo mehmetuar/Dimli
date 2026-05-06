@@ -315,7 +315,7 @@ export const BusinessSubscriptionSettings: React.FC = () => {
 
     /* ── render ── */
     return (
-        <div className="min-h-screen bg-slate-900 text-white pb-28">
+        <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-white pb-32">
             {/* sticky header */}
             <div className="bg-slate-900/95 backdrop-blur-md sticky top-0 z-20 border-b border-slate-800 px-4 py-4 flex items-center gap-3">
                 <button

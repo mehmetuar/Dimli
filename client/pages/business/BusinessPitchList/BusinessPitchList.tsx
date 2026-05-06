@@ -21,7 +21,7 @@ export const BusinessPitchList: React.FC = () => {
     if (loading) return <BusinessLoadingSpinner fullScreen />;
 
     return (
-        <div className="min-h-screen bg-slate-900 text-white pb-24 relative">
+        <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-white pb-32 relative">
             <PitchListHeader
                 navigate={navigate}
                 pitchCount={pitches.length}

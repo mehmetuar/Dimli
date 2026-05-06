@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock, TurkishLira } from 'lucide-react';
+import { Clock, TurkishLira, Settings2 } from 'lucide-react';
 import { BusinessTimePickerModal } from '../../../../components/Modals/BusinessTimePickerModal';
 
 interface PitchGeneralFormProps {
@@ -13,56 +13,76 @@ export const PitchGeneralForm: React.FC<PitchGeneralFormProps> = ({
     formData, isTimePickerOpen, setIsTimePickerOpen, handleChange
 }) => {
     return (
-        <div className="bg-slate-800 p-5 rounded-xl border border-slate-700 space-y-4">
-            <h2 className="text-lg font-bold text-orange-500 mb-4 flex items-center gap-2">
-                <Clock className="w-5 h-5" /> Genel Ayarlar
-            </h2>
+        <div className="bg-slate-800/70 rounded-2xl border border-slate-700/60 overflow-hidden"
+            style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.25)' }}>
 
-            <div>
-                <label className="block text-sm font-bold mb-2 text-slate-300">Saatlik Ücret (TL)</label>
-                <div className="relative">
-                    <TurkishLira className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 w-5 h-5" />
-                    <input
-                        type="number"
-                        value={formData.pricePerHour}
-                        onChange={(e) => handleChange('pricePerHour', e.target.value)}
-                        className="w-full pl-10 p-3 bg-slate-900 border border-slate-700 rounded-lg text-white focus:outline-none focus:border-orange-500"
-                        required
-                    />
+            {/* Section Header */}
+            <div className="px-4 py-3.5 border-b border-slate-700/50"
+                style={{ background: 'linear-gradient(90deg, rgba(249,115,22,0.06) 0%, transparent 100%)' }}>
+                <div className="flex items-center gap-2.5">
+                    <div className="p-1.5 bg-orange-500/15 rounded-lg border border-orange-500/20">
+                        <Settings2 className="w-4 h-4 text-orange-400" />
+                    </div>
+                    <h2 className="text-[clamp(13px,3.8vw,15px)] font-black text-white">Genel Ayarlar</h2>
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="p-4 space-y-4">
+                {/* Fiyat */}
                 <div>
-                    <label className="block text-sm font-bold mb-2 text-slate-300">Açılış Saati</label>
-                    <button type="button"
-                        onClick={() => setIsTimePickerOpen({ open: true, type: 'OPEN' })}
-                        className="w-full p-3 bg-slate-900 border border-slate-700 rounded-lg text-white text-left hover:border-orange-500 transition-all font-mono font-bold"
-                    >
-                        {formData.openTime}
-                    </button>
+                    <label className="block text-[clamp(10px,2.8vw,12px)] font-bold mb-2 text-slate-400 uppercase tracking-wider">Saatlik Ücret</label>
+                    <div className="relative">
+                        <div className="absolute left-3.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                            <TurkishLira className="w-4 h-4 text-orange-400" />
+                        </div>
+                        <input
+                            type="number"
+                            value={formData.pricePerHour}
+                            onChange={(e) => handleChange('pricePerHour', e.target.value)}
+                            className="w-full pl-9 pr-4 py-3.5 bg-slate-900/60 border border-slate-700/60 rounded-xl text-white font-black text-[clamp(14px,4vw,16px)] focus:outline-none focus:border-orange-500/70 transition-colors"
+                            required
+                        />
+                        <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-sm font-bold">TL/sa</div>
+                    </div>
                 </div>
-                <div>
-                    <label className="block text-sm font-bold mb-2 text-slate-300">Kapanış Saati</label>
-                    <button type="button"
-                        onClick={() => setIsTimePickerOpen({ open: true, type: 'CLOSE' })}
-                        className="w-full p-3 bg-slate-900 border border-slate-700 rounded-lg text-white text-left hover:border-orange-500 transition-all font-mono font-bold"
-                    >
-                        {formData.closeTime}
-                    </button>
-                </div>
-            </div>
 
-            <BusinessTimePickerModal
-                isOpen={isTimePickerOpen.open && (isTimePickerOpen.type === 'OPEN' || isTimePickerOpen.type === 'CLOSE')}
-                onClose={() => setIsTimePickerOpen({ ...isTimePickerOpen, open: false })}
-                title={isTimePickerOpen.type === 'OPEN' ? "AÇILIŞ SAATİ" : "KAPANIŞ SAATİ"}
-                initialTime={isTimePickerOpen.type === 'OPEN' ? formData.openTime : formData.closeTime}
-                onSelect={(time) => {
-                    if (isTimePickerOpen.type === 'OPEN') handleChange('openTime', time);
-                    else handleChange('closeTime', time);
-                }}
-            />
+                {/* Saatler */}
+                <div className="grid grid-cols-2 gap-3">
+                    <div>
+                        <label className="block text-[clamp(10px,2.8vw,12px)] font-bold mb-2 text-slate-400 uppercase tracking-wider">Açılış</label>
+                        <button type="button"
+                            onClick={() => setIsTimePickerOpen({ open: true, type: 'OPEN' })}
+                            className="w-full flex items-center gap-2 p-3.5 bg-slate-900/60 border border-slate-700/60 rounded-xl text-white hover:border-orange-500/50 active:border-orange-500 transition-all font-mono font-black text-[clamp(14px,4vw,16px)] min-h-[48px]"
+                            style={{ WebkitTapHighlightColor: 'transparent' }}
+                        >
+                            <Clock className="w-4 h-4 text-slate-500 flex-shrink-0" />
+                            {formData.openTime}
+                        </button>
+                    </div>
+                    <div>
+                        <label className="block text-[clamp(10px,2.8vw,12px)] font-bold mb-2 text-slate-400 uppercase tracking-wider">Kapanış</label>
+                        <button type="button"
+                            onClick={() => setIsTimePickerOpen({ open: true, type: 'CLOSE' })}
+                            className="w-full flex items-center gap-2 p-3.5 bg-slate-900/60 border border-slate-700/60 rounded-xl text-white hover:border-orange-500/50 active:border-orange-500 transition-all font-mono font-black text-[clamp(14px,4vw,16px)] min-h-[48px]"
+                            style={{ WebkitTapHighlightColor: 'transparent' }}
+                        >
+                            <Clock className="w-4 h-4 text-slate-500 flex-shrink-0" />
+                            {formData.closeTime}
+                        </button>
+                    </div>
+                </div>
+
+                <BusinessTimePickerModal
+                    isOpen={isTimePickerOpen.open && (isTimePickerOpen.type === 'OPEN' || isTimePickerOpen.type === 'CLOSE')}
+                    onClose={() => setIsTimePickerOpen({ ...isTimePickerOpen, open: false })}
+                    title={isTimePickerOpen.type === 'OPEN' ? "AÇILIŞ SAATİ" : "KAPANIŞ SAATİ"}
+                    initialTime={isTimePickerOpen.type === 'OPEN' ? formData.openTime : formData.closeTime}
+                    onSelect={(time) => {
+                        if (isTimePickerOpen.type === 'OPEN') handleChange('openTime', time);
+                        else handleChange('closeTime', time);
+                    }}
+                />
+            </div>
         </div>
     );
 };

@@ -39,7 +39,7 @@ export const BusinessNotificationsPage: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-slate-900 text-white pb-24">
+        <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-white pb-32">
             {/* Header */}
             <div className="bg-slate-800 p-4 sticky top-0 z-20 border-b border-slate-700 shadow-lg flex items-center gap-4">
                 <button

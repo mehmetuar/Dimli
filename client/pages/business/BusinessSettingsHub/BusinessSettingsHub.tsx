@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, MapPin, Lock, LogOut, ChevronRight, CreditCard } from 'lucide-react';
+import { Building2, MapPin, Lock, LogOut, ChevronRight, CreditCard, Settings } from 'lucide-react';
 import { BusinessNavbar } from '../../../components/Business/BusinessNavbar';
 import { ConfirmModal } from '../../../components/Modals/ConfirmModal';
 
@@ -22,9 +22,10 @@ export const BusinessSettingsHub: React.FC = () => {
             icon: Building2,
             path: '/business/settings/info',
             color: 'text-sky-400',
-            bg: 'bg-sky-500/10',
-            border: 'border-sky-500/20',
-            iconBg: 'bg-sky-500/10',
+            borderColor: 'border-sky-500/30',
+            iconGradient: 'from-sky-500/20 to-sky-600/10',
+            iconBorder: 'border-sky-500/30',
+            chevronColor: 'text-sky-500/60',
         },
         {
             title: 'Saha Ayarları',
@@ -32,19 +33,21 @@ export const BusinessSettingsHub: React.FC = () => {
             icon: MapPin,
             path: '/business/settings/pitches',
             color: 'text-orange-400',
-            bg: 'bg-orange-500/10',
-            border: 'border-orange-500/25',
-            iconBg: 'bg-orange-500/10',
+            borderColor: 'border-orange-500/30',
+            iconGradient: 'from-orange-500/20 to-orange-600/10',
+            iconBorder: 'border-orange-500/30',
+            chevronColor: 'text-orange-500/60',
         },
         {
             title: 'Şifre Değiştir',
             description: 'Güvenlik ayarları ve şifre güncelleme',
             icon: Lock,
             path: '/business/settings/password',
-            color: 'text-indigo-400',
-            bg: 'bg-indigo-500/10',
-            border: 'border-indigo-500/20',
-            iconBg: 'bg-indigo-500/10',
+            color: 'text-violet-400',
+            borderColor: 'border-violet-500/30',
+            iconGradient: 'from-violet-500/20 to-violet-600/10',
+            iconBorder: 'border-violet-500/30',
+            chevronColor: 'text-violet-500/60',
         },
         {
             title: 'Abonelik ve Planlar',
@@ -52,19 +55,31 @@ export const BusinessSettingsHub: React.FC = () => {
             icon: CreditCard,
             path: '/business/settings/subscription',
             color: 'text-emerald-400',
-            bg: 'bg-emerald-500/10',
-            border: 'border-emerald-500/20',
-            iconBg: 'bg-emerald-500/10',
+            borderColor: 'border-emerald-500/30',
+            iconGradient: 'from-emerald-500/20 to-emerald-600/10',
+            iconBorder: 'border-emerald-500/30',
+            chevronColor: 'text-emerald-500/60',
         }
     ];
 
     return (
-        <div className="min-h-screen bg-slate-900 text-white pb-28">
+        <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-900 to-slate-800 text-white pb-32">
+
             {/* Header */}
-            <div className="sticky top-0 z-10 bg-slate-800 border-b border-slate-700 shadow-lg">
-                <div className="px-4 py-4 flex flex-col items-center">
-                    <h1 className="font-sport font-bold text-xl text-white">Ayarlar</h1>
-                    <p className="text-xs text-slate-400 mt-0.5">İşletme yönetimi</p>
+            <div
+                className="sticky top-0 z-10 border-b border-slate-700/60"
+                style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)', boxShadow: '0 4px 24px rgba(0,0,0,0.4)' }}
+            >
+                <div className="px-4 py-5 flex flex-col items-center">
+                    <div className="flex items-center gap-2 mb-1">
+                        <div className="p-1.5 bg-orange-500/15 rounded-lg border border-orange-500/20">
+                            <Settings className="w-4 h-4 text-orange-400" />
+                        </div>
+                        <h1 className="font-sport font-black text-[clamp(16px,5vw,22px)] text-white tracking-tight">Ayarlar</h1>
+                    </div>
+                    <p className="text-[clamp(10px,2.8vw,12px)] text-slate-400 font-medium tracking-wider uppercase">
+                        İşletme Yönetimi
+                    </p>
                 </div>
             </div>
 
@@ -73,34 +88,42 @@ export const BusinessSettingsHub: React.FC = () => {
                     <button
                         key={item.path}
                         onClick={() => navigate(item.path)}
-                        className={`w-full p-5 rounded-2xl border ${item.border} bg-slate-800/80 flex items-center gap-4 transition-all active:scale-[0.98] shadow-lg shadow-black/20`}
-                        style={{ WebkitTapHighlightColor: 'transparent' }}
+                        className={`w-full p-4 rounded-2xl border ${item.borderColor} bg-slate-800/60 flex items-center gap-4 transition-all active:scale-[0.98] active:bg-slate-700/60`}
+                        style={{ WebkitTapHighlightColor: 'transparent', boxShadow: '0 4px 16px rgba(0,0,0,0.25)' }}
                     >
-                        <div className={`w-14 h-14 rounded-2xl ${item.iconBg} border ${item.border} flex items-center justify-center flex-shrink-0 ${item.color}`}>
+                        <div className={`w-[52px] h-[52px] rounded-xl bg-gradient-to-br ${item.iconGradient} border ${item.iconBorder} flex items-center justify-center flex-shrink-0 ${item.color}`}
+                            style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)' }}>
                             <item.icon className="w-6 h-6" />
                         </div>
                         <div className="flex-1 text-left min-w-0">
-                            <h3 className="text-base font-bold text-white">{item.title}</h3>
-                            <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">{item.description}</p>
+                            <h3 className="text-[clamp(13px,3.8vw,16px)] font-bold text-white leading-tight">{item.title}</h3>
+                            <p className="text-[clamp(10px,2.8vw,12px)] text-slate-400 mt-0.5 leading-relaxed">{item.description}</p>
                         </div>
-                        <ChevronRight className="w-5 h-5 text-slate-500 flex-shrink-0" />
+                        <ChevronRight className={`w-4 h-4 ${item.chevronColor} flex-shrink-0`} />
                     </button>
                 ))}
+
+                {/* Divider */}
+                <div className="flex items-center gap-3 py-2 px-1">
+                    <div className="flex-1 h-px bg-slate-700/50" />
+                    <span className="text-[10px] text-slate-600 font-bold uppercase tracking-widest">Hesap</span>
+                    <div className="flex-1 h-px bg-slate-700/50" />
+                </div>
 
                 {/* Logout Button */}
                 <button
                     onClick={() => setShowConfirm(true)}
-                    className="w-full mt-6 p-5 rounded-2xl border border-red-500/20 bg-slate-800/80 flex items-center gap-4 transition-all active:scale-[0.98] hover:bg-red-500/10 shadow-lg shadow-black/20 group"
-                    style={{ WebkitTapHighlightColor: 'transparent' }}
+                    className="w-full p-4 rounded-2xl border border-red-500/25 bg-slate-800/60 flex items-center gap-4 transition-all active:scale-[0.98] active:bg-red-500/10"
+                    style={{ WebkitTapHighlightColor: 'transparent', boxShadow: '0 4px 16px rgba(0,0,0,0.25)' }}
                 >
-                    <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center flex-shrink-0 text-red-400 group-hover:scale-105 transition-transform">
+                    <div className="w-[52px] h-[52px] rounded-xl bg-gradient-to-br from-red-500/15 to-red-600/5 border border-red-500/25 flex items-center justify-center flex-shrink-0 text-red-400">
                         <LogOut className="w-6 h-6" />
                     </div>
                     <div className="flex-1 text-left min-w-0">
-                        <h3 className="text-base font-bold text-red-400">Çıkış Yap</h3>
-                        <p className="text-xs text-slate-500 mt-0.5">Güvenli bir şekilde oturumu kapat</p>
+                        <h3 className="text-[clamp(13px,3.8vw,16px)] font-bold text-red-400 leading-tight">Çıkış Yap</h3>
+                        <p className="text-[clamp(10px,2.8vw,12px)] text-slate-500 mt-0.5">Güvenli bir şekilde oturumu kapat</p>
                     </div>
-                    <ChevronRight className="w-5 h-5 text-slate-600 flex-shrink-0" />
+                    <ChevronRight className="w-4 h-4 text-red-500/50 flex-shrink-0" />
                 </button>
             </div>
 
@@ -120,4 +143,3 @@ export const BusinessSettingsHub: React.FC = () => {
         </div>
     );
 };
-
