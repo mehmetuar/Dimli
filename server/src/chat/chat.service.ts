@@ -326,13 +326,30 @@ export class ChatService {
 
         if (!savedMessage) throw new Error('Failed to create message');
 
+        const participants = await this.chatParticipantRepository.find({
+            where: { channelId, deletedAt: IsNull() },
+            select: ['userId'],
+        });
+
         if (this.gateway?.server) {
-            const participants = await this.chatParticipantRepository.find({
-                where: { channelId, deletedAt: IsNull() },
-                select: ['userId'],
-            });
             const payload = { channelId, message: { id: savedMessage.id, senderId: savedMessage.senderId, content: savedMessage.content, createdAt: savedMessage.createdAt } };
             participants.forEach(p => this.gateway.server.to(p.userId).emit('newMessage', payload));
+        }
+
+        if (!isSystemMessage) {
+            const channel = await this.chatChannelRepository.findOne({ where: { id: channelId } });
+            const sender = await this.userRepository.findOne({ where: { id: senderId } });
+            if (channel && sender) {
+                this.notificationsService.sendChatPushToParticipants(
+                    senderId,
+                    sender.full_name,
+                    channelId,
+                    channel.type,
+                    channel.name ?? null,
+                    content,
+                    participants.map(p => p.userId),
+                ).catch(() => {});
+            }
         }
 
         return savedMessage;

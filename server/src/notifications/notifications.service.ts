@@ -1,6 +1,6 @@
 import { Injectable, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Notification } from './notification.entity';
 import { Challenge } from '../challenges/challenge.entity';
 import { ChatChannel } from '../chat/chat-channel.entity';
@@ -292,5 +292,42 @@ export class NotificationsService {
             { userId: ownerId, read: false },
             { read: true }
         );
+    }
+
+    async sendChatPushToParticipants(
+        senderId: string,
+        senderName: string,
+        channelId: string,
+        channelType: 'DM' | 'MATCH_GROUP' | 'TEAM_INTERNAL' | 'JOKER_NEGOTIATION',
+        channelName: string | null,
+        content: string,
+        participantUserIds: string[],
+    ): Promise<void> {
+        const recipients = participantUserIds.filter(uid => uid !== senderId);
+        if (!recipients.length) return;
+
+        const title = this.buildChatTitle(senderName, channelType, channelName);
+        const body = content.length > 120 ? content.substring(0, 117) + '...' : content;
+
+        const users = await this.usersRepository.find({ where: { id: In(recipients) } });
+        await Promise.allSettled(
+            users
+                .filter(u => u.pushToken)
+                .map(u =>
+                    this.firebaseService.sendToDevice(u.pushToken, title, body, {
+                        type: 'CHAT',
+                        channelId,
+                    })
+                )
+        );
+    }
+
+    private buildChatTitle(senderName: string, channelType: string, channelName: string | null): string {
+        switch (channelType) {
+            case 'JOKER_NEGOTIATION': return `${senderName} · Joker DM`;
+            case 'MATCH_GROUP':       return `${senderName} · ${channelName || 'Maç Sohbeti'}`;
+            case 'TEAM_INTERNAL':     return `${senderName} · Takım Sohbeti`;
+            default:                  return senderName;
+        }
     }
 }

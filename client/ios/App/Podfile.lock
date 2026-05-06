@@ -3,6 +3,8 @@ PODS:
     - CapacitorCordova
   - CapacitorApp (6.0.3):
     - Capacitor
+  - CapacitorBrowser (8.0.3):
+    - Capacitor
   - CapacitorCordova (6.2.1)
   - CapacitorFirebaseMessaging (8.2.0):
     - Capacitor
@@ -84,6 +86,7 @@ PODS:
 DEPENDENCIES:
   - "Capacitor (from `../../node_modules/@capacitor/ios`)"
   - "CapacitorApp (from `../../node_modules/@capacitor/app`)"
+  - "CapacitorBrowser (from `../../node_modules/@capacitor/browser`)"
   - "CapacitorCordova (from `../../node_modules/@capacitor/ios`)"
   - "CapacitorFirebaseMessaging (from `../../node_modules/@capacitor-firebase/messaging`)"
   - "CapacitorGeolocation (from `../../node_modules/@capacitor/geolocation`)"
@@ -113,6 +116,8 @@ EXTERNAL SOURCES:
     :path: "../../node_modules/@capacitor/ios"
   CapacitorApp:
     :path: "../../node_modules/@capacitor/app"
+  CapacitorBrowser:
+    :path: "../../node_modules/@capacitor/browser"
   CapacitorCordova:
     :path: "../../node_modules/@capacitor/ios"
   CapacitorFirebaseMessaging:
@@ -137,6 +142,7 @@ EXTERNAL SOURCES:
 SPEC CHECKSUMS:
   Capacitor: c95400d761e376be9da6be5a05f226c0e865cebf
   CapacitorApp: a19ccb4f5f32d2534be5c6f524d5a9b614a1e8a7
+  CapacitorBrowser: c987c73d09d8bd3b5ec13f06338b1e14d5d2be69
   CapacitorCordova: 8d93e14982f440181be7304aa9559ca631d77fff
   CapacitorFirebaseMessaging: 09f9402613a755af4ef37c6ce2fd7b4c02250246
   CapacitorGeolocation: ef657a46a125be74010f4ce57caae173c23204d2
@@ -158,6 +164,6 @@ SPEC CHECKSUMS:
   RevenueCat: e47ff90dfd271fde155a4befe48e8fc02e8281e4
   RevenuecatPurchasesCapacitor: 6727a4dc1455bdf2374259420719ce5dfbe957fa
 
-PODFILE CHECKSUM: 85e55dfde895bf658ba9bafbfbe4731da4bf28ae
+PODFILE CHECKSUM: cc5f8c4aa5ca452eeb66a2f47b31bf569a208e9c
 
 COCOAPODS: 1.16.2

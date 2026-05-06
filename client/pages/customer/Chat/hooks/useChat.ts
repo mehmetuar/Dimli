@@ -86,8 +86,10 @@ export const useChat = () => {
     }, [refreshTrigger, socket]);
 
     useEffect(() => {
-        if (location.state?.channelId) {
-            setSelectedChannelId(location.state.channelId);
+        const params = new URLSearchParams(location.search);
+        const deepLinkChannelId = location.state?.channelId || params.get('channelId');
+        if (deepLinkChannelId) {
+            setSelectedChannelId(deepLinkChannelId);
             navigate('/chat', { replace: true, state: {} });
         }
     }, [location, channels]);

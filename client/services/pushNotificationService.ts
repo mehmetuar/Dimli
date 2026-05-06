@@ -100,7 +100,10 @@ export const showLocalNotification = async (title: string, body: string, data?: 
 const handleNotificationClick = (data: any) => {
     if (!data) return;
     if (data.type === 'CHAT' || data.isChatRedirect) {
-        window.location.hash = '#/chat';
+        const hash = data.channelId
+            ? `#/chat?channelId=${data.channelId}`
+            : '#/chat';
+        window.location.hash = hash;
     } else {
         window.location.hash = '#/notifications';
     }
