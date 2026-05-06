@@ -1,4 +1,4 @@
-import { Controller, Post, Patch, Body, Get, Param, Request, Query, UseGuards, Delete } from '@nestjs/common';
+import { Controller, Post, Patch, Body, Get, Param, Request, Query, UseGuards, Delete, BadRequestException } from '@nestjs/common';
 import { BusinessOwnerService } from './business-owner.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -55,6 +55,19 @@ export class BusinessOwnerController {
     @Get(':id')
     findOne(@Param('id') id: string) {
         return this.businessOwnerService.findOne(id);
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Patch('change-password')
+    async changePassword(
+        @Request() req: any,
+        @Body() body: { currentPassword: string; newPassword: string },
+    ) {
+        if (!body.newPassword || body.newPassword.length < 6) {
+            throw new BadRequestException('Yeni şifre en az 6 karakter olmalıdır.');
+        }
+        await this.businessOwnerService.changePassword(req.user.id, body.currentPassword, body.newPassword);
+        return { success: true };
     }
 
     @UseGuards(JwtAuthGuard)

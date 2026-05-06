@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, BadRequestException, InternalServerErrorException } from '@nestjs/common';
+import * as bcrypt from 'bcrypt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, Not, IsNull, In, MoreThanOrEqual } from 'typeorm';
 import { BusinessOwner } from './entities/business-owner.entity';
@@ -37,6 +38,19 @@ export class BusinessOwnerService {
 
     async updatePassword(id: string, passwordHash: string): Promise<void> {
         await this.businessOwnerRepository.update(id, { password: passwordHash });
+    }
+
+    async changePassword(id: string, currentPassword: string, newPassword: string): Promise<void> {
+        const owner = await this.businessOwnerRepository.findOne({ where: { id } });
+        if (!owner) {
+            throw new NotFoundException('İşletme bulunamadı.');
+        }
+        const isMatch = await bcrypt.compare(currentPassword, owner.password);
+        if (!isMatch) {
+            throw new BadRequestException('Mevcut şifre hatalı.');
+        }
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        await this.updatePassword(id, hashedPassword);
     }
 
     async findByEmail(email: string): Promise<BusinessOwner | null> {

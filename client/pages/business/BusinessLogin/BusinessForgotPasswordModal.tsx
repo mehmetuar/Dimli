@@ -79,7 +79,7 @@ export const BusinessForgotPasswordModal: React.FC<BusinessForgotPasswordModalPr
 
         setLoading(true);
         try {
-            await api.post('/auth/business/forgot-password/reset', { email, code, newPassword });
+            await api.post('/auth/business/forgot-password/reset', { email, newPassword });
             setStep(4);
         } catch (err: any) {
             setError(err.response?.data?.message || 'Şifre sıfırlanırken bir hata oluştu.');

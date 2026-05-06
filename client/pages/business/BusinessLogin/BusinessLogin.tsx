@@ -58,16 +58,7 @@ export const BusinessLogin: React.FC = () => {
                         />
                     </div>
                     <div>
-                        <div className="flex justify-between items-center mb-1">
-                            <label className="block text-xs font-bold text-slate-400 uppercase">Şifre</label>
-                            <button
-                                type="button"
-                                onClick={() => setIsForgotModalOpen(true)}
-                                className="text-orange-500 text-sm font-bold hover:underline focus:outline-none"
-                            >
-                                Şifremi Unuttum
-                            </button>
-                        </div>
+                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Şifre</label>
                         <input
                             type="password"
                             value={password}
@@ -76,6 +67,15 @@ export const BusinessLogin: React.FC = () => {
                             placeholder="••••••••"
                             required
                         />
+                        <div className="flex justify-end mt-2">
+                            <button
+                                type="button"
+                                onClick={() => setIsForgotModalOpen(true)}
+                                className="text-orange-500 text-sm font-bold hover:underline focus:outline-none"
+                            >
+                                Şifremi Unuttum
+                            </button>
+                        </div>
                     </div>
 
                     <button

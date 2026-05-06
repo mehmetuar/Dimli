@@ -8,6 +8,7 @@ export const BusinessPasswordSettings: React.FC = () => {
     const navigate = useNavigate();
     const [saving, setSaving] = useState(false);
     const [success, setSuccess] = useState(false);
+    const [error, setError] = useState('');
     const [formData, setFormData] = useState({
         currentPassword: '',
         newPassword: '',
@@ -28,27 +29,18 @@ export const BusinessPasswordSettings: React.FC = () => {
 
         setSaving(true);
         setSuccess(false);
+        setError('');
 
         try {
-            const ownerId = localStorage.getItem('ownerId');
-            // Assuming there's an endpoint for updating password or using the update owner endpoint
-            // Since I don't see a specific password change endpoint in the file list, I'll simulate or use a generic update if available.
-            // For now, I will use a PATCH on business-owner if possible, or mock it if the backend doesn't support it yet as per instructions to just build the UI.
-            // However, to be functional, I'll try to PATCH the owner. 
-            // If the backend doesn't hashing, this might be insecure, but I'm following "Enhancements" request.
-            // Let's assume standard practice: send to a specific endpoint. 
-            // If it fails, I'll allow the UI to show success for the demo as requested for the "task".
-
-            // NOTE: In a real app, this needs a specific endpoint that verifies old password.
-            // I will implement the UI flow.
-
-            await new Promise(resolve => setTimeout(resolve, 1000)); // Mock delay
+            await api.patch('/business-owner/change-password', {
+                currentPassword: formData.currentPassword,
+                newPassword: formData.newPassword,
+            });
             setSuccess(true);
             setFormData({ currentPassword: '', newPassword: '', confirmPassword: '' });
             setTimeout(() => setSuccess(false), 3000);
-        } catch (error) {
-            console.error('Error updating password:', error);
-            alert('Şifre güncelleme başarısız oldu.');
+        } catch (err: any) {
+            setError(err.response?.data?.message || 'Şifre güncelleme başarısız oldu.');
         } finally {
             setSaving(false);
         }
@@ -67,10 +59,15 @@ export const BusinessPasswordSettings: React.FC = () => {
                 </div>
             </div>
 
-            {/* Success Message */}
             {success && (
                 <div className="mx-4 mt-4 p-4 bg-green-600/20 border border-green-500 rounded-xl text-green-500 font-bold text-center">
                     ✓ Şifreniz başarıyla güncellendi!
+                </div>
+            )}
+
+            {error && (
+                <div className="mx-4 mt-4 p-4 bg-red-500/10 border border-red-500/50 rounded-xl text-red-400 font-bold text-center text-sm">
+                    {error}
                 </div>
             )}
 
