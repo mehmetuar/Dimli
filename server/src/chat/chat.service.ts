@@ -1220,12 +1220,15 @@ export class ChatService {
     }
 
     async addUserToTeamActiveMatchChannels(userId: string, teamId: string): Promise<void> {
+        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
         const activeMatches = await this.matchAnnouncementRepository.find({
             where: { teamId, status: In(['PENDING', 'CONFIRMED']) },
         });
-        if (activeMatches.length === 0) return;
+        // Tarihi geçmiş maçları (oynanmış) dışarıda bırak
+        const upcomingMatches = activeMatches.filter(m => m.date >= today);
+        if (upcomingMatches.length === 0) return;
 
-        for (const match of activeMatches) {
+        for (const match of upcomingMatches) {
             const channel = await this.chatChannelRepository.findOne({
                 where: { relatedMatchId: match.id },
             });
