@@ -2,12 +2,14 @@ import { Controller, Get, Post, Body, Param, UseGuards, Request, Delete, Patch, 
 import { TeamsService } from './teams.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ChatService } from '../chat/chat.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Controller('teams')
 export class TeamsController {
     constructor(
         private readonly teamsService: TeamsService,
         private readonly chatService: ChatService,
+        private readonly notificationsService: NotificationsService,
     ) { }
 
     @UseGuards(JwtAuthGuard)
@@ -52,6 +54,7 @@ export class TeamsController {
     async removePlayer(@Param('id') id: string, @Param('playerId') playerId: string) {
         const result = await this.teamsService.removePlayer(id, playerId);
         await this.chatService.removeUserFromTeamActiveMatchChannels(playerId, id);
+        await this.notificationsService.createPlayerRemovedNotification(id, playerId);
         return result;
     }
 

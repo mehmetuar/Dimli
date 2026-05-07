@@ -8,6 +8,7 @@ import { RatingsModule } from '../ratings/ratings.module';
 import { MatchAnnouncement } from '../match-announcements/match-announcement.entity';
 import { Reservation } from '../reservations/entities/reservation.entity';
 import { ChatModule } from '../chat/chat.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
     imports: [
@@ -15,6 +16,7 @@ import { ChatModule } from '../chat/chat.module';
         UsersModule,
         RatingsModule,
         forwardRef(() => ChatModule),
+        forwardRef(() => NotificationsModule),
     ],
     providers: [TeamsService],
     controllers: [TeamsController],

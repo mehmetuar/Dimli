@@ -59,6 +59,61 @@ export class NotificationsService {
         return saved;
     }
 
+    async createPlayerRemovedNotification(teamId: string, playerId: string): Promise<void> {
+        const team = await this.teamsService.findOne(teamId);
+        if (!team) return;
+
+        const notification = this.notificationsRepository.create({
+            userId: playerId,
+            type: 'TEAM_KICKED',
+            title: 'Takımdan Çıkarıldınız',
+            message: `${team.name} takımından çıkarıldınız.`,
+            metadata: { teamId },
+            read: false,
+        });
+
+        const saved = await this.notificationsRepository.save(notification);
+        this.gateway?.server?.to(playerId).emit('notification', { type: 'TEAM_KICKED' });
+        this.usersRepository.findOne({ where: { id: playerId } }).then(user => {
+            if (user?.pushToken) {
+                this.firebaseService.sendToDevice(
+                    user.pushToken,
+                    'Takımdan Çıkarıldınız',
+                    `${team.name} takımından çıkarıldınız.`,
+                    { type: 'TEAM_KICKED' },
+                );
+            }
+        }).catch(() => {});
+    }
+
+    async createJoinRequestAcceptedNotification(joinRequestId: string, userId: string, teamId: string): Promise<void> {
+        const team = await this.teamsService.findOne(teamId);
+        if (!team) return;
+
+        const notification = this.notificationsRepository.create({
+            userId,
+            type: 'JOIN_REQUEST_ACCEPTED',
+            title: 'Katılma İsteği Onaylandı',
+            message: `${team.name} takımına katılma isteğiniz onaylandı!`,
+            relatedId: joinRequestId,
+            metadata: { teamId },
+            read: false,
+        });
+
+        const saved = await this.notificationsRepository.save(notification);
+        this.gateway?.server?.to(userId).emit('notification', { type: 'JOIN_REQUEST_ACCEPTED' });
+        this.usersRepository.findOne({ where: { id: userId } }).then(user => {
+            if (user?.pushToken) {
+                this.firebaseService.sendToDevice(
+                    user.pushToken,
+                    'Katılma İsteği Onaylandı',
+                    `${team.name} takımına katılma isteğiniz onaylandı!`,
+                    { type: 'JOIN_REQUEST_ACCEPTED' },
+                );
+            }
+        }).catch(() => {});
+    }
+
     async create(data: Partial<Notification>): Promise<Notification> {
         const notification = this.notificationsRepository.create(data);
         const saved = await this.notificationsRepository.save(notification);

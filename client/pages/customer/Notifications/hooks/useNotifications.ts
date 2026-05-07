@@ -24,7 +24,7 @@ export interface JoinRequest {
 
 export interface Notification {
     id: string;
-    type: 'JOIN_REQUEST' | 'CHALLENGE' | 'MATCH_RESULT' | 'REMATCH_PROPOSAL' | 'SYSTEM' | 'MATCH_REMINDER' | 'RESERVATION_REQUEST' | 'JOKER_INVITE';
+    type: 'JOIN_REQUEST' | 'CHALLENGE' | 'MATCH_RESULT' | 'REMATCH_PROPOSAL' | 'SYSTEM' | 'MATCH_REMINDER' | 'RESERVATION_REQUEST' | 'JOKER_INVITE' | 'TEAM_KICKED' | 'JOIN_REQUEST_ACCEPTED';
     relatedId: string;
     metadata: any;
     read: boolean;
