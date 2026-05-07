@@ -1,46 +1,18 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
-    ResponsiveContainer, Legend,
+    ResponsiveContainer,
 } from 'recharts';
-import adminApi from '../services/adminApi';
 import {
     DimliLogo,
     IconPending,
     IconCheck,
     IconX,
-    IconDollar,
-    IconSubscription,
     IconTrendingUp,
     IconBarChart,
-    IconPitch,
-} from '../components/Icons';
-
-interface Stats {
-    counts: { pending: number; active: number; rejected: number; suspended: number };
-    revenue: {
-        activeSubscriptions: number;
-        trialSubscriptions: number;
-        totalMRR: number;
-        byPlan: Array<{ planType: string; label: string; count: number; monthlyRevenue: number }>;
-    };
-    monthlyGrowth: Array<{ month: string; newBusinesses: number; approvedBusinesses: number }>;
-}
-
-interface DeletionReport {
-    total: number;
-    thisMonth: number;
-    reasonBreakdown: Array<{ key: string; label: string; count: number }>;
-    monthlyTrend: Array<{ month: string; count: number }>;
-    recent: Array<{ id: string; reason: string; note?: string; userName?: string; userEmail?: string; userUsername?: string; deletedAt: string }>;
-}
-
-const formatMonth = (m: string) => {
-    const [year, month] = m.split('-');
-    const months = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
-    return `${months[parseInt(month) - 1]} ${year.slice(2)}`;
-};
+} from '../../components/Icons';
+import { useDashboardStats } from './hooks/useDashboardStats';
 
 const formatCurrency = (n: number) =>
     new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', maximumFractionDigits: 0 }).format(n);
@@ -96,40 +68,14 @@ const REASON_COLORS: Record<string, string> = {
 
 export default function Dashboard() {
     const navigate = useNavigate();
-    const [stats, setStats] = useState<Stats | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [deletionReport, setDeletionReport] = useState<DeletionReport | null>(null);
-    const [deletionLoading, setDeletionLoading] = useState(true);
-
-    useEffect(() => {
-        adminApi.get('/admin/statistics')
-            .then(r => setStats(r.data))
-            .catch(console.error)
-            .finally(() => setLoading(false));
-
-        adminApi.get('/admin/deletion-report')
-            .then(r => setDeletionReport(r.data))
-            .catch(console.error)
-            .finally(() => setDeletionLoading(false));
-    }, []);
+    const { stats, loading, deletionReport, deletionLoading, barData } = useDashboardStats();
 
     const today = new Date().toLocaleDateString('tr-TR', {
         weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
     });
 
-    // Kümülatif onaylı işletme hesabı (line chart için)
-    const cumulativeData = stats?.monthlyGrowth.reduce((acc, item, idx) => {
-        const prev = idx > 0 ? acc[idx - 1].cumulativeApproved : 0;
-        acc.push({ ...item, monthLabel: formatMonth(item.month), cumulativeApproved: prev + item.approvedBusinesses });
-        return acc;
-    }, [] as Array<{ month: string; monthLabel: string; newBusinesses: number; approvedBusinesses: number; cumulativeApproved: number }>) ?? [];
-
-    const barData = cumulativeData.map(d => ({ ...d, name: d.monthLabel }));
-
     return (
         <div className="p-6 max-w-6xl mx-auto space-y-8">
-
-            {/* Karşılama */}
             <div className="flex items-center gap-4">
                 <DimliLogo size={52} className="drop-shadow-[0_0_16px_rgba(74,222,128,0.25)]" />
                 <div>
@@ -138,7 +84,6 @@ export default function Dashboard() {
                 </div>
             </div>
 
-            {/* Durum Kartları */}
             <div>
                 <h2 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-3">Başvuru Durumu</h2>
                 {loading ? (
@@ -183,12 +128,9 @@ export default function Dashboard() {
                 )}
             </div>
 
-            {/* Grafikler */}
             <div>
                 <h2 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-3">Büyüme & Trendler</h2>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-
-                    {/* Bar Chart — Aylık Onaylanan */}
                     <div className="bg-[#1e2d47] border border-slate-700/40 rounded-2xl p-5">
                         <div className="flex items-center gap-2 mb-4">
                             <IconBarChart size={15} className="text-orange-400" />
@@ -200,18 +142,8 @@ export default function Dashboard() {
                             <ResponsiveContainer width="100%" height={210}>
                                 <BarChart data={barData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="#2a3d5a" vertical={false} />
-                                    <XAxis
-                                        dataKey="name"
-                                        tick={{ fill: '#7b9ab8', fontSize: 10 }}
-                                        axisLine={{ stroke: '#2a3d5a' }}
-                                        tickLine={false}
-                                    />
-                                    <YAxis
-                                        tick={{ fill: '#7b9ab8', fontSize: 10 }}
-                                        axisLine={false}
-                                        tickLine={false}
-                                        allowDecimals={false}
-                                    />
+                                    <XAxis dataKey="name" tick={{ fill: '#7b9ab8', fontSize: 10 }} axisLine={{ stroke: '#2a3d5a' }} tickLine={false} />
+                                    <YAxis tick={{ fill: '#7b9ab8', fontSize: 10 }} axisLine={false} tickLine={false} allowDecimals={false} />
                                     <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(249,115,22,0.06)' }} />
                                     <Bar dataKey="approvedBusinesses" name="Onaylanan" fill="#f97316" radius={[4, 4, 0, 0]} />
                                     <Bar dataKey="newBusinesses" name="Yeni Başvuru" fill="#f97316" fillOpacity={0.3} radius={[4, 4, 0, 0]} />
@@ -220,7 +152,6 @@ export default function Dashboard() {
                         )}
                     </div>
 
-                    {/* Line Chart — Kümülatif Büyüme */}
                     <div className="bg-[#1e2d47] border border-slate-700/40 rounded-2xl p-5">
                         <div className="flex items-center gap-2 mb-4">
                             <IconTrendingUp size={15} className="text-emerald-400" />
@@ -232,28 +163,10 @@ export default function Dashboard() {
                             <ResponsiveContainer width="100%" height={210}>
                                 <LineChart data={barData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="#2a3d5a" vertical={false} />
-                                    <XAxis
-                                        dataKey="name"
-                                        tick={{ fill: '#7b9ab8', fontSize: 10 }}
-                                        axisLine={{ stroke: '#2a3d5a' }}
-                                        tickLine={false}
-                                    />
-                                    <YAxis
-                                        tick={{ fill: '#7b9ab8', fontSize: 10 }}
-                                        axisLine={false}
-                                        tickLine={false}
-                                        allowDecimals={false}
-                                    />
+                                    <XAxis dataKey="name" tick={{ fill: '#7b9ab8', fontSize: 10 }} axisLine={{ stroke: '#2a3d5a' }} tickLine={false} />
+                                    <YAxis tick={{ fill: '#7b9ab8', fontSize: 10 }} axisLine={false} tickLine={false} allowDecimals={false} />
                                     <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#22c55e', strokeWidth: 1, strokeDasharray: '4 4' }} />
-                                    <Line
-                                        type="monotone"
-                                        dataKey="cumulativeApproved"
-                                        name="Toplam Aktif"
-                                        stroke="#22c55e"
-                                        strokeWidth={2.5}
-                                        dot={{ fill: '#22c55e', r: 3, strokeWidth: 0 }}
-                                        activeDot={{ fill: '#22c55e', r: 5, strokeWidth: 0 }}
-                                    />
+                                    <Line type="monotone" dataKey="cumulativeApproved" name="Toplam Aktif" stroke="#22c55e" strokeWidth={2.5} dot={{ fill: '#22c55e', r: 3, strokeWidth: 0 }} activeDot={{ fill: '#22c55e', r: 5, strokeWidth: 0 }} />
                                 </LineChart>
                             </ResponsiveContainer>
                         )}
@@ -261,11 +174,9 @@ export default function Dashboard() {
                 </div>
             </div>
 
-            {/* Hesap Silme Raporu */}
             <div>
                 <h2 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-3">Hesap Silme Raporu</h2>
 
-                {/* Özet kartlar */}
                 <div className="grid grid-cols-2 gap-4 mb-5">
                     <div className="bg-red-950/30 border border-red-900/40 rounded-2xl p-5">
                         <p className="text-3xl font-black text-red-400 tabular-nums">
@@ -281,31 +192,14 @@ export default function Dashboard() {
                     </div>
                 </div>
 
-                {/* Sebep dağılımı */}
                 {!deletionLoading && deletionReport && deletionReport.reasonBreakdown.length > 0 && (
                     <div className="bg-[#162032] border border-slate-700/40 rounded-2xl p-5 mb-5">
                         <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">Sebep Dağılımı</p>
                         <ResponsiveContainer width="100%" height={180}>
-                            <BarChart
-                                data={deletionReport.reasonBreakdown}
-                                margin={{ top: 4, right: 4, left: -25, bottom: 0 }}
-                            >
+                            <BarChart data={deletionReport.reasonBreakdown} margin={{ top: 4, right: 4, left: -25, bottom: 0 }}>
                                 <CartesianGrid strokeDasharray="3 3" stroke="#2a3d5a" vertical={false} />
-                                <XAxis
-                                    dataKey="label"
-                                    tick={{ fill: '#7b9ab8', fontSize: 9 }}
-                                    axisLine={{ stroke: '#2a3d5a' }}
-                                    tickLine={false}
-                                    interval={0}
-                                    width={60}
-                                    tickFormatter={(v: string) => v.split(' ').slice(0, 2).join(' ')}
-                                />
-                                <YAxis
-                                    tick={{ fill: '#7b9ab8', fontSize: 10 }}
-                                    axisLine={false}
-                                    tickLine={false}
-                                    allowDecimals={false}
-                                />
+                                <XAxis dataKey="label" tick={{ fill: '#7b9ab8', fontSize: 9 }} axisLine={{ stroke: '#2a3d5a' }} tickLine={false} interval={0} width={60} tickFormatter={(v: string) => v.split(' ').slice(0, 2).join(' ')} />
+                                <YAxis tick={{ fill: '#7b9ab8', fontSize: 10 }} axisLine={false} tickLine={false} allowDecimals={false} />
                                 <Tooltip content={<CustomTooltip />} cursor={{ fill: '#ffffff08' }} />
                                 <Bar dataKey="count" name="Kişi" radius={[6, 6, 0, 0]} fill="#ef4444" />
                             </BarChart>
@@ -313,7 +207,6 @@ export default function Dashboard() {
                     </div>
                 )}
 
-                {/* Son 30 silme tablosu */}
                 {!deletionLoading && deletionReport && deletionReport.recent.length > 0 && (
                     <div className="bg-[#162032] border border-slate-700/40 rounded-2xl overflow-hidden">
                         <div className="px-5 py-3.5 border-b border-slate-700/40">
@@ -368,7 +261,6 @@ export default function Dashboard() {
                 )}
             </div>
 
-            {/* Alt boşluk */}
             <div className="h-4" />
         </div>
     );

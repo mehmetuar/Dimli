@@ -1,13 +1,13 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import AdminLogin from './pages/AdminLogin';
-import Dashboard from './pages/Dashboard';
-import PendingPage from './pages/PendingPage';
-import ApprovedPage from './pages/ApprovedPage';
-import RejectedPage from './pages/RejectedPage';
-import SuspendedPage from './pages/SuspendedPage';
-import AdminApplicationDetail from './pages/AdminApplicationDetail';
-import ChangeRequestsPage from './pages/ChangeRequestsPage';
+import AdminLogin from './pages/AdminLogin/AdminLogin';
+import Dashboard from './pages/Dashboard/Dashboard';
+import PendingPage from './pages/PendingPage/PendingPage';
+import ApprovedPage from './pages/ApprovedPage/ApprovedPage';
+import RejectedPage from './pages/RejectedPage/RejectedPage';
+import SuspendedPage from './pages/SuspendedPage/SuspendedPage';
+import AdminApplicationDetail from './pages/AdminApplicationDetail/AdminApplicationDetail';
+import ChangeRequestsPage from './pages/ChangeRequestsPage/ChangeRequestsPage';
 import Layout from './components/Layout';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {

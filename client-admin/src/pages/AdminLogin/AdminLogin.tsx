@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import adminApi from '../services/adminApi';
-import { DimliLogo } from '../components/Icons';
+import adminApi from '../../services/adminApi';
+import { DimliLogo } from '../../components/Icons';
 
 export default function AdminLogin() {
     const navigate = useNavigate();
@@ -28,7 +28,6 @@ export default function AdminLogin() {
     return (
         <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-[#101828] via-[#17213a] to-[#101828]">
             <div className="w-full max-w-sm">
-                {/* Brand block */}
                 <div className="text-center mb-8">
                     <div className="flex flex-col items-center gap-3 mb-2">
                         <DimliLogo size={72} className="drop-shadow-[0_0_18px_rgba(74,222,128,0.25)]" />
@@ -38,7 +37,6 @@ export default function AdminLogin() {
                     </div>
                 </div>
 
-                {/* Form */}
                 <form
                     onSubmit={handleLogin}
                     className="bg-[#1e2d47] border border-slate-700/60 rounded-2xl p-8 space-y-4 shadow-2xl shadow-black/60"

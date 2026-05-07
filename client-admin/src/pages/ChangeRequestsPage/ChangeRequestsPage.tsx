@@ -1,23 +1,8 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import adminApi from '../services/adminApi';
+import React from 'react';
+import { useChangeRequests } from './hooks/useChangeRequests';
 
 type RequestType = 'CUSTOM_FACILITY' | 'PHOTO_UPDATE';
 type RequestStatus = 'pending' | 'approved' | 'rejected';
-
-interface ChangeRequest {
-    id: string;
-    type: RequestType;
-    status: RequestStatus;
-    requestedData: any;
-    currentData: any;
-    rejectionReason?: string;
-    createdAt: string;
-    reviewedAt?: string;
-    pitchId: string;
-    pitchName?: string;
-    businessId: string;
-    businessName?: string;
-}
 
 const TYPE_LABELS: Record<RequestType, string> = {
     CUSTOM_FACILITY: 'Manuel İmkan',
@@ -37,66 +22,17 @@ const STATUS_LABELS: Record<RequestStatus, string> = {
 };
 
 export default function ChangeRequestsPage() {
-    const [requests, setRequests] = useState<ChangeRequest[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [statusFilter, setStatusFilter] = useState<RequestStatus | 'all'>('pending');
-    const [selectedRequest, setSelectedRequest] = useState<ChangeRequest | null>(null);
-    const [rejectReason, setRejectReason] = useState('');
-    const [showRejectInput, setShowRejectInput] = useState(false);
-    const [processing, setProcessing] = useState(false);
-
-    const fetchRequests = useCallback(async () => {
-        setLoading(true);
-        try {
-            const params = statusFilter !== 'all' ? `?status=${statusFilter}` : '?status=pending';
-            const res = await adminApi.get(`/admin/change-requests${params}`);
-            setRequests(res.data);
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setLoading(false);
-        }
-    }, [statusFilter]);
-
-    useEffect(() => { fetchRequests(); }, [fetchRequests]);
-
-    const handleApprove = async (id: string) => {
-        setProcessing(true);
-        try {
-            await adminApi.post(`/admin/change-requests/${id}/approve`);
-            setSelectedRequest(null);
-            await fetchRequests();
-        } catch (err) {
-            console.error(err);
-            alert('Onaylama sırasında hata oluştu.');
-        } finally {
-            setProcessing(false);
-        }
-    };
-
-    const handleReject = async (id: string) => {
-        if (!rejectReason.trim()) {
-            alert('Red sebebi boş olamaz.');
-            return;
-        }
-        setProcessing(true);
-        try {
-            await adminApi.post(`/admin/change-requests/${id}/reject`, { reason: rejectReason.trim() });
-            setSelectedRequest(null);
-            setRejectReason('');
-            setShowRejectInput(false);
-            await fetchRequests();
-        } catch (err) {
-            console.error(err);
-            alert('Reddetme sırasında hata oluştu.');
-        } finally {
-            setProcessing(false);
-        }
-    };
+    const {
+        requests, loading, statusFilter, setStatusFilter,
+        selectedRequest, openRequest, closeRequest,
+        rejectReason, setRejectReason,
+        showRejectInput, setShowRejectInput,
+        processing,
+        handleApprove, handleReject,
+    } = useChangeRequests();
 
     return (
         <div className="p-6 max-w-6xl mx-auto">
-            {/* Başlık */}
             <div className="mb-6">
                 <h1 className="text-2xl font-black text-[#dde8f5]">Değişiklik İstekleri</h1>
                 <p className="text-[#7b9ab8] text-sm mt-1">
@@ -104,7 +40,6 @@ export default function ChangeRequestsPage() {
                 </p>
             </div>
 
-            {/* Filtre */}
             <div className="flex gap-2 mb-6">
                 {(['pending', 'approved', 'rejected'] as const).map(s => (
                     <button
@@ -120,7 +55,6 @@ export default function ChangeRequestsPage() {
                 ))}
             </div>
 
-            {/* Liste */}
             {loading ? (
                 <div className="flex items-center justify-center py-20 text-[#7b9ab8]">
                     Yükleniyor...
@@ -162,11 +96,7 @@ export default function ChangeRequestsPage() {
                                 )}
                             </div>
                             <button
-                                onClick={() => {
-                                    setSelectedRequest(req);
-                                    setShowRejectInput(false);
-                                    setRejectReason('');
-                                }}
+                                onClick={() => openRequest(req)}
                                 className="shrink-0 bg-[#1a2d4a] hover:bg-[#1f3557] text-[#dde8f5] text-sm font-bold px-4 py-2 rounded-xl border border-slate-600/40 transition-colors"
                             >
                                 İncele
@@ -176,11 +106,9 @@ export default function ChangeRequestsPage() {
                 </div>
             )}
 
-            {/* Detay / Onay Modal */}
             {selectedRequest && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
                     <div className="w-full max-w-lg bg-[#0f1827] border border-slate-600/50 rounded-2xl shadow-2xl overflow-hidden">
-                        {/* Başlık */}
                         <div className="bg-[#1a2d4a] px-5 py-4 flex items-center justify-between border-b border-slate-700/40">
                             <div>
                                 <h2 className="text-[#dde8f5] font-black text-base">
@@ -190,16 +118,12 @@ export default function ChangeRequestsPage() {
                                     {selectedRequest.businessName} · {selectedRequest.pitchName}
                                 </p>
                             </div>
-                            <button
-                                onClick={() => { setSelectedRequest(null); setShowRejectInput(false); setRejectReason(''); }}
-                                className="text-slate-500 hover:text-slate-200 transition-colors p-1"
-                            >
+                            <button onClick={closeRequest} className="text-slate-500 hover:text-slate-200 transition-colors p-1">
                                 ✕
                             </button>
                         </div>
 
                         <div className="p-5 space-y-4">
-                            {/* İçerik: CUSTOM_FACILITY */}
                             {selectedRequest.type === 'CUSTOM_FACILITY' && (
                                 <div className="grid grid-cols-2 gap-3">
                                     <div className="bg-slate-800/60 rounded-xl p-4 border border-slate-700/40">
@@ -222,17 +146,12 @@ export default function ChangeRequestsPage() {
                                 </div>
                             )}
 
-                            {/* İçerik: PHOTO_UPDATE */}
                             {selectedRequest.type === 'PHOTO_UPDATE' && (
                                 <div className="grid grid-cols-2 gap-3">
                                     <div className="bg-slate-800/60 rounded-xl overflow-hidden border border-slate-700/40">
                                         <p className="text-[#7b9ab8] text-xs font-bold px-3 py-2 uppercase tracking-wider">Mevcut Fotoğraf</p>
                                         {selectedRequest.currentData?.imageUrl ? (
-                                            <img
-                                                src={selectedRequest.currentData.imageUrl}
-                                                alt="Mevcut"
-                                                className="w-full aspect-video object-cover"
-                                            />
+                                            <img src={selectedRequest.currentData.imageUrl} alt="Mevcut" className="w-full aspect-video object-cover" />
                                         ) : (
                                             <div className="w-full aspect-video flex items-center justify-center text-slate-600 text-xs">Fotoğraf yok</div>
                                         )}
@@ -240,11 +159,7 @@ export default function ChangeRequestsPage() {
                                     <div className="bg-orange-500/10 rounded-xl overflow-hidden border border-orange-500/30">
                                         <p className="text-orange-400 text-xs font-bold px-3 py-2 uppercase tracking-wider">Yeni Fotoğraf</p>
                                         {selectedRequest.requestedData?.imageUrl ? (
-                                            <img
-                                                src={selectedRequest.requestedData.imageUrl}
-                                                alt="Yeni"
-                                                className="w-full aspect-video object-cover"
-                                            />
+                                            <img src={selectedRequest.requestedData.imageUrl} alt="Yeni" className="w-full aspect-video object-cover" />
                                         ) : (
                                             <div className="w-full aspect-video flex items-center justify-center text-slate-600 text-xs">Görüntü yok</div>
                                         )}
@@ -252,7 +167,6 @@ export default function ChangeRequestsPage() {
                                 </div>
                             )}
 
-                            {/* Red giriş alanı */}
                             {showRejectInput && (
                                 <div>
                                     <label className="text-[#7b9ab8] text-xs font-bold block mb-2 uppercase tracking-wider">
@@ -269,7 +183,6 @@ export default function ChangeRequestsPage() {
                                 </div>
                             )}
 
-                            {/* Butonlar — sadece pending durumda göster */}
                             {selectedRequest.status === 'pending' ? (
                                 <div className="flex gap-3 pt-1">
                                     {!showRejectInput ? (

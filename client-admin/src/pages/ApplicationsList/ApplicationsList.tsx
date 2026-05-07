@@ -1,10 +1,9 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import adminApi from '../services/adminApi';
+import React from 'react';
 import {
     IconClock, IconCheck, IconX, IconPause, IconPending,
     IconChevronRight, IconPitch,
-} from '../components/Icons';
+} from '../../components/Icons';
+import { useApplicationsList } from './hooks/useApplicationsList';
 
 type Status = 'pending' | 'active' | 'rejected' | 'suspended';
 
@@ -67,24 +66,12 @@ interface ApplicationsListProps {
 }
 
 const ApplicationsList: React.FC<ApplicationsListProps> = ({ status }) => {
-    const navigate = useNavigate();
-    const [applications, setApplications] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
-
+    const { applications, loading, navigate } = useApplicationsList(status);
     const cfg = STATUS_CONFIG[status];
     const { Icon } = cfg;
 
-    useEffect(() => {
-        setLoading(true);
-        adminApi.get('/admin/applications', { params: { status } })
-            .then(r => setApplications(r.data))
-            .catch(console.error)
-            .finally(() => setLoading(false));
-    }, [status]);
-
     return (
         <div className="p-6 max-w-5xl mx-auto">
-            {/* Sayfa Başlığı */}
             <div className="flex items-center gap-3 mb-6">
                 <div className={`w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center ${cfg.iconColor}`}>
                     <Icon size={18} />
@@ -98,7 +85,6 @@ const ApplicationsList: React.FC<ApplicationsListProps> = ({ status }) => {
                 </span>
             </div>
 
-            {/* Liste */}
             {loading ? (
                 <div className="space-y-3">
                     {[1, 2, 3, 4].map(i => (

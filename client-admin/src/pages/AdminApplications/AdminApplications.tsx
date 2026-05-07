@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import adminApi from '../services/adminApi';
 import {
     DimliLogo,
     IconClock, IconCheck, IconX, IconPause, IconPending,
     IconChevronRight, IconLogout, IconPitch,
-} from '../components/Icons';
+} from '../../components/Icons';
+import { useApplicationStats } from './hooks/useApplicationStats';
 
 type Status = 'pending' | 'active' | 'rejected' | 'suspended';
 
@@ -60,49 +60,10 @@ const parseFacilitiesCount = (raw: string[] | string | null | undefined): number
 
 export default function AdminApplications() {
     const navigate = useNavigate();
-    const [applications, setApplications] = useState<any[]>([]);
-    const [filter, setFilter] = useState<Status | 'all'>('pending');
-    const [loading, setLoading] = useState(true);
-    const [stats, setStats] = useState<Record<Status, number>>({ pending: 0, active: 0, rejected: 0, suspended: 0 });
-
-    const fetchApplications = async (currentFilter: Status | 'all') => {
-        setLoading(true);
-        try {
-            const status = currentFilter === 'all' ? undefined : currentFilter;
-            const res = await adminApi.get('/admin/applications', { params: { status } });
-            setApplications(res.data);
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        const fetchStats = async () => {
-            try {
-                const [p, a, r, s] = await Promise.all([
-                    adminApi.get('/admin/applications', { params: { status: 'pending' } }),
-                    adminApi.get('/admin/applications', { params: { status: 'active' } }),
-                    adminApi.get('/admin/applications', { params: { status: 'rejected' } }),
-                    adminApi.get('/admin/applications', { params: { status: 'suspended' } }),
-                ]);
-                setStats({ pending: p.data.length, active: a.data.length, rejected: r.data.length, suspended: s.data.length });
-            } catch (err) { console.error(err); }
-        };
-        fetchStats();
-    }, []);
-
-    useEffect(() => { fetchApplications(filter); }, [filter]);
-
-    const handleLogout = () => {
-        localStorage.removeItem('admin_token');
-        navigate('/login');
-    };
+    const { applications, filter, setFilter, loading, stats, handleLogout } = useApplicationStats();
 
     return (
         <div className="min-h-screen p-6 max-w-6xl mx-auto">
-            {/* Header */}
             <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-3">
                     <DimliLogo size={40} className="drop-shadow-[0_0_10px_rgba(74,222,128,0.2)]" />
@@ -120,7 +81,6 @@ export default function AdminApplications() {
                 </button>
             </div>
 
-            {/* İstatistik Kartları */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
                 {(Object.entries(STATUS_CONFIG) as [Status, typeof STATUS_CONFIG[Status]][]).map(([key, cfg]) => {
                     const { Icon } = cfg;
@@ -142,7 +102,6 @@ export default function AdminApplications() {
                 })}
             </div>
 
-            {/* Filtre Sekmeleri */}
             <div className="flex gap-2 mb-5 flex-wrap">
                 {(['pending', 'active', 'rejected', 'suspended', 'all'] as const).map(s => (
                     <button
@@ -158,7 +117,6 @@ export default function AdminApplications() {
                 ))}
             </div>
 
-            {/* Liste */}
             {loading ? (
                 <div className="space-y-3">
                     {[1, 2, 3].map(i => (
