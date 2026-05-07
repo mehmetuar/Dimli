@@ -72,12 +72,20 @@ export const useChat = () => {
         const interval = setInterval(fetchChannels, 60000);
 
         if (socket) {
+            let debounceTimer: ReturnType<typeof setTimeout> | null = null;
             const onChannelCreated = () => fetchChannels();
-            const onNewMessage = () => fetchChannels();
+            const onNewMessage = () => {
+                if (debounceTimer) clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => {
+                    debounceTimer = null;
+                    fetchChannels();
+                }, 1500);
+            };
             socket.on('channelCreated', onChannelCreated);
             socket.on('newMessage', onNewMessage);
             return () => {
                 clearInterval(interval);
+                if (debounceTimer) clearTimeout(debounceTimer);
                 socket.off('channelCreated', onChannelCreated);
                 socket.off('newMessage', onNewMessage);
             };

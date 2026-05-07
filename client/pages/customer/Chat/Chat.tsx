@@ -51,6 +51,8 @@ export const Chat: React.FC = () => {
   const isUserAtBottomRef = useRef(true);
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const scrollRafRef = useRef<number | null>(null);
+  const lastScrollStateRef = useRef(false);
 
   const opponentTeam = null; // Simplification as in original
   const opponentJoker = null; // Simplification as in original
@@ -60,11 +62,18 @@ export const Chat: React.FC = () => {
   };
 
   const handleScroll = () => {
-    if (!scrollContainerRef.current) return;
-    const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
-    const isAtBottom = scrollHeight - scrollTop - clientHeight < 150;
-    isUserAtBottomRef.current = isAtBottom;
-    setShowScrollButton(!isAtBottom);
+    if (scrollRafRef.current !== null) return;
+    scrollRafRef.current = requestAnimationFrame(() => {
+      scrollRafRef.current = null;
+      if (!scrollContainerRef.current) return;
+      const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
+      const isAtBottom = scrollHeight - scrollTop - clientHeight < 150;
+      isUserAtBottomRef.current = isAtBottom;
+      if (lastScrollStateRef.current !== isAtBottom) {
+        lastScrollStateRef.current = isAtBottom;
+        setShowScrollButton(!isAtBottom);
+      }
+    });
   };
 
   useEffect(() => {
@@ -384,7 +393,7 @@ export const Chat: React.FC = () => {
       <div
         ref={scrollContainerRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto p-4 space-y-6 bg-pitch relative"
+        className="flex-1 overflow-y-auto p-4 space-y-6 bg-pitch relative chat-scroll-container"
       >
         <div className="flex justify-center">
           <span className="bg-slate-800 text-slate-400 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wide mt-6">

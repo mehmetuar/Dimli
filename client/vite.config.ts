@@ -45,6 +45,18 @@ export default defineConfig(({ mode }) => {
             if (id.includes('node_modules/axios')) {
               return 'http';
             }
+            // Lucide icon library — büyük, tüm sayfalarda ortak, ana chunk'tan çıkar
+            if (id.includes('node_modules/lucide-react')) {
+              return 'icons';
+            }
+            // Firebase SDK — büyük, yalnızca push notification için gerekli
+            if (id.includes('node_modules/firebase') || id.includes('node_modules/@firebase')) {
+              return 'firebase';
+            }
+            // Socket.io client
+            if (id.includes('node_modules/socket.io-client') || id.includes('node_modules/engine.io-client')) {
+              return 'socket';
+            }
           }
         }
       }

@@ -175,3 +175,14 @@ button, a, [role="button"], input, select, textarea {
   animation: scaleIn 0.2s ease-out forwards;
   will-change: transform, opacity;
 }
+
+/* ── Android: sürekli animasyonlu badge'leri compositor layer'a al ── */
+.animate-pulse,
+.animate-bounce {
+  will-change: transform;
+}
+
+/* ── Android: chat scroll container'ı dış layout'tan izole et ── */
+.chat-scroll-container {
+  contain: content;
+}

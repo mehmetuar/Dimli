@@ -38,7 +38,7 @@ export const Marketplace: React.FC = () => {
     locationPermissionDenied,
     isAuthorized,
     getPitchDetails,
-    getFilteredMatches,
+    filteredMatches,
     selectedDate,
     setSelectedDate,
     isDateFilterOpen,
@@ -70,7 +70,8 @@ export const Marketplace: React.FC = () => {
     setMatches
   });
 
-  const displayMatches = getFilteredMatches();
+  const displayMatches = filteredMatches;
+  const authorized = isAuthorized();
   const canChallenge = !!myTeam && (myTeam.captainId === currentUser?.id || myTeam.viceCaptainIds?.includes(currentUser?.id));
 
   const handleOpenChallengeModal = (match: any) => {
@@ -189,7 +190,7 @@ export const Marketplace: React.FC = () => {
             announcement={announcement}
             myTeam={myTeam}
             myChallenges={myChallenges}
-            isAuthorized={isAuthorized()}
+            isAuthorized={authorized}
             canChallenge={canChallenge}
             getPitchDetails={getPitchDetails}
             setSelectedTeamId={setSelectedTeamId}
@@ -224,7 +225,7 @@ export const Marketplace: React.FC = () => {
         />
       )}
 
-      {isAuthorized() && (
+      {authorized && (
         <button
           onClick={() => setIsCreateModalOpen(true)}
           className="fixed bottom-36 right-6 bg-turf-600 text-white p-4 rounded-2xl shadow-xl shadow-turf-600/40 hover:scale-110 transition-transform z-40 border-2 border-white/20 rotate-3 hover:rotate-0"

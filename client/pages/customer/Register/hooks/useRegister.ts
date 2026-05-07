@@ -232,7 +232,7 @@ export const useRegister = () => {
 
             const token = loginResponse.data.access_token;
             localStorage.setItem('token', token);
-            initializePushNotifications();
+            setTimeout(() => initializePushNotifications(), 2000);
 
             // Adım 3: Seçili fotoğraf varsa şimdi yükle (artık JWT var)
             if (selectedAvatarFile) {

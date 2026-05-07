@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import api from '../../../../services/api';
 import { Business } from '../../../../types';
 import { LocationFilter } from '../../../../components/Modals/LocationFilterModal';
@@ -122,7 +122,7 @@ export const useMarketplace = () => {
     return { pitch: null, business: null };
   };
 
-  const getFilteredMatches = () => {
+  const filteredMatches = useMemo(() => {
     const filtered = !selectedDate
       ? matches
       : matches.filter(m => m.date === selectedDate);
@@ -149,7 +149,7 @@ export const useMarketplace = () => {
         break;
     }
     return sorted;
-  };
+  }, [matches, businesses, selectedDate, sortBy]);
 
   return {
     currentUser,
@@ -177,7 +177,7 @@ export const useMarketplace = () => {
     locationPermissionDenied: permissionStatus === 'denied',
     isAuthorized,
     getPitchDetails,
-    getFilteredMatches,
+    filteredMatches,
     selectedDate,
     setSelectedDate,
     isDateFilterOpen,

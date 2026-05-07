@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useState } from 'react';
+import { useNavigate, Link, Navigate } from 'react-router-dom';
 import api from '../../../services/api';
 import { initializePushNotifications } from '../../../services/pushNotificationService';
 
@@ -9,9 +9,9 @@ export const Login: React.FC = () => {
     const [error, setError] = useState('');
     const navigate = useNavigate();
 
-    useEffect(() => {
-        if (localStorage.getItem('token')) navigate('/');
-    }, []);
+    if (localStorage.getItem('token')) {
+        return <Navigate to="/" replace />;
+    }
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -22,8 +22,8 @@ export const Login: React.FC = () => {
             const response = await api.post('/auth/login', { username, password });
             console.log('Login response:', response);
             localStorage.setItem('token', response.data.access_token);
-            initializePushNotifications();
-            navigate('/'); // Redirect to home (Marketplace) after login
+            navigate('/');
+            setTimeout(() => initializePushNotifications(), 2000);
         } catch (err: any) {
             console.error('Login error:', err);
             // alert(`Login error: ${err.message}`); // Debug
@@ -35,7 +35,7 @@ export const Login: React.FC = () => {
         <div className="min-h-screen bg-pitch flex flex-col items-center justify-start px-4 pt-16 pb-16">
             <div className="w-full max-w-md bg-slate-800 p-8 rounded-3xl border border-slate-700 shadow-2xl">
                 <div className="text-center mb-8">
-                    <img src="/icon.png" alt="DİMLİ" className="h-16 w-auto object-contain mx-auto mb-4" />
+                    <img src="/dimli.png" alt="DİMLİ" className="h-24 w-auto object-contain mx-auto mb-4 rounded-2xl" />
                     <h1 className="font-sport font-black text-4xl text-white italic">GİRİŞ YAP</h1>
                     <p className="text-slate-400 mt-2">Sahalara geri dön kaptan.</p>
                 </div>

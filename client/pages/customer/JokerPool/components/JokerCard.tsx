@@ -27,6 +27,7 @@ export const JokerCard: React.FC<JokerCardProps> = ({ player, currentUser, onCli
                 <img
                     src={avatarSrc}
                     alt={displayName}
+                    loading="lazy"
                     className="w-16 h-16 rounded-full object-cover border-2 border-slate-600 group-hover:border-turf-500 transition-colors"
                 />
             </div>
