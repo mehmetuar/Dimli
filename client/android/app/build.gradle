@@ -30,6 +30,13 @@ repositories {
     }
 }
 
+configurations.all {
+    resolutionStrategy {
+        // androidx.browser:1.9.0 requires AGP 8.9.1+; pin to 1.8.0 which is compatible with AGP 8.2.1
+        force 'androidx.browser:browser:1.8.0'
+    }
+}
+
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
     implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
