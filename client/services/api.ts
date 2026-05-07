@@ -20,6 +20,8 @@ api.interceptors.request.use(
     (error) => Promise.reject(error)
 );
 
+let isRedirecting = false;
+
 // Response interceptor to handle auth errors
 api.interceptors.response.use(
     (response) => response,
@@ -30,12 +32,14 @@ api.interceptors.response.use(
 
         // If we get 401 or 403, token is invalid/expired
         if (error.response && (error.response.status === 401 || error.response.status === 403)) {
-            // Clear invalid token
-            localStorage.removeItem('token');
-            // Redirect to login only if not already there
-            const hash = window.location.hash;
-            if (hash !== '#/login' && hash !== '#/register' && !hash.startsWith('#/business/login') && !hash.startsWith('#/business/register')) {
-                window.location.hash = '#/login';
+            if (!isRedirecting) {
+                isRedirecting = true;
+                localStorage.removeItem('token');
+                const hash = window.location.hash;
+                if (hash !== '#/login' && hash !== '#/register' && !hash.startsWith('#/business/login') && !hash.startsWith('#/business/register')) {
+                    window.location.hash = '#/login';
+                }
+                setTimeout(() => { isRedirecting = false; }, 3000);
             }
         }
         return Promise.reject(error);
