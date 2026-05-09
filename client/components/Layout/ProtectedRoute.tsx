@@ -1,11 +1,17 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 
 export const ProtectedRoute: React.FC = () => {
-    const [hasValidToken] = useState(() => !!localStorage.getItem('token'));
+    const [hasToken, setHasToken] = useState(() => !!localStorage.getItem('token'));
 
-    if (!hasValidToken) {
-        return <Navigate to="/register" replace />;
+    useEffect(() => {
+        const onExpired = () => setHasToken(false);
+        window.addEventListener('auth:sessionExpired', onExpired);
+        return () => window.removeEventListener('auth:sessionExpired', onExpired);
+    }, []);
+
+    if (!hasToken) {
+        return <Navigate to="/login" replace />;
     }
 
     return <Outlet />;

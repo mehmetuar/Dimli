@@ -113,7 +113,14 @@ export const BusinessPitchSettings: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-900 to-slate-800 text-white pb-32 relative">
+        <div
+            className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-900 to-slate-800 text-white relative"
+            style={{
+                paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 7rem)',
+                overscrollBehaviorY: 'none',
+                touchAction: 'pan-y',
+            }}
+        >
             <PitchSettingsHeader name={formData.name} navigate={navigate} />
 
             {success && (

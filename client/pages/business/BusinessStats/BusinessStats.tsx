@@ -1,5 +1,5 @@
 import React from 'react';
-import { Star, TrendingUp, RotateCw, Lock, Trophy, Zap, Calendar } from 'lucide-react';
+import { Star, TrendingUp, RotateCw, Lock, Trophy, Calendar } from 'lucide-react';
 import { BusinessNavbar } from '../../../components/Business/BusinessNavbar';
 import { BusinessLoadingSpinner } from '../../../components/Business/BusinessLoadingSpinner';
 import { useBusinessStats, PitchStats } from './hooks/useBusinessStats';
@@ -13,7 +13,7 @@ const StatCell: React.FC<{ label: string; value: string; sub?: string; accent?: 
 }) => (
     <div className="flex flex-col items-center justify-center py-4 px-2 min-w-0">
         <span className="text-[clamp(9px,2.4vw,11px)] font-bold uppercase tracking-widest text-slate-400 mb-1.5 whitespace-nowrap">{label}</span>
-        <span className={`text-[clamp(16px,4.5vw,22px)] font-black leading-none whitespace-nowrap ${accent ? 'text-emerald-400' : 'text-white'}`}>
+        <span className={`text-[clamp(16px,4.5vw,22px)] font-black leading-none whitespace-nowrap ${accent ? 'text-green-400' : 'text-white'}`}>
             {value}
         </span>
         {sub && <span className="text-[clamp(9px,2.2vw,10px)] text-slate-500 mt-1 font-medium whitespace-nowrap">{sub}</span>}
@@ -29,11 +29,12 @@ const PitchCard: React.FC<{ pitch: PitchStats }> = ({ pitch }) => (
                     {pitch.pitchName}
                 </span>
             </div>
-            <div className="flex items-center gap-1.5 bg-orange-500/10 px-2.5 py-1 rounded-full border border-orange-500/20">
-                <Zap className="w-3 h-3 text-orange-400" />
-                <span className="text-[clamp(10px,2.8vw,12px)] font-black text-orange-400 italic">
-                    {formatCurrency(pitch.pricePerHour)}/sa
+            <div className="flex items-center gap-1 bg-slate-700/60 px-2.5 py-1 rounded-lg border border-slate-600/40">
+                <span className="text-[clamp(10px,2.8vw,12px)] font-bold text-slate-200">
+                    {pitch.pricePerHour.toLocaleString('tr-TR')}
                 </span>
+                <span className="text-[clamp(10px,2.8vw,12px)] font-black text-orange-400">₺</span>
+                <span className="text-[clamp(9px,2.5vw,11px)] font-medium text-slate-400">/sa</span>
             </div>
         </div>
 
@@ -45,7 +46,7 @@ const PitchCard: React.FC<{ pitch: PitchStats }> = ({ pitch }) => (
                     </span>
                 </div>
                 <StatCell label="Maç" value={String(pitch.today.confirmedCount)} />
-                <div className="border-t border-slate-700/40 bg-emerald-950/10">
+                <div className="border-t border-slate-700/40 bg-green-950/10">
                     <StatCell label="Kazanç" value={formatCurrency(pitch.today.earnings)} accent />
                 </div>
                 <div className="border-t border-slate-700/40">
@@ -60,7 +61,7 @@ const PitchCard: React.FC<{ pitch: PitchStats }> = ({ pitch }) => (
                     </span>
                 </div>
                 <StatCell label="Maç" value={String(pitch.thisMonth.confirmedCount)} />
-                <div className="border-t border-slate-700/40 bg-emerald-950/10">
+                <div className="border-t border-slate-700/40 bg-green-950/10">
                     <StatCell label="Kazanç" value={formatCurrency(pitch.thisMonth.earnings)} accent />
                 </div>
                 <div className="border-t border-slate-700/40">
@@ -95,7 +96,10 @@ export const BusinessStats: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-900 to-slate-800 text-white pb-32">
+        <div
+            className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-900 to-slate-800 text-white"
+            style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 7rem)', overscrollBehaviorY: 'none' }}
+        >
 
             {/* Header */}
             <div
@@ -160,11 +164,11 @@ export const BusinessStats: React.FC = () => {
                 {/* Genel Toplam Kartı */}
                 <div className="bg-slate-800/70 rounded-2xl border border-slate-700/60 overflow-hidden shadow-lg">
                     <div className="flex items-center gap-2.5 px-4 py-3.5 border-b border-slate-700/50"
-                        style={{ background: 'linear-gradient(90deg, rgba(16,185,129,0.08) 0%, transparent 100%)' }}>
-                        <div className="p-1.5 bg-emerald-500/15 rounded-lg">
-                            <TrendingUp className="w-4 h-4 text-emerald-400" />
+                        style={{ background: 'linear-gradient(90deg, rgba(34,197,94,0.08) 0%, transparent 100%)' }}>
+                        <div className="p-1.5 bg-green-500/15 rounded-lg">
+                            <TrendingUp className="w-4 h-4 text-green-400" />
                         </div>
-                        <span className="font-black italic uppercase tracking-tight text-emerald-400 text-[clamp(12px,3.5vw,14px)]">
+                        <span className="font-black italic uppercase tracking-tight text-green-400 text-[clamp(12px,3.5vw,14px)]">
                             Genel Toplam
                         </span>
                     </div>
@@ -174,7 +178,7 @@ export const BusinessStats: React.FC = () => {
                                 <span className="text-[clamp(9px,2.5vw,11px)] font-black uppercase tracking-widest text-slate-300">Bugün</span>
                             </div>
                             <StatCell label="Maç" value={String(stats.totals.today.confirmedCount)} />
-                            <div className="border-t border-slate-700/40 bg-emerald-950/10">
+                            <div className="border-t border-slate-700/40 bg-green-950/10">
                                 <StatCell label="Kazanç" value={formatCurrency(stats.totals.today.earnings)} accent />
                             </div>
                             <div className="border-t border-slate-700/40">
@@ -186,7 +190,7 @@ export const BusinessStats: React.FC = () => {
                                 <span className="text-[clamp(9px,2.5vw,11px)] font-black uppercase tracking-widest text-slate-300">Bu Ay</span>
                             </div>
                             <StatCell label="Maç" value={String(stats.totals.thisMonth.confirmedCount)} />
-                            <div className="border-t border-slate-700/40 bg-emerald-950/10">
+                            <div className="border-t border-slate-700/40 bg-green-950/10">
                                 <StatCell label="Kazanç" value={formatCurrency(stats.totals.thisMonth.earnings)} accent />
                             </div>
                             <div className="border-t border-slate-700/40">

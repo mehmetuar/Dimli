@@ -1,14 +1,18 @@
 import axios from 'axios';
 
-const getBaseURL = (): string => {
-  return 'https://dimli-server.onrender.com';
-};
+const BASE_URL = 'https://dimli-server.onrender.com';
 
 const api = axios.create({
-    baseURL: getBaseURL(),
+    baseURL: BASE_URL,
+    timeout: 30000,
 });
 
-// Request interceptor to add token
+// Interceptor'suz doğrulama instance'ı — sonsuz döngü riski yok
+const verifyAxios = axios.create({
+    baseURL: BASE_URL,
+    timeout: 10000,
+});
+
 api.interceptors.request.use(
     (config) => {
         const token = localStorage.getItem('token');
@@ -20,26 +24,35 @@ api.interceptors.request.use(
     (error) => Promise.reject(error)
 );
 
-let isRedirecting = false;
+let isVerifyingAuth = false;
 
-// Response interceptor to handle auth errors
 api.interceptors.response.use(
     (response) => response,
-    (error) => {
-        console.error('API Error URL:', error.config?.url);
-        console.error('API Error Message:', error.message);
-        console.error('API Error Response:', error.response);
-
-        // If we get 401 or 403, token is invalid/expired
+    async (error) => {
         if (error.response && (error.response.status === 401 || error.response.status === 403)) {
-            if (!isRedirecting) {
-                isRedirecting = true;
-                localStorage.removeItem('token');
-                const hash = window.location.hash;
-                if (hash !== '#/login' && hash !== '#/register' && !hash.startsWith('#/business/login') && !hash.startsWith('#/business/register')) {
-                    window.location.hash = '#/login';
+            if (!isVerifyingAuth) {
+                isVerifyingAuth = true;
+                try {
+                    const token = localStorage.getItem('token');
+                    if (!token) {
+                        window.dispatchEvent(new CustomEvent('auth:sessionExpired'));
+                        return Promise.reject(error);
+                    }
+                    // Token gerçekten geçersiz mi doğrula — asıl endpoint geçici hata vermiş olabilir
+                    await verifyAxios.get('/users/me', {
+                        headers: { Authorization: `Bearer ${token}` },
+                    });
+                    // Başarılı → token geçerli, asıl endpoint geçici hata verdi, token korundu
+                } catch (ve: any) {
+                    if (ve.response?.status === 401 || ve.response?.status === 403) {
+                        // Kesin: token geçersiz
+                        localStorage.removeItem('token');
+                        window.dispatchEvent(new CustomEvent('auth:sessionExpired'));
+                    }
+                    // Network hatası (response yok) → server erişilemez, logout yok
+                } finally {
+                    setTimeout(() => { isVerifyingAuth = false; }, 5000);
                 }
-                setTimeout(() => { isRedirecting = false; }, 3000);
             }
         }
         return Promise.reject(error);

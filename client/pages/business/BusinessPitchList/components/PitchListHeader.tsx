@@ -49,21 +49,25 @@ export const PitchListHeader: React.FC<PitchListHeaderProps> = ({ navigate, pitc
                 </div>
 
                 {subscription && (
-                    <div className="text-right flex-shrink-0">
-                        <div className="flex items-center gap-1.5 justify-end">
-                            <span className={`text-[clamp(11px,3vw,13px)] font-black ${isAtLimit ? 'text-orange-400' : 'text-white'}`}>
-                                {pitchCount}/{maxPitches}
-                            </span>
+                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                        <div className="flex items-center rounded-xl overflow-hidden border border-slate-600/40">
                             {planLabel && (
-                                <span className="text-[clamp(9px,2.5vw,11px)] bg-slate-700/80 border border-slate-600/50 text-slate-300 px-2 py-0.5 rounded-full font-bold">
-                                    {planLabel}
-                                </span>
+                                <div className="px-2.5 py-1.5 bg-slate-700/80 border-r border-slate-600/40">
+                                    <span className="text-[clamp(9px,2.5vw,11px)] font-black text-slate-200 tracking-wide">
+                                        {planLabel}
+                                    </span>
+                                </div>
                             )}
+                            <div className="px-2.5 py-1.5 bg-slate-800/60">
+                                <span className={`text-[clamp(9px,2.5vw,11px)] font-black ${isAtLimit ? 'text-orange-400' : 'text-slate-300'}`}>
+                                    {pitchCount}/{maxPitches} Saha
+                                </span>
+                            </div>
                         </div>
                         {isAtLimit && (
-                            <p className="text-[clamp(9px,2.5vw,10px)] text-orange-400 mt-0.5 flex items-center gap-1 justify-end">
-                                <TrendingUp className="w-3 h-3" /> Yükselt
-                            </p>
+                            <button className="text-[clamp(8px,2vw,10px)] text-orange-400 font-bold flex items-center gap-0.5 active:opacity-70 transition-opacity">
+                                <TrendingUp className="w-2.5 h-2.5" /> Planı Yükselt
+                            </button>
                         )}
                     </div>
                 )}

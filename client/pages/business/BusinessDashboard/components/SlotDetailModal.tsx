@@ -39,7 +39,7 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
     return (
         <>
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setSelectedSlot(null)}>
-            <div className="bg-slate-800 w-[min(calc(100vw-2rem),448px)] rounded-2xl p-[clamp(1rem,5vw,1.5rem)] border border-slate-700 max-h-[90vh] overflow-y-auto animate-scale-in shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="bg-slate-800 w-[min(calc(100vw-2rem),448px)] rounded-2xl p-[clamp(0.875rem,4vw,1.375rem)] border border-slate-700 max-h-[90vh] overflow-y-auto animate-scale-in shadow-2xl" style={{ overscrollBehavior: 'contain' }} onClick={e => e.stopPropagation()}>
                 <div className="flex justify-between items-start mb-6">
                     <div>
                         <h3 className="text-[clamp(1.25rem,6vw,1.5rem)] font-black text-white leading-tight">{selectedSlot.startTime} - {selectedSlot.endTime}</h3>
@@ -95,8 +95,8 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                                                 )}
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <div className="font-sport font-black text-lg text-white italic truncate">{res.team?.name || 'Bilinmeyen Takım'}</div>
-                                                <div className="bg-slate-900/50 rounded-lg p-2 mt-1 border border-slate-700/50">
+                                                <div className="font-sport font-black text-[clamp(0.95rem,4.5vw,1.125rem)] text-white italic truncate">{res.team?.name || 'Bilinmeyen Takım'}</div>
+                                                <div className="bg-slate-900/50 rounded-lg p-[clamp(0.5rem,2vw,0.625rem)] mt-1 border border-slate-700/50">
                                                     <div className="text-[10px] text-slate-500 font-bold uppercase mb-0.5">Kaptan</div>
                                                     <div className="text-sm font-bold text-slate-200 truncate">{res.team?.captain?.full_name || 'Bilinmiyor'}</div>
                                                     <div className="text-xs text-slate-400 font-mono mt-0.5 flex items-center gap-1">
@@ -131,8 +131,8 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                                                 <div className="absolute inset-0 flex items-center">
                                                     <div className="w-full border-t border-slate-700/50"></div>
                                                 </div>
-                                                <div className="relative bg-slate-800 px-3 text-orange-500 font-black italic flex items-center gap-1">
-                                                    <Users className="w-4 h-4" /> KENDİ ARAMIZDA (Tek Takım)
+                                                <div className="relative bg-slate-800 px-3 text-orange-500 font-black text-[clamp(0.75rem,3.5vw,0.875rem)] flex items-center gap-1 text-center">
+                                                    <Users className="w-[clamp(0.875rem,3.5vw,1rem)] h-[clamp(0.875rem,3.5vw,1rem)] shrink-0" /> KENDİ ARAMIZDA (Tek Takım)
                                                 </div>
                                             </div>
                                         )}
@@ -148,8 +148,8 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                                                     )}
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <div className="font-sport font-black text-lg text-white italic truncate">{res.opponentTeam?.name}</div>
-                                                    <div className="bg-slate-900/50 rounded-lg p-2 mt-1 border border-slate-700/50">
+                                                    <div className="font-sport font-black text-[clamp(0.95rem,4.5vw,1.125rem)] text-white italic truncate">{res.opponentTeam?.name}</div>
+                                                    <div className="bg-slate-900/50 rounded-lg p-[clamp(0.5rem,2vw,0.625rem)] mt-1 border border-slate-700/50">
                                                         <div className="text-[10px] text-slate-500 font-bold uppercase mb-0.5">Kaptan</div>
                                                         <div className="text-sm font-bold text-slate-200 truncate">{res.opponentTeam?.captain?.full_name || 'Bilinmiyor'}</div>
                                                         <div className="text-xs text-slate-400 font-mono mt-0.5 flex items-center gap-1">
@@ -174,7 +174,7 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                                         {/* STATUS & ACTIONS */}
                                         <div className="mt-4 pt-4 border-t border-slate-700/50">
                                             {res.status === 'APPROVED' ? (
-                                                <div className="space-y-3">
+                                                <div className="space-y-2">
                                                     {res.cancelRequested ? (
                                                         <div className="flex flex-col gap-3 p-4 bg-orange-500/10 border border-orange-500/30 rounded-xl relative overflow-hidden">
                                                             <div className="absolute top-0 right-0 p-1 px-2 bg-orange-500 text-white text-[10px] font-bold rounded-bl-lg uppercase">Talep</div>
@@ -207,14 +207,14 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                                                     <div className="flex gap-2">
                                                         <button
                                                             onClick={() => openActionModal('SEND_NOTE', res.id)}
-                                                            className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-2 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2"
+                                                            className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-[clamp(0.5rem,2vw,0.625rem)] rounded-xl font-bold text-[clamp(0.75rem,3.5vw,0.875rem)] transition-all flex items-center justify-center gap-2"
                                                         >
                                                             <MessageSquare className="w-4 h-4 text-orange-400 shrink-0" />
                                                             <span>Not Gönder</span>
                                                         </button>
                                                         <button
                                                             onClick={() => handleCancelClick(res.id)}
-                                                            className="bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 hover:border-red-500/50 p-2 rounded-xl transition-all flex items-center justify-center"
+                                                            className="bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 hover:border-red-500/50 p-[clamp(0.5rem,2vw,0.625rem)] rounded-xl transition-all flex items-center justify-center"
                                                             title="Onayı Geri Al"
                                                         >
                                                             <X className="w-5 h-5 shrink-0" />
@@ -272,7 +272,7 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                                                                 openActionModal('APPROVE', res.id);
                                                             }
                                                         }}
-                                                        className="flex-[2] bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white py-3 rounded-xl font-bold text-sm transition-all shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2 group"
+                                                        className="flex-[2] bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white py-[clamp(0.625rem,2.5vw,0.875rem)] rounded-xl font-bold text-[clamp(0.75rem,3.5vw,0.875rem)] transition-all shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2 group"
                                                     >
                                                         <div className="bg-white/20 p-1 rounded-full group-hover:scale-110 transition-transform shrink-0">
                                                             <Check className="w-4 h-4 shrink-0" />
@@ -281,7 +281,7 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                                                     </button>
                                                     <button
                                                         onClick={() => openActionModal('SEND_NOTE', res.id)}
-                                                        className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-2 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2"
+                                                        className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-[clamp(0.625rem,2.5vw,0.875rem)] rounded-xl font-bold text-[clamp(0.75rem,3.5vw,0.875rem)] transition-all flex items-center justify-center gap-2"
                                                         title="Mesaj Gönder"
                                                     >
                                                         <MessageSquare className="w-4 h-4 text-orange-400 shrink-0" />

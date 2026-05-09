@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, lazy, Suspense } from 'react';
-import { HashRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { HashRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { Geolocation } from '@capacitor/geolocation';
 import { Capacitor } from '@capacitor/core';
 import { StatusBar, Style } from '@capacitor/status-bar';
@@ -93,6 +93,7 @@ const PageLoader = () => (
 function AppContent() {
   useKeyboardScroll();
   const location = useLocation();
+  const navigate = useNavigate();
   const isAuthPage =
     location.pathname === '/login' ||
     location.pathname === '/register' ||
@@ -136,6 +137,28 @@ function AppContent() {
     return () => {
       listenerPromise.then(h => h.remove());
     };
+  }, []);
+
+  // Oturum süresi dolduğunda veya token geçersizleştiğinde login'e yönlendir
+  useEffect(() => {
+    const handleExpired = () => {
+      const hash = window.location.hash;
+      const authPrefixes = ['#/login', '#/register', '#/forgot-password', '#/business/'];
+      if (!authPrefixes.some(p => hash.startsWith(p))) {
+        navigate('/login', { replace: true });
+      }
+    };
+    window.addEventListener('auth:sessionExpired', handleExpired);
+    return () => window.removeEventListener('auth:sessionExpired', handleExpired);
+  }, [navigate]);
+
+  // Render free tier'ı uyanık tut — 8 dk < Render'ın 15 dk uyku timeout'u
+  useEffect(() => {
+    const id = setInterval(() => {
+      const token = localStorage.getItem('token');
+      if (token) api.get('/users/me').catch(() => {});
+    }, 8 * 60 * 1000);
+    return () => clearInterval(id);
   }, []);
 
   const getHandledRatings = (): string[] => {
