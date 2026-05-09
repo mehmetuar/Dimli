@@ -37,6 +37,7 @@ export const LocationStep: React.FC<LocationStepProps> = ({
     const [locationError, setLocationError] = useState('');
     const [locationNeedsSettings, setLocationNeedsSettings] = useState(false);
     const [flyTrigger, setFlyTrigger] = useState(false);
+    const [hasAttemptedLocation, setHasAttemptedLocation] = useState(false);
     const addressRef = useRef<HTMLTextAreaElement>(null);
 
     useEffect(() => {
@@ -106,6 +107,7 @@ export const LocationStep: React.FC<LocationStepProps> = ({
             }
         } finally {
             setIsLocating(false);
+            setHasAttemptedLocation(true);
         }
     };
 
@@ -183,28 +185,47 @@ export const LocationStep: React.FC<LocationStepProps> = ({
                 </div>
             )}
 
-            {/* Harita */}
-            <div className={`rounded-xl overflow-hidden border-2 relative z-[1] ${cityError ? 'border-red-500' : 'border-slate-700'}`} style={{ height: '320px' }}>
-                <APIProvider apiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY}>
-                    <Map
-                        defaultCenter={{ lat: formData.business.latitude || 41.0082, lng: formData.business.longitude || 28.9784 }}
-                        defaultZoom={13}
-                        gestureHandling={'greedy'}
-                        disableDefaultUI={true}
-                        mapId="DEMO_MAP_ID"
-                        onClick={handleMapClick}
-                    >
-                        {formData.business.latitude && formData.business.longitude && (
-                            <AdvancedMarker position={{ lat: formData.business.latitude, lng: formData.business.longitude }} />
-                        )}
-                        <MapEffect
-                            lat={formData.business.latitude || 41.0082}
-                            lng={formData.business.longitude || 28.9784}
-                            triggerFly={flyTrigger}
-                        />
-                    </Map>
-                </APIProvider>
-            </div>
+            {/* Harita — koordinat hazır olana kadar pulsing animasyon göster */}
+            {(!!formData.business.latitude || (!isLocating && hasAttemptedLocation)) ? (
+                <div className={`rounded-xl overflow-hidden border-2 relative z-[1] ${cityError ? 'border-red-500' : 'border-slate-700'}`} style={{ height: '320px' }}>
+                    <APIProvider apiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY}>
+                        <Map
+                            defaultCenter={{ lat: formData.business.latitude || 41.0082, lng: formData.business.longitude || 28.9784 }}
+                            defaultZoom={13}
+                            gestureHandling={'greedy'}
+                            disableDefaultUI={true}
+                            mapId="DEMO_MAP_ID"
+                            onClick={handleMapClick}
+                        >
+                            {formData.business.latitude && formData.business.longitude && (
+                                <AdvancedMarker position={{ lat: formData.business.latitude, lng: formData.business.longitude }} />
+                            )}
+                            <MapEffect
+                                lat={formData.business.latitude || 41.0082}
+                                lng={formData.business.longitude || 28.9784}
+                                triggerFly={flyTrigger}
+                            />
+                        </Map>
+                    </APIProvider>
+                </div>
+            ) : (
+                <div
+                    className="rounded-xl border-2 border-slate-700 bg-slate-900/50 flex flex-col items-center justify-center gap-5"
+                    style={{ height: '320px' }}
+                >
+                    <div className="relative flex items-center justify-center">
+                        <span className="absolute inline-flex h-16 w-16 rounded-full bg-orange-500/25 animate-ping" />
+                        <span className="absolute inline-flex h-10 w-10 rounded-full bg-orange-500/20 animate-ping" style={{ animationDelay: '300ms' }} />
+                        <div className="relative z-10 w-14 h-14 rounded-full bg-slate-800 border-2 border-orange-500/50 flex items-center justify-center">
+                            <MapPin className="w-6 h-6 text-orange-400" />
+                        </div>
+                    </div>
+                    <div className="text-center">
+                        <p className="text-sm font-bold text-white">Konumunuz bulunuyor...</p>
+                        <p className="text-xs text-slate-500 mt-1">Lütfen bekleyin</p>
+                    </div>
+                </div>
+            )}
 
             {/* Geocoding durumu */}
             {isGeocoding ? (

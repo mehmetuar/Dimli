@@ -104,14 +104,14 @@ export const BusinessRegister: React.FC = () => {
 
     return (
         <div
-            className="min-h-[100dvh] bg-slate-950 flex flex-col items-center justify-center p-3 md:p-4"
+            className="h-[100dvh] bg-slate-950 flex flex-col p-3 md:p-4 md:items-center md:justify-center"
             style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight + 12 : undefined }}
         >
-            <div className="w-full max-w-4xl bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-800 shadow-2xl overflow-hidden flex flex-col md:flex-row min-h-[580px] md:min-h-[600px]">
+            <div className="w-full max-w-4xl flex-1 min-h-0 md:flex-none md:min-h-[600px] bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-800 shadow-2xl overflow-hidden flex flex-col md:flex-row">
 
                 <RegisterSidebar currentStep={currentStep} />
 
-                <div className="flex-1 flex flex-col p-5 md:p-10 relative">
+                <div className="flex-1 flex flex-col p-5 md:p-10 relative min-h-0">
                     {/* Header — welcome ve tamamlandı adımında gizle */}
                     {!hideHeader && (
                         <div className="flex justify-between items-center mb-5 md:mb-6">
@@ -130,7 +130,7 @@ export const BusinessRegister: React.FC = () => {
                         </div>
                     )}
 
-                    <div className="flex-1 overflow-y-auto pr-1 scrollbar-hide pb-24">
+                    <div className="flex-1 overflow-y-auto overscroll-contain pr-1 scrollbar-hide pb-24">
                         {renderStepContent()}
                     </div>
 
@@ -174,7 +174,7 @@ export const BusinessRegister: React.FC = () => {
             </div>
 
             {!isCongratsStep && (
-                <div className="mt-5 text-center">
+                <div className="mt-3 shrink-0 text-center">
                     <p className="text-slate-500 text-sm">
                         Zaten hesabın var mı?{' '}
                         <Link to="/business/login" className="text-orange-500 font-bold hover:underline">
