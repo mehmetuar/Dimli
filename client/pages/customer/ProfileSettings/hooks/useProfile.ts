@@ -14,7 +14,6 @@ export const useProfile = () => {
     const [profileData, setProfileData] = useState<{
         full_name: string;
         username: string;
-        phone: string;
         birthDate: string;
         position: string;
         secondaryPosition: string;
@@ -24,7 +23,6 @@ export const useProfile = () => {
     }>({
         full_name: '',
         username: '',
-        phone: '',
         birthDate: '',
         position: '',
         secondaryPosition: '',
@@ -49,7 +47,6 @@ export const useProfile = () => {
             setProfileData({
                 full_name: user.full_name || '',
                 username: user.username || '',
-                phone: user.phone || '',
                 birthDate: user.birthDate ? user.birthDate.split('T')[0] : '',
                 position: user.position || '',
                 secondaryPosition: user.secondaryPosition || '',
@@ -127,7 +124,6 @@ export const useProfile = () => {
         const payload: any = {
             full_name: profileData.full_name,
             username: profileData.username,
-            phone: profileData.phone || null,
             position: profileData.position,
             secondaryPosition: profileData.secondaryPosition || null,
             foot: profileData.foot,

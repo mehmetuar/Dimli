@@ -5,13 +5,12 @@ import { NotificationItem } from './NotificationItem';
 
 interface AllNotificationsTabProps {
     notifications: Notification[];
-    handleRejectChallenge: (id: string) => void;
-    handleAcceptChallenge: (id: string) => void;
     handleAcceptRematchFromNotif: (n: Notification) => void;
+    setActiveTab: (tab: 'ALL' | 'JOIN_REQUESTS' | 'MATCH_REQUESTS') => void;
 }
 
 export const AllNotificationsTab: React.FC<AllNotificationsTabProps> = ({
-    notifications, handleRejectChallenge, handleAcceptChallenge, handleAcceptRematchFromNotif
+    notifications, handleAcceptRematchFromNotif, setActiveTab
 }) => {
     if (notifications.length === 0) {
         return (
@@ -28,9 +27,8 @@ export const AllNotificationsTab: React.FC<AllNotificationsTabProps> = ({
                 <NotificationItem
                     key={notif.id}
                     notif={notif}
-                    handleRejectChallenge={handleRejectChallenge}
-                    handleAcceptChallenge={handleAcceptChallenge}
                     handleAcceptRematchFromNotif={handleAcceptRematchFromNotif}
+                    onTabNavigate={setActiveTab}
                 />
             ))}
         </div>

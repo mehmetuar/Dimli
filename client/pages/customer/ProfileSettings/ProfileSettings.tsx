@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-    ChevronLeft, UserCircle2, Shield, User, Phone, Calendar,
+    ChevronLeft, UserCircle2, Shield, User, Calendar,
     Lock, Save, Key, Settings, Trash2, ChevronRight,
 } from 'lucide-react';
 import { LoadingSpinner } from '../../../components/UI/LoadingSpinner';
@@ -163,20 +163,6 @@ export const ProfileSettings: React.FC = () => {
                                     className={inputClass}
                                     placeholder="kullaniciadi"
                                 />
-                            </div>
-                            <div>
-                                <label className={labelClass}>Telefon</label>
-                                <div className="relative">
-                                    <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 w-4 h-4" />
-                                    <input
-                                        type="tel"
-                                        value={profileData.phone}
-                                        onChange={e => setProfileData({ ...profileData, phone: e.target.value })}
-                                        onFocus={scrollToInput}
-                                        className={`${inputClass} pl-10`}
-                                        placeholder="0532 000 00 00"
-                                    />
-                                </div>
                             </div>
                             <div>
                                 <label className={labelClass}>Doğum Tarihi</label>

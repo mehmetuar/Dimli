@@ -100,10 +100,11 @@ export const showLocalNotification = async (title: string, body: string, data?: 
 const handleNotificationClick = (data: any) => {
     if (!data) return;
     if (data.type === 'CHAT' || data.isChatRedirect) {
-        const hash = data.channelId
-            ? `#/chat?channelId=${data.channelId}`
-            : '#/chat';
-        window.location.hash = hash;
+        window.location.hash = data.channelId ? `#/chat?channelId=${data.channelId}` : '#/chat';
+    } else if (data.type === 'JOIN_REQUEST') {
+        window.location.hash = '#/notifications?tab=JOIN_REQUESTS';
+    } else if (data.type === 'CHALLENGE' || data.type === 'JOKER_INVITE' || data.type === 'REMATCH_PROPOSAL') {
+        window.location.hash = '#/notifications?tab=MATCH_REQUESTS';
     } else {
         window.location.hash = '#/notifications';
     }

@@ -335,7 +335,16 @@ export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelected
                                         ) : filteredBusinesses.map(business => (
                                             <div key={business.id} className={`rounded-xl border transition-all overflow-hidden ${selectedBusinessId === business.id ? 'border-turf-500 bg-slate-900' : 'border-slate-700 bg-slate-900/50'}`}>
                                                 <div
-                                                    onClick={() => setSelectedBusinessId(selectedBusinessId === business.id ? null : business.id)}
+                                                    onClick={() => {
+                                        if (selectedBusinessId === business.id) {
+                                            setSelectedBusinessId(null);
+                                            setSelectedPitchId('');
+                                        } else {
+                                            setSelectedBusinessId(business.id);
+                                            const firstPitch = business.pitches?.[0];
+                                            if (firstPitch) setSelectedPitchId(firstPitch.id);
+                                        }
+                                    }}
                                                     className="p-3 cursor-pointer flex items-center gap-3 hover:bg-slate-800 transition-colors"
                                                 >
                                                     <Store className={`w-5 h-5 shrink-0 ${selectedBusinessId === business.id ? 'text-turf-500' : 'text-slate-500'}`} />

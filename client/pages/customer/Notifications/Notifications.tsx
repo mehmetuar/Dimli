@@ -86,9 +86,8 @@ export const Notifications: React.FC = () => {
                {activeTab === 'ALL' && (
                   <AllNotificationsTab
                      notifications={notifications}
-                     handleAcceptChallenge={handleAcceptChallenge}
-                     handleRejectChallenge={handleRejectChallenge}
                      handleAcceptRematchFromNotif={handleAcceptRematchFromNotif}
+                     setActiveTab={setActiveTab}
                   />
                )}
             </div>

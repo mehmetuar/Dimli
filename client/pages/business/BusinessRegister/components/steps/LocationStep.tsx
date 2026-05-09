@@ -4,6 +4,7 @@ import { Navigation, MapPin, Loader2, Lock, Settings } from 'lucide-react';
 import { Geolocation } from '@capacitor/geolocation';
 import { locationService } from '../../../../../services/locationService';
 import { openLocationSettings } from '../../../../../utils/openLocationSettings';
+import { useLocationContext } from '../../../../../contexts/LocationContext';
 
 interface LocationStepProps {
     formData: any;
@@ -31,6 +32,7 @@ export const LocationStep: React.FC<LocationStepProps> = ({
     setIsGeocoding,
     fieldErrors = {},
 }) => {
+    const { coords: cachedCoords } = useLocationContext();
     const [isLocating, setIsLocating] = useState(false);
     const [locationError, setLocationError] = useState('');
     const [locationNeedsSettings, setLocationNeedsSettings] = useState(false);
@@ -38,8 +40,18 @@ export const LocationStep: React.FC<LocationStepProps> = ({
     const addressRef = useRef<HTMLTextAreaElement>(null);
 
     useEffect(() => {
-        handleLocateMe(true);
-    }, []);
+        // Konuma henüz dokunulmadıysa: önce LocationContext'teki ön-belleklenmiş
+        // koordinatı kullan (uygulama açılışında zaten alınmış, anlık). Yoksa GPS'e düş.
+        if (formData.business.latitude) return;
+        if (cachedCoords) {
+            updateBusiness('latitude', cachedCoords.lat);
+            updateBusiness('longitude', cachedCoords.lng);
+            setFlyTrigger(f => !f as any);
+            doReverseGeocode(cachedCoords.lat, cachedCoords.lng);
+        } else {
+            handleLocateMe(true);
+        }
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     const doReverseGeocode = async (lat: number, lng: number) => {
         try {

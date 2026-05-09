@@ -1,19 +1,44 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, Check, X, UserPlus, UserX, UserCheck, ShieldCheck, Swords, Clock, XCircle, ShieldAlert, Handshake, MessageCircle, MessageSquare } from 'lucide-react';
+import { Bell, Check, UserPlus, UserX, UserCheck, ShieldCheck, Swords, Clock, XCircle, ShieldAlert, Handshake, MessageCircle, MessageSquare } from 'lucide-react';
 import { Notification } from '../hooks/useNotifications';
 
 interface NotificationItemProps {
     notif: Notification;
-    handleRejectChallenge: (id: string) => void;
-    handleAcceptChallenge: (id: string) => void;
     handleAcceptRematchFromNotif: (n: Notification) => void;
+    onTabNavigate: (tab: 'ALL' | 'JOIN_REQUESTS' | 'MATCH_REQUESTS') => void;
 }
 
 export const NotificationItem: React.FC<NotificationItemProps> = ({
-    notif, handleRejectChallenge, handleAcceptChallenge, handleAcceptRematchFromNotif
+    notif, handleAcceptRematchFromNotif, onTabNavigate
 }) => {
     const navigate = useNavigate();
+
+    const chatIsExpired = (() => {
+        if (!notif.metadata?.isChatRedirect) return false;
+        const date = notif.metadata?.matchDate;
+        const time = notif.metadata?.matchTime;
+        if (!date || !time) return false;
+        const dateStr = typeof date === 'string' ? date : new Date(date).toISOString().split('T')[0];
+        const matchDate = new Date(`${dateStr}T${time}`);
+        if (isNaN(matchDate.getTime())) return false;
+        return new Date() > new Date(matchDate.getTime() + 65 * 60 * 1000);
+    })();
+
+    const handleCardClick = () => {
+        if (notif.type === 'JOIN_REQUEST') { onTabNavigate('JOIN_REQUESTS'); return; }
+        if (notif.type === 'CHALLENGE') { onTabNavigate('MATCH_REQUESTS'); return; }
+        if (notif.type === 'JOKER_INVITE') { onTabNavigate('MATCH_REQUESTS'); return; }
+        if (notif.metadata?.isChatRedirect && !chatIsExpired) {
+            navigate('/chat', { state: { channelId: notif.metadata.channelId } });
+        }
+    };
+
+    const isCardClickable =
+        notif.type === 'JOIN_REQUEST' ||
+        notif.type === 'CHALLENGE' ||
+        notif.type === 'JOKER_INVITE' ||
+        (!!notif.metadata?.isChatRedirect && !chatIsExpired);
 
     const getBorderClass = (type: string, metaType?: string) => {
         if (type === 'JOIN_REQUEST') return 'bg-blue-500';
@@ -72,7 +97,10 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({
     };
 
     return (
-        <div className={`relative bg-slate-800 rounded-2xl border overflow-hidden transition-all ${!notif.read ? 'border-turf-500/50 shadow-[0_0_15px_rgba(34,197,94,0.1)]' : 'border-slate-700 opacity-90'}`}>
+        <div
+            className={`relative bg-slate-800 rounded-2xl border overflow-hidden transition-all ${!notif.read ? 'border-turf-500/50 shadow-[0_0_15px_rgba(34,197,94,0.1)]' : 'border-slate-700 opacity-90'} ${isCardClickable ? 'cursor-pointer active:scale-[0.99]' : ''}`}
+            onClick={isCardClickable ? handleCardClick : undefined}
+        >
             <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${getBorderClass(notif.type, notif.metadata?.type)}`}></div>
 
             <div className="p-4 pl-6">
@@ -90,34 +118,30 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({
                     {notif.message || 'Bildirim detayları'}
                 </p>
 
-                {/* Challenge Actions */}
-                {notif.type === 'CHALLENGE' && (notif.metadata?.challengeId || notif.relatedId) && !notif.metadata?.isChatRedirect && (
-                    (() => {
-                        const date = notif.metadata?.matchDate;
-                        const time = notif.metadata?.matchTime;
-                        let isExpired = false;
-                        if (date && time) {
-                            const dateStr = typeof date === 'string' ? date : new Date(date).toISOString().split('T')[0];
-                            const matchDate = new Date(`${dateStr}T${time}`);
-                            if (!isNaN(matchDate.getTime())) {
-                                isExpired = new Date() > matchDate;
-                            }
-                        }
-                        if (isExpired) {
-                            return (
-                                <div className="mt-2 bg-slate-900/50 p-2 rounded-lg border border-slate-700/50">
-                                    <p className="text-xs text-slate-500 italic">Bu maç teklifinin süresi doldu. (Maç saati geçti)</p>
-                                </div>
-                            );
-                        }
+                {/* Challenge — tıklanabilir kart, Maç İstekleri tab'ına yönlendirir */}
+                {notif.type === 'CHALLENGE' && !notif.metadata?.isChatRedirect && (() => {
+                    const date = notif.metadata?.matchDate;
+                    const time = notif.metadata?.matchTime;
+                    let isExpired = false;
+                    if (date && time) {
+                        const dateStr = typeof date === 'string' ? date : new Date(date).toISOString().split('T')[0];
+                        const matchDate = new Date(`${dateStr}T${time}`);
+                        if (!isNaN(matchDate.getTime())) isExpired = new Date() > matchDate;
+                    }
+                    if (isExpired) {
                         return (
-                            <div className="flex gap-2 mt-3">
-                                <button onClick={() => handleRejectChallenge(notif.metadata?.challengeId || notif.relatedId)} className="flex-1 py-2 bg-slate-700 text-slate-300 rounded-lg text-xs font-bold flex items-center justify-center gap-1 hover:bg-red-900/50 hover:text-red-400 transition-colors"><X className="w-3 h-3" /> Reddet</button>
-                                <button onClick={() => handleAcceptChallenge(notif.metadata?.challengeId || notif.relatedId)} className="flex-1 py-2 bg-turf-600 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1 hover:bg-turf-500 transition-colors shadow-lg shadow-turf-600/20"><Check className="w-3 h-3" /> Kabul Et</button>
+                            <div className="mt-2 bg-slate-900/50 p-2 rounded-lg border border-slate-700/50">
+                                <p className="text-xs text-slate-500 italic">Bu maç teklifinin süresi doldu. (Maç saati geçti)</p>
                             </div>
                         );
-                    })()
-                )}
+                    }
+                    return (
+                        <div className="mt-2 flex items-center gap-1.5 text-turf-400 text-xs font-bold">
+                            <ShieldCheck className="w-3.5 h-3.5" />
+                            <span>Maç İstekleri sekmesinden yanıtlayın</span>
+                        </div>
+                    );
+                })()}
 
                 {/* Rematch Proposal Actions */}
                 {notif.type === 'REMATCH_PROPOSAL' && notif.metadata?.matchAnnouncementId && (

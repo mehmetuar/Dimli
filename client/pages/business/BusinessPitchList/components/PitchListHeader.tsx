@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, MapPin, TrendingUp } from 'lucide-react';
+import { ArrowLeft, MapPin } from 'lucide-react';
 
 const PLAN_LABELS: Record<string, string> = {
     '1_pitch': 'Starter',
@@ -16,9 +16,7 @@ interface PitchListHeaderProps {
 }
 
 export const PitchListHeader: React.FC<PitchListHeaderProps> = ({ navigate, pitchCount, subscription }) => {
-    const maxPitches = subscription?.pitchCount ?? 0;
     const planLabel = subscription ? (PLAN_LABELS[subscription.planType] ?? subscription.planType) : null;
-    const isAtLimit = maxPitches > 0 && pitchCount >= maxPitches;
 
     return (
         <div
@@ -48,27 +46,17 @@ export const PitchListHeader: React.FC<PitchListHeaderProps> = ({ navigate, pitc
                     </div>
                 </div>
 
-                {subscription && (
-                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                        <div className="flex items-center rounded-xl overflow-hidden border border-slate-600/40">
-                            {planLabel && (
-                                <div className="px-2.5 py-1.5 bg-slate-700/80 border-r border-slate-600/40">
-                                    <span className="text-[clamp(9px,2.5vw,11px)] font-black text-slate-200 tracking-wide">
-                                        {planLabel}
-                                    </span>
-                                </div>
-                            )}
-                            <div className="px-2.5 py-1.5 bg-slate-800/60">
-                                <span className={`text-[clamp(9px,2.5vw,11px)] font-black ${isAtLimit ? 'text-orange-400' : 'text-slate-300'}`}>
-                                    {pitchCount}/{maxPitches} Saha
-                                </span>
-                            </div>
-                        </div>
-                        {isAtLimit && (
-                            <button className="text-[clamp(8px,2vw,10px)] text-orange-400 font-bold flex items-center gap-0.5 active:opacity-70 transition-opacity">
-                                <TrendingUp className="w-2.5 h-2.5" /> Planı Yükselt
-                            </button>
-                        )}
+                {planLabel && (
+                    <div className="flex-shrink-0 px-3 py-1.5 rounded-lg"
+                        style={{
+                            background: 'linear-gradient(135deg, rgba(15,23,42,0.97) 0%, rgba(30,27,75,0.92) 100%)',
+                            border: '1px solid rgba(139,92,246,0.5)',
+                            boxShadow: '0 0 14px rgba(139,92,246,0.28), inset 0 1px 0 rgba(255,255,255,0.06)',
+                        }}>
+                        <span className="text-[clamp(9px,2.5vw,11px)] font-black tracking-widest uppercase"
+                            style={{ color: '#c4b5fd' }}>
+                            {planLabel}
+                        </span>
                     </div>
                 )}
             </div>

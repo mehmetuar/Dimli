@@ -1,4 +1,6 @@
 import React from 'react';
+import { MapPin, Settings } from 'lucide-react';
+import { openLocationSettings } from '../../../utils/openLocationSettings';
 import { LoadingSpinner } from '../../../components/UI/LoadingSpinner';
 import { CreateMatchModal } from '../../../components/Modals/CreateMatchModal';
 import { ChallengeModal } from '../../../components/Modals/ChallengeModal';
@@ -168,20 +170,32 @@ export const Marketplace: React.FC = () => {
         onOpenSort={() => setIsSortOpen(true)}
       />
 
-      {locationPermissionDenied && (
-        <div className="mx-1 mb-3 flex items-center gap-2 bg-amber-900/20 border border-amber-500/30 text-amber-400 text-xs px-3 py-2 rounded-xl">
-          <span>📍</span>
-          <span>Konum izni verilmedi. Tüm ilanlar gösteriliyor. Filtrelemek için <strong>Konum Filtresi</strong>'ni kullanın.</span>
-        </div>
-      )}
-
       <div className="space-y-5">
         {displayMatches.length === 0 && (
-          <div className="text-center py-12 text-slate-400">
-            {matches.length === 0
-              ? "Henüz aktif ilan yok. İlk ilanı sen oluştur!"
-              : "Seçilen kriterlere uygun ilan bulunamadı."}
-          </div>
+          locationPermissionDenied ? (
+            <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+              <div className="w-16 h-16 rounded-2xl bg-turf-600/10 border border-turf-600/20 flex items-center justify-center mb-5">
+                <MapPin className="w-8 h-8 text-turf-400" />
+              </div>
+              <h3 className="text-white font-bold text-lg mb-2">Konum İzni Gerekli</h3>
+              <p className="text-slate-400 text-sm leading-relaxed mb-6">
+                Yakınındaki maç ilanlarını görmek için ayarlardan konum iznini etkinleştir.
+              </p>
+              <button
+                onClick={openLocationSettings}
+                className="flex items-center gap-2 bg-turf-600 hover:bg-turf-500 active:scale-95 text-white font-bold py-3 px-6 rounded-xl transition-all"
+              >
+                <Settings className="w-4 h-4" />
+                Ayarlara Git
+              </button>
+            </div>
+          ) : (
+            <div className="text-center py-12 text-slate-400">
+              {matches.length === 0
+                ? "Henüz aktif ilan yok. İlk ilanı sen oluştur!"
+                : "Seçilen kriterlere uygun ilan bulunamadı."}
+            </div>
+          )
         )}
 
         {displayMatches.map((announcement) => (

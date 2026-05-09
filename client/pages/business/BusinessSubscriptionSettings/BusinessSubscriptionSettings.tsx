@@ -381,9 +381,21 @@ export const BusinessSubscriptionSettings: React.FC = () => {
                                             </p>
                                         </div>
                                     </div>
-                                    <span className={`text-xs font-bold px-3 py-1.5 rounded-xl border shrink-0 ${statusColor[status] ?? 'text-slate-400 bg-slate-700 border-slate-600'}`}>
-                                        {statusLabel[status] ?? 'Bilinmiyor'}
-                                    </span>
+                                    {status === 'trial' ? (
+                                        <span className="text-[11px] font-black px-3 py-1.5 rounded-xl shrink-0 tracking-widest uppercase"
+                                            style={{
+                                                background: 'linear-gradient(135deg, rgba(15,23,42,0.97) 0%, rgba(30,27,75,0.92) 100%)',
+                                                border: '1px solid rgba(139,92,246,0.5)',
+                                                boxShadow: '0 0 14px rgba(139,92,246,0.28), inset 0 1px 0 rgba(255,255,255,0.06)',
+                                                color: '#c4b5fd',
+                                            }}>
+                                            {statusLabel[status]}
+                                        </span>
+                                    ) : (
+                                        <span className={`text-xs font-bold px-3 py-1.5 rounded-xl border shrink-0 ${statusColor[status] ?? 'text-slate-400 bg-slate-700 border-slate-600'}`}>
+                                            {statusLabel[status] ?? 'Bilinmiyor'}
+                                        </span>
+                                    )}
                                 </div>
 
                                 <div className="border-t border-slate-700/50 pt-4 space-y-2.5">

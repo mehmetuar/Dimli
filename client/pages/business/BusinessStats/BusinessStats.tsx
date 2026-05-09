@@ -29,12 +29,12 @@ const PitchCard: React.FC<{ pitch: PitchStats }> = ({ pitch }) => (
                     {pitch.pitchName}
                 </span>
             </div>
-            <div className="flex items-center gap-1 bg-slate-700/60 px-2.5 py-1 rounded-lg border border-slate-600/40">
-                <span className="text-[clamp(10px,2.8vw,12px)] font-bold text-slate-200">
+            <div className="flex items-center gap-0.5">
+                <span className="text-[clamp(11px,3vw,13px)] font-black text-white">
                     {pitch.pricePerHour.toLocaleString('tr-TR')}
                 </span>
-                <span className="text-[clamp(10px,2.8vw,12px)] font-black text-orange-400">₺</span>
-                <span className="text-[clamp(9px,2.5vw,11px)] font-medium text-slate-400">/sa</span>
+                <span className="text-[clamp(11px,3vw,13px)] font-black text-white">₺</span>
+                <span className="text-[clamp(10px,2.8vw,11px)] font-medium text-slate-300">/sa</span>
             </div>
         </div>
 

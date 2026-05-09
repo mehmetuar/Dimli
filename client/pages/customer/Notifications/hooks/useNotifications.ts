@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../../../services/api';
 import { Challenge } from '../../../../types';
 
@@ -34,7 +34,13 @@ export interface Notification {
 }
 
 export const useNotifications = () => {
-    const [activeTab, setActiveTab] = useState<'ALL' | 'JOIN_REQUESTS' | 'MATCH_REQUESTS'>('ALL');
+    const [searchParams] = useSearchParams();
+    const initialTab = (() => {
+        const t = searchParams.get('tab');
+        if (t === 'JOIN_REQUESTS' || t === 'MATCH_REQUESTS') return t;
+        return 'ALL';
+    })();
+    const [activeTab, setActiveTab] = useState<'ALL' | 'JOIN_REQUESTS' | 'MATCH_REQUESTS'>(initialTab);
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
     const [matchRequests, setMatchRequests] = useState<Challenge[]>([]);
