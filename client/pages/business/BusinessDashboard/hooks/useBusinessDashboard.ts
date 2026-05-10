@@ -6,6 +6,7 @@ export const useBusinessDashboard = () => {
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
     const [dashboardData, setDashboardData] = useState<any>(null);
     const [subscription, setSubscription] = useState<any>(null);
+    const [businessStatus, setBusinessStatus] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [selectedSlot, setSelectedSlot] = useState<any>(null);
     const [showDatePicker, setShowDatePicker] = useState(false);
@@ -47,6 +48,7 @@ export const useBusinessDashboard = () => {
                 api.get(`/subscription/owner/${ownerId}`).catch(() => ({ data: null }))
             ]);
             setDashboardData(dashboardRes.data);
+            setBusinessStatus(dashboardRes.data?.businessStatus ?? null);
             setSubscription(subRes.data);
         } catch (error) {
             console.error('Error fetching dashboard:', error);
@@ -208,6 +210,7 @@ export const useBusinessDashboard = () => {
         setSelectedDate,
         dashboardData,
         subscription,
+        businessStatus,
         loading,
         selectedSlot,
         setSelectedSlot,

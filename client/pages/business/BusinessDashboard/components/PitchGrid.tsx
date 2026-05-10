@@ -1,19 +1,21 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, CalendarX, Settings } from 'lucide-react';
+import { Lock, CalendarX, Settings, Clock } from 'lucide-react';
 
 interface PitchGridProps {
     pitches: any[];
     selectedDate: string;
     isPastSlot: (time: string, date: string) => boolean;
     setSelectedSlot: (slot: any) => void;
+    isPending?: boolean;
 }
 
 export const PitchGrid: React.FC<PitchGridProps> = ({
     pitches,
     selectedDate,
     isPastSlot,
-    setSelectedSlot
+    setSelectedSlot,
+    isPending = false,
 }) => {
     const [activePitchIndex, setActivePitchIndex] = useState(0);
     const navigate = useNavigate();
@@ -71,7 +73,17 @@ export const PitchGrid: React.FC<PitchGridProps> = ({
                         </h2>
                     </div>
 
-                    {activePitch.isClosed ? (
+                    {isPending ? (
+                        <div className="flex flex-col items-center justify-center py-14 bg-slate-800/40 rounded-2xl border border-dashed border-orange-500/30 text-center px-6 relative overflow-hidden">
+                            <div className="w-14 h-14 bg-orange-500/10 rounded-full flex items-center justify-center mb-4 border border-orange-500/20">
+                                <Clock className="w-6 h-6 text-orange-400" />
+                            </div>
+                            <h3 className="text-white font-black text-[clamp(14px,4vw,18px)] uppercase tracking-wide mb-2">ONAY BEKLİYOR</h3>
+                            <p className="text-slate-400 text-[clamp(11px,3vw,13px)] leading-relaxed max-w-xs">
+                                İşletmeniz onaylandığında saat slotları aktif hale gelecek ve rezervasyon almaya başlayabileceksiniz.
+                            </p>
+                        </div>
+                    ) : activePitch.isClosed ? (
                         <div className="flex flex-col items-center justify-center py-16 bg-slate-800/50 rounded-2xl border border-dashed border-slate-700 text-center px-6">
                             {activePitch.closedReason === 'PASSIVE' ? (
                                 <>

@@ -63,7 +63,7 @@ export const useBusinessRegister = () => {
         owner: { email: '', password: '', fullName: '', phone: '' },
         business: {
             name: '', city: '', district: '', address: '',
-            latitude: 41.0082, longitude: 28.9784,
+            latitude: 0, longitude: 0,
             openTime: '09:00', closeTime: '23:00',
         },
         pitches: [makePitch(0)],

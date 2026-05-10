@@ -220,6 +220,7 @@ export class BusinessOwnerService {
 
         return {
             businessName: business.name,
+            businessStatus: business.status,
             date: dateStr,
             pitches: slotsResponse
         };

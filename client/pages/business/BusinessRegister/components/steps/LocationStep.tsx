@@ -16,7 +16,7 @@ interface LocationStepProps {
 const MapEffect: React.FC<{ lat: number; lng: number; triggerFly: boolean }> = ({ lat, lng, triggerFly }) => {
     const map = useMap();
     useEffect(() => {
-        if (map && triggerFly && lat && lng) {
+        if (map && triggerFly && lat && lng && lat !== 0 && lng !== 0) {
             map.panTo({ lat, lng });
             map.setZoom(15);
         }
@@ -109,14 +109,10 @@ export const LocationStep: React.FC<LocationStepProps> = ({
         await doReverseGeocode(lat, lng);
     };
 
-    /**
-     * Textarea'ya focus olduğunda, elemanı klavyenin üstüne kaydırır.
-     * iOS ve Android'de input klavyenin arkasında kalmaz.
-     */
     const handleAddressFocus = () => {
         setTimeout(() => {
-            addressRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }, 350);
+            addressRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        }, 600);
     };
 
     const hasLocation = !!formData.business.latitude;
@@ -146,7 +142,7 @@ export const LocationStep: React.FC<LocationStepProps> = ({
                         ? <Loader2 className="w-4 h-4 animate-spin" />
                         : <Navigation className="w-4 h-4" />
                     }
-                    {isLocating ? 'Bulunuyor...' : 'Konumumu Kullan'}
+                    {isLocating ? 'Bulunuyor...' : 'Konumu Bul'}
                 </button>
             </div>
 
@@ -174,45 +170,56 @@ export const LocationStep: React.FC<LocationStepProps> = ({
                 </div>
             )}
 
-            {/* Harita — koordinat hazır olana kadar pulsing animasyon göster */}
-            {(!!formData.business.latitude || (!isLocating && hasAttemptedLocation)) ? (
-                <div className={`rounded-xl overflow-hidden border-2 relative z-[1] ${cityError ? 'border-red-500' : 'border-slate-700'}`} style={{ height: '320px' }}>
-                    <APIProvider apiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY}>
-                        <Map
-                            defaultCenter={{ lat: formData.business.latitude || 41.0082, lng: formData.business.longitude || 28.9784 }}
-                            defaultZoom={13}
-                            gestureHandling={'greedy'}
-                            disableDefaultUI={true}
-                            mapId="DEMO_MAP_ID"
-                            onClick={handleMapClick}
-                        >
-                            {formData.business.latitude && formData.business.longitude && (
-                                <AdvancedMarker position={{ lat: formData.business.latitude, lng: formData.business.longitude }} />
-                            )}
-                            <MapEffect
-                                lat={formData.business.latitude || 41.0082}
-                                lng={formData.business.longitude || 28.9784}
-                                triggerFly={flyTrigger}
-                            />
-                        </Map>
-                    </APIProvider>
-                </div>
-            ) : (
+            {/* Harita — gerçek konum bulunana kadar pulsing animasyon, default koordinat asla gösterilmez */}
+            {isLocating || (!formData.business.latitude && !hasAttemptedLocation) ? (
                 <div
-                    className="rounded-xl border-2 border-slate-700 bg-slate-900/50 flex flex-col items-center justify-center gap-5"
-                    style={{ height: '320px' }}
+                    className="rounded-xl border-2 border-slate-700 bg-slate-900/50 flex flex-col items-center justify-center gap-4"
+                    style={{ height: 'clamp(180px, 38vw, 260px)' }}
                 >
                     <div className="relative flex items-center justify-center">
-                        <span className="absolute inline-flex h-16 w-16 rounded-full bg-orange-500/25 animate-ping" />
-                        <span className="absolute inline-flex h-10 w-10 rounded-full bg-orange-500/20 animate-ping" style={{ animationDelay: '300ms' }} />
-                        <div className="relative z-10 w-14 h-14 rounded-full bg-slate-800 border-2 border-orange-500/50 flex items-center justify-center">
-                            <MapPin className="w-6 h-6 text-orange-400" />
+                        <span className="absolute inline-flex h-14 w-14 rounded-full bg-orange-500/25 animate-ping" />
+                        <span className="absolute inline-flex h-9 w-9 rounded-full bg-orange-500/20 animate-ping" style={{ animationDelay: '300ms' }} />
+                        <div className="relative z-10 w-12 h-12 rounded-full bg-slate-800 border-2 border-orange-500/50 flex items-center justify-center">
+                            <MapPin className="w-5 h-5 text-orange-400" />
                         </div>
                     </div>
                     <div className="text-center">
                         <p className="text-sm font-bold text-white">Konumunuz bulunuyor...</p>
                         <p className="text-xs text-slate-500 mt-1">Lütfen bekleyin</p>
                     </div>
+                </div>
+            ) : (
+                <div className={`rounded-xl overflow-hidden border-2 relative z-[1] ${cityError ? 'border-red-500' : 'border-slate-700'}`} style={{ height: 'clamp(180px, 38vw, 260px)' }}>
+                    <APIProvider apiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY}>
+                        <Map
+                            defaultCenter={
+                                formData.business.latitude
+                                    ? { lat: formData.business.latitude, lng: formData.business.longitude }
+                                    : { lat: 38.9, lng: 35.2 }
+                            }
+                            defaultZoom={formData.business.latitude ? 13 : 5}
+                            gestureHandling={'greedy'}
+                            disableDefaultUI={true}
+                            mapId="DEMO_MAP_ID"
+                            onClick={handleMapClick}
+                        >
+                            {!!formData.business.latitude && (
+                                <AdvancedMarker position={{ lat: formData.business.latitude, lng: formData.business.longitude }} />
+                            )}
+                            <MapEffect
+                                lat={formData.business.latitude}
+                                lng={formData.business.longitude}
+                                triggerFly={flyTrigger}
+                            />
+                        </Map>
+                    </APIProvider>
+                    {!formData.business.latitude && (
+                        <div className="absolute inset-0 flex items-end justify-center pb-3 pointer-events-none">
+                            <span className="bg-slate-900/80 text-slate-300 text-xs font-bold px-3 py-1.5 rounded-lg">
+                                Haritaya tıklayarak konumunuzu seçin
+                            </span>
+                        </div>
+                    )}
                 </div>
             )}
 

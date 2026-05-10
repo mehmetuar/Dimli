@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Clock } from 'lucide-react';
 import { BusinessNavbar } from '../../../components/Business/BusinessNavbar';
 import { ConfirmModal } from '../../../components/Modals/ConfirmModal';
 import { SuccessModal } from '../../../components/Modals/SuccessModal';
@@ -22,6 +23,7 @@ export const BusinessDashboard: React.FC = () => {
         setSelectedDate,
         dashboardData,
         subscription,
+        businessStatus,
         loading,
         selectedSlot,
         setSelectedSlot,
@@ -53,6 +55,7 @@ export const BusinessDashboard: React.FC = () => {
     if (!dashboardData) return <div className="min-h-screen bg-slate-800 flex items-center justify-center text-white font-bold italic">Veri bulunamadı.</div>;
 
     const hasActiveSubscription = subscription && ['active', 'trial'].includes(subscription.status);
+    const isPending = businessStatus === 'pending';
 
     return (
         <div className="min-h-screen bg-slate-900 text-white pb-32">
@@ -64,6 +67,19 @@ export const BusinessDashboard: React.FC = () => {
                 navigate={navigate}
             />
 
+            {/* Pending approval banner */}
+            {isPending && hasActiveSubscription && (
+                <div className="mx-4 mt-4 flex items-start gap-3 bg-orange-500/10 border border-orange-500/30 px-4 py-3.5 rounded-2xl">
+                    <Clock className="text-orange-400 shrink-0 mt-0.5" size={18} />
+                    <div className="space-y-0.5">
+                        <p className="text-orange-300 text-[clamp(12px,3.5vw,14px)] font-bold">İşletmeniz Onay Bekliyor</p>
+                        <p className="text-orange-200/70 text-[clamp(10px,2.8vw,12px)] leading-relaxed">
+                            Sahalarınız onaylandığında işletmeniz yayına alınacak ve rezervasyon almaya başlayabileceksiniz. Onay süreci 1-2 iş günü sürmektedir.
+                        </p>
+                    </div>
+                </div>
+            )}
+
             {/* Pitches & Slots */}
             {hasActiveSubscription ? (
                 <PitchGrid
@@ -71,6 +87,7 @@ export const BusinessDashboard: React.FC = () => {
                     selectedDate={selectedDate}
                     isPastSlot={isPastSlot}
                     setSelectedSlot={setSelectedSlot}
+                    isPending={isPending}
                 />
             ) : (
                 <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
