@@ -265,8 +265,15 @@ export const useBusinessRegister = () => {
             };
             const response = await api.post('/auth/business/register', payload);
 
+            // Otomatik giriş: kayıt yanıtındaki token'ı sakla
+            if (response.data?.access_token) {
+                localStorage.setItem('token', response.data.access_token);
+                localStorage.setItem('ownerId', response.data.ownerId);
+                localStorage.setItem('role', 'business_owner');
+            }
+
             // ADIM 4: Anonim RC kullanıcısını gerçek ownerId'ye bağla
-            const ownerId = response.data?.owner?.id;
+            const ownerId = response.data?.ownerId || response.data?.owner?.id;
             if (ownerId) {
                 await linkRevenueCatUser(ownerId).catch(() => {});
             }

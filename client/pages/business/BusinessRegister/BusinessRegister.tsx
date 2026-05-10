@@ -104,8 +104,8 @@ export const BusinessRegister: React.FC = () => {
 
     return (
         <div
-            className="h-[100dvh] bg-slate-950 flex flex-col p-3 md:p-4 md:items-center md:justify-center"
-            style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight + 12 : undefined }}
+            className="h-[100dvh] bg-slate-950 flex flex-col px-3 pt-3 md:px-4 md:pt-4 md:items-center md:justify-center"
+            style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight + 12 : 'max(12px, env(safe-area-inset-bottom, 12px))' }}
         >
             <div className="w-full max-w-4xl flex-1 min-h-0 md:flex-none md:min-h-[600px] bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-800 shadow-2xl overflow-hidden flex flex-col md:flex-row">
 

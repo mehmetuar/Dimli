@@ -63,11 +63,11 @@ export const BusinessSettingsHub: React.FC = () => {
     ];
 
     return (
-        <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-900 to-slate-800 text-white pb-32">
+        <div className="h-[100dvh] bg-gradient-to-b from-slate-900 via-slate-900 to-slate-800 text-white flex flex-col overflow-hidden">
 
             {/* Header */}
             <div
-                className="sticky top-0 z-10 border-b border-slate-700/60"
+                className="flex-shrink-0 border-b border-slate-700/60"
                 style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)', boxShadow: '0 4px 24px rgba(0,0,0,0.4)' }}
             >
                 <div className="px-4 py-5 flex flex-col items-center">
@@ -83,7 +83,8 @@ export const BusinessSettingsHub: React.FC = () => {
                 </div>
             </div>
 
-            <div className="p-4 pt-5 space-y-3">
+            <div className="flex-1 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
+            <div className="p-4 pt-5 space-y-3" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 7rem)' }}>
                 {menuItems.map((item) => (
                     <button
                         key={item.path}
@@ -125,6 +126,7 @@ export const BusinessSettingsHub: React.FC = () => {
                     </div>
                     <ChevronRight className="w-4 h-4 text-red-500/50 flex-shrink-0" />
                 </button>
+            </div>
             </div>
 
             <ConfirmModal

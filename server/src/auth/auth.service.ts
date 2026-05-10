@@ -570,9 +570,18 @@ export class AuthService {
             }
 
             const { password, ...result } = savedOwner;
+            const payload = {
+                email: savedOwner.email,
+                sub: savedOwner.id,
+                role: 'business_owner',
+                businessId: savedBusiness.id,
+            };
             return {
                 ...result,
-                business: savedBusiness
+                business: savedBusiness,
+                access_token: this.jwtService.sign(payload),
+                role: 'business_owner',
+                ownerId: savedOwner.id,
             };
 
         } catch (err) {

@@ -47,7 +47,7 @@ export const PitchListHeader: React.FC<PitchListHeaderProps> = ({ navigate, pitc
                 </div>
 
                 {planLabel && (
-                    <div className="flex-shrink-0 px-3 py-1.5 rounded-lg"
+                    <div className="flex-shrink-0 flex items-center justify-center px-3 py-1.5 rounded-lg min-h-[28px]"
                         style={{
                             background: 'linear-gradient(135deg, rgba(15,23,42,0.97) 0%, rgba(30,27,75,0.92) 100%)',
                             border: '1px solid rgba(139,92,246,0.5)',

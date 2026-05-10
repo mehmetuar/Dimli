@@ -1,5 +1,5 @@
 import React from 'react';
-import { Goal } from 'lucide-react';
+import { Goal, Clock } from 'lucide-react';
 import { BusinessNavbar } from '../../../components/Business/BusinessNavbar';
 import { BusinessLoadingSpinner } from '../../../components/Business/BusinessLoadingSpinner';
 
@@ -16,34 +16,52 @@ export const BusinessPitchList: React.FC = () => {
         loading,
         pitches,
         subscription,
+        businessStatus,
     } = useBusinessPitchList();
 
     if (loading) return <BusinessLoadingSpinner fullScreen />;
 
+    const isPending = businessStatus === 'pending';
+
     return (
-        <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-white pb-32 relative">
+        <div className="h-[100dvh] bg-gradient-to-b from-slate-900 to-slate-800 text-white flex flex-col overflow-hidden">
             <PitchListHeader
                 navigate={navigate}
                 pitchCount={pitches.length}
                 subscription={subscription}
             />
 
-            <div className="p-4 space-y-3">
-                {pitches.map((pitch) => (
-                    <PitchListItem
-                        key={pitch.id}
-                        pitch={pitch}
-                        onClick={() => navigate(`/business/settings/pitches/${pitch.id}`)}
-                    />
-                ))}
+            <div className="flex-1 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
+                <div className="p-4 space-y-3" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 7rem)' }}>
+                    {isPending && (
+                        <div className="flex items-start gap-3 bg-orange-500/10 border border-orange-500/30 px-4 py-3.5 rounded-2xl">
+                            <Clock className="text-orange-400 shrink-0 mt-0.5" size={18} />
+                            <div className="space-y-0.5">
+                                <p className="text-orange-300 text-sm font-bold">Sahalarınız İnceleme Aşamasında</p>
+                                <p className="text-orange-200/70 text-xs leading-relaxed">
+                                    Sahalarınız onaylandığında işletmeniz yayına alınacak ve rezervasyon almaya başlayabileceksiniz. Onay süreci 1-2 iş günü sürmektedir.
+                                </p>
+                            </div>
+                        </div>
+                    )}
 
-                {pitches.length === 0 && (
-                    <div className="text-center py-10 text-slate-500">
-                        <Goal className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                        <p>Henüz saha oluşturulmamış.</p>
-                        <p className="text-xs text-slate-600 mt-1">Sahalar kayıt sırasında abonelik planınıza göre oluşturulur.</p>
-                    </div>
-                )}
+                    {pitches.map((pitch) => (
+                        <PitchListItem
+                            key={pitch.id}
+                            pitch={pitch}
+                            isPending={isPending}
+                            onClick={() => navigate(`/business/settings/pitches/${pitch.id}`)}
+                        />
+                    ))}
+
+                    {pitches.length === 0 && (
+                        <div className="text-center py-10 text-slate-500">
+                            <Goal className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                            <p>Henüz saha oluşturulmamış.</p>
+                            <p className="text-xs text-slate-600 mt-1">Sahalar kayıt sırasında abonelik planınıza göre oluşturulur.</p>
+                        </div>
+                    )}
+                </div>
             </div>
 
             <BusinessNavbar />

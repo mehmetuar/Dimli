@@ -97,7 +97,13 @@ export const Login: React.FC = () => {
 
                     <Link
                         to="/business/login"
-                        className="inline-block px-6 py-2 bg-orange-500/10 text-orange-500 border border-orange-500/20 rounded-lg text-sm font-bold hover:bg-orange-500/20 transition-colors"
+                        className="block w-full py-3.5 rounded-xl text-center text-sm font-bold tracking-wide transition-all active:scale-[0.98]"
+                        style={{
+                            background: 'rgba(249,115,22,0.07)',
+                            border: '1px solid rgba(249,115,22,0.25)',
+                            color: 'rgba(251,146,60,0.85)',
+                            WebkitTapHighlightColor: 'transparent',
+                        }}
                     >
                         İşletme Hesabına Geçiş Yap
                     </Link>

@@ -7,6 +7,7 @@ export const useBusinessPitchList = () => {
     const [loading, setLoading] = useState(true);
     const [pitches, setPitches] = useState<any[]>([]);
     const [subscription, setSubscription] = useState<any>(null);
+    const [businessStatus, setBusinessStatus] = useState<string | null>(null);
 
     useEffect(() => {
         fetchPitches();
@@ -19,6 +20,8 @@ export const useBusinessPitchList = () => {
 
             const ownerResponse = await api.get(`/business-owner/${ownerId}`);
             const busId = ownerResponse.data.business?.id;
+            const busStatus = ownerResponse.data.business?.status ?? null;
+            setBusinessStatus(busStatus);
             if (!busId) { alert('İşletme bulunamadı'); return; }
 
             const [pitchesResponse, subscriptionResponse] = await Promise.all([
@@ -50,5 +53,6 @@ export const useBusinessPitchList = () => {
         loading,
         pitches,
         subscription,
+        businessStatus,
     };
 };

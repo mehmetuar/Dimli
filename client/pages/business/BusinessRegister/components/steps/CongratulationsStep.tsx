@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle, Clock, Phone } from 'lucide-react';
+import { CheckCircle, Clock, Phone, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export const CongratulationsStep: React.FC<{ ownerPhone: string }> = ({ ownerPhone }) => {
@@ -34,12 +34,21 @@ export const CongratulationsStep: React.FC<{ ownerPhone: string }> = ({ ownerPho
                 </div>
             </div>
 
-            <button
-                onClick={() => navigate('/business/login')}
-                className="text-orange-500 font-bold text-sm hover:underline transition-colors"
-            >
-                Giriş sayfasına dön
-            </button>
+            <div className="w-full max-w-sm space-y-3">
+                <button
+                    onClick={() => navigate('/business/dashboard')}
+                    className="w-full flex items-center justify-center gap-2 bg-orange-600 hover:bg-orange-500 text-white font-black text-base py-4 rounded-2xl uppercase tracking-wider transition-colors shadow-lg shadow-orange-600/20"
+                >
+                    İşletme Panelinize Girin
+                    <ArrowRight size={18} />
+                </button>
+                <button
+                    onClick={() => navigate('/business/login')}
+                    className="text-slate-500 font-bold text-xs hover:text-slate-400 transition-colors"
+                >
+                    Giriş sayfasına dön
+                </button>
+            </div>
         </div>
     );
 };

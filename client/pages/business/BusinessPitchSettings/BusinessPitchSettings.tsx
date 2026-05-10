@@ -113,23 +113,17 @@ export const BusinessPitchSettings: React.FC = () => {
     };
 
     return (
-        <div
-            className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-900 to-slate-800 text-white relative"
-            style={{
-                paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 7rem)',
-                overscrollBehaviorY: 'none',
-                touchAction: 'pan-y',
-            }}
-        >
+        <div className="h-[100dvh] bg-gradient-to-b from-slate-900 via-slate-900 to-slate-800 text-white flex flex-col overflow-hidden">
             <PitchSettingsHeader name={formData.name} navigate={navigate} />
 
+            <div className="flex-1 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
             {success && (
                 <div className="mx-4 mt-4 p-4 bg-emerald-500/10 border border-emerald-500/40 rounded-xl text-emerald-400 font-bold text-center flex items-center justify-center gap-2">
                     <CheckCircle className="w-4 h-4" /> Ayarlar başarıyla güncellendi!
                 </div>
             )}
 
-            <div className="p-4 space-y-4">
+            <div className="p-4 space-y-4" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 7rem)' }}>
 
                 {/* ── Saha Durumu (Aktif / Pasif toggle) ──────────────────── */}
                 <div className="bg-slate-800/70 p-4 rounded-2xl border border-slate-700/60"
@@ -349,6 +343,7 @@ export const BusinessPitchSettings: React.FC = () => {
                         </button>
                     </div>
                 </form>
+            </div>
             </div>
 
             <BusinessNavbar />
