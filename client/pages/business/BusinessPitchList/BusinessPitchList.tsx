@@ -1,5 +1,5 @@
 import React from 'react';
-import { Goal, Clock } from 'lucide-react';
+import { Goal, Clock, AlertTriangle } from 'lucide-react';
 import { BusinessNavbar } from '../../../components/Business/BusinessNavbar';
 import { BusinessLoadingSpinner } from '../../../components/Business/BusinessLoadingSpinner';
 
@@ -22,6 +22,7 @@ export const BusinessPitchList: React.FC = () => {
     if (loading) return <BusinessLoadingSpinner fullScreen />;
 
     const isPending = businessStatus === 'pending';
+    const isSuspended = businessStatus === 'suspended';
 
     return (
         <div className="h-[100dvh] bg-gradient-to-b from-slate-900 to-slate-800 text-white flex flex-col overflow-hidden">
@@ -33,6 +34,18 @@ export const BusinessPitchList: React.FC = () => {
 
             <div className="flex-1 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
                 <div className="p-4 space-y-3" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 7rem)' }}>
+                    {isSuspended && (
+                        <div className="flex items-start gap-3 bg-red-500/10 border border-red-500/30 px-4 py-3.5 rounded-2xl">
+                            <AlertTriangle className="text-red-400 shrink-0 mt-0.5" size={18} />
+                            <div className="space-y-0.5">
+                                <p className="text-red-300 text-[clamp(12px,3.5vw,14px)] font-bold">İşletmeniz Askıya Alındı</p>
+                                <p className="text-red-200/70 text-[clamp(10px,2.8vw,12px)] leading-relaxed">
+                                    Hesabınız yönetim ekibimiz tarafından askıya alınmıştır. Sahalarınız pasif durumdadır ve gösterilmemektedir.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
                     {isPending && (
                         <div className="flex items-start gap-3 bg-orange-500/10 border border-orange-500/30 px-4 py-3.5 rounded-2xl">
                             <Clock className="text-orange-400 shrink-0 mt-0.5" size={18} />
@@ -50,6 +63,7 @@ export const BusinessPitchList: React.FC = () => {
                             key={pitch.id}
                             pitch={pitch}
                             isPending={isPending}
+                            isSuspended={isSuspended}
                             onClick={() => navigate(`/business/settings/pitches/${pitch.id}`)}
                         />
                     ))}

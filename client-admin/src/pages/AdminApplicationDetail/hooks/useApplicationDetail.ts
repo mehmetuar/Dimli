@@ -128,6 +128,32 @@ export const useApplicationDetail = () => {
         }
     };
 
+    const suspend = async () => {
+        setActionLoading(true);
+        try {
+            await adminApi.post(`/admin/businesses/${id}/suspend`);
+            setApp((prev: any) => ({ ...prev, status: 'suspended' }));
+            setMessage({ text: 'İşletme askıya alındı.', type: 'success' });
+        } catch (err: any) {
+            setMessage({ text: 'Hata: ' + (err.response?.data?.message || 'İşlem başarısız.'), type: 'error' });
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    const activate = async () => {
+        setActionLoading(true);
+        try {
+            await adminApi.post(`/admin/businesses/${id}/activate`);
+            setApp((prev: any) => ({ ...prev, status: 'active' }));
+            setMessage({ text: 'İşletme aktifleştirildi.', type: 'success' });
+        } catch (err: any) {
+            setMessage({ text: 'Hata: ' + (err.response?.data?.message || 'İşlem başarısız.'), type: 'error' });
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
     return {
         app, loading, actionLoading,
         editMode, setEditMode,
@@ -138,6 +164,6 @@ export const useApplicationDetail = () => {
         showRejectForm, setShowRejectForm,
         rejectReason, setRejectReason,
         navigate,
-        handleCancelEdit, handleSave, handleSaveAndApprove, approve, reject,
+        handleCancelEdit, handleSave, handleSaveAndApprove, approve, reject, suspend, activate,
     };
 };

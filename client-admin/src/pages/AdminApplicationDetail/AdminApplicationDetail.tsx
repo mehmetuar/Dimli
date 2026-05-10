@@ -20,7 +20,7 @@ export default function AdminApplicationDetail() {
         showRejectForm, setShowRejectForm,
         rejectReason, setRejectReason,
         navigate,
-        handleCancelEdit, handleSave, handleSaveAndApprove, approve, reject,
+        handleCancelEdit, handleSave, handleSaveAndApprove, approve, reject, suspend, activate,
     } = useApplicationDetail();
 
     if (loading) return (
@@ -39,6 +39,8 @@ export default function AdminApplicationDetail() {
     );
 
     const isPending = app.status === 'pending';
+    const isActive = app.status === 'active';
+    const isSuspended = app.status === 'suspended';
 
     return (
         <div className="min-h-screen p-6 max-w-4xl mx-auto">
@@ -88,6 +90,8 @@ export default function AdminApplicationDetail() {
                 <ApplicationActions
                     editMode={editMode}
                     isPending={isPending}
+                    isActive={isActive}
+                    isSuspended={isSuspended}
                     actionLoading={actionLoading}
                     showRejectForm={showRejectForm}
                     setShowRejectForm={setShowRejectForm}
@@ -97,6 +101,8 @@ export default function AdminApplicationDetail() {
                     handleSaveAndApprove={handleSaveAndApprove}
                     approve={approve}
                     reject={reject}
+                    suspend={suspend}
+                    activate={activate}
                 />
             </div>
         </div>

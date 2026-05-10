@@ -56,6 +56,7 @@ export const BusinessDashboard: React.FC = () => {
 
     const hasActiveSubscription = subscription && ['active', 'trial'].includes(subscription.status);
     const isPending = businessStatus === 'pending';
+    const isSuspended = businessStatus === 'suspended';
 
     return (
         <div className="min-h-screen bg-slate-900 text-white pb-32">
@@ -67,38 +68,34 @@ export const BusinessDashboard: React.FC = () => {
                 navigate={navigate}
             />
 
-            {/* Pending approval banner */}
-            {isPending && hasActiveSubscription && (
-                <div className="mx-4 mt-4 flex items-start gap-3 bg-orange-500/10 border border-orange-500/30 px-4 py-3.5 rounded-2xl">
-                    <Clock className="text-orange-400 shrink-0 mt-0.5" size={18} />
-                    <div className="space-y-0.5">
-                        <p className="text-orange-300 text-[clamp(12px,3.5vw,14px)] font-bold">İşletmeniz Onay Bekliyor</p>
-                        <p className="text-orange-200/70 text-[clamp(10px,2.8vw,12px)] leading-relaxed">
-                            Sahalarınız onaylandığında işletmeniz yayına alınacak ve rezervasyon almaya başlayabileceksiniz. Onay süreci 1-2 iş günü sürmektedir.
-                        </p>
+            {isSuspended ? (
+                /* Senaryo 2: Admin tarafından askıya alındı */
+                <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
+                    <div className="w-20 h-20 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-6">
+                        <svg className="w-10 h-10 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                        </svg>
+                    </div>
+                    <h2 className="text-[clamp(18px,5vw,22px)] font-black text-white mb-3 uppercase italic">İşletmeniz Askıya Alındı</h2>
+                    <p className="text-slate-400 text-[clamp(12px,3.5vw,14px)] leading-relaxed mb-8 max-w-xs">
+                        Hesabınız yönetim ekibimiz tarafından askıya alınmıştır. Daha fazla bilgi almak için lütfen destek ekibimizle iletişime geçin.
+                    </p>
+                    <div className="w-full max-w-xs bg-slate-800/60 border border-slate-700 rounded-2xl px-5 py-4 text-left space-y-2">
+                        <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">Destek</p>
+                        <p className="text-white font-bold text-sm">destek@dimli.app</p>
                     </div>
                 </div>
-            )}
-
-            {/* Pitches & Slots */}
-            {hasActiveSubscription ? (
-                <PitchGrid
-                    pitches={dashboardData.pitches}
-                    selectedDate={selectedDate}
-                    isPastSlot={isPastSlot}
-                    setSelectedSlot={setSelectedSlot}
-                    isPending={isPending}
-                />
-            ) : (
+            ) : !hasActiveSubscription ? (
+                /* Senaryo 1: Abonelik süresi doldu */
                 <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
                     <div className="w-20 h-20 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center mb-6">
                         <svg className="w-10 h-10 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
                         </svg>
                     </div>
-                    <h2 className="text-xl font-bold text-white mb-3">Abonelik Gerekli</h2>
-                    <p className="text-slate-400 text-sm leading-relaxed mb-8 max-w-xs">
-                        Sahalarınızı yayına almak ve rezervasyon almak için aktif bir aboneliğe ihtiyacınız var.
+                    <h2 className="text-[clamp(18px,5vw,22px)] font-black text-white mb-3 uppercase italic">Aboneliğiniz Sona Erdi</h2>
+                    <p className="text-slate-400 text-[clamp(12px,3.5vw,14px)] leading-relaxed mb-8 max-w-xs">
+                        Sahalarınızı yeniden yayına almak ve rezervasyon almak için aboneliğinizi yenileyin.
                     </p>
                     <button
                         onClick={() => navigate('/business/settings/subscription')}
@@ -111,6 +108,28 @@ export const BusinessDashboard: React.FC = () => {
                     </button>
                     <p className="text-slate-500 text-xs mt-4">90 gün ücretsiz deneme süresi</p>
                 </div>
+            ) : (
+                /* Normal dashboard: onay bekliyor banner + PitchGrid */
+                <>
+                    {isPending && (
+                        <div className="mx-4 mt-4 flex items-start gap-3 bg-orange-500/10 border border-orange-500/30 px-4 py-3.5 rounded-2xl">
+                            <Clock className="text-orange-400 shrink-0 mt-0.5" size={18} />
+                            <div className="space-y-0.5">
+                                <p className="text-orange-300 text-[clamp(12px,3.5vw,14px)] font-bold">İşletmeniz Onay Bekliyor</p>
+                                <p className="text-orange-200/70 text-[clamp(10px,2.8vw,12px)] leading-relaxed">
+                                    Sahalarınız onaylandığında işletmeniz yayına alınacak ve rezervasyon almaya başlayabileceksiniz. Onay süreci 1-2 iş günü sürmektedir.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+                    <PitchGrid
+                        pitches={dashboardData.pitches}
+                        selectedDate={selectedDate}
+                        isPastSlot={isPastSlot}
+                        setSelectedSlot={setSelectedSlot}
+                        isPending={isPending}
+                    />
+                </>
             )}
 
             {/* Modal for Slot Details */}

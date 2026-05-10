@@ -5,9 +5,10 @@ interface PitchListItemProps {
     pitch: any;
     onClick: () => void;
     isPending?: boolean;
+    isSuspended?: boolean;
 }
 
-export const PitchListItem: React.FC<PitchListItemProps> = ({ pitch, onClick, isPending = false }) => {
+export const PitchListItem: React.FC<PitchListItemProps> = ({ pitch, onClick, isPending = false, isSuspended = false }) => {
     const isActive = pitch.isActive !== false;
 
     return (
@@ -50,7 +51,11 @@ export const PitchListItem: React.FC<PitchListItemProps> = ({ pitch, onClick, is
             </div>
 
             <div className="flex items-center gap-2 flex-shrink-0">
-                {isPending ? (
+                {isSuspended ? (
+                    <span className="text-[clamp(9px,2.5vw,11px)] font-bold px-2.5 py-1 rounded-lg border bg-red-500/10 text-red-400 border-red-500/25 whitespace-nowrap">
+                        Askıda
+                    </span>
+                ) : isPending ? (
                     <span className="text-[clamp(9px,2.5vw,11px)] font-bold px-2.5 py-1 rounded-lg border bg-orange-500/10 text-orange-400 border-orange-500/25 whitespace-nowrap">
                         Onay Bekliyor
                     </span>
