@@ -145,7 +145,7 @@ function AppContent() {
       const hash = window.location.hash;
       const authPrefixes = ['#/login', '#/register', '#/forgot-password', '#/business/'];
       if (!authPrefixes.some(p => hash.startsWith(p))) {
-        navigate('/login', { replace: true });
+        navigate('/login', { replace: true, state: { sessionExpired: true } });
       }
     };
     window.addEventListener('auth:sessionExpired', handleExpired);

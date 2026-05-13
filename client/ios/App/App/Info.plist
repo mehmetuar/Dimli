@@ -33,8 +33,12 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Profil ve takım fotoğrafı çekmek için kameranıza erişim gereklidir.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Dimli needs your location to find nearby pitches and players.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Profil ve takım fotoğrafı yüklemek için fotoğraf kütüphanenize erişim gereklidir.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>

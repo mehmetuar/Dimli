@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, Link, Navigate } from 'react-router-dom';
+import { useNavigate, useLocation, Link, Navigate } from 'react-router-dom';
 import api from '../../../services/api';
 import { initializePushNotifications } from '../../../services/pushNotificationService';
 
@@ -9,7 +9,8 @@ export const Login: React.FC = () => {
     const [error, setError] = useState('');
     const navigate = useNavigate();
 
-    if (localStorage.getItem('token')) {
+    const location = useLocation();
+    if (localStorage.getItem('token') && !location.state?.sessionExpired) {
         return <Navigate to="/" replace />;
     }
 
