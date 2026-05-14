@@ -18,18 +18,12 @@ export class SmsService {
         const normalizedPhone = this.normalizePhone(phone);
 
         try {
-            // MOCK MODE: NetGSM başlık onayı gelene kadar SMS'leri sadece logluyoruz.
-            // Gerçek gönderim kodları yoruma alındı.
-            this.logger.log(`[MOCK SMS] Alıcı: ${normalizedPhone} | Mesaj: ${message}`);
-            return;
-
-            /*
             const authHeader = Buffer.from(`${userCode}:${password}`).toString('base64');
 
             const response = await axios.post(
                 'https://api.netgsm.com.tr/sms/rest/v2/otp',
                 {
-                    msgheader: header, // .env'den gelen 8503084905
+                    msgheader: header,
                     msg: message,
                     no: normalizedPhone
                 },
@@ -47,8 +41,7 @@ export class SmsService {
                 throw new Error(`NetGSM hata kodu: ${responseData.code} - ${responseData.description || 'Bilinmeyen hata'}`);
             }
 
-            this.logger.log(`OTP SMS başarıyla gönderildi: ${normalizedPhone} (Job ID: ${responseData.jobid})`);
-            */
+            this.logger.log(`OTP SMS gönderildi: ${normalizedPhone} (Job ID: ${responseData.jobid})`);
         } catch (error: any) {
             const errorMessage = error?.response?.data?.description || error?.response?.data?.code || error.message;
             this.logger.error(`SMS gönderilemedi: ${errorMessage}`);

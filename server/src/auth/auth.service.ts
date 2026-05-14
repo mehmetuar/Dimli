@@ -86,7 +86,7 @@ export class AuthService {
         });
         await this.otpRepository.save(otp);
 
-        await this.smsService.sendSms(phone, `Dimli doğrulama kodunuz: ${code}`);
+        await this.smsService.sendSms(phone, `Dimli doğrulama kodunuz: ${code}. Kodu kimseyle paylaşmayın.`);
     }
 
     async verifyOtp(phone: string, code: string): Promise<void> {
@@ -164,7 +164,7 @@ export class AuthService {
         });
         await this.otpRepository.save(otp);
 
-        await this.smsService.sendSms(phone, `Dimli doğrulama kodunuz: ${code}`);
+        await this.smsService.sendSms(phone, `Dimli doğrulama kodunuz: ${code}. Kodu kimseyle paylaşmayın.`);
     }
 
     async verifyBusinessOwnerOtp(phone: string, code: string): Promise<void> {
@@ -236,7 +236,7 @@ export class AuthService {
         });
         await this.otpRepository.save(otp);
 
-        await this.smsService.sendSms(phone, `Dimli şifre sıfırlama kodunuz: ${code}`);
+        await this.smsService.sendSms(phone, `Dimli şifre sıfırlama kodunuz: ${code}. Kodu kimseyle paylaşmayın.`);
     }
 
     async verifyPasswordResetOtp(phone: string, code: string): Promise<void> {
@@ -333,7 +333,7 @@ export class AuthService {
         });
         await this.otpRepository.save(otp);
 
-        await this.smsService.sendSms(phone, `Dimli İşletme Paneli şifre sıfırlama kodunuz: ${code}`);
+        await this.smsService.sendSms(phone, `Dimli İşletme Paneli şifre sıfırlama kodunuz: ${code}. Kodu kimseyle paylaşmayın.`);
 
         return { maskedPhone: this.maskPhone(phone) };
     }
