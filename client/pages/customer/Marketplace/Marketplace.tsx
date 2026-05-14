@@ -228,6 +228,7 @@ export const Marketplace: React.FC = () => {
             </button>
           </div>
         )}
+
       </div>
 
       {selectedMatch && (

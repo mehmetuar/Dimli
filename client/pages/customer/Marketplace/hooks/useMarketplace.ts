@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import api from '../../../../services/api';
 import { Business } from '../../../../types';
 import { LocationFilter } from '../../../../components/Modals/LocationFilterModal';
@@ -16,8 +16,9 @@ export const useMarketplace = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
-  const [offset, setOffset] = useState(0);
   const [currentUser, setCurrentUser] = useState<any>(null);
+
+  const offsetRef = useRef(0);
 
   // Modals
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -38,31 +39,17 @@ export const useMarketplace = () => {
     ? { type: 'NEARBY', radius, coords }
     : { type: 'ALL' };
 
-  const fetchAnnouncements = async (
-    lat: number, lng: number, r: number,
-    date: string | null, sort: string,
-    off: number, append = false,
-  ) => {
-    if (off === 0) setIsLoading(true);
+  const fetchAnnouncements = async (lat: number, lng: number, r: number, off = 0, append = false) => {
+    if (!append) setIsLoading(true);
     else setLoadingMore(true);
     try {
       const res = await api.get('/match-announcements', {
-        params: {
-          lat, lng, radius: r,
-          date: date || undefined,
-          sortBy: sort,
-          offset: off,
-          limit: PAGE_SIZE,
-        },
+        params: { lat, lng, radius: r, offset: off, limit: PAGE_SIZE },
       });
-      const responseData = res.data;
-      const data: any[] = Array.isArray(responseData)
-        ? responseData.filter((m: any) => m.matchType !== 'kendi_aramizda')
-        : (responseData.data ?? []);
-      const more: boolean = Array.isArray(responseData) ? false : (responseData.hasMore ?? false);
+      const data = (res.data as any[]).filter((m: any) => m.matchType !== 'kendi_aramizda');
       if (append) setMatches(prev => [...prev, ...data]);
       else setMatches(data);
-      setHasMore(more);
+      setHasMore(data.length >= PAGE_SIZE);
     } catch (err) {
       console.error('Failed to fetch announcements', err);
       if (!append) setMatches([]);
@@ -95,21 +82,38 @@ export const useMarketplace = () => {
     fetchStaticData();
   }, []);
 
-  // ── coords/radius değişince sıfırla ─────────────────────────────────────
+  // ── coords/radius değişince sıfırla ve yeniden yükle ────────────────────
   useEffect(() => {
     let cancelled = false;
     const safetyTimer = setTimeout(() => setIsLoading(false), 12000);
 
     const load = async () => {
-      setOffset(0);
-      if (!coords) {
-        setMatches([]);
-        setIsLoading(false);
-        clearTimeout(safetyTimer);
-        return;
+      offsetRef.current = 0;
+      setHasMore(false);
+      setIsLoading(true);
+      try {
+        if (!coords) {
+          setMatches([]);
+          return;
+        }
+        const res = await api.get('/match-announcements', {
+          params: { lat: coords.lat, lng: coords.lng, radius, offset: 0, limit: PAGE_SIZE },
+        });
+        if (cancelled) return;
+        const data = (res.data as any[]).filter((m: any) => m.matchType !== 'kendi_aramizda');
+        setMatches(data);
+        setHasMore(data.length >= PAGE_SIZE);
+      } catch (err) {
+        if (!cancelled) {
+          console.error('Failed to fetch announcements', err);
+          setMatches([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+          clearTimeout(safetyTimer);
+        }
       }
-      await fetchAnnouncements(coords.lat, coords.lng, radius, selectedDate, sortBy, 0, false);
-      if (!cancelled) clearTimeout(safetyTimer);
     };
 
     load();
@@ -119,18 +123,11 @@ export const useMarketplace = () => {
     };
   }, [coords, radius]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── selectedDate veya sortBy değişince sıfırla ──────────────────────────
-  useEffect(() => {
-    if (!coords) return;
-    setOffset(0);
-    fetchAnnouncements(coords.lat, coords.lng, radius, selectedDate, sortBy, 0, false);
-  }, [selectedDate, sortBy]); // eslint-disable-line react-hooks/exhaustive-deps
-
   const loadMore = () => {
     if (!coords || loadingMore || !hasMore) return;
-    const newOffset = offset + PAGE_SIZE;
-    setOffset(newOffset);
-    fetchAnnouncements(coords.lat, coords.lng, radius, selectedDate, sortBy, newOffset, true);
+    const newOff = offsetRef.current + PAGE_SIZE;
+    offsetRef.current = newOff;
+    fetchAnnouncements(coords.lat, coords.lng, radius, newOff, true);
   };
 
   const applyLocationFilter = (filter: LocationFilter) => {
@@ -151,6 +148,36 @@ export const useMarketplace = () => {
     }
     return { pitch: null, business: null };
   };
+
+  // Birikmiş tüm matches üzerinde client-side date + sort
+  const filteredMatches = useMemo(() => {
+    const filtered = !selectedDate
+      ? matches
+      : matches.filter(m => m.date === selectedDate);
+
+    const sorted = [...filtered];
+    switch (sortBy) {
+      case 'date_asc':
+        sorted.sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+        break;
+      case 'date_desc':
+        sorted.sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time));
+        break;
+      case 'price_asc':
+        sorted.sort((a, b) => (getPitchDetails(a.pitchId).pitch?.pricePerHour ?? 0) - (getPitchDetails(b.pitchId).pitch?.pricePerHour ?? 0));
+        break;
+      case 'price_desc':
+        sorted.sort((a, b) => (getPitchDetails(b.pitchId).pitch?.pricePerHour ?? 0) - (getPitchDetails(a.pitchId).pitch?.pricePerHour ?? 0));
+        break;
+      case 'fair_play':
+        sorted.sort((a, b) => (b.team?.fairPlayScore ?? 0) - (a.team?.fairPlayScore ?? 0));
+        break;
+      case 'distance':
+        sorted.sort((a, b) => (a.distanceKm ?? 999) - (b.distanceKm ?? 999));
+        break;
+    }
+    return sorted;
+  }, [matches, businesses, selectedDate, sortBy]);
 
   return {
     currentUser,
@@ -180,7 +207,7 @@ export const useMarketplace = () => {
     locationPermissionDenied: permissionStatus === 'denied',
     isAuthorized,
     getPitchDetails,
-    filteredMatches: matches, // backward compat — artık server-side filtered
+    filteredMatches,
     selectedDate,
     setSelectedDate,
     isDateFilterOpen,

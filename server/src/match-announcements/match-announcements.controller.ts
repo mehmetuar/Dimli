@@ -21,20 +21,20 @@ export class MatchAnnouncementsController {
         @Query('lat') lat?: string,
         @Query('lng') lng?: string,
         @Query('radius') radius?: string,
-        @Query('sortBy') sortBy?: string,
         @Query('offset') offset?: string,
         @Query('limit') limit?: string,
     ) {
-        const geoFilter = lat && lng ? {
-            lat: parseFloat(lat),
-            lng: parseFloat(lng),
-            radius: radius ? parseFloat(radius) : 20,
-        } : undefined;
+        const geoFilter = lat && lng
+            ? {
+                lat: parseFloat(lat),
+                lng: parseFloat(lng),
+                radius: radius ? parseFloat(radius) : 20,
+            }
+            : undefined;
 
         return this.matchAnnouncementsService.findAll({
             date,
             pitchId,
-            sortBy,
             offset: offset ? parseInt(offset, 10) : 0,
             limit: limit ? parseInt(limit, 10) : 50,
             geoFilter,
