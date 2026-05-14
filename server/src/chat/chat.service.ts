@@ -88,7 +88,7 @@ export class ChatService {
         const lastMessageRows: any[] = await this.chatMessageRepository.manager.query(`
             SELECT DISTINCT ON (m."channelId")
                 m.id, m."channelId", m."senderId", m.content, m."isSystemMessage", m.metadata, m."createdAt",
-                u.username, u.full_name as "fullName", u."avatarUrl"
+                u.username, u.full_name as "fullName", u.avatar_url as "avatarUrl"
             FROM chat_messages m
             LEFT JOIN "user" u ON u.id = m."senderId"
             WHERE m."channelId" = ANY($1)
