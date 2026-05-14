@@ -55,7 +55,11 @@ export const useMarketplace = () => {
           limit: PAGE_SIZE,
         },
       });
-      const { data, hasMore: more } = res.data;
+      const responseData = res.data;
+      const data: any[] = Array.isArray(responseData)
+        ? responseData.filter((m: any) => m.matchType !== 'kendi_aramizda')
+        : (responseData.data ?? []);
+      const more: boolean = Array.isArray(responseData) ? false : (responseData.hasMore ?? false);
       if (append) setMatches(prev => [...prev, ...data]);
       else setMatches(data);
       setHasMore(more);

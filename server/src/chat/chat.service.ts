@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException, ForbiddenException, NotFoundException, Logger, Inject, Optional, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, IsNull, In, MoreThan } from 'typeorm';
+import { Repository, IsNull, In, MoreThan, LessThan } from 'typeorm';
 import { ChatChannel } from './chat-channel.entity';
 import { ChatMessage } from './chat-message.entity';
 import { ChatParticipant } from './chat-participant.entity';
@@ -397,15 +397,24 @@ export class ChatService {
     }
 
     async getChannelMessages(channelId: string, before?: string, limit = 50): Promise<ChatMessage[]> {
-        const qb = this.chatMessageRepository.createQueryBuilder('m')
-            .leftJoinAndSelect('m.sender', 'sender')
-            .where('m."channelId" = :channelId', { channelId })
-            .orderBy('m."createdAt"', 'DESC')
-            .take(Math.min(limit, 100));
+        const PAGE = Math.min(limit, 100);
+
         if (before) {
-            qb.andWhere('m."createdAt" < :before', { before: new Date(before) });
+            const messages = await this.chatMessageRepository.find({
+                where: { channelId, createdAt: LessThan(new Date(before)) },
+                relations: ['sender'],
+                order: { createdAt: 'DESC' },
+                take: PAGE,
+            });
+            return messages.reverse();
         }
-        const messages = await qb.getMany();
+
+        const messages = await this.chatMessageRepository.find({
+            where: { channelId },
+            relations: ['sender'],
+            order: { createdAt: 'DESC' },
+            take: PAGE,
+        });
         return messages.reverse();
     }
 
