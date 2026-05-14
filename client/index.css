@@ -138,6 +138,16 @@ button, a, [role="button"], input, select, textarea {
   touch-action: manipulation;
 }
 
+/* Navbar clearance — safe area dahil (80px navbar + iPhone home indicator) */
+.pb-nav {
+  padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+}
+
+/* Business navbar clearance — 68px navbar + safe area + görsel nefes alanı */
+.pb-business-nav {
+  padding-bottom: calc(8rem + env(safe-area-inset-bottom, 0px));
+}
+
 /* Scrollbar gizle — Android'de zaten görünmez ama iOS/web için */
 .scrollbar-hide {
   -ms-overflow-style: none;

@@ -63,7 +63,7 @@ export const BusinessSettingsHub: React.FC = () => {
     ];
 
     return (
-        <div className="h-[100dvh] bg-gradient-to-b from-slate-900 via-slate-900 to-slate-800 text-white flex flex-col overflow-hidden">
+        <div className="h-[100dvh] pt-safe-top bg-gradient-to-b from-slate-900 via-slate-900 to-slate-800 text-white flex flex-col overflow-hidden">
 
             {/* Header */}
             <div
@@ -84,7 +84,7 @@ export const BusinessSettingsHub: React.FC = () => {
             </div>
 
             <div className="flex-1 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
-            <div className="p-4 pt-5 space-y-3" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 7rem)' }}>
+            <div className="p-4 pt-5 space-y-3 pb-business-nav">
                 {menuItems.map((item) => (
                     <button
                         key={item.path}

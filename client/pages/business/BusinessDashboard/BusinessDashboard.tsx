@@ -60,7 +60,7 @@ export const BusinessDashboard: React.FC = () => {
     const isSuspended = businessStatus === 'suspended';
 
     return (
-        <div className="min-h-screen bg-slate-900 text-white pb-32">
+        <div className="pt-safe-top bg-slate-900 text-white pb-business-nav">
             {/* Header */}
             <DashboardHeader
                 businessName={dashboardData.businessName}

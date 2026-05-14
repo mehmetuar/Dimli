@@ -326,7 +326,7 @@ function AppContent() {
 
   return (
     <div className="flex flex-col h-screen bg-pitch text-white overflow-hidden">
-      <div className={`flex-1 overflow-y-auto scrollbar-hide ${isAuthPage ? '' : 'pb-20'}`}>
+      <div className={`flex-1 overflow-y-auto scrollbar-hide ${isAuthPage ? '' : 'pb-nav'}`} style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
         <Suspense fallback={<PageLoader />}>
           <Routes>
             <Route path="/login" element={<Login />} />

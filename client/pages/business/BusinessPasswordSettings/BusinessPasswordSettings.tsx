@@ -47,7 +47,7 @@ export const BusinessPasswordSettings: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-white pb-32">
+        <div className="pt-safe-top bg-gradient-to-b from-slate-900 to-slate-800 text-white pb-business-nav">
             {/* Header */}
             <div className="bg-slate-800 p-4 sticky top-0 z-10 border-b border-slate-700 shadow-lg flex items-center gap-3">
                 <button onClick={() => navigate('/business/settings')} className="p-2 bg-slate-700 rounded-lg hover:bg-slate-600 transition-colors">

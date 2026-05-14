@@ -97,8 +97,7 @@ export const BusinessStats: React.FC = () => {
 
     return (
         <div
-            className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-900 to-slate-800 text-white"
-            style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 7rem)', overscrollBehaviorY: 'none' }}
+            className="pt-safe-top bg-gradient-to-b from-slate-900 via-slate-900 to-slate-800 text-white pb-business-nav"
         >
 
             {/* Header */}

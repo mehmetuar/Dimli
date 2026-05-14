@@ -25,7 +25,7 @@ export const BusinessPitchList: React.FC = () => {
     const isSuspended = businessStatus === 'suspended';
 
     return (
-        <div className="h-[100dvh] bg-gradient-to-b from-slate-900 to-slate-800 text-white flex flex-col overflow-hidden">
+        <div className="h-[100dvh] pt-safe-top bg-gradient-to-b from-slate-900 to-slate-800 text-white flex flex-col overflow-hidden">
             <PitchListHeader
                 navigate={navigate}
                 pitchCount={pitches.length}
@@ -33,7 +33,7 @@ export const BusinessPitchList: React.FC = () => {
             />
 
             <div className="flex-1 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
-                <div className="p-4 space-y-3" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 7rem)' }}>
+                <div className="p-4 space-y-3 pb-business-nav">
                     {isSuspended && (
                         <div className="flex items-start gap-3 bg-red-500/10 border border-red-500/30 px-4 py-3.5 rounded-2xl">
                             <AlertTriangle className="text-red-400 shrink-0 mt-0.5" size={18} />
