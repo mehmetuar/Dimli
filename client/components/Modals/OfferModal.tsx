@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { CheckCircle, X } from 'lucide-react';
+import { useModalBodyClass } from '../../utils/useModalBodyClass';
 
 interface OfferModalProps {
     isOpen: boolean;
@@ -13,6 +14,7 @@ export const OfferModal: React.FC<OfferModalProps> = ({ isOpen, onClose, teamNam
     const [note, setNote] = useState('');
     const [isSending, setIsSending] = useState(false);
     const [isSent, setIsSent] = useState(false);
+    useModalBodyClass(isOpen);
 
     if (!isOpen) return null;
 

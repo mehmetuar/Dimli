@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, X, UserMinus, AlertTriangle } from 'lucide-react';
 import api from '../../services/api';
+import { useModalBodyClass } from '../../utils/useModalBodyClass';
 
 interface ManageJokersModalProps {
     isOpen: boolean;
@@ -46,6 +47,7 @@ export const ManageJokersModal: React.FC<ManageJokersModalProps> = ({ isOpen, on
         }
     };
 
+    useModalBodyClass(isOpen);
     if (!isOpen) return null;
 
     return (

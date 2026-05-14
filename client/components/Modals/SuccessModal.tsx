@@ -1,5 +1,6 @@
 import React from 'react';
 import { Crown, Shield, ShieldX, Trash2, Check, CheckCircle } from 'lucide-react';
+import { useModalBodyClass } from '../../utils/useModalBodyClass';
 
 export type SuccessType = 'TEAM_CREATED' | 'CAPTAIN' | 'VICE' | 'ROLE_REMOVED' | 'KICK' | 'CHALLENGE_SENT' | 'CHALLENGE_ACCEPTED' | 'CHALLENGE_REJECTED' | 'MESSAGE_SENT' | 'MATCH_CANCELLED' | 'MATCH_APPROVED' | 'DEFAULT';
 
@@ -20,6 +21,7 @@ export const SuccessModal: React.FC<SuccessModalProps> = ({
     onConfirm,
     confirmText = 'TAMAM'
 }) => {
+    useModalBodyClass(isOpen);
     if (!isOpen) return null;
 
     const handleConfirm = () => {

@@ -4,6 +4,7 @@ import { X, Search, UserPlus, CheckCircle, AlertCircle, Share2 } from 'lucide-re
 import { Player } from '../../types';
 
 import api from '../../services/api';
+import { useModalBodyClass } from '../../utils/useModalBodyClass';
 
 interface Props {
     isOpen: boolean;
@@ -12,9 +13,13 @@ interface Props {
     teamId?: string;
 }
 
-export const AddPlayerModal: React.FC<Props> = ({ isOpen, onClose, currentRosterIds, teamId }) => {
-    if (!isOpen) return null;
+export const AddPlayerModal: React.FC<Props> = (props) => {
+    useModalBodyClass(props.isOpen);
+    if (!props.isOpen) return null;
+    return <AddPlayerModalContent {...props} />;
+};
 
+const AddPlayerModalContent: React.FC<Props> = ({ isOpen, onClose, currentRosterIds, teamId }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [searchResults, setSearchResults] = useState<Player[]>([]);
     const [invitedIds, setInvitedIds] = useState<string[]>([]);

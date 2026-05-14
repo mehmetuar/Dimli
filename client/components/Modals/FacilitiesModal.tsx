@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { X, Check, Plus } from 'lucide-react';
 import { DEFAULT_FACILITIES } from '../../constants';
+import { useModalBodyClass } from '../../utils/useModalBodyClass';
 
 interface FacilitiesModalProps {
     isOpen: boolean;
@@ -208,6 +209,7 @@ const FacilitiesModalContent: React.FC<FacilitiesModalProps> = ({
 };
 
 export const FacilitiesModal: React.FC<FacilitiesModalProps> = (props) => {
+    useModalBodyClass(props.isOpen);
     if (!props.isOpen) return null;
     return ReactDOM.createPortal(
         <FacilitiesModalContent {...props} />,

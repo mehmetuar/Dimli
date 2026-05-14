@@ -1,5 +1,6 @@
 import React from 'react';
 import { X, Shield, Users, MapPin, Clock, Calendar, Phone, Star, Swords } from 'lucide-react';
+import { useModalBodyClass } from '../../utils/useModalBodyClass';
 
 interface TeamData {
     id: string;
@@ -158,6 +159,7 @@ const formatMatchDate = (dateStr: string) => {
 };
 
 export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({ isOpen, onClose, data, loading }) => {
+    useModalBodyClass(isOpen);
     if (!isOpen) return null;
 
     const statusConfig = getMatchStatusConfig(data?.reservation);

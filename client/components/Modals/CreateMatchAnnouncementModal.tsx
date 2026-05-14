@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Calendar, Clock, Users, MapPin } from 'lucide-react';
+import { useModalBodyClass } from '../../utils/useModalBodyClass';
 
 interface CreateMatchAnnouncementModalProps {
     isOpen: boolean;
@@ -20,6 +21,8 @@ export const CreateMatchAnnouncementModal: React.FC<CreateMatchAnnouncementModal
         playerCount: '11',
         description: ''
     });
+
+    useModalBodyClass(isOpen);
 
     const handleSubmit = () => {
         // TODO: API call to create match announcement

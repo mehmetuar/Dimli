@@ -7,6 +7,7 @@ import api, { getReservationsByPitch } from '../../services/api';
 import { DateSelectionModal } from './DateSelectionModal';
 import { TimeSelectionModal } from './TimeSelectionModal';
 import { useLocationContext } from '../../contexts/LocationContext';
+import { useModalBodyClass } from '../../utils/useModalBodyClass';
 
 interface RematchProposalModalProps {
     isOpen: boolean;
@@ -17,7 +18,13 @@ interface RematchProposalModalProps {
     previousPlayerCount?: number;
 }
 
-export const RematchProposalModal: React.FC<RematchProposalModalProps> = ({
+export const RematchProposalModal: React.FC<RematchProposalModalProps> = (props) => {
+    useModalBodyClass(props.isOpen);
+    if (!props.isOpen) return null;
+    return <RematchProposalModalContent {...props} />;
+};
+
+const RematchProposalModalContent: React.FC<RematchProposalModalProps> = ({
     isOpen,
     onClose,
     channelId,
@@ -26,8 +33,6 @@ export const RematchProposalModal: React.FC<RematchProposalModalProps> = ({
     previousPlayerCount,
 }) => {
     const { coords, radius } = useLocationContext();
-
-    if (!isOpen) return null;
 
     // Wizard step: 1=İşletme, 2=Saha, 3=Tarih, 4=Saat, 5=Özet
     const [step, setStep] = useState(1);

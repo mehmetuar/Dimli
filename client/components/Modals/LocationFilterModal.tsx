@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Navigation, Check } from 'lucide-react';
 import { useLocationContext } from '../../contexts/LocationContext';
+import { useModalBodyClass } from '../../utils/useModalBodyClass';
 
 interface LocationFilterModalProps {
     isOpen: boolean;
@@ -26,6 +27,8 @@ export const LocationFilterModal: React.FC<LocationFilterModalProps> = ({ isOpen
             setRadius(currentFilter.radius || 20);
         }
     }, [isOpen, currentFilter.radius]);
+
+    useModalBodyClass(isOpen);
 
     const handleApply = () => {
         if (!coords) return; // should not happen — button disabled when no coords

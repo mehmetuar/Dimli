@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { Check, X } from 'lucide-react';
+import { useModalBodyClass } from '../../utils/useModalBodyClass';
 
 interface ImageCropModalProps {
     file: File;
@@ -315,6 +316,7 @@ const ImageCropModalContent: React.FC<ImageCropModalProps> = ({ file, onCrop, on
 };
 
 export const ImageCropModal: React.FC<ImageCropModalProps> = (props) => {
+    useModalBodyClass(true);
     return ReactDOM.createPortal(
         <ImageCropModalContent {...props} />,
         document.body

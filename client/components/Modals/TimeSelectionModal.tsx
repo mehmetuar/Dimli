@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { X, Clock, AlertTriangle } from 'lucide-react';
 import { Business, Pitch } from '../../types';
+import { useModalBodyClass } from '../../utils/useModalBodyClass';
 
 interface TimeSelectionModalProps {
     isOpen: boolean;
@@ -13,7 +14,13 @@ interface TimeSelectionModalProps {
     bookedHours?: string[]; // Changed to string[] to support HH:MM
 }
 
-export const TimeSelectionModal: React.FC<TimeSelectionModalProps> = ({
+export const TimeSelectionModal: React.FC<TimeSelectionModalProps> = (props) => {
+    useModalBodyClass(props.isOpen);
+    if (!props.isOpen) return null;
+    return <TimeSelectionModalContent {...props} />;
+};
+
+const TimeSelectionModalContent: React.FC<TimeSelectionModalProps> = ({
     isOpen,
     onClose,
     onSelect,
@@ -23,8 +30,6 @@ export const TimeSelectionModal: React.FC<TimeSelectionModalProps> = ({
     selectedDate,
     bookedHours = [],
 }) => {
-    if (!isOpen) return null;
-
     const timeSlots = useMemo(() => {
         if (!business && !pitch) return [];
 

@@ -10,6 +10,7 @@ import { useKeyboardHeight } from '../../utils/useKeyboardHeight';
 
 import { DateSelectionModal } from './DateSelectionModal';
 import { TimeSelectionModal } from './TimeSelectionModal';
+import { useModalBodyClass } from '../../utils/useModalBodyClass';
 
 interface Props {
     isOpen: boolean;
@@ -20,11 +21,16 @@ interface Props {
     preSelectedDate?: string;
 }
 
-export const CreateMatchModal: React.FC<Props> = ({ isOpen, onClose, preSelectedPitchId, preSelectedBusinessId, preSelectedStartTime, preSelectedDate }) => {
+// Wrapper: always has the same hook count regardless of isOpen.
+// Content is only mounted when open, so its hooks are always called consistently.
+export const CreateMatchModal: React.FC<Props> = (props) => {
+    useModalBodyClass(props.isOpen);
+    if (!props.isOpen) return null;
+    return <CreateMatchModalContent {...props} />;
+};
+
+const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelectedPitchId, preSelectedBusinessId, preSelectedStartTime, preSelectedDate }) => {
     const { coords, radius, isLocating } = useLocationContext();
-
-    if (!isOpen) return null;
-
     const navigate = useNavigate();
     const keyboardHeight = useKeyboardHeight();
     const [businesses, setBusinesses] = useState<Business[]>([]);

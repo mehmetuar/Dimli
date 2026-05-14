@@ -17,6 +17,7 @@ import { KendiAramizdaNewMatchModal } from '../../../components/Modals/KendiAram
 import { ManageJokersModal } from '../../../components/Modals/ManageJokersModal';
 import { JokerDMChatInfoModal } from '../../../components/Modals/JokerDMChatInfoModal';
 import { useKeyboardHeight } from '../../../utils/useKeyboardHeight';
+import { useModalBodyClass } from '../../../utils/useModalBodyClass';
 
 export const Chat: React.FC = () => {
   const {
@@ -47,6 +48,7 @@ export const Chat: React.FC = () => {
   } = useChat();
 
   const keyboardHeight = useKeyboardHeight();
+  useModalBodyClass(!!selectedChannelId);
   const [showScrollButton, setShowScrollButton] = React.useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const isUserAtBottomRef = useRef(true);

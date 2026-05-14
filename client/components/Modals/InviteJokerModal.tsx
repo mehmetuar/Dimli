@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Calendar, MapPin, Send, CheckCircle, Loader2 } from 'lucide-react';
 import api from '../../services/api';
+import { useModalBodyClass } from '../../utils/useModalBodyClass';
 
 interface Props {
    isOpen: boolean;
@@ -10,9 +11,13 @@ interface Props {
    joker: any | null;
 }
 
-export const InviteJokerModal: React.FC<Props> = ({ isOpen, onClose, joker }) => {
-   if (!isOpen || !joker) return null;
+export const InviteJokerModal: React.FC<Props> = (props) => {
+   useModalBodyClass(props.isOpen);
+   if (!props.isOpen || !props.joker) return null;
+   return <InviteJokerModalContent {...props} />;
+};
 
+const InviteJokerModalContent: React.FC<Props> = ({ isOpen, onClose, joker }) => {
    const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null);
    const [isSent, setIsSent] = useState(false);
    const [isSending, setIsSending] = useState(false);

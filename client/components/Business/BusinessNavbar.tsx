@@ -12,7 +12,7 @@ export const BusinessNavbar: React.FC = () => {
 
     return (
         <div
-            className="fixed bottom-0 left-0 right-0 z-50 bg-[#0a1628] border-t border-blue-900/50"
+            className="business-navbar fixed bottom-0 left-0 right-0 z-50 bg-[#0a1628] border-t border-blue-900/50"
             style={{ boxShadow: '0 -4px 24px rgba(0,0,0,0.6)', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
         >
             <div className="flex justify-around items-end h-[68px] px-4">

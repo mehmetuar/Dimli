@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { X, Search, ChevronRight, MapPin, Loader2 } from 'lucide-react';
 import { locationService, Province, District } from '../../services/locationService';
+import { useModalBodyClass } from '../../utils/useModalBodyClass';
 
 interface Props {
     isOpen: boolean;
@@ -78,6 +79,8 @@ export const LocationSelectionModal: React.FC<Props> = ({
         await fetchDistricts(city);
         setStep('DISTRICT');
     };
+
+    useModalBodyClass(isOpen);
 
     const handleDistrictSelect = (district: string) => {
         onSelect(selectedCity, district);

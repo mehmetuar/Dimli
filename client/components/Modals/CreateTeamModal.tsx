@@ -6,6 +6,7 @@ import { ColorPickerModal, TEAM_COLORS } from './ColorPickerModal';
 import { ImageCropModal } from './ImageCropModal';
 import api from '../../services/api';
 import { useKeyboardHeight } from '../../utils/useKeyboardHeight';
+import { useModalBodyClass } from '../../utils/useModalBodyClass';
 
 interface Props {
     isOpen: boolean;
@@ -13,9 +14,13 @@ interface Props {
     onCreate: (teamData: Partial<Team>) => void;
 }
 
-export const CreateTeamModal: React.FC<Props> = ({ isOpen, onClose, onCreate }) => {
-    if (!isOpen) return null;
+export const CreateTeamModal: React.FC<Props> = (props) => {
+    useModalBodyClass(props.isOpen);
+    if (!props.isOpen) return null;
+    return <CreateTeamModalContent {...props} />;
+};
 
+const CreateTeamModalContent: React.FC<Props> = ({ isOpen, onClose, onCreate }) => {
     const keyboardHeight = useKeyboardHeight();
 
     const [name, setName] = useState('');

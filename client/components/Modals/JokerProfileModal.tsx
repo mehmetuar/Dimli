@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { X, Handshake, Power } from 'lucide-react';
+import { useModalBodyClass } from '../../utils/useModalBodyClass';
 
 interface Props {
     isOpen: boolean;
@@ -9,9 +10,13 @@ interface Props {
     currentUser?: any; // Real user data from backend
 }
 
-export const JokerProfileModal: React.FC<Props> = ({ isOpen, onClose, onSave, currentUser }) => {
-    if (!isOpen) return null;
+export const JokerProfileModal: React.FC<Props> = (props) => {
+    useModalBodyClass(props.isOpen);
+    if (!props.isOpen) return null;
+    return <JokerProfileModalContent {...props} />;
+};
 
+const JokerProfileModalContent: React.FC<Props> = ({ isOpen, onClose, onSave, currentUser }) => {
     const [isFeeShared, setIsFeeShared] = useState(currentUser?.sharesFee ?? true);
     const [isActive, setIsActive] = useState(currentUser?.isJoker ?? false);
 

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { X, Plus, Trash2, Clock, Check, ChevronLeft } from 'lucide-react';
+import { useModalBodyClass } from '../../utils/useModalBodyClass';
 
 interface TimeSlot {
     startTime: string;
@@ -479,6 +480,7 @@ const TimeSlotsModalPortal: React.FC<TimeSlotsModalProps> = (props) => {
 };
 
 export const TimeSlotsModal: React.FC<TimeSlotsModalProps> = (props) => {
+    useModalBodyClass(props.isOpen);
     if (!props.isOpen) return null;
     return <TimeSlotsModalPortal {...props} />;
 };

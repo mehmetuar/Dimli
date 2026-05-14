@@ -3,15 +3,20 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X, Search, CheckCircle, AlertCircle, Loader2, Clock, Users } from 'lucide-react';
 import { Team } from '../../types';
 import api from '../../services/api';
+import { useModalBodyClass } from '../../utils/useModalBodyClass';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
 }
 
-export const JoinTeamModal: React.FC<Props> = ({ isOpen, onClose }) => {
-  if (!isOpen) return null;
+export const JoinTeamModal: React.FC<Props> = (props) => {
+  useModalBodyClass(props.isOpen);
+  if (!props.isOpen) return null;
+  return <JoinTeamModalContent {...props} />;
+};
 
+const JoinTeamModalContent: React.FC<Props> = ({ isOpen, onClose }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [foundTeams, setFoundTeams] = useState<Team[]>([]);
   const [error, setError] = useState('');

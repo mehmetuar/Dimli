@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useModalBodyClass } from '../../utils/useModalBodyClass';
 
 interface BirthDatePickerModalProps {
     isOpen: boolean;
@@ -34,6 +35,7 @@ export const BirthDatePickerModal: React.FC<BirthDatePickerModalProps> = ({
     onSelect,
     selectedDate,
 }) => {
+    useModalBodyClass(isOpen);
     const parsed = parseDate(selectedDate);
     const [year, setYear] = useState(parsed.year);
     const [month, setMonth] = useState(parsed.month);

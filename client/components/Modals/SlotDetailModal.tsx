@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Users, MessageCircle, Shield, Clock } from 'lucide-react';
 import { Team } from '../../types';
+import { useModalBodyClass } from '../../utils/useModalBodyClass';
 
 interface SlotDetailModalProps {
     isOpen: boolean;
@@ -32,6 +33,7 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
     const [activeTab, setActiveTab] = useState<'PENDING' | 'LOOKING'>(
         reservations.length > 0 ? 'PENDING' : 'LOOKING'
     );
+    useModalBodyClass(isOpen);
 
     if (!isOpen) return null;
 

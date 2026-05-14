@@ -7,6 +7,7 @@ import api, { getReservationsByPitch } from '../../services/api';
 import { DateSelectionModal } from './DateSelectionModal';
 import { TimeSelectionModal } from './TimeSelectionModal';
 import { useLocationContext } from '../../contexts/LocationContext';
+import { useModalBodyClass } from '../../utils/useModalBodyClass';
 
 interface KendiAramizdaNewMatchModalProps {
     isOpen: boolean;
@@ -15,15 +16,19 @@ interface KendiAramizdaNewMatchModalProps {
     previousPitchId?: string;
 }
 
-export const KendiAramizdaNewMatchModal: React.FC<KendiAramizdaNewMatchModalProps> = ({
+export const KendiAramizdaNewMatchModal: React.FC<KendiAramizdaNewMatchModalProps> = (props) => {
+    useModalBodyClass(props.isOpen);
+    if (!props.isOpen) return null;
+    return <KendiAramizdaNewMatchModalContent {...props} />;
+};
+
+const KendiAramizdaNewMatchModalContent: React.FC<KendiAramizdaNewMatchModalProps> = ({
     isOpen,
     onClose,
     channelId,
     previousPitchId,
 }) => {
     const { coords, radius } = useLocationContext();
-
-    if (!isOpen) return null;
 
     // Wizard step: 1=İşletme, 2=Saha, 3=Tarih+Kadro, 4=Saat, 5=Özet
     const [step, setStep] = useState(1);

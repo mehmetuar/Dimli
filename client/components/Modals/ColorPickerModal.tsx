@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Check, X } from 'lucide-react';
+import { useModalBodyClass } from '../../utils/useModalBodyClass';
 
 export const TEAM_COLORS = [
     { label: 'Mavi', hex: '#3b82f6' },
@@ -119,6 +120,8 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
             setTempColor(val);
         }
     };
+
+    useModalBodyClass(isOpen);
 
     const handleConfirm = () => {
         onChange(tempColor);

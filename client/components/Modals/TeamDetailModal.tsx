@@ -5,6 +5,7 @@ import api from '../../services/api';
 import { LoadingSpinner } from '../UI/LoadingSpinner';
 import { LevelBadge } from '../UI/LevelBadge';
 import { FairPlayScore } from '../UI/FairPlayScore';
+import { useModalBodyClass } from '../../utils/useModalBodyClass';
 
 interface TeamDetailModalProps {
     isOpen: boolean;
@@ -55,6 +56,7 @@ export const TeamDetailModal: React.FC<TeamDetailModalProps> = ({ isOpen, onClos
         fetchTeamDetails();
     }, [isOpen, teamId]);
 
+    useModalBodyClass(isOpen);
     if (!isOpen) return null;
 
     return (

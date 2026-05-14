@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { X, Clock, Check } from 'lucide-react';
+import { useModalBodyClass } from '../../utils/useModalBodyClass';
 
 interface Props {
     isOpen: boolean;
@@ -12,6 +13,7 @@ interface Props {
 export const BusinessTimePickerModal: React.FC<Props> = ({ isOpen, onClose, onSelect, initialTime = "09:00", title = "SAAT SEÇİN" }) => {
     const [selectedHour, setSelectedHour] = useState(initialTime.split(':')[0]);
     const [selectedMinute, setSelectedMinute] = useState(initialTime.split(':')[1] || "00");
+    useModalBodyClass(isOpen);
 
     if (!isOpen) return null;
 

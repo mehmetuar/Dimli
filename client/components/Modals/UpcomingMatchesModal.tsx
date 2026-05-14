@@ -1,5 +1,6 @@
 import React from 'react';
 import { X, Calendar, Clock, MapPin, Users, CheckCircle } from 'lucide-react';
+import { useModalBodyClass } from '../../utils/useModalBodyClass';
 
 interface UpcomingMatch {
     id: string;
@@ -36,6 +37,7 @@ export const UpcomingMatchesModal: React.FC<UpcomingMatchesModalProps> = ({
     currentTeamId,
     isLoading = false,
 }) => {
+    useModalBodyClass(isOpen);
     if (!isOpen) return null;
 
     const formatDate = (dateStr: string) => {

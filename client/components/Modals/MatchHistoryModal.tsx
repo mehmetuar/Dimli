@@ -3,6 +3,7 @@ import { X, Trophy, Star, CheckCircle, Building2, Shield, MapPin, Users } from '
 import { MatchHistoryItem, PendingRating } from '../../types';
 import { RatingModal } from './RatingModal';
 import api from '../../services/api';
+import { useModalBodyClass } from '../../utils/useModalBodyClass';
 
 interface MatchHistoryModalProps {
     isOpen: boolean;
@@ -21,6 +22,8 @@ export const MatchHistoryModal: React.FC<MatchHistoryModalProps> = ({
 }) => {
     const [localMatches, setLocalMatches] = useState<MatchHistoryItem[]>([]);
     const [selectedForRating, setSelectedForRating] = useState<PendingRating | null>(null);
+
+    useModalBodyClass(isOpen);
 
     // matches prop değişince local kopyayı güncelle
     React.useEffect(() => {

@@ -1,6 +1,7 @@
 import React from 'react';
 import { X, Users, Phone, AlertTriangle, Check, MessageSquare, Star, Trophy } from 'lucide-react';
 import { Clock } from 'lucide-react';
+import { useModalBodyClass } from '../../../../utils/useModalBodyClass';
 
 interface SlotDetailModalProps {
     selectedDate: string;
@@ -26,6 +27,7 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
     const [playerWarning, setPlayerWarning] = React.useState<{
         isOpen: boolean; message: string; reservationId: string;
     }>({ isOpen: false, message: '', reservationId: '' });
+    useModalBodyClass(!!selectedSlot);
 
     if (!selectedSlot) return null;
 

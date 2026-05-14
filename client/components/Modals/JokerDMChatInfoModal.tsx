@@ -2,6 +2,7 @@ import React from 'react';
 import { X, Calendar, MapPin, Map, Phone, Users, User, Shield, Handshake, ChevronRight } from 'lucide-react';
 import { getTacticalAdvice } from '../../services/geminiService';
 import { calculateAge } from '../../utils/calculateAge';
+import { useModalBodyClass } from '../../utils/useModalBodyClass';
 
 interface Props {
     isOpen: boolean;
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export const JokerDMChatInfoModal: React.FC<Props> = ({ isOpen, onClose, channel, matchData, currentUser }) => {
+    useModalBodyClass(isOpen);
     if (!isOpen) return null;
 
     // Identify Joker

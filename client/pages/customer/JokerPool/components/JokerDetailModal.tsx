@@ -1,6 +1,7 @@
 import React from 'react';
 import { MapPin, X, UserPlus, Handshake, Edit } from 'lucide-react';
 import { calculateAge } from '../../../../utils/calculateAge';
+import { useModalBodyClass } from '../../../../utils/useModalBodyClass';
 
 interface JokerDetailModalProps {
     selectedJoker: any;
@@ -17,6 +18,7 @@ export const JokerDetailModal: React.FC<JokerDetailModalProps> = ({
     setIsInviteModalOpen,
     setIsProfileModalOpen
 }) => {
+    useModalBodyClass(!!selectedJoker);
     if (!selectedJoker) return null;
 
     const isMe = currentUser && selectedJoker.id === currentUser.id;

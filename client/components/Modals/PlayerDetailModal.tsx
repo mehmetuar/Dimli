@@ -4,6 +4,7 @@ import { Player } from '../../types';
 import { MOCK_PITCHES } from '../../constants';
 import { getBusinesses } from '../../services/api';
 import { calculateAge } from '../../utils/calculateAge';
+import { useModalBodyClass } from '../../utils/useModalBodyClass';
 
 interface PlayerDetailModalProps {
     isOpen: boolean;
@@ -17,7 +18,13 @@ interface PlayerDetailModalProps {
     onReject?: () => void;
 }
 
-export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
+export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = (props) => {
+    useModalBodyClass(props.isOpen);
+    if (!props.isOpen || !props.player) return null;
+    return <PlayerDetailModalContent {...props} />;
+};
+
+const PlayerDetailModalContent: React.FC<PlayerDetailModalProps> = ({
     isOpen,
     onClose,
     player,
@@ -29,8 +36,6 @@ export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = ({
     onAccept,
     onReject
 }) => {
-    if (!isOpen || !player) return null;
-
     const [businesses, setBusinesses] = React.useState<any[]>([]);
 
     React.useEffect(() => {

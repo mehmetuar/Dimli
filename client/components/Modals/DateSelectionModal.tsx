@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
+import { useModalBodyClass } from '../../utils/useModalBodyClass';
 
 interface DateSelectionModalProps {
     isOpen: boolean;
@@ -19,6 +20,8 @@ export const DateSelectionModal: React.FC<DateSelectionModalProps> = ({
     maxMonthsAhead,
 }) => {
     const [currentMonth, setCurrentMonth] = useState(new Date());
+
+    useModalBodyClass(isOpen);
 
     useEffect(() => {
         if (isOpen && selectedDate) {

@@ -1,5 +1,6 @@
 import React from 'react';
 import { AlertTriangle, X } from 'lucide-react';
+import { useModalBodyClass } from '../../utils/useModalBodyClass';
 
 interface ConfirmModalProps {
     isOpen: boolean;
@@ -25,6 +26,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
     accentColor = 'green',
 }) => {
     const isOrange = !isDangerous && accentColor === 'orange';
+    useModalBodyClass(isOpen);
     if (!isOpen) return null;
 
     const handleConfirm = () => {

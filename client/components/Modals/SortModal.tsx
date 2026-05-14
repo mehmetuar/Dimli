@@ -1,5 +1,6 @@
 import React, { ReactNode } from 'react';
 import { X, ArrowUpDown } from 'lucide-react';
+import { useModalBodyClass } from '../../utils/useModalBodyClass';
 
 export interface SortOption {
     key: string;
@@ -17,6 +18,7 @@ interface SortModalProps {
 }
 
 export const SortModal: React.FC<SortModalProps> = ({ isOpen, onClose, title, options, value, onChange }) => {
+    useModalBodyClass(isOpen);
     if (!isOpen) return null;
 
     const handleSelect = (key: string) => {

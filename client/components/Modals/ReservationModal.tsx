@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Calendar, Clock, MapPin, DollarSign, Users } from 'lucide-react';
 import api from '../../services/api';
+import { useModalBodyClass } from '../../utils/useModalBodyClass';
 
 interface ReservationModalProps {
     isOpen: boolean;
@@ -25,6 +26,7 @@ export const ReservationModal: React.FC<ReservationModalProps> = ({
 }) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    useModalBodyClass(isOpen);
 
     if (!isOpen) return null;
 

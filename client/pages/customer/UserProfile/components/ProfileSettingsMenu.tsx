@@ -1,6 +1,7 @@
 import React from 'react';
 import { User, Settings, LogOut, ChevronRight, Building2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useModalBodyClass } from '../../../../utils/useModalBodyClass';
 
 interface ProfileSettingsMenuProps {
     isMenuOpen: boolean;
@@ -9,6 +10,7 @@ interface ProfileSettingsMenuProps {
 
 export const ProfileSettingsMenu: React.FC<ProfileSettingsMenuProps> = ({ isMenuOpen, setIsMenuOpen }) => {
     const navigate = useNavigate();
+    useModalBodyClass(isMenuOpen);
 
     if (!isMenuOpen) return null;
 

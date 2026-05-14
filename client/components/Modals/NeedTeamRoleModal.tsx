@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Shield, UserPlus, X, Lock } from 'lucide-react';
+import { useModalBodyClass } from '../../utils/useModalBodyClass';
 
 interface NeedTeamRoleModalProps {
     isOpen: boolean;
@@ -10,6 +11,7 @@ interface NeedTeamRoleModalProps {
 
 export const NeedTeamRoleModal: React.FC<NeedTeamRoleModalProps> = ({ isOpen, onClose, reason }) => {
     const navigate = useNavigate();
+    useModalBodyClass(isOpen);
 
     if (!isOpen) return null;
 

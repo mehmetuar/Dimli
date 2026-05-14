@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, MapPin, Calendar, Clock, Shield, Swords, Store, Banknote } from 'lucide-react';
 import { LoadingSpinner } from '../UI/LoadingSpinner';
+import { useModalBodyClass } from '../../utils/useModalBodyClass';
 
 interface ChallengeModalProps {
     isOpen: boolean;
@@ -22,6 +23,7 @@ interface ChallengeModalProps {
 export const ChallengeModal: React.FC<ChallengeModalProps> = ({ isOpen, onClose, match, onSubmit }) => {
     const [note, setNote] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    useModalBodyClass(isOpen);
 
     if (!isOpen) return null;
 
