@@ -3,12 +3,18 @@ import { LocationFilter } from '../../../../components/Modals/LocationFilterModa
 import api from '../../../../services/api';
 import { useLocationContext } from '../../../../contexts/LocationContext';
 
+const PAGE_SIZE = 50;
+const POSITION_KEYS = ['kaleci', 'orta_saha', 'forvet', 'defans'];
+
 export const useJokerPool = () => {
     const { coords, radius, isLocating, setRadius } = useLocationContext();
 
     const [jokers, setJokers] = useState<any[]>([]);
     const [currentUser, setCurrentUser] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [hasMore, setHasMore] = useState(false);
+    const [offset, setOffset] = useState(0);
     const [selectedJoker, setSelectedJoker] = useState<any | null>(null);
     const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
     const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -16,38 +22,57 @@ export const useJokerPool = () => {
     const [sortBy, setSortBy] = useState<string>('distance');
     const [isSortOpen, setIsSortOpen] = useState(false);
 
-    // Computed location filter (for UI components that expect LocationFilter shape)
     const locationFilter: LocationFilter = { type: 'NEARBY', radius, coords: coords ?? undefined };
 
-    // Track last patched coords to avoid redundant PATCH calls
     const lastPatchedKey = useRef<string | null>(null);
 
     useEffect(() => {
         api.get('/users/me').then(res => setCurrentUser(res.data)).catch(console.error);
     }, []);
 
-    const fetchJokers = async (lat: number, lng: number, r: number) => {
-        setIsLoading(true);
+    const buildParams = (lat: number, lng: number, r: number, sort: string, off: number) => {
+        const params: Record<string, any> = { lat, lng, radius: r, offset: off, limit: PAGE_SIZE };
+        if (POSITION_KEYS.includes(sort)) params.position = sort;
+        if (sort === 'ucreteOrtak') params.sharesFee = true;
+        if (sort === 'ucreteOrtakDegil') params.sharesFee = false;
+        return params;
+    };
+
+    const fetchJokers = async (lat: number, lng: number, r: number, sort: string, off: number, append = false) => {
+        if (off === 0) setIsLoading(true);
+        else setLoadingMore(true);
         try {
-            const res = await api.get('/users/jokers', { params: { lat, lng, radius: r } });
-            setJokers(res.data);
+            const res = await api.get('/users/jokers', { params: buildParams(lat, lng, r, sort, off) });
+            const { jokers: data, hasMore: more } = res.data;
+            if (append) {
+                setJokers(prev => [...prev, ...data]);
+            } else {
+                setJokers(data);
+            }
+            setHasMore(more);
         } catch (err) {
             console.error('Failed to fetch jokers:', err);
         } finally {
             setIsLoading(false);
+            setLoadingMore(false);
         }
     };
 
-    // Re-fetch jokers whenever coords or radius changes (context-driven)
+    // coords veya radius değişince sıfırla ve yeniden yükle
     useEffect(() => {
-        if (!coords) {
-            setJokers([]);
-            return;
-        }
-        fetchJokers(coords.lat, coords.lng, radius);
+        if (!coords) { setJokers([]); return; }
+        setOffset(0);
+        fetchJokers(coords.lat, coords.lng, radius, sortBy, 0, false);
     }, [coords, radius]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // When coords change, update backend so this user appears as joker in the right area
+    // sortBy değişince sıfırla ve yeniden yükle
+    useEffect(() => {
+        if (!coords) return;
+        setOffset(0);
+        fetchJokers(coords.lat, coords.lng, radius, sortBy, 0, false);
+    }, [sortBy]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Konum güncellemesi
     useEffect(() => {
         if (!coords) return;
         const key = `${coords.lat},${coords.lng}`;
@@ -56,49 +81,31 @@ export const useJokerPool = () => {
         api.patch('/users/me', { latitude: coords.lat, longitude: coords.lng }).catch(() => {});
     }, [coords]);
 
-    // Delegate filter change to global context
+    const loadMore = () => {
+        if (!coords || loadingMore || !hasMore) return;
+        const newOffset = offset + PAGE_SIZE;
+        setOffset(newOffset);
+        fetchJokers(coords.lat, coords.lng, radius, sortBy, newOffset, true);
+    };
+
     const applyLocationFilter = (filter: LocationFilter) => {
         if (filter.radius) setRadius(filter.radius);
     };
 
-    const visibleJokers = (() => {
-        let list = currentUser
-            ? [...jokers.filter(j => j.id === currentUser.id), ...jokers.filter(j => j.id !== currentUser.id)]
-            : [...jokers];
-
-        switch (sortBy) {
-            case 'kaleci':
-                list = list.filter(j => j.position === 'Kaleci' || j.secondaryPosition === 'Kaleci');
-                break;
-            case 'orta_saha':
-                list = list.filter(j => j.position === 'Orta Saha' || j.secondaryPosition === 'Orta Saha');
-                break;
-            case 'forvet':
-                list = list.filter(j => j.position === 'Forvet' || j.secondaryPosition === 'Forvet');
-                break;
-            case 'defans':
-                list = list.filter(j => j.position === 'Defans' || j.secondaryPosition === 'Defans');
-                break;
-            case 'ucreteOrtak':
-                list = list.filter(j => j.sharesFee === true);
-                break;
-            case 'ucreteOrtakDegil':
-                list = list.filter(j => j.sharesFee === false);
-                break;
-            case 'distance':
-            default:
-                list.sort((a, b) => (a.distanceKm ?? 999) - (b.distanceKm ?? 999));
-                break;
-        }
-        return list;
-    })();
+    // Kendi profilini listenin başına sabit koy
+    const visibleJokers = currentUser
+        ? [...jokers.filter(j => j.id === currentUser.id), ...jokers.filter(j => j.id !== currentUser.id)]
+        : [...jokers];
 
     const handleSaveProfile = async (data: any) => {
         try {
             const res = await api.patch('/users/me', data);
             setCurrentUser(res.data);
             setIsProfileModalOpen(false);
-            if (coords) fetchJokers(coords.lat, coords.lng, radius);
+            if (coords) {
+                setOffset(0);
+                fetchJokers(coords.lat, coords.lng, radius, sortBy, 0, false);
+            }
         } catch (err) {
             console.error('Failed to update profile:', err);
             alert('Profil güncellenemedi.');
@@ -110,6 +117,9 @@ export const useJokerPool = () => {
         currentUser,
         isLoading,
         isLoadingLocation: isLocating && !coords,
+        loadingMore,
+        hasMore,
+        loadMore,
         selectedJoker, setSelectedJoker,
         isInviteModalOpen, setIsInviteModalOpen,
         isProfileModalOpen, setIsProfileModalOpen,
@@ -119,6 +129,6 @@ export const useJokerPool = () => {
         applyLocationFilter,
         visibleJokers,
         handleSaveProfile,
-        fetchJokers
+        fetchJokers,
     };
 };

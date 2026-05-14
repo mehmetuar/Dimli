@@ -34,10 +34,15 @@ export const Navbar: React.FC = () => {
     fetchCounts();
 
     const onCleared = () => setUnreadCount(0);
+    const onChatRead = () => fetchCounts();
     window.addEventListener('notificationsCleared', onCleared);
+    window.addEventListener('chatRead', onChatRead);
 
     if (!socket) {
-      return () => window.removeEventListener('notificationsCleared', onCleared);
+      return () => {
+        window.removeEventListener('notificationsCleared', onCleared);
+        window.removeEventListener('chatRead', onChatRead);
+      };
     }
     const onNotification = () => fetchCounts();
     const onNewMessage = () => fetchCounts();
@@ -47,6 +52,7 @@ export const Navbar: React.FC = () => {
       socket.off('notification', onNotification);
       socket.off('newMessage', onNewMessage);
       window.removeEventListener('notificationsCleared', onCleared);
+      window.removeEventListener('chatRead', onChatRead);
     };
   }, [isLoggedIn, socket]);
 

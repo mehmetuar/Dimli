@@ -20,6 +20,9 @@ export const JokerPool: React.FC = () => {
       currentUser,
       isLoading,
       isLoadingLocation,
+      loadingMore,
+      hasMore,
+      loadMore,
       selectedJoker, setSelectedJoker,
       isInviteModalOpen, setIsInviteModalOpen,
       isProfileModalOpen, setIsProfileModalOpen,
@@ -119,6 +122,17 @@ export const JokerPool: React.FC = () => {
                   <div className="col-span-2 text-center py-12 text-slate-400 bg-slate-800/50 rounded-3xl border border-dashed border-slate-700">
                      <MapPin className="w-8 h-8 mx-auto mb-3 text-slate-600" />
                      <p>Yakınınızda joker oyuncu bulunamadı.</p>
+                  </div>
+               )}
+               {(hasMore || loadingMore) && (
+                  <div className="col-span-2 flex justify-center pt-2 pb-4">
+                     <button
+                        onClick={loadMore}
+                        disabled={loadingMore}
+                        className="px-6 py-3 bg-slate-800 border border-slate-700 text-white rounded-2xl font-semibold text-sm hover:bg-slate-700 disabled:opacity-50 transition-colors"
+                     >
+                        {loadingMore ? 'Yükleniyor...' : 'Daha Fazla Göster'}
+                     </button>
                   </div>
                )}
             </div>

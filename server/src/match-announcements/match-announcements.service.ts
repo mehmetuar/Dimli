@@ -239,20 +239,48 @@ export class MatchAnnouncementsService {
     async findAll(filters?: {
         date?: string;
         pitchId?: string;
+        sortBy?: string;
+        offset?: number;
+        limit?: number;
         geoFilter?: { lat: number; lng: number; radius: number };
-    }): Promise<(MatchAnnouncement & { distanceKm?: number })[]> {
+    }): Promise<{ data: (MatchAnnouncement & { distanceKm?: number })[]; hasMore: boolean }> {
         // Clean up expired announcements first
         await this.deleteExpired();
+
+        const PAGE = Math.min(filters?.limit ?? 50, 100);
+        const off = filters?.offset ?? 0;
+        const sortBy = filters?.sortBy ?? 'distance';
+
+        const orderByMap: Record<string, string> = {
+            distance:  'distance_km ASC',
+            date_asc:  "ma.date ASC, ma.time ASC",
+            date_desc: "ma.date DESC, ma.time DESC",
+            price_asc: "p.price_per_hour ASC",
+            price_desc:"p.price_per_hour DESC",
+            fair_play: "t.fair_play_score DESC NULLS LAST",
+        };
+        const orderBy = orderByMap[sortBy] ?? 'distance_km ASC';
 
         // ── Geospatial (proximity) query ──────────────────────────────────────
         if (filters?.geoFilter) {
             const { lat, lng, radius } = filters.geoFilter;
-            console.log(`🌍 Geo filter: lat=${lat}, lng=${lng}, radius=${radius}km`);
 
-            // Raw SQL with Haversine formula — joins through pitch → business
+            const params: any[] = [lat, lng, radius];
+            let extraWhere = '';
+
+            if (filters.date) {
+                params.push(filters.date);
+                extraWhere += ` AND ma.date = $${params.length}`;
+            }
+
+            params.push(PAGE + 1);
+            const limitIdx = params.length;
+            params.push(off);
+            const offsetIdx = params.length;
+
             const raw: any[] = await this.matchAnnouncementsRepository.query(
                 `SELECT
-                    ma.*,
+                    ma.id,
                     (6371 * acos(
                         cos(radians($1)) * cos(radians(b.latitude))
                         * cos(radians(b.longitude) - radians($2))
@@ -261,9 +289,11 @@ export class MatchAnnouncementsService {
                  FROM match_announcements ma
                  JOIN pitches p      ON ma.pitch_id    = p.id
                  JOIN businesses b   ON p.business_id  = b.id
-                 WHERE ma.status  = 'PENDING'
-                   AND b.latitude  IS NOT NULL
-                   AND b.longitude IS NOT NULL
+                 LEFT JOIN teams t   ON ma.team_id     = t.id
+                 WHERE ma.status     = 'PENDING'
+                   AND ma.match_type = 'rakip_araniyor'
+                   AND b.latitude    IS NOT NULL
+                   AND b.longitude   IS NOT NULL
                    AND (
                      6371 * acos(
                          cos(radians($1)) * cos(radians(b.latitude))
@@ -271,19 +301,20 @@ export class MatchAnnouncementsService {
                          + sin(radians($1)) * sin(radians(b.latitude))
                      )
                    ) <= $3
-                 ORDER BY distance_km ASC`,
-                [lat, lng, radius],
+                   ${extraWhere}
+                 ORDER BY ${orderBy}
+                 LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
+                params,
             );
 
-            if (raw.length === 0) {
-                console.log(`📢 No announcements within ${radius}km`);
-                return [];
-            }
+            const hasMore = raw.length > PAGE;
+            const page = raw.slice(0, PAGE);
 
-            // Fetch the full entity rows (with relations) for matched ids
-            const ids = raw.map((r) => r.id);
+            if (page.length === 0) return { data: [], hasMore: false };
+
+            const ids = page.map((r) => r.id);
             const distanceMap = new Map<string, number>(
-                raw.map((r) => [r.id, parseFloat(Number(r.distance_km).toFixed(1))]),
+                page.map((r) => [r.id, parseFloat(Number(r.distance_km).toFixed(1))]),
             );
 
             const announcements = await this.matchAnnouncementsRepository
@@ -295,13 +326,15 @@ export class MatchAnnouncementsService {
                 .andWhere('announcement.status = :status', { status: 'PENDING' })
                 .getMany();
 
-            // Attach distanceKm and re-sort by distance
             const result = announcements
                 .map((a) => ({ ...a, distanceKm: distanceMap.get(a.id) ?? 0 }))
-                .sort((a, b) => (a.distanceKm ?? 0) - (b.distanceKm ?? 0));
+                .sort((a, b) => {
+                    const idxA = ids.indexOf(a.id);
+                    const idxB = ids.indexOf(b.id);
+                    return idxA - idxB;
+                });
 
-            console.log(`📢 Found ${result.length} announcements within ${radius}km`);
-            return result;
+            return { data: result, hasMore };
         }
 
         // ── Standard (non-geo) query ──────────────────────────────────────────
@@ -310,7 +343,8 @@ export class MatchAnnouncementsService {
             .leftJoinAndSelect('announcement.team', 'team')
             .leftJoinAndSelect('team.captain', 'captain')
             .leftJoinAndSelect('team.players', 'players')
-            .where('announcement.status = :status', { status: 'PENDING' });
+            .where('announcement.status = :status', { status: 'PENDING' })
+            .andWhere('announcement.matchType = :matchType', { matchType: 'rakip_araniyor' });
 
         if (filters?.date) {
             query.andWhere('announcement.date = :date', { date: filters.date });
@@ -320,19 +354,21 @@ export class MatchAnnouncementsService {
             query.andWhere('announcement.pitchId = :pitchId', { pitchId: filters.pitchId });
         }
 
-        const announcements = await query
-            .orderBy('announcement.date', 'ASC')
-            .addOrderBy('announcement.time', 'ASC')
-            .getMany();
+        const nonGeoOrderMap: Record<string, [string, 'ASC' | 'DESC'][]> = {
+            date_asc:  [['announcement.date', 'ASC'],  ['announcement.time', 'ASC']],
+            date_desc: [['announcement.date', 'DESC'], ['announcement.time', 'DESC']],
+            fair_play: [['team.fairPlayScore', 'DESC']],
+        };
+        const orderPairs = nonGeoOrderMap[sortBy] ?? [['announcement.date', 'ASC'], ['announcement.time', 'ASC']];
+        orderPairs.forEach(([col, dir], i) => {
+            if (i === 0) query.orderBy(col, dir);
+            else query.addOrderBy(col, dir);
+        });
 
-        console.log(`📢 Found ${announcements.length} announcements`);
-        if (announcements.length > 0) {
-            console.log('First announcement team:', {
-                name: announcements[0].team?.name,
-                playersCount: announcements[0].team?.players?.length,
-            });
-        }
-        return announcements;
+        const announcements = await query.skip(off).take(PAGE + 1).getMany();
+
+        const hasMore = announcements.length > PAGE;
+        return { data: announcements.slice(0, PAGE), hasMore };
     }
 
     // Run every hour to check for expired announcements

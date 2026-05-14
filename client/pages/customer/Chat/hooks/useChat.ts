@@ -41,6 +41,8 @@ export const useChat = () => {
     const [successModalType, setSuccessModalType] = useState<any>('DEFAULT');
 
     const [refreshTrigger, setRefreshTrigger] = useState(0);
+    const [hasMore, setHasMore] = useState(false);
+    const [loadingMore, setLoadingMore] = useState(false);
 
     const socket = useSocket();
     const location = useLocation();
@@ -105,20 +107,28 @@ export const useChat = () => {
     useEffect(() => {
         if (!selectedChannelId) return;
 
+        const PAGE_SIZE = 50;
+
+        const mapMsg = (msg: any) => ({
+            id: msg.id,
+            senderId: msg.senderId,
+            senderName: msg.sender?.full_name || msg.sender?.username || 'Unknown',
+            text: msg.content,
+            timestamp: formatMessageDate(msg.createdAt),
+            rawCreatedAt: msg.createdAt,
+            isMe: msg.senderId === currentUser?.id,
+            isSystem: msg.isSystemMessage,
+            metadata: msg.metadata,
+        });
+
         const fetchMessages = async () => {
             try {
-                const response = await api.get(`/chat/channels/${selectedChannelId}/messages`);
-                const mappedMessages = response.data.map((msg: any) => ({
-                    id: msg.id,
-                    senderId: msg.senderId,
-                    senderName: msg.sender?.full_name || msg.sender?.username || 'Unknown',
-                    text: msg.content,
-                    timestamp: formatMessageDate(msg.createdAt),
-                    isMe: msg.senderId === currentUser?.id,
-                    isSystem: msg.isSystemMessage,
-                    metadata: msg.metadata
-                }));
-                setMessages(mappedMessages);
+                const response = await api.get(`/chat/channels/${selectedChannelId}/messages`, {
+                    params: { limit: PAGE_SIZE },
+                });
+                const mapped = response.data.map(mapMsg);
+                setMessages(mapped);
+                setHasMore(response.data.length === PAGE_SIZE);
             } catch (error) {
                 console.error('Failed to fetch messages:', error);
             }
@@ -131,6 +141,7 @@ export const useChat = () => {
         const markRead = async (channelId: string) => {
             try {
                 await api.post(`/chat/channels/${channelId}/read`);
+                window.dispatchEvent(new Event('chatRead'));
                 const response = await api.get('/chat/channels');
                 setChannels(response.data);
             } catch (error) {
@@ -158,6 +169,40 @@ export const useChat = () => {
     }, [selectedChannelId, currentUser, refreshTrigger, socket]);
 
     const activeChannel = channels.find(c => c.id === selectedChannelId);
+
+    const loadMoreMessages = async () => {
+        if (!selectedChannelId || loadingMore || !hasMore) return;
+        const oldest = messages[0]?.rawCreatedAt;
+        if (!oldest) return;
+        setLoadingMore(true);
+        try {
+            const response = await api.get(`/chat/channels/${selectedChannelId}/messages`, {
+                params: { before: oldest, limit: 50 },
+            });
+            if (response.data.length === 0) {
+                setHasMore(false);
+                return;
+            }
+            const mapMsg = (msg: any) => ({
+                id: msg.id,
+                senderId: msg.senderId,
+                senderName: msg.sender?.full_name || msg.sender?.username || 'Unknown',
+                text: msg.content,
+                timestamp: formatMessageDate(msg.createdAt),
+                rawCreatedAt: msg.createdAt,
+                isMe: msg.senderId === currentUser?.id,
+                isSystem: msg.isSystemMessage,
+                metadata: msg.metadata,
+            });
+            const older = response.data.map(mapMsg);
+            setMessages(prev => [...older, ...prev]);
+            setHasMore(response.data.length === 50);
+        } catch (error) {
+            console.error('Failed to load more messages:', error);
+        } finally {
+            setLoadingMore(false);
+        }
+    };
 
     const handleSend = async () => {
         if (!input.trim() || !selectedChannelId) return;
@@ -412,6 +457,7 @@ export const useChat = () => {
         successModalOpen, setSuccessModalOpen, successModalMessage, successModalType,
         handleSend, handleGetTactics, handleDeleteChannel, handleOpenMatchDetail,
         handleCancelMatch, handleCancelRequest, handleUndoCancelRequest,
-        handleAcceptProposal, handleAcceptRematch, handleInviteJokerToMatch, handleCancelJokerNegotiation
+        handleAcceptProposal, handleAcceptRematch, handleInviteJokerToMatch, handleCancelJokerNegotiation,
+        hasMore, loadingMore, loadMoreMessages,
     };
 };

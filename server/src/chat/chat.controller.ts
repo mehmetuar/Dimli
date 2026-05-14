@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Body, Param, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
 import { ChatService } from './chat.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
@@ -13,8 +13,12 @@ export class ChatController {
     }
 
     @Get('channels/:id/messages')
-    getChannelMessages(@Param('id') id: string) {
-        return this.chatService.getChannelMessages(id);
+    getChannelMessages(
+        @Param('id') id: string,
+        @Query('before') before?: string,
+        @Query('limit') limit = 50,
+    ) {
+        return this.chatService.getChannelMessages(id, before, Number(limit));
     }
 
     @Post('channels/:id/messages')

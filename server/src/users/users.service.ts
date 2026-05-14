@@ -83,12 +83,42 @@ export class UsersService {
             .getMany();
     }
 
-    async getJokers(geoFilter?: { lat: number; lng: number; radius: number }): Promise<any[]> {
-        if (!geoFilter) {
-            return [];
+    async getJokers(geoFilter?: {
+        lat: number; lng: number; radius: number;
+        position?: string;
+        sharesFee?: boolean;
+        offset?: number;
+        limit?: number;
+    }): Promise<{ jokers: any[]; hasMore: boolean }> {
+        if (!geoFilter) return { jokers: [], hasMore: false };
+
+        const { lat, lng, radius, position, sharesFee, offset = 0, limit = 50 } = geoFilter;
+        const PAGE = Math.min(limit, 100);
+
+        const positionMap: Record<string, string> = {
+            kaleci: 'Kaleci',
+            orta_saha: 'Orta Saha',
+            forvet: 'Forvet',
+            defans: 'Defans',
+        };
+        const dbPosition = position ? (positionMap[position] ?? null) : null;
+
+        const params: any[] = [lat, lng, radius];
+        let extraWhere = '';
+
+        if (dbPosition) {
+            params.push(dbPosition);
+            extraWhere += ` AND ("position" = $${params.length} OR "secondaryPosition" = $${params.length})`;
+        }
+        if (sharesFee !== undefined) {
+            params.push(sharesFee);
+            extraWhere += ` AND "sharesFee" = $${params.length}`;
         }
 
-        const { lat, lng, radius } = geoFilter;
+        params.push(PAGE + 1); // limit+1 → hasMore tespiti
+        const limitIdx = params.length;
+        params.push(offset);
+        const offsetIdx = params.length;
 
         const raw: any[] = await this.usersRepository.query(
             `SELECT id,
@@ -108,15 +138,20 @@ export class UsersService {
                        + sin(radians($1)) * sin(radians(latitude))
                    )
                ) <= $3
-             ORDER BY distance_km ASC`,
-            [lat, lng, radius],
+               ${extraWhere}
+             ORDER BY distance_km ASC
+             LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
+            params,
         );
 
-        if (raw.length === 0) return [];
+        const hasMore = raw.length > PAGE;
+        const page = raw.slice(0, PAGE);
 
-        const ids = raw.map(r => r.id);
+        if (page.length === 0) return { jokers: [], hasMore: false };
+
+        const ids = page.map(r => r.id);
         const distanceMap = new Map<string, number>(
-            raw.map(r => [r.id, parseFloat(Number(r.distance_km).toFixed(1))]),
+            page.map(r => [r.id, parseFloat(Number(r.distance_km).toFixed(1))]),
         );
 
         const jokers = await this.usersRepository
@@ -125,12 +160,14 @@ export class UsersService {
             .where('user.id IN (:...ids)', { ids })
             .getMany();
 
-        return jokers
+        const mapped = jokers
             .map(({ password, pushToken, ...safe }) => ({
                 ...safe,
                 distanceKm: distanceMap.get(safe.id) ?? 0,
             }))
             .sort((a, b) => a.distanceKm - b.distanceKm);
+
+        return { jokers: mapped, hasMore };
     }
 
     async update(id: string, updateUserDto: UpdateUserDto): Promise<User | null> {

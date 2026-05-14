@@ -1,4 +1,4 @@
-import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, JoinColumn, CreateDateColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, JoinColumn, CreateDateColumn, Index } from 'typeorm';
 import { Team } from '../teams/team.entity';
 import { Pitch } from '../pitches/entities/pitch.entity';
 
@@ -21,6 +21,7 @@ export class MatchAnnouncement {
     @JoinColumn({ name: 'pitch_id' })
     pitch: Pitch;
 
+    @Index()
     @Column()
     date: string; // YYYY-MM-DD
 
@@ -33,9 +34,11 @@ export class MatchAnnouncement {
     @Column('text', { nullable: true })
     description: string;
 
+    @Index()
     @Column({ default: 'PENDING' })
     status: string; // PENDING, CONFIRMED, CANCELLED
 
+    @Index()
     @Column({ name: 'match_type', default: 'rakip_araniyor' })
     matchType: string;
 

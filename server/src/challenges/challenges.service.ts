@@ -229,7 +229,7 @@ export class ChallengesService {
             await this.chatService.sendMessage(
                 channel.id,
                 hostTeam.captain.id,
-                `Eşleşme Onaylandı! {{CHECK}}\n\n` +
+                `Sohbet Oluşturuldu\n\n` +
                 `{{STADIUM}} ${businessName}\n` +
                 `{{PIN}} ${pitchName}\n` +
                 `{{CALENDAR}} ${formattedDate} ${dayName.charAt(0).toUpperCase() + dayName.slice(1)}\n` +

@@ -1,7 +1,9 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { User } from '../users/user.entity';
 import { ChatChannel } from './chat-channel.entity';
 
+@Index(['channelId', 'createdAt'])
+@Index(['channelId'])
 @Entity('chat_messages')
 export class ChatMessage {
     @PrimaryGeneratedColumn('uuid')

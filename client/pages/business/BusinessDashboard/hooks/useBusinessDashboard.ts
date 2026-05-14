@@ -13,6 +13,7 @@ export const useBusinessDashboard = () => {
     const [note, setNote] = useState('');
     const [actionType, setActionType] = useState<'APPROVE' | 'SEND_NOTE' | null>(null);
     const [targetReservationId, setTargetReservationId] = useState<string | null>(null);
+    const [processing, setProcessing] = useState(false);
 
     // UX States
     const [successModal, setSuccessModal] = useState<{ isOpen: boolean; message: string; type: SuccessType }>({
@@ -174,8 +175,9 @@ export const useBusinessDashboard = () => {
     };
 
     const handleTransaction = async () => {
-        if (!targetReservationId || !actionType) return;
+        if (!targetReservationId || !actionType || processing) return;
 
+        setProcessing(true);
         try {
             if (actionType === 'APPROVE') {
                 await api.post(`/reservations/${targetReservationId}/approve`, { note });
@@ -200,8 +202,14 @@ export const useBusinessDashboard = () => {
             setNote('');
         } catch (error: any) {
             console.error('Transaction error:', error);
-            const msg = error.response?.data?.message || 'İşlem başarısız oldu.';
-            alert(`HATA: ${msg}`);
+            const serverMsg: string = error.response?.data?.message || '';
+            if (serverMsg.includes('beklemede') || serverMsg.includes('onaylanabilir')) {
+                alert('Bu rezervasyon zaten onaylanmış.');
+            } else {
+                alert(`HATA: ${serverMsg || 'İşlem başarısız oldu.'}`);
+            }
+        } finally {
+            setProcessing(false);
         }
     };
 
@@ -235,6 +243,7 @@ export const useBusinessDashboard = () => {
         handleAcceptCancelRequest,
         handleRejectCancelRequest,
         handleTransaction,
-        handleManualFillSlot
+        handleManualFillSlot,
+        processing
     };
 };

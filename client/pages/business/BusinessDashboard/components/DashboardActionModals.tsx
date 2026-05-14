@@ -8,6 +8,7 @@ interface DashboardActionModalsProps {
     setTargetReservationId: (id: string | null) => void;
     setActionType: (type: 'APPROVE' | 'SEND_NOTE' | null) => void;
     handleTransaction: () => void;
+    processing: boolean;
 }
 
 export const DashboardActionModals: React.FC<DashboardActionModalsProps> = ({
@@ -17,7 +18,8 @@ export const DashboardActionModals: React.FC<DashboardActionModalsProps> = ({
     setNote,
     setTargetReservationId,
     setActionType,
-    handleTransaction
+    handleTransaction,
+    processing
 }) => {
     if (!targetReservationId || !actionType) return null;
 
@@ -54,9 +56,10 @@ export const DashboardActionModals: React.FC<DashboardActionModalsProps> = ({
                     </button>
                     <button
                         onClick={handleTransaction}
-                        className="flex-1 bg-orange-600 text-white font-bold py-3 rounded-xl hover:bg-orange-500 transition-colors shadow-lg shadow-orange-600/20"
+                        disabled={processing}
+                        className="flex-1 bg-orange-600 text-white font-bold py-3 rounded-xl hover:bg-orange-500 transition-colors shadow-lg shadow-orange-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        {actionType === 'APPROVE' ? 'Onayla ve Gönder' : 'Gönder'}
+                        {processing ? 'İşleniyor...' : (actionType === 'APPROVE' ? 'Onayla ve Gönder' : 'Gönder')}
                     </button>
                 </div>
             </div>

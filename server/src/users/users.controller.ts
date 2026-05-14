@@ -43,10 +43,20 @@ export class UsersController {
         @Query('lat') lat?: string,
         @Query('lng') lng?: string,
         @Query('radius') radius?: string,
+        @Query('position') position?: string,
+        @Query('sharesFee') sharesFee?: string,
+        @Query('offset') offset?: string,
+        @Query('limit') limit?: string,
     ) {
-        const geoFilter = lat && lng
-            ? { lat: parseFloat(lat), lng: parseFloat(lng), radius: radius ? parseFloat(radius) : 20 }
-            : undefined;
+        const geoFilter = lat && lng ? {
+            lat: parseFloat(lat),
+            lng: parseFloat(lng),
+            radius: radius ? parseFloat(radius) : 20,
+            position,
+            sharesFee: sharesFee !== undefined ? sharesFee === 'true' : undefined,
+            offset: offset ? parseInt(offset, 10) : 0,
+            limit: limit ? parseInt(limit, 10) : 50,
+        } : undefined;
         return this.usersService.getJokers(geoFilter);
     }
 

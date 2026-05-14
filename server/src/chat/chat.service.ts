@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException, ForbiddenException, NotFoundException, Logger, Inject, Optional, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, IsNull, In } from 'typeorm';
+import { Repository, IsNull, In, MoreThan } from 'typeorm';
 import { ChatChannel } from './chat-channel.entity';
 import { ChatMessage } from './chat-message.entity';
 import { ChatParticipant } from './chat-participant.entity';
@@ -76,19 +76,60 @@ export class ChatService {
         // Find channels where user is a participant and hasn't soft-deleted
         const participations = await this.chatParticipantRepository.find({
             where: { userId, deletedAt: IsNull() },
-            relations: ['channel', 'channel.messages', 'channel.messages.sender', 'channel.participants', 'channel.participants.user'],
+            relations: ['channel', 'channel.participants', 'channel.participants.user'],
             order: { channel: { lastActivityAt: 'DESC' } }
         });
 
+        if (!participations.length) return [];
+
+        const channelIds = participations.map(p => p.channelId);
+
+        // Batch: son mesaj her kanal için (DISTINCT ON — tek sorgu)
+        const lastMessageRows: any[] = await this.chatMessageRepository.manager.query(`
+            SELECT DISTINCT ON (m."channelId")
+                m.id, m."channelId", m."senderId", m.content, m."isSystemMessage", m.metadata, m."createdAt",
+                u.username, u.full_name as "fullName", u."avatarUrl"
+            FROM chat_messages m
+            LEFT JOIN "user" u ON u.id = m."senderId"
+            WHERE m."channelId" = ANY($1)
+            ORDER BY m."channelId", m."createdAt" DESC
+        `, [channelIds]);
+
+        const lastMessageMap = new Map<string, any>(
+            lastMessageRows.map(r => [r.channelId, {
+                id: r.id,
+                channelId: r.channelId,
+                senderId: r.senderId,
+                content: r.content,
+                isSystemMessage: r.isSystemMessage,
+                metadata: r.metadata,
+                createdAt: r.createdAt,
+                sender: r.senderId ? { username: r.username, full_name: r.fullName, avatarUrl: r.avatarUrl } : null,
+            }])
+        );
+
+        // Batch: kanal başına okunmamış sayısı (tek aggregation sorgusu)
+        const unreadRows: any[] = await this.chatMessageRepository.manager.query(`
+            SELECT m."channelId", COUNT(*) as unread_count
+            FROM chat_messages m
+            JOIN chat_participants_v2 cp
+                ON cp."channelId" = m."channelId"
+                AND cp."userId" = $1
+                AND cp."deletedAt" IS NULL
+            WHERE m."channelId" = ANY($2)
+              AND m."createdAt" > cp."lastReadAt"
+              AND (m."isSystemMessage" = true OR m."senderId" != $1)
+            GROUP BY m."channelId"
+        `, [userId, channelIds]);
+
+        const unreadMap = new Map<string, number>(
+            unreadRows.map(r => [r.channelId, parseInt(r.unread_count, 10)])
+        );
+
         const channels = await Promise.all(participations.map(async p => {
             const channel = p.channel;
-            // Calculate unread count
-            // Sistem mesajları senderId ne olursa olsun tüm katılımcılar için okunmamış sayılır
-            const unreadCount = channel.messages.filter(m =>
-                m.createdAt > p.lastReadAt && (m.isSystemMessage || m.senderId !== userId)
-            ).length;
-
-            const lastMessage = channel.messages.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
+            const unreadCount = unreadMap.get(p.channelId) ?? 0;
+            const lastMessage = lastMessageMap.get(p.channelId) ?? null;
 
             let reservationData: { id?: string; status: string; slotTime: Date; cancelRequested?: boolean; teamId?: string; opponentTeamId?: string; homeTeamPlayerCount?: number; awayTeamPlayerCount?: number; requiredPlayerCount?: number | null } | null = null;
             let isJoker = false;
@@ -355,12 +396,17 @@ export class ChatService {
         return savedMessage;
     }
 
-    async getChannelMessages(channelId: string): Promise<ChatMessage[]> {
-        return this.chatMessageRepository.find({
-            where: { channelId },
-            relations: ['sender'],
-            order: { createdAt: 'ASC' }
-        });
+    async getChannelMessages(channelId: string, before?: string, limit = 50): Promise<ChatMessage[]> {
+        const qb = this.chatMessageRepository.createQueryBuilder('m')
+            .leftJoinAndSelect('m.sender', 'sender')
+            .where('m."channelId" = :channelId', { channelId })
+            .orderBy('m."createdAt"', 'DESC')
+            .take(Math.min(limit, 100));
+        if (before) {
+            qb.andWhere('m."createdAt" < :before', { before: new Date(before) });
+        }
+        const messages = await qb.getMany();
+        return messages.reverse();
     }
 
     async markAsRead(channelId: string, userId: string): Promise<void> {
@@ -371,20 +417,17 @@ export class ChatService {
     }
 
     async getUnreadCount(userId: string): Promise<number> {
-        const participations = await this.chatParticipantRepository.find({
-            where: { userId },
-            relations: ['channel', 'channel.messages']
-        });
-
-        let totalUnread = 0;
-        for (const p of participations) {
-            // Sistem mesajları senderId ne olursa olsun tüm katılımcılar için okunmamış sayılır
-            const count = p.channel.messages.filter(m =>
-                m.createdAt > p.lastReadAt && (m.isSystemMessage || m.senderId !== userId)
-            ).length;
-            totalUnread += count;
-        }
-        return totalUnread;
+        const result = await this.chatMessageRepository.manager.query(`
+            SELECT COUNT(*) as total
+            FROM chat_messages m
+            JOIN chat_participants_v2 cp
+                ON cp."channelId" = m."channelId"
+                AND cp."userId" = $1
+                AND cp."deletedAt" IS NULL
+            WHERE m."createdAt" > cp."lastReadAt"
+              AND (m."isSystemMessage" = true OR m."senderId" != $1)
+        `, [userId]);
+        return parseInt(result[0]?.total ?? '0', 10);
     }
 
     async deleteChannel(channelId: string, userId: string): Promise<void> {
@@ -837,7 +880,7 @@ export class ChatService {
         await this.sendMessage(
             newChannel.id,
             userTeam.captain?.id || userId,
-            `Eşleşme Onaylandı! {{CHECK}}\n\n` +
+            `Sohbet Oluşturuldu\n\n` +
             `{{STADIUM}} ${businessName}\n` +
             `{{PIN}} ${pitchName}\n` +
             `{{CALENDAR}} ${formattedDate} ${dayName.charAt(0).toUpperCase() + dayName.slice(1)}\n` +

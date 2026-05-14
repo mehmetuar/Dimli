@@ -48,7 +48,8 @@ export const BusinessDashboard: React.FC = () => {
         handleAcceptCancelRequest,
         handleRejectCancelRequest,
         handleTransaction,
-        handleManualFillSlot
+        handleManualFillSlot,
+        processing
     } = useBusinessDashboard();
 
     if (loading) return <BusinessLoadingSpinner fullScreen />;
@@ -153,6 +154,7 @@ export const BusinessDashboard: React.FC = () => {
                 setTargetReservationId={setTargetReservationId}
                 setActionType={setActionType}
                 handleTransaction={handleTransaction}
+                processing={processing}
             />
 
             {/* Cancel Match Confirmation */}

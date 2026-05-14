@@ -53,6 +53,7 @@ export class User {
     @Column({ default: false })
     phoneVerified: boolean;
 
+    @Index()
     @Column({ default: false })
     isJoker: boolean;
 

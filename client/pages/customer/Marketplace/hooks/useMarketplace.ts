@@ -1,9 +1,11 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import api from '../../../../services/api';
 import { Business } from '../../../../types';
 import { LocationFilter } from '../../../../components/Modals/LocationFilterModal';
 import { useLocationContext } from '../../../../contexts/LocationContext';
 import { useFilterContext } from '../../../../contexts/FilterContext';
+
+const PAGE_SIZE = 50;
 
 export const useMarketplace = () => {
   const { coords, radius, permissionStatus, setRadius } = useLocationContext();
@@ -12,6 +14,9 @@ export const useMarketplace = () => {
   const [matches, setMatches] = useState<any[]>([]);
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [offset, setOffset] = useState(0);
   const [currentUser, setCurrentUser] = useState<any>(null);
 
   // Modals
@@ -21,36 +26,49 @@ export const useMarketplace = () => {
   const [selectedMatch, setSelectedMatch] = useState<any>(null);
   const [myChallenges, setMyChallenges] = useState<any[]>([]);
 
-  // Date — shared via FilterContext (persisted to localStorage)
   const [isDateFilterOpen, setIsDateFilterOpen] = useState(false);
 
-  // Sort — shared via FilterContext (persisted to localStorage)
   const sortBy = marketplaceSortBy as 'date_desc' | 'date_asc' | 'price_desc' | 'price_asc' | 'fair_play' | 'distance';
   const setSortBy = setMarketplaceSortBy;
   const [isSortOpen, setIsSortOpen] = useState(false);
 
-  // Location modal visibility (local UI state only)
   const [isLocationFilterOpen, setIsLocationFilterOpen] = useState(false);
 
-  // ── Computed location filter (for UI components that expect LocationFilter shape) ──
   const locationFilter: LocationFilter = coords
     ? { type: 'NEARBY', radius, coords }
     : { type: 'ALL' };
 
-  // ── Core fetch ────────────────────────────────────────────────────────────
-  const fetchAnnouncements = async (lat: number, lng: number, r: number) => {
+  const fetchAnnouncements = async (
+    lat: number, lng: number, r: number,
+    date: string | null, sort: string,
+    off: number, append = false,
+  ) => {
+    if (off === 0) setIsLoading(true);
+    else setLoadingMore(true);
     try {
       const res = await api.get('/match-announcements', {
-        params: { lat, lng, radius: r },
+        params: {
+          lat, lng, radius: r,
+          date: date || undefined,
+          sortBy: sort,
+          offset: off,
+          limit: PAGE_SIZE,
+        },
       });
-      return (res.data as any[]).filter(m => m.matchType !== 'kendi_aramizda');
+      const { data, hasMore: more } = res.data;
+      if (append) setMatches(prev => [...prev, ...data]);
+      else setMatches(data);
+      setHasMore(more);
     } catch (err) {
       console.error('Failed to fetch announcements', err);
-      return [];
+      if (!append) setMatches([]);
+    } finally {
+      setIsLoading(false);
+      setLoadingMore(false);
     }
   };
 
-  // ── Initial data (user, businesses for getPitchDetails, challenges) ──────
+  // ── Initial static data ──────────────────────────────────────────────────
   useEffect(() => {
     const fetchStaticData = async () => {
       try {
@@ -73,26 +91,21 @@ export const useMarketplace = () => {
     fetchStaticData();
   }, []);
 
-  // ── Re-fetch announcements whenever coords or radius changes ─────────────
-  // Bug fix: if no coords, show empty list (never show all announcements)
+  // ── coords/radius değişince sıfırla ─────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
     const safetyTimer = setTimeout(() => setIsLoading(false), 12000);
 
     const load = async () => {
-      setIsLoading(true);
-      try {
-        if (!coords) {
-          // No location — show empty, not all announcements
-          setMatches([]);
-        } else {
-          const announcements = await fetchAnnouncements(coords.lat, coords.lng, radius);
-          if (!cancelled) setMatches(announcements);
-        }
-      } finally {
-        if (!cancelled) setIsLoading(false);
+      setOffset(0);
+      if (!coords) {
+        setMatches([]);
+        setIsLoading(false);
         clearTimeout(safetyTimer);
+        return;
       }
+      await fetchAnnouncements(coords.lat, coords.lng, radius, selectedDate, sortBy, 0, false);
+      if (!cancelled) clearTimeout(safetyTimer);
     };
 
     load();
@@ -102,7 +115,20 @@ export const useMarketplace = () => {
     };
   }, [coords, radius]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Manual filter change — delegates to global context ──────────────────
+  // ── selectedDate veya sortBy değişince sıfırla ──────────────────────────
+  useEffect(() => {
+    if (!coords) return;
+    setOffset(0);
+    fetchAnnouncements(coords.lat, coords.lng, radius, selectedDate, sortBy, 0, false);
+  }, [selectedDate, sortBy]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const loadMore = () => {
+    if (!coords || loadingMore || !hasMore) return;
+    const newOffset = offset + PAGE_SIZE;
+    setOffset(newOffset);
+    fetchAnnouncements(coords.lat, coords.lng, radius, selectedDate, sortBy, newOffset, true);
+  };
+
   const applyLocationFilter = (filter: LocationFilter) => {
     if (filter.radius) setRadius(filter.radius);
   };
@@ -122,35 +148,6 @@ export const useMarketplace = () => {
     return { pitch: null, business: null };
   };
 
-  const filteredMatches = useMemo(() => {
-    const filtered = !selectedDate
-      ? matches
-      : matches.filter(m => m.date === selectedDate);
-
-    const sorted = [...filtered];
-    switch (sortBy) {
-      case 'date_asc':
-        sorted.sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
-        break;
-      case 'date_desc':
-        sorted.sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time));
-        break;
-      case 'price_asc':
-        sorted.sort((a, b) => (getPitchDetails(a.pitchId).pitch?.pricePerHour ?? 0) - (getPitchDetails(b.pitchId).pitch?.pricePerHour ?? 0));
-        break;
-      case 'price_desc':
-        sorted.sort((a, b) => (getPitchDetails(b.pitchId).pitch?.pricePerHour ?? 0) - (getPitchDetails(a.pitchId).pitch?.pricePerHour ?? 0));
-        break;
-      case 'fair_play':
-        sorted.sort((a, b) => (b.team?.fairPlayScore ?? 0) - (a.team?.fairPlayScore ?? 0));
-        break;
-      case 'distance':
-        sorted.sort((a, b) => (getPitchDetails(a.pitchId).pitch?.distanceKm ?? 999) - (getPitchDetails(b.pitchId).pitch?.distanceKm ?? 999));
-        break;
-    }
-    return sorted;
-  }, [matches, businesses, selectedDate, sortBy]);
-
   return {
     currentUser,
     myTeam,
@@ -158,6 +155,9 @@ export const useMarketplace = () => {
     setMatches,
     businesses,
     isLoading,
+    loadingMore,
+    hasMore,
+    loadMore,
     myChallenges,
     setMyChallenges,
     isCreateModalOpen,
@@ -172,12 +172,11 @@ export const useMarketplace = () => {
     setIsLocationFilterOpen,
     locationFilter,
     setLocationFilter: applyLocationFilter,
-    // Backward compat aliases
     userCoords: coords,
     locationPermissionDenied: permissionStatus === 'denied',
     isAuthorized,
     getPitchDetails,
-    filteredMatches,
+    filteredMatches: matches, // backward compat — artık server-side filtered
     selectedDate,
     setSelectedDate,
     isDateFilterOpen,

@@ -42,7 +42,8 @@ export const Chat: React.FC = () => {
     successModalOpen, setSuccessModalOpen, successModalMessage, successModalType,
     handleSend, handleGetTactics, handleDeleteChannel, handleOpenMatchDetail,
     handleCancelMatch, handleCancelRequest, handleUndoCancelRequest,
-    handleAcceptProposal, handleAcceptRematch, handleInviteJokerToMatch, handleCancelJokerNegotiation
+    handleAcceptProposal, handleAcceptRematch, handleInviteJokerToMatch, handleCancelJokerNegotiation,
+    hasMore, loadingMore, loadMoreMessages,
   } = useChat();
 
   const keyboardHeight = useKeyboardHeight();
@@ -72,6 +73,9 @@ export const Chat: React.FC = () => {
       if (lastScrollStateRef.current !== isAtBottom) {
         lastScrollStateRef.current = isAtBottom;
         setShowScrollButton(!isAtBottom);
+      }
+      if (scrollTop < 80 && hasMore && !loadingMore) {
+        loadMoreMessages();
       }
     });
   };
@@ -443,6 +447,22 @@ export const Chat: React.FC = () => {
             </div>
           );
         })()}
+
+        {loadingMore && (
+          <div className="flex justify-center py-2">
+            <span className="text-xs text-slate-400">Eski mesajlar yükleniyor...</span>
+          </div>
+        )}
+        {!loadingMore && hasMore && (
+          <div className="flex justify-center py-2">
+            <button
+              onClick={loadMoreMessages}
+              className="text-xs text-slate-400 hover:text-slate-200 transition-colors"
+            >
+              Daha eski mesajları göster
+            </button>
+          </div>
+        )}
 
         {messages.map((msg, index) => {
           const isNextSameTime = messages[index + 1]?.timestamp === msg.timestamp;

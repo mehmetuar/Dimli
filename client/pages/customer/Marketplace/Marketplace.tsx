@@ -41,6 +41,9 @@ export const Marketplace: React.FC = () => {
     isAuthorized,
     getPitchDetails,
     filteredMatches,
+    loadingMore,
+    hasMore,
+    loadMore,
     selectedDate,
     setSelectedDate,
     isDateFilterOpen,
@@ -213,6 +216,18 @@ export const Marketplace: React.FC = () => {
             handleOpenChallengeModal={handleOpenChallengeModal}
           />
         ))}
+
+        {(hasMore || loadingMore) && (
+          <div className="flex justify-center pt-4 pb-2">
+            <button
+              onClick={loadMore}
+              disabled={loadingMore}
+              className="px-6 py-3 bg-slate-800 border border-slate-700 text-white rounded-2xl font-semibold text-sm hover:bg-slate-700 disabled:opacity-50 transition-colors"
+            >
+              {loadingMore ? 'Yükleniyor...' : 'Daha Fazla Göster'}
+            </button>
+          </div>
+        )}
       </div>
 
       {selectedMatch && (
