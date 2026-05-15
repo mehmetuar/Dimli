@@ -38,6 +38,14 @@ export const useBusinessDashboard = () => {
         fetchDashboard();
     }, [selectedDate]);
 
+    // 06:00'dan önce başlayan slotlar ertesi güne ait → en sona sırala
+    const slotSortMin = (time: string): number => {
+        const startStr = time.includes(' - ') ? time.split(' - ')[0] : time;
+        const [h, m] = startStr.split(':').map(Number);
+        const mins = h * 60 + (m || 0);
+        return h < 6 ? mins + 24 * 60 : mins;
+    };
+
     const fetchDashboard = async () => {
         setLoading(true);
         try {
@@ -48,8 +56,20 @@ export const useBusinessDashboard = () => {
                 api.get(`/business-owner/dashboard?date=${selectedDate}&ownerId=${ownerId}`),
                 api.get(`/subscription/owner/${ownerId}`).catch(() => ({ data: null }))
             ]);
-            setDashboardData(dashboardRes.data);
-            setBusinessStatus(dashboardRes.data?.businessStatus ?? null);
+
+            // Gece yarısı sonrası slotları (00-05) en sona al
+            const data = dashboardRes.data;
+            if (data?.pitches) {
+                data.pitches = data.pitches.map((pitch: any) => ({
+                    ...pitch,
+                    slots: [...(pitch.slots || [])].sort(
+                        (a: any, b: any) => slotSortMin(a.time) - slotSortMin(b.time)
+                    ),
+                }));
+            }
+
+            setDashboardData(data);
+            setBusinessStatus(data?.businessStatus ?? null);
             setSubscription(subRes.data);
         } catch (error) {
             console.error('Error fetching dashboard:', error);
@@ -64,6 +84,8 @@ export const useBusinessDashboard = () => {
         const [hour, minute] = startTimeStr.split(':').map(Number);
         const slotDate = new Date(date);
         slotDate.setHours(hour, minute || 0, 0, 0);
+        // Gece yarısı sonrası (00-05) slotlar aslında ertesi güne ait
+        if (hour < 6) slotDate.setDate(slotDate.getDate() + 1);
         return slotDate < now;
     };
 
@@ -145,6 +167,32 @@ export const useBusinessDashboard = () => {
                     alert(error.response?.data?.message || 'İşlem başarısız.');
                 }
             }
+        });
+    };
+
+    const handleRejectMatchRequest = (reservationId: string) => {
+        setConfirmModal({
+            isOpen: true,
+            title: 'Maç İsteğini Reddet',
+            message: 'Bu maç isteğini reddetmek istediğinize emin misiniz? Takım bilgilendirilecek ve chat kapatılacaktır.',
+            isDangerous: true,
+            confirmText: 'Reddet',
+            onConfirm: async () => {
+                setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                try {
+                    await api.post(`/reservations/${reservationId}/reject`);
+                    setSuccessModal({
+                        isOpen: true,
+                        message: 'Maç isteği reddedildi.',
+                        type: 'DEFAULT',
+                    });
+                    setSelectedSlot(null);
+                    fetchDashboard();
+                } catch (error: any) {
+                    console.error('Reject match error:', error);
+                    alert(error.response?.data?.message || 'İşlem başarısız.');
+                }
+            },
         });
     };
 
@@ -242,6 +290,7 @@ export const useBusinessDashboard = () => {
         handleConfirmCancel,
         handleAcceptCancelRequest,
         handleRejectCancelRequest,
+        handleRejectMatchRequest,
         handleTransaction,
         handleManualFillSlot,
         processing

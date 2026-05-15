@@ -11,6 +11,7 @@ interface SlotDetailModalProps {
     handleRejectCancelRequest: (id: string) => void;
     openActionModal: (type: 'APPROVE' | 'SEND_NOTE', id: string) => void;
     handleCancelClick: (id: string) => void;
+    handleRejectMatchRequest: (id: string) => void;
     handleManualFillSlot: (pitchId: string, slotTime: string) => void;
 }
 
@@ -22,6 +23,7 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
     handleRejectCancelRequest,
     openActionModal,
     handleCancelClick,
+    handleRejectMatchRequest,
     handleManualFillSlot
 }) => {
     const [playerWarning, setPlayerWarning] = React.useState<{
@@ -288,6 +290,13 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                                                     >
                                                         <MessageSquare className="w-4 h-4 text-orange-400 shrink-0" />
                                                         <span>Not</span>
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleRejectMatchRequest(res.id)}
+                                                        className="flex-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 py-[clamp(0.625rem,2.5vw,0.875rem)] rounded-xl font-bold text-[clamp(0.75rem,3.5vw,0.875rem)] transition-all flex items-center justify-center gap-2"
+                                                    >
+                                                        <X className="w-4 h-4 shrink-0" />
+                                                        <span>Reddet</span>
                                                     </button>
                                                 </div>
                                             )}

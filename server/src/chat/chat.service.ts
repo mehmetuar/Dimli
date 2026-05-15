@@ -317,6 +317,9 @@ export class ChatService {
         const slotDate = new Date(reservation.slotTime);
         const matchEndTime = new Date(slotDate.getTime() + 60 * 60 * 1000);
 
+        if (reservation.status === 'REJECTED') {
+            return 'unplayed';
+        }
         if (now > slotDate && reservation.status !== 'APPROVED') {
             return 'unplayed';
         }

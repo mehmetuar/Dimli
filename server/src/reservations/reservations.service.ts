@@ -1,4 +1,4 @@
-import { Injectable, Logger, ForbiddenException } from '@nestjs/common';
+import { Injectable, Logger, ForbiddenException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository, In, LessThan, MoreThan, Between, MoreThanOrEqual, Not, Equal, IsNull } from 'typeorm';
 import { Reservation, ReservationStatus } from './entities/reservation.entity';
@@ -1400,6 +1400,35 @@ export class ReservationsService {
                     `{{CALENDAR}} ${dateStr}\n` +
                     `{{CLOCK}} ${timeStr} - ${endTimeStr}`,
                     { type: 'CANCEL_REQUEST_REJECTED', reservationId: reservation.id }
+                );
+            }
+
+            return reservation;
+        });
+    }
+
+    async rejectByBusiness(reservationId: string) {
+        return this.dataSource.transaction(async (manager) => {
+            const reservation = await manager.findOne(Reservation, {
+                where: { id: reservationId },
+                relations: ['team', 'team.captain'],
+            });
+
+            if (!reservation) throw new NotFoundException('Rezervasyon bulunamadı');
+            if (reservation.status !== ReservationStatus.PENDING) {
+                throw new BadRequestException('Sadece bekleyen rezervasyonlar reddedilebilir');
+            }
+
+            reservation.status = ReservationStatus.REJECTED;
+            await manager.save(reservation);
+
+            if (reservation.matchAnnouncementId) {
+                await this.sendSystemMessage(
+                    manager,
+                    reservation.matchAnnouncementId,
+                    reservation.team,
+                    'İşletme maç isteğinizi reddetti. Bir sorun olduğunu düşünüyorsanız işletme ile iletişime geçin.',
+                    { type: 'MATCH_REJECTED', reservationId: reservation.id },
                 );
             }
 

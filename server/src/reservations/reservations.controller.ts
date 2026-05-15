@@ -25,6 +25,11 @@ export class ReservationsController {
         return this.reservationsService.approve(id, body?.note);
     }
 
+    @Post(':id/reject')
+    reject(@Param('id') id: string) {
+        return this.reservationsService.rejectByBusiness(id);
+    }
+
     @Post(':id/business-note')
     sendBusinessNote(@Param('id') id: string, @Body() body: { note: string }) {
         return this.reservationsService.sendBusinessNote(id, body.note);

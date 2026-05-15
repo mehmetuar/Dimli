@@ -47,6 +47,7 @@ export const BusinessDashboard: React.FC = () => {
         handleConfirmCancel,
         handleAcceptCancelRequest,
         handleRejectCancelRequest,
+        handleRejectMatchRequest,
         handleTransaction,
         handleManualFillSlot,
         processing
@@ -142,6 +143,7 @@ export const BusinessDashboard: React.FC = () => {
                 handleRejectCancelRequest={handleRejectCancelRequest}
                 openActionModal={openActionModal}
                 handleCancelClick={handleCancelClick}
+                handleRejectMatchRequest={handleRejectMatchRequest}
                 handleManualFillSlot={handleManualFillSlot}
             />
 
