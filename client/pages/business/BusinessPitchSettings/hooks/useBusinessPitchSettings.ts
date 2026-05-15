@@ -11,40 +11,49 @@ const toMin = (t: string): number => {
     return h * 60 + (m || 0);
 };
 
-/** "00:00" gece yarısını 24*60 dakika olarak ele al */
-const toMinEnd = (t: string): number => {
+/** Gece yarısını geçen slotlarda bitiş dakikasını düzelt */
+const slotEndMin = (startTime: string, endTime: string): number => {
+    const s = toMin(startTime);
+    let e = toMin(endTime);
+    if (e === 0) e = 1440;
+    if (e <= s) e += 1440;
+    return e;
+};
+
+/** İşletme gece yarısını geçiyor mu? */
+const crossesMidnight = (open: string, close: string): boolean => {
+    if (!open || !close) return false;
+    const c = toMin(close);
+    return c === 0 || c < toMin(open);
+};
+
+/** Gece yarısı geçen işletmelerde erken sabah saatlerini ertesi güne taşı */
+const normalizeMin = (t: string, openMin: number, crosses: boolean): number => {
     const m = toMin(t);
-    return m === 0 ? 24 * 60 : m;
+    if (crosses && m < openMin) return m + 1440;
+    return m;
 };
 
 const slotsOverlap = (
     a: { startTime: string; endTime: string },
     b: { startTime: string; endTime: string }
 ): boolean => {
-    const aS = toMin(a.startTime), aE = toMinEnd(a.endTime);
-    const bS = toMin(b.startTime), bE = toMinEnd(b.endTime);
+    const aS = toMin(a.startTime);
+    const aE = slotEndMin(a.startTime, a.endTime);
+    let bS = toMin(b.startTime);
+    let bE = slotEndMin(b.startTime, b.endTime);
+    if (aS > 12 * 60 && bS < 6 * 60) { bS += 1440; bE += 1440; }
     return aS < bE && aE > bS;
 };
 
-// Gece yarısı geçen slotları doğru sıralamak için (ör. 23:30 → 00:30).
+// 00-05 arası saatler "ertesi gün" → diğer slotlardan sonra sıralanır.
 const sortTimeSlotsForDisplay = (slots: { startTime: string; endTime: string }[]) => {
-    const hasLateNight = slots.some(s => {
-        const [h] = s.startTime.split(':').map(Number);
-        return h >= 20;
-    });
-    const hasEarlyMorning = slots.some(s => {
-        const [h] = s.startTime.split(':').map(Number);
-        return h < 6;
-    });
-    const isCrossMidnight = hasLateNight && hasEarlyMorning;
-
-    const toMinutes = (time: string) => {
+    const toSortMin = (time: string) => {
         const [h, m] = time.split(':').map(Number);
         const mins = h * 60 + m;
-        return (isCrossMidnight && h < 12) ? mins + 24 * 60 : mins;
+        return h < 6 ? mins + 24 * 60 : mins;
     };
-
-    return [...slots].sort((a, b) => toMinutes(a.startTime) - toMinutes(b.startTime));
+    return [...slots].sort((a, b) => toSortMin(a.startTime) - toSortMin(b.startTime));
 };
 
 interface TimePickerState {
@@ -262,7 +271,11 @@ export const useBusinessPitchSettings = () => {
             setSlotConflictModal({ show: true, message: 'Başlangıç ve bitiş saati farklı olmalı.' });
             return;
         }
-        if (toMin(newSlotStart) >= toMinEnd(newSlotEnd)) {
+        const startMin = toMin(newSlotStart);
+        let endMin = toMin(newSlotEnd);
+        if (endMin === 0) endMin = 1440;
+        if (endMin < startMin) endMin += 1440; // gece yarısını geçen slot geçerli
+        if (endMin <= startMin) {
             setSlotConflictModal({ show: true, message: 'Bitiş saati başlangıçtan sonra olmalı.' });
             return;
         }
@@ -270,11 +283,14 @@ export const useBusinessPitchSettings = () => {
         const open = formData.openTime;
         const close = formData.closeTime;
         if (open && close) {
-            const sS = toMin(newSlotStart);
-            const sE = toMinEnd(newSlotEnd);
-            const oMin = toMin(open);
-            const cMin = toMinEnd(close);
-            if (sS < oMin || sE > cMin) {
+            const crosses = crossesMidnight(open, close);
+            const openMin = toMin(open);
+            const rawClose = toMin(close);
+            const closeMin = crosses ? (rawClose === 0 ? 1440 : rawClose + 1440) : rawClose;
+            const sS = normalizeMin(newSlotStart, openMin, crosses);
+            let sE = normalizeMin(newSlotEnd, openMin, crosses);
+            if (sE <= sS) sE += 1440;
+            if (sS < openMin || sE > closeMin) {
                 setSlotConflictModal({ show: true, message: `Slot ${open}–${close} saatleri arasında olmalı.` });
                 return;
             }

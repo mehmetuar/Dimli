@@ -26,31 +26,67 @@ function toMinutes(t: string): number {
     return h * 60 + (m || 0);
 }
 
-/** "00:00" gece yarısı = 24 * 60 dakika olarak değerlendir */
+/** Yalnızca zaman seçici sınır kontrolü için: "00:00" = 1440, diğerleri ham dakika */
 function toMinutesEnd(t: string): number {
     const m = toMinutes(t);
     return m === 0 ? 24 * 60 : m;
 }
 
+/** Gece yarısını geçen slotlarda bitiş dakikasını düzelt (+1440) */
+function slotEndMin(startTime: string, endTime: string): number {
+    const s = toMinutes(startTime);
+    let e = toMinutes(endTime);
+    if (e === 0) e = 1440;   // "00:00" = günün sonu
+    if (e <= s) e += 1440;   // bitiş başlangıçtan önce → ertesi gün
+    return e;
+}
+
+/** İşletme gece yarısını geçiyor mu? (kapanış < açılış, ya da kapanış tam 00:00) */
+function crossesMidnight(open: string, close: string): boolean {
+    if (!open || !close) return false;
+    const c = toMinutes(close);
+    return c === 0 || c < toMinutes(open);
+}
+
+/** Gece yarısı geçen işletmelerde erken sabah saatlerini (+1440) ertesi güne taşı */
+function normalizeMin(t: string, openMin: number, crosses: boolean): number {
+    const m = toMinutes(t);
+    if (crosses && m < openMin) return m + 1440;
+    return m;
+}
+
 function slotsOverlap(a: TimeSlot, b: TimeSlot): boolean {
     const aS = toMinutes(a.startTime);
-    const aE = toMinutesEnd(a.endTime);
-    const bS = toMinutes(b.startTime);
-    const bE = toMinutesEnd(b.endTime);
+    const aE = slotEndMin(a.startTime, a.endTime);
+    let bS = toMinutes(b.startTime);
+    let bE = slotEndMin(b.startTime, b.endTime);
+    // A gece sonunda (20+), B sabah erken (0-6) → B ertesi gün bağlamında
+    if (aS > 12 * 60 && bS < 6 * 60) { bS += 1440; bE += 1440; }
     return aS < bE && aE > bS;
 }
 
 function isWithinBounds(slot: TimeSlot, open: string, close: string): boolean {
     if (!open || !close) return true;
-    const sS = toMinutes(slot.startTime);
-    const sE = toMinutesEnd(slot.endTime);
-    const oMin = toMinutes(open);
-    const cMin = toMinutesEnd(close);
-    return sS >= oMin && sE <= cMin;
+    const openMin = toMinutes(open);
+    const crosses = crossesMidnight(open, close);
+    const rawClose = toMinutes(close);
+    const closeMin = crosses ? (rawClose === 0 ? 1440 : rawClose + 1440) : rawClose;
+
+    const sS = normalizeMin(slot.startTime, openMin, crosses);
+    let sE = normalizeMin(slot.endTime, openMin, crosses);
+    if (sE <= sS) sE += 1440; // slot kendi içinde gece yarısını geçiyor
+
+    return sS >= openMin && sE <= closeMin;
 }
 
+const toSortMin = (t: string): number => {
+    const m = toMinutes(t);
+    const h = Math.floor(m / 60);
+    return h < 6 ? m + 24 * 60 : m;
+};
+
 const sortSlots = (slots: TimeSlot[]): TimeSlot[] =>
-    [...slots].sort((a, b) => toMinutes(a.startTime) - toMinutes(b.startTime));
+    [...slots].sort((a, b) => toSortMin(a.startTime) - toSortMin(b.startTime));
 
 // ─── Saat seçici alt ekranı ───────────────────────────────────────────────────
 
@@ -231,7 +267,11 @@ const TimeSlotsModalContent: React.FC<TimeSlotsModalProps> = ({
             setError('Başlangıç ve bitiş saati aynı olamaz.');
             return;
         }
-        if (toMinutes(newStart) >= toMinutesEnd(newEnd)) {
+        const startMin = toMinutes(newStart);
+        let endMin = toMinutes(newEnd);
+        if (endMin === 0) endMin = 1440; // "00:00" = gece yarısı
+        if (endMin < startMin) endMin += 1440; // gece yarısını geçen slot geçerli
+        if (endMin <= startMin) {
             setError('Bitiş saati başlangıçtan sonra olmalı.');
             return;
         }

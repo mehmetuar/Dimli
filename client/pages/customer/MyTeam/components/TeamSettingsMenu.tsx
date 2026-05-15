@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Shield, Settings, ChevronRight } from 'lucide-react';
+import { useModalBodyClass } from '../../../../utils/useModalBodyClass';
 
 interface TeamSettingsMenuProps {
     myTeamName?: string;
@@ -12,6 +13,7 @@ export const TeamSettingsMenu: React.FC<TeamSettingsMenuProps> = ({
     myTeamName, isOpen, setIsOpen
 }) => {
     const navigate = useNavigate();
+    useModalBodyClass(isOpen);
 
     if (!isOpen) return null;
 

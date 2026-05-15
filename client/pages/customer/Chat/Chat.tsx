@@ -45,6 +45,7 @@ export const Chat: React.FC = () => {
     handleCancelMatch, handleCancelRequest, handleUndoCancelRequest,
     handleAcceptProposal, handleAcceptRematch, handleInviteJokerToMatch, handleCancelJokerNegotiation,
     hasMore, loadingMore, loadMoreMessages,
+    isLoadingChannels, isLoadingMessages,
   } = useChat();
 
   const keyboardHeight = useKeyboardHeight();
@@ -116,7 +117,12 @@ export const Chat: React.FC = () => {
         <div className="space-y-4">
           <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Aktif Sohbetler</h3>
 
-          {channels.length === 0 ? (
+          {isLoadingChannels ? (
+            <div className="flex flex-col items-center justify-center py-16 gap-3">
+              <div className="w-8 h-8 border-2 border-turf-500 border-t-transparent rounded-full animate-spin" />
+              <span className="text-slate-500 text-sm">Sohbetler yükleniyor...</span>
+            </div>
+          ) : channels.length === 0 ? (
             <div className="text-center py-12 text-slate-400">
               Henüz aktif sohbet yok.
             </div>
@@ -450,23 +456,32 @@ export const Chat: React.FC = () => {
           );
         })()}
 
-        {loadingMore && (
-          <div className="flex justify-center py-2">
-            <span className="text-xs text-slate-400">Eski mesajlar yükleniyor...</span>
+        {isLoadingMessages ? (
+          <div className="flex flex-col items-center justify-center flex-1 py-20 gap-3">
+            <div className="w-8 h-8 border-2 border-turf-500 border-t-transparent rounded-full animate-spin" />
+            <span className="text-slate-500 text-sm">Mesajlar yükleniyor...</span>
           </div>
-        )}
-        {!loadingMore && hasMore && (
-          <div className="flex justify-center py-2">
-            <button
-              onClick={loadMoreMessages}
-              className="text-xs text-slate-400 hover:text-slate-200 transition-colors"
-            >
-              Daha eski mesajları göster
-            </button>
-          </div>
+        ) : (
+          <>
+            {loadingMore && (
+              <div className="flex justify-center py-2">
+                <span className="text-xs text-slate-400">Eski mesajlar yükleniyor...</span>
+              </div>
+            )}
+            {!loadingMore && hasMore && (
+              <div className="flex justify-center py-2">
+                <button
+                  onClick={loadMoreMessages}
+                  className="text-xs text-slate-400 hover:text-slate-200 transition-colors"
+                >
+                  Daha eski mesajları göster
+                </button>
+              </div>
+            )}
+          </>
         )}
 
-        {messages.map((msg, index) => {
+        {!isLoadingMessages && messages.map((msg, index) => {
           const isNextSameTime = messages[index + 1]?.timestamp === msg.timestamp;
           const prevMsg = messages[index - 1];
           const nextMsg = messages[index + 1];

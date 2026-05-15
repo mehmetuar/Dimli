@@ -43,8 +43,11 @@ export const useChat = () => {
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [hasMore, setHasMore] = useState(false);
     const [loadingMore, setLoadingMore] = useState(false);
+    const [isLoadingChannels, setIsLoadingChannels] = useState(true);
+    const [isLoadingMessages, setIsLoadingMessages] = useState(false);
 
     const socket = useSocket();
+    const isFirstChannelFetchRef = useRef(true);
     const location = useLocation();
     const navigate = useNavigate();
 
@@ -67,6 +70,11 @@ export const useChat = () => {
                 setChannels(response.data);
             } catch (error) {
                 console.error('Failed to fetch channels:', error);
+            } finally {
+                if (isFirstChannelFetchRef.current) {
+                    isFirstChannelFetchRef.current = false;
+                    setIsLoadingChannels(false);
+                }
             }
         };
         fetchChannels();
@@ -104,6 +112,13 @@ export const useChat = () => {
         }
     }, [location, channels]);
 
+    // Kanal değişince eski mesajları hemen temizle ve loading başlat
+    useEffect(() => {
+        if (!selectedChannelId) return;
+        setMessages([]);
+        setIsLoadingMessages(true);
+    }, [selectedChannelId]);
+
     useEffect(() => {
         if (!selectedChannelId) return;
 
@@ -131,6 +146,8 @@ export const useChat = () => {
                 setHasMore(response.data.length === PAGE_SIZE);
             } catch (error) {
                 console.error('Failed to fetch messages:', error);
+            } finally {
+                setIsLoadingMessages(false);
             }
         };
 
@@ -459,5 +476,6 @@ export const useChat = () => {
         handleCancelMatch, handleCancelRequest, handleUndoCancelRequest,
         handleAcceptProposal, handleAcceptRematch, handleInviteJokerToMatch, handleCancelJokerNegotiation,
         hasMore, loadingMore, loadMoreMessages,
+        isLoadingChannels, isLoadingMessages,
     };
 };

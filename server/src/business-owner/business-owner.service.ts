@@ -243,16 +243,26 @@ export class BusinessOwnerService {
 
         if (!business) throw new Error('Business not found');
 
-        // Tarih aralıkları
+        // Tarih aralıkları — iş günü mantığı (06:00 bazlı)
+        // Gece 00:00-05:59 arası slotlar bir önceki iş gününe ait gösterilir.
+        // Örnek: 16 Mayıs 01:00 slotu, 15 Mayıs gecesi olarak görünür → 15 Mayıs cirosuna dahil.
         const now = new Date();
 
-        const startOfToday = new Date(now);
-        startOfToday.setHours(0, 0, 0, 0);
-        const endOfToday = new Date(now);
-        endOfToday.setHours(23, 59, 59, 999);
+        // Eğer saat 06:00'dan önceyse, iş günü dün başladı
+        const businessDayOffset = now.getHours() < 6 ? -1 : 0;
 
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
-        const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+        const startOfToday = new Date(now);
+        startOfToday.setDate(startOfToday.getDate() + businessDayOffset);
+        startOfToday.setHours(6, 0, 0, 0); // İş günü 06:00'da başlar
+
+        const endOfToday = new Date(startOfToday);
+        endOfToday.setDate(endOfToday.getDate() + 1);
+        endOfToday.setHours(5, 59, 59, 999); // Ertesi gün 05:59'da biter
+
+        // Ay başı: ayın 1. günü saat 06:00
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 6, 0, 0, 0);
+        // Ay sonu: bir sonraki ayın 1. günü saat 05:59 (gece maçları dahil)
+        const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1, 5, 59, 59, 999);
 
         const pitchStats: any[] = [];
         let totalTodayConfirmed = 0;

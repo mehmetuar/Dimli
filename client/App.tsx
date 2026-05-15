@@ -98,6 +98,7 @@ function AppContent() {
     location.pathname === '/login' ||
     location.pathname === '/register' ||
     location.pathname === '/forgot-password' ||
+    location.pathname === '/notifications' ||
     location.pathname.startsWith('/business') ||
     location.pathname.startsWith('/settings');
   const [pendingRatings, setPendingRatings] = useState<PendingRating[]>([]);

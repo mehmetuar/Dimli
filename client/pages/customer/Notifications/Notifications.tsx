@@ -1,5 +1,6 @@
 import React from 'react';
-import { CheckCircle, AlertCircle } from 'lucide-react';
+import { CheckCircle, AlertCircle, ChevronLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { LoadingSpinner } from '../../../components/UI/LoadingSpinner';
 import { PlayerDetailModal } from '../../../components/Modals/PlayerDetailModal';
 import { TeamDetailModal } from '../../../components/Modals/TeamDetailModal';
@@ -11,6 +12,7 @@ import { JoinRequestsTab } from './components/JoinRequestsTab';
 import { AllNotificationsTab } from './components/AllNotificationsTab';
 
 export const Notifications: React.FC = () => {
+   const navigate = useNavigate();
    const {
       activeTab, setActiveTab,
       notifications, loading,
@@ -25,8 +27,15 @@ export const Notifications: React.FC = () => {
    } = useNotifications();
 
    return (
-      <div className="pb-28 pt-20 pt-safe-top px-4 max-w-3xl mx-auto min-h-screen bg-pitch">
-         <header className="mb-6">
+      <div className="pb-28 pt-safe-top px-4 max-w-3xl mx-auto min-h-screen bg-pitch">
+         <header className="mb-6 pt-4">
+            <button
+               onClick={() => navigate(-1)}
+               className="flex items-center gap-1 text-slate-400 hover:text-white transition-colors mb-4 -ml-1 active:scale-95"
+            >
+               <ChevronLeft className="w-5 h-5" />
+               <span className="text-sm font-medium">Geri</span>
+            </button>
             <h1 className="font-sport font-black text-4xl text-white uppercase italic tracking-tighter">
                BİLDİRİMLER
             </h1>
