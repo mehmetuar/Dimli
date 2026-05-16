@@ -1,5 +1,5 @@
 import React from 'react';
-import { MapPin, Calendar, ArrowUpDown } from 'lucide-react';
+import { MapPin, Calendar, ArrowUpDown, Globe } from 'lucide-react';
 import { LocationFilter } from '../../../../components/Modals/LocationFilterModal';
 
 interface FilterBarProps {
@@ -22,8 +22,17 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                 onClick={onOpenLocationFilter}
                 className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all border bg-turf-600 border-turf-500 text-white shadow-lg shadow-turf-600/20 whitespace-nowrap shrink-0"
             >
-                <MapPin className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
-                {`Yakınımda (${locationFilter.radius ?? 20}km)`}
+                {locationFilter.type === 'ALL' ? (
+                    <>
+                        <Globe className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+                        Tüm Şehirler
+                    </>
+                ) : (
+                    <>
+                        <MapPin className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+                        {`Yakınımda (${locationFilter.radius ?? 20}km)`}
+                    </>
+                )}
             </button>
 
             <button
