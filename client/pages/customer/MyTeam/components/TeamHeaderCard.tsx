@@ -110,9 +110,9 @@ export const TeamHeaderCard: React.FC<TeamHeaderCardProps> = ({
                             <button onClick={() => setIsEditingBio(true)} className="text-xs flex items-center gap-1 text-slate-400 hover:text-white transition-colors">
                                 <Edit2 className="w-3 h-3" /> Düzenle
                             </button>
-                            <button onClick={handleGenerateBio} disabled={isGenerating} className="text-xs flex items-center gap-1 text-purple-400 hover:text-purple-300 transition-colors">
+                            {/* <button onClick={handleGenerateBio} disabled={isGenerating} className="text-xs flex items-center gap-1 text-purple-400 hover:text-purple-300 transition-colors">
                                 <Sparkles className="w-3 h-3" /> {isGenerating ? '...' : 'AI Yazsın'}
-                            </button>
+                            </button> */}
                         </div>
                     )}
                 </div>

@@ -231,7 +231,7 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                                                     <span>Reddedildi (Pasif)</span>
                                                 </div>
                                             ) : (
-                                                <div className="flex gap-2">
+                                                <div className="flex flex-col gap-2">
                                                     <button
                                                         onClick={() => {
                                                             if (isSlotPast) {
@@ -276,28 +276,30 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                                                                 openActionModal('APPROVE', res.id);
                                                             }
                                                         }}
-                                                        className="flex-[2] bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white py-[clamp(0.625rem,2.5vw,0.875rem)] rounded-xl font-bold text-[clamp(0.75rem,3.5vw,0.875rem)] transition-all shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2 group"
+                                                        className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white py-[clamp(0.75rem,3vw,1rem)] rounded-xl font-bold text-[clamp(0.8rem,4vw,0.95rem)] transition-all shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2 group"
                                                     >
                                                         <div className="bg-white/20 p-1 rounded-full group-hover:scale-110 transition-transform shrink-0">
                                                             <Check className="w-4 h-4 shrink-0" />
                                                         </div>
                                                         <span>Bu İsteği Onayla</span>
                                                     </button>
-                                                    <button
-                                                        onClick={() => openActionModal('SEND_NOTE', res.id)}
-                                                        className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-[clamp(0.625rem,2.5vw,0.875rem)] rounded-xl font-bold text-[clamp(0.75rem,3.5vw,0.875rem)] transition-all flex items-center justify-center gap-2"
-                                                        title="Mesaj Gönder"
-                                                    >
-                                                        <MessageSquare className="w-4 h-4 text-orange-400 shrink-0" />
-                                                        <span>Not</span>
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleRejectMatchRequest(res.id)}
-                                                        className="flex-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 py-[clamp(0.625rem,2.5vw,0.875rem)] rounded-xl font-bold text-[clamp(0.75rem,3.5vw,0.875rem)] transition-all flex items-center justify-center gap-2"
-                                                    >
-                                                        <X className="w-4 h-4 shrink-0" />
-                                                        <span>Reddet</span>
-                                                    </button>
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            onClick={() => openActionModal('SEND_NOTE', res.id)}
+                                                            className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-[clamp(0.625rem,2.5vw,0.875rem)] rounded-xl font-bold text-[clamp(0.8rem,4vw,0.875rem)] transition-all flex items-center justify-center gap-2"
+                                                            title="Mesaj Gönder"
+                                                        >
+                                                            <MessageSquare className="w-4 h-4 text-orange-400 shrink-0" />
+                                                            <span>Not</span>
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleRejectMatchRequest(res.id)}
+                                                            className="flex-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 py-[clamp(0.625rem,2.5vw,0.875rem)] rounded-xl font-bold text-[clamp(0.8rem,4vw,0.875rem)] transition-all flex items-center justify-center gap-2"
+                                                        >
+                                                            <X className="w-4 h-4 shrink-0" />
+                                                            <span>Reddet</span>
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             )}
                                         </div>

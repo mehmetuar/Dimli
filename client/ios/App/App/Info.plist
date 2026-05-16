@@ -31,12 +31,14 @@
 	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>Profil ve takım fotoğrafı çekmek için kameranıza erişim gereklidir.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Dimli needs your location to find nearby pitches and players.</string>
+	<string>Dimli, yakındaki sahaları ve oyuncuları bulabilmek için konumunuza ihtiyaç duyuyor.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Profil ve takım fotoğrafı yüklemek için fotoğraf kütüphanenize erişim gereklidir.</string>
 	<key>UIBackgroundModes</key>
@@ -61,7 +63,5 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
-	<key>ITSAppUsesNonExemptEncryption</key>
-	<false/>
 </dict>
 </plist>
