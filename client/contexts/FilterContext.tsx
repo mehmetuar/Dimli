@@ -21,6 +21,8 @@ interface FilterContextValue {
     setMarketplaceSortBy: (s: string) => void;
     pitchSortBy: string;
     setPitchSortBy: (s: string) => void;
+    isDateFilterModalOpen: boolean;
+    setIsDateFilterModalOpen: (v: boolean) => void;
 }
 
 const FilterContext = createContext<FilterContextValue | undefined>(undefined);
@@ -29,6 +31,7 @@ export const FilterProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const [selectedDate, setSelectedDateState] = useState(() => load(DATE_KEY, today()));
     const [marketplaceSortBy, setMarketplaceSortByState] = useState(() => load(MKT_SORT_KEY, 'date_desc'));
     const [pitchSortBy, setPitchSortByState] = useState(() => load(PITCH_SORT_KEY, 'distance'));
+    const [isDateFilterModalOpen, setIsDateFilterModalOpen] = useState(false);
 
     const setSelectedDate = useCallback((d: string) => {
         setSelectedDateState(d);
@@ -46,7 +49,7 @@ export const FilterProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }, []);
 
     return (
-        <FilterContext.Provider value={{ selectedDate, setSelectedDate, marketplaceSortBy, setMarketplaceSortBy, pitchSortBy, setPitchSortBy }}>
+        <FilterContext.Provider value={{ selectedDate, setSelectedDate, marketplaceSortBy, setMarketplaceSortBy, pitchSortBy, setPitchSortBy, isDateFilterModalOpen, setIsDateFilterModalOpen }}>
             {children}
         </FilterContext.Provider>
     );

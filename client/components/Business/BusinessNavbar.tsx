@@ -2,9 +2,11 @@ import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { BarChart3, SlidersHorizontal, TrendingUp } from 'lucide-react';
 
-export const BusinessNavbar: React.FC = () => {
+export const BusinessNavbar: React.FC<{ hidden?: boolean }> = ({ hidden }) => {
     const navigate = useNavigate();
     const location = useLocation();
+
+    if (hidden) return null;
 
     const isPanelActive = location.pathname === '/business/dashboard';
     const isStatsActive = location.pathname === '/business/stats';

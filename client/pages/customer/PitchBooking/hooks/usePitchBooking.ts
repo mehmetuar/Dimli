@@ -8,7 +8,7 @@ import { useFilterContext } from '../../../../contexts/FilterContext';
 
 export const usePitchBooking = () => {
     const { coords, radius, filterMode, isLocating, setRadius, setFilterMode } = useLocationContext();
-    const { selectedDate, setSelectedDate, pitchSortBy, setPitchSortBy } = useFilterContext();
+    const { selectedDate, setSelectedDate, pitchSortBy, setPitchSortBy, isDateFilterModalOpen: isDateFilterOpen, setIsDateFilterModalOpen: setIsDateFilterOpen } = useFilterContext();
 
     const [businesses, setBusinesses] = useState<Business[]>(() => {
         const cached = localStorage.getItem('cached_businesses');
@@ -40,7 +40,6 @@ export const usePitchBooking = () => {
     const [createModalPitchId, setCreateModalPitchId] = useState<string | undefined>(undefined);
     const [createModalStartTime, setCreateModalStartTime] = useState<string | undefined>(undefined);
 
-    const [isDateFilterOpen, setIsDateFilterOpen] = useState(false);
     const [needTeamRoleModal, setNeedTeamRoleModal] = useState<{ isOpen: boolean; reason: 'no_team' | 'no_role' }>({ isOpen: false, reason: 'no_team' });
     // Sort — shared via FilterContext (persisted to localStorage)
     const sortBy = pitchSortBy as 'distance' | 'price_asc' | 'price_desc' | 'rating' | 'rating_count';
@@ -268,6 +267,8 @@ export const usePitchBooking = () => {
             approvedReservation
         });
     };
+
+    useEffect(() => () => setIsDateFilterOpen(false), []);
 
     return {
         businesses, expandedBusinessId, setExpandedBusinessId,

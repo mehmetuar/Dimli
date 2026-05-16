@@ -201,7 +201,7 @@ export const BusinessDashboard: React.FC = () => {
             />
 
             {/* Business Navbar */}
-            <BusinessNavbar />
+            <BusinessNavbar hidden={showDatePicker} />
         </div>
     );
 };

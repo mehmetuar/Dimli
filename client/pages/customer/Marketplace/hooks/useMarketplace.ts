@@ -9,7 +9,7 @@ const PAGE_SIZE = 50;
 
 export const useMarketplace = () => {
   const { coords, radius, permissionStatus, setRadius } = useLocationContext();
-  const { selectedDate, setSelectedDate, marketplaceSortBy, setMarketplaceSortBy } = useFilterContext();
+  const { selectedDate, setSelectedDate, marketplaceSortBy, setMarketplaceSortBy, isDateFilterModalOpen: isDateFilterOpen, setIsDateFilterModalOpen: setIsDateFilterOpen } = useFilterContext();
 
   const [matches, setMatches] = useState<any[]>([]);
   const [businesses, setBusinesses] = useState<Business[]>([]);
@@ -27,7 +27,7 @@ export const useMarketplace = () => {
   const [selectedMatch, setSelectedMatch] = useState<any>(null);
   const [myChallenges, setMyChallenges] = useState<any[]>([]);
 
-  const [isDateFilterOpen, setIsDateFilterOpen] = useState(false);
+
 
   const sortBy = marketplaceSortBy as 'date_desc' | 'date_asc' | 'price_desc' | 'price_asc' | 'fair_play' | 'distance';
   const setSortBy = setMarketplaceSortBy;
@@ -178,6 +178,8 @@ export const useMarketplace = () => {
     }
     return sorted;
   }, [matches, businesses, selectedDate, sortBy]);
+
+  useEffect(() => () => setIsDateFilterOpen(false), []);
 
   return {
     currentUser,

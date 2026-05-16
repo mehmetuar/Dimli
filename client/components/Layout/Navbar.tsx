@@ -4,10 +4,12 @@ import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { Search, Zap, MessageSquare, User, Bell, Trophy } from 'lucide-react';
 import api from '../../services/api';
 import { useSocket } from '../../contexts/SocketContext';
+import { useFilterContext } from '../../contexts/FilterContext';
 
 export const Navbar: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { isDateFilterModalOpen } = useFilterContext();
   const isAuthPage = ['/login', '/register'].includes(location.pathname);
   const isLoggedIn = !!localStorage.getItem('token');
   const showBell = true;
@@ -56,7 +58,7 @@ export const Navbar: React.FC = () => {
     };
   }, [isLoggedIn, socket]);
 
-  if (isAuthPage) {
+  if (isAuthPage || isDateFilterModalOpen) {
     return null;
   }
 
