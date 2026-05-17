@@ -113,7 +113,7 @@ const MatchCard: React.FC<MatchCardProps> = ({
                         alt={team?.name}
                     />
                     <div>
-                        <div className="text-white font-bold text-lg font-sport tracking-wide italic">{team?.name}</div>
+                        <div className="text-white font-bold text-sm xs:text-base sm:text-lg font-sport tracking-wide italic truncate max-w-[160px] xs:max-w-none">{team?.name}</div>
                         <div className="flex flex-wrap items-center gap-1.5 mt-1">
                             <LevelBadge level={team?.level || 'INTERMEDIATE'} />
                             {vsLabel && (
@@ -138,37 +138,37 @@ const MatchCard: React.FC<MatchCardProps> = ({
             <div className="grid grid-cols-2 gap-2 mt-1 pt-3 border-t border-slate-700/50 relative z-10">
                 <button
                     onClick={() => { if (team) setViewingTeam(team); }}
-                    className="bg-slate-700 text-slate-300 active:bg-slate-600 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-colors"
+                    className="bg-slate-700 text-slate-300 active:bg-slate-600 py-3 rounded-xl text-[10px] xs:text-xs font-bold flex items-center justify-center gap-1.5 transition-colors whitespace-nowrap"
                 >
-                    <Shield className="w-4 h-4" /> Rakibi Görüntüle
+                    <Shield className="w-3.5 h-3.5 shrink-0" /> Rakibi Görüntüle
                 </button>
 
                 {isOwnTeam ? (
                     isAuthorized ? (
                         <button
                             onClick={() => handleDeleteAdClick(announcement.id)}
-                            className="bg-turf-900/30 border border-turf-500/30 text-turf-400 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 active:bg-red-900/30 active:text-red-400 transition-all"
+                            className="bg-turf-900/30 border border-turf-500/30 text-turf-400 py-3 rounded-xl text-[10px] xs:text-xs font-bold flex items-center justify-center gap-1.5 active:bg-red-900/30 active:text-red-400 transition-all whitespace-nowrap"
                         >
-                            <Shield className="w-4 h-4" /> İlanı Kaldır
+                            <Shield className="w-3.5 h-3.5 shrink-0" /> İlanı Kaldır
                         </button>
                     ) : (
-                        <div className="bg-turf-900/20 border border-turf-500/20 text-turf-500 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-not-allowed">
-                            <Shield className="w-4 h-4" /> Sizin İlanınız
+                        <div className="bg-turf-900/20 border border-turf-500/20 text-turf-500 py-3 rounded-xl text-[10px] xs:text-xs font-bold flex items-center justify-center gap-1.5 cursor-not-allowed whitespace-nowrap">
+                            <Shield className="w-3.5 h-3.5 shrink-0" /> Sizin İlanınız
                         </div>
                     )
                 ) : existingChallenge ? (
                     <button
                         onClick={() => handleCancelClick(existingChallenge.id)}
-                        className="bg-slate-700/50 border border-slate-600/50 text-slate-400 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 active:bg-red-900/30 active:text-red-400 transition-all"
+                        className="bg-slate-700/50 border border-slate-600/50 text-slate-400 py-3 rounded-xl text-[10px] xs:text-xs font-bold flex items-center justify-center gap-1.5 active:bg-red-900/30 active:text-red-400 transition-all whitespace-nowrap"
                     >
-                        <Clock className="w-4 h-4" /> İstek Gönderildi
+                        <Clock className="w-3.5 h-3.5 shrink-0" /> İstek Gönderildi
                     </button>
                 ) : (
                     <button
                         onClick={() => setOfferMode({ matchId: announcement.id, teamName: team?.name || '' })}
-                        className="bg-turf-600 text-white active:bg-turf-500 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-colors shadow-lg shadow-turf-600/20"
+                        className="bg-turf-600 text-white active:bg-turf-500 py-3 rounded-xl text-[10px] xs:text-xs font-bold flex items-center justify-center gap-1.5 transition-colors shadow-lg shadow-turf-600/20 whitespace-nowrap"
                     >
-                        <Trophy className="w-4 h-4" /> Maç Teklifi Et
+                        <Trophy className="w-3.5 h-3.5 shrink-0" /> Maç Teklifi Et
                     </button>
                 )}
             </div>

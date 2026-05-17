@@ -54,8 +54,8 @@ const getSavedRadius = (): number => {
 };
 
 const getSavedFilterMode = (): FilterMode => {
-  try { const r = localStorage.getItem(FILTER_MODE_KEY); return r === 'ALL' ? 'ALL' : 'NEARBY'; }
-  catch { return 'NEARBY'; }
+  try { const r = localStorage.getItem(FILTER_MODE_KEY); return r === 'NEARBY' ? 'NEARBY' : 'ALL'; }
+  catch { return 'ALL'; }
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

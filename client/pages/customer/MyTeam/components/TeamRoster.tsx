@@ -20,28 +20,28 @@ export const TeamRoster: React.FC<TeamRosterProps> = ({
 }) => {
     return (
         <div className="bg-slate-800 rounded-2xl border border-slate-700 p-4">
-            <div className="flex justify-between items-center mb-4">
-                <h3 className="font-sport font-bold text-xl text-white flex items-center gap-2">
-                    <Shield className="w-5 h-5 text-blue-500" /> KADRO
-                    <span className={`text-sm font-bold px-2 py-0.5 rounded-lg ${roster.length >= 28
+            <div className="flex justify-between items-center gap-2 mb-4">
+                <h3 className="font-sport font-bold text-sm xs:text-base sm:text-xl text-white flex items-center gap-1.5 min-w-0">
+                    <Shield className="w-4 h-4 xs:w-5 xs:h-5 text-blue-500 shrink-0" /> KADRO
+                    <span className={`text-xs font-bold px-1.5 py-0.5 rounded-lg shrink-0 ${roster.length >= 28
                         ? 'bg-red-500/20 text-red-400 border border-red-500/30'
                         : 'bg-slate-700 text-slate-300'
                         }`}>{roster.length}/28</span>
                 </h3>
                 {isCaptain && (
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 shrink-0">
                         {roster.length >= 28 ? (
-                            <span className="text-[10px] bg-red-500/20 text-red-400 px-2 py-1 rounded font-bold uppercase border border-red-500/30">Kadro Dolu</span>
+                            <span className="text-[9px] bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded font-bold uppercase border border-red-500/30 whitespace-nowrap">Kadro Dolu</span>
                         ) : (
                             <button
                                 onClick={() => setIsAddPlayerModalOpen(true)}
-                                className="bg-turf-600 hover:bg-turf-500 text-white p-1.5 rounded-lg transition-colors shadow-lg shadow-turf-600/20"
+                                className="bg-turf-600 hover:bg-turf-500 text-white p-1.5 rounded-lg transition-colors shadow-lg shadow-turf-600/20 shrink-0"
                                 title="Oyuncu Ekle / Davet Et"
                             >
                                 <UserPlus className="w-4 h-4" />
                             </button>
                         )}
-                        <span className="text-[10px] bg-turf-900/50 text-turf-500 px-2 py-1 rounded font-bold uppercase border border-turf-500/20">Yönetici Modu</span>
+                        <span className="text-[9px] bg-turf-900/50 text-turf-500 px-1.5 py-0.5 rounded font-bold uppercase border border-turf-500/20 whitespace-nowrap">Yönetici Modu</span>
                     </div>
                 )}
             </div>

@@ -80,9 +80,9 @@ export const MatchAnnouncementCard: React.FC<MatchAnnouncementCardProps> = ({
                 {/* ── Team header row ── */}
                 <div className="flex items-center gap-3 mb-4">
 
-                    {/* Logo — overflow-hidden wrapper guarantees circle on iOS & Android */}
+                    {/* Logo */}
                     <button
-                        className="flex-shrink-0 w-16 h-16 rounded-full overflow-hidden border-2 border-slate-600 bg-slate-900 shadow-lg active:scale-95 transition-transform"
+                        className="flex-shrink-0 w-12 h-12 xs:w-14 xs:h-14 rounded-full overflow-hidden border-2 border-slate-600 bg-slate-900 shadow-lg active:scale-95 transition-transform"
                         onClick={e => { e.stopPropagation(); if (announcement.teamId) setSelectedTeamId(announcement.teamId); }}
                     >
                         <img
@@ -97,31 +97,27 @@ export const MatchAnnouncementCard: React.FC<MatchAnnouncementCardProps> = ({
                         className="flex-1 min-w-0 text-left"
                         onClick={e => { e.stopPropagation(); if (announcement.teamId) setSelectedTeamId(announcement.teamId); }}
                     >
-                        {/* Name + FairPlay */}
-                        <div className="flex items-center gap-2 min-w-0">
-                            <span className="font-sport font-bold text-xl text-white uppercase italic tracking-wide truncate">
-                                {announcement.team?.name}
-                            </span>
-                            <span className="flex-shrink-0">
-                                <FairPlayScore score={announcement.team?.fairPlayScore || 0} count={announcement.team?.fairPlayRatingCount} />
-                            </span>
-                        </div>
-                        {/* Badges row */}
-                        <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                        {/* Name — full available width, no competing elements */}
+                        <span className="font-sport font-bold text-lg xs:text-xl text-white uppercase italic tracking-wide truncate block">
+                            {announcement.team?.name}
+                        </span>
+                        {/* Row 1: level + fairplay + playercount — justify-between fills the row evenly */}
+                        <div className="flex items-center justify-between mt-1 pr-1">
                             <LevelBadge level={announcement.team?.level || 'INTERMEDIATE'} />
+                            <FairPlayScore score={announcement.team?.fairPlayScore || 0} count={announcement.team?.fairPlayRatingCount} />
+                            {announcement.playerCount && (
+                                <span className="text-[10px] font-bold text-orange-300 bg-orange-900/30 border border-orange-700/40 px-2 py-0.5 rounded flex items-center gap-1 whitespace-nowrap">
+                                    <Users className="w-3 h-3" /> {announcement.playerCount}v{announcement.playerCount}
+                                </span>
+                            )}
+                        </div>
+                        {/* Row 2: RAKİP ARANIYOR — daima ayrı satırda */}
+                        <div className="mt-1.5">
                             <span className="text-[10px] font-bold text-turf-500 bg-turf-900/30 px-2 py-0.5 rounded border border-turf-500/20 whitespace-nowrap">
                                 RAKİP ARANIYOR
                             </span>
                         </div>
                     </button>
-
-                    {/* Player count — fixed width, flex-shrink-0 */}
-                    <div className="flex-shrink-0 flex flex-col items-center bg-slate-900/60 border border-slate-700/60 rounded-xl px-3 py-2">
-                        <span className="text-[9px] text-slate-500 uppercase font-bold tracking-wide leading-none mb-0.5">Oyuncu</span>
-                        <span className="text-base font-black text-white leading-none">
-                            {announcement.playerCount}v{announcement.playerCount}
-                        </span>
-                    </div>
                 </div>
 
                 {/* ── Info grid ── */}
@@ -146,7 +142,7 @@ export const MatchAnnouncementCard: React.FC<MatchAnnouncementCardProps> = ({
                         <div className="min-w-0">
                             <div className="text-[9px] text-slate-500 font-bold uppercase leading-none mb-0.5">Saat</div>
                             <div className="text-xs font-bold text-slate-200 truncate">
-                                {announcement.time} - {endTime}
+                                {announcement.time}–{endTime}
                             </div>
                         </div>
                     </div>

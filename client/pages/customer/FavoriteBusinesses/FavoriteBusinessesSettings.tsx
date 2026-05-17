@@ -8,7 +8,7 @@ import { LocationFilterModal, LocationFilter } from '../../../components/Modals/
 
 export const FavoriteBusinessesSettings: React.FC = () => {
     const navigate = useNavigate();
-    const { coords, radius, isLocating, setRadius } = useLocationContext();
+    const { coords, radius, filterMode, isLocating, setRadius } = useLocationContext();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [businesses, setBusinesses] = useState<any[]>([]);
@@ -17,8 +17,10 @@ export const FavoriteBusinessesSettings: React.FC = () => {
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const [isLocationFilterOpen, setIsLocationFilterOpen] = useState(false);
 
-    const isLoadingLocation = isLocating && !coords;
-    const locationFilter: LocationFilter = { type: 'NEARBY', radius, coords: coords ?? undefined };
+    const isLoadingLocation = filterMode === 'NEARBY' && isLocating && !coords;
+    const locationFilter: LocationFilter = filterMode === 'ALL'
+        ? { type: 'ALL' }
+        : { type: 'NEARBY', radius, coords: coords ?? undefined };
     const applyLocationFilter = (filter: LocationFilter) => { if (filter.radius) setRadius(filter.radius); };
 
     useEffect(() => {
@@ -36,14 +38,16 @@ export const FavoriteBusinessesSettings: React.FC = () => {
     }, []);
 
     useEffect(() => {
-        if (!coords) {
+        if (filterMode === 'NEARBY' && !coords) {
             setBusinesses([]);
             return;
         }
         let cancelled = false;
         const fetchBusinessesWithCoords = async () => {
             try {
-                const data = await getBusinesses({ lat: coords.lat, lng: coords.lng, radius });
+                const data = filterMode === 'ALL'
+                    ? await getBusinesses()
+                    : await getBusinesses({ lat: coords!.lat, lng: coords!.lng, radius });
                 if (!cancelled) setBusinesses(data);
             } catch (error) {
                 console.error('Failed to fetch businesses:', error);
@@ -51,7 +55,7 @@ export const FavoriteBusinessesSettings: React.FC = () => {
         };
         fetchBusinessesWithCoords();
         return () => { cancelled = true; };
-    }, [coords, radius]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [coords, radius, filterMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const handleToggle = (id: string) => {
         setFavoriteIds(prev => {
@@ -94,15 +98,15 @@ export const FavoriteBusinessesSettings: React.FC = () => {
     return (
         <div className="min-h-screen bg-pitch pt-safe-top pb-32 overflow-x-hidden w-full max-w-full">
             {/* Header */}
-            <header className="flex items-center gap-4 px-4 py-4 mb-4">
+            <header className="flex items-center gap-3 px-4 py-4 mb-4">
                 <button
                     onClick={() => navigate(-1)}
-                    className="p-2 -ml-2 rounded-full hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+                    className="p-2 -ml-2 rounded-full hover:bg-slate-800 text-slate-400 hover:text-white transition-colors shrink-0"
                 >
-                    <ChevronLeft className="w-8 h-8" />
+                    <ChevronLeft className="w-7 h-7" />
                 </button>
-                <div>
-                    <h1 className="font-sport font-black text-3xl text-white italic tracking-wide uppercase">
+                <div className="min-w-0">
+                    <h1 className="font-sport font-black text-xl sm:text-2xl md:text-3xl text-white italic tracking-wide uppercase truncate">
                         FAVORİ İŞLETMELER
                     </h1>
                     <p className="text-slate-400 text-xs font-bold mt-0.5">{favoriteIds.length}/3 seçildi</p>
@@ -159,8 +163,8 @@ export const FavoriteBusinessesSettings: React.FC = () => {
                 ) : businesses.length === 0 ? (
                     <div className="text-center py-12 text-slate-400 bg-slate-800/50 rounded-3xl border border-dashed border-slate-700">
                         <MapPin className="w-8 h-8 mx-auto mb-3 text-slate-600" />
-                        <p className="text-sm">Yakınında işletme bulunamadı.</p>
-                        <p className="text-xs text-slate-500 mt-1">Konum filtresini açarak konumunu paylaş.</p>
+                        <p className="text-sm">İşletme bulunamadı.</p>
+                        <p className="text-xs text-slate-500 mt-1">Henüz kayıtlı işletme yok.</p>
                     </div>
                 ) : filtered.length > 0 ? (
                     <div className="space-y-2">

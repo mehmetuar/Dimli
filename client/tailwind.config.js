@@ -24,6 +24,9 @@ export default {
                 neon: '0 0 12px rgba(34, 197, 94, 0.5), 0 0 24px rgba(34, 197, 94, 0.25)',
                 'neon-sm': '0 0 6px rgba(34, 197, 94, 0.4)',
             },
+            screens: {
+                xs: '360px',
+            },
             fontFamily: {
                 sport: ['Inter', 'sans-serif'], // Fallback
             },

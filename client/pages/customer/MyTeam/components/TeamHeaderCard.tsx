@@ -37,7 +37,7 @@ export const TeamHeaderCard: React.FC<TeamHeaderCardProps> = ({
 }) => {
     return (
         <div
-            className="rounded-2xl p-6 border border-slate-700 relative overflow-hidden"
+            className="rounded-2xl p-4 sm:p-6 border border-slate-700 relative overflow-hidden"
             style={{
                 background: `linear-gradient(135deg, ${toHex((myTeam as any).primaryColor)}18 0%, #1e293b 50%, ${toHex((myTeam as any).secondaryColor || (myTeam as any).primaryColor)}12 100%)`
             }}
@@ -53,7 +53,7 @@ export const TeamHeaderCard: React.FC<TeamHeaderCardProps> = ({
             />
 
             <div className="flex justify-between items-start relative z-10 gap-2">
-                <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                <div className="flex items-start gap-3 min-w-0">
                     <div
                         className="w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center overflow-hidden shadow-xl shrink-0"
                         style={{ border: `3px solid ${toHex((myTeam as any).primaryColor)}60` }}

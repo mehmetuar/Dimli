@@ -30,7 +30,7 @@ export const CreateMatchModal: React.FC<Props> = (props) => {
 };
 
 const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelectedPitchId, preSelectedBusinessId, preSelectedStartTime, preSelectedDate }) => {
-    const { coords, radius, isLocating } = useLocationContext();
+    const { coords, radius, filterMode, isLocating } = useLocationContext();
     const navigate = useNavigate();
     const keyboardHeight = useKeyboardHeight();
     const [businesses, setBusinesses] = useState<Business[]>([]);
@@ -54,7 +54,7 @@ const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelected
     const [note, setNote] = useState('');
     const [playerCount, setPlayerCount] = useState(7);
     const [isLoading, setIsLoading] = useState(false);
-    const [isLoadingLocation, setIsLoadingLocation] = useState(isLocating && !coords);
+    const [isLoadingLocation, setIsLoadingLocation] = useState(filterMode === 'NEARBY' && isLocating && !coords);
     const [successMessage, setSuccessMessage] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
     const [currentUser, setCurrentUser] = useState<any>(null);
@@ -101,7 +101,10 @@ const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelected
                 }
 
                 // 3. Normal open OR preSelectedBusinessId: use geo filter (same as Marketplace)
-                if (coords) {
+                if (filterMode === 'ALL') {
+                    const bList: Business[] = await getBusinesses();
+                    setBusinesses(bList);
+                } else if (coords) {
                     await fetchBusinessesNearby(coords);
                 }
                 if (preSelectedBusinessId) {
@@ -117,7 +120,7 @@ const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelected
         };
 
         if (isOpen) {
-            setIsLoadingLocation(true);
+            setIsLoadingLocation(filterMode === 'NEARBY');
             setBusinesses([]);
             setDate(preSelectedDate || getTodayDate());
             if (!preSelectedPitchId && !preSelectedBusinessId) {

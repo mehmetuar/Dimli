@@ -19,7 +19,7 @@ export const LevelBadge: React.FC<Props> = ({ level }) => {
   const colorClass = entry?.colorClass ?? 'bg-slate-700 text-slate-400 border-slate-600';
 
   return (
-    <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${colorClass}`}>
+    <span className={`px-1.5 xs:px-2.5 py-0.5 rounded-full text-[10px] xs:text-xs font-bold border shrink-0 ${colorClass}`}>
       {label}
     </span>
   );
