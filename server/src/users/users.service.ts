@@ -84,7 +84,7 @@ export class UsersService {
     }
 
     async getJokers(geoFilter?: {
-        lat: number; lng: number; radius: number;
+        lat?: number; lng?: number; radius?: number;
         position?: string;
         sharesFee?: boolean;
         offset?: number;
@@ -102,6 +102,26 @@ export class UsersService {
             defans: 'Defans',
         };
         const dbPosition = position ? (positionMap[position] ?? null) : null;
+
+        // ALL mode — koordinatsız, tüm jokerları döndür
+        if (!lat || !lng) {
+            const qb = this.usersRepository
+                .createQueryBuilder('user')
+                .leftJoinAndSelect('user.team', 'team')
+                .where('"user"."isJoker" = :isJoker', { isJoker: true });
+            if (dbPosition) {
+                qb.andWhere('(user.position = :pos OR user.secondaryPosition = :pos)', { pos: dbPosition });
+            }
+            if (sharesFee !== undefined) {
+                qb.andWhere('user.sharesFee = :sharesFee', { sharesFee });
+            }
+            qb.skip(offset).take(PAGE + 1);
+            const results = await qb.getMany();
+            const hasMore = results.length > PAGE;
+            const page = results.slice(0, PAGE);
+            const mapped = page.map(({ password, pushToken, ...safe }: any) => ({ ...safe, distanceKm: null }));
+            return { jokers: mapped, hasMore };
+        }
 
         const params: any[] = [lat, lng, radius];
         let extraWhere = '';
