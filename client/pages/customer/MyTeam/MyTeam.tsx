@@ -70,7 +70,7 @@ export const MyTeam: React.FC = () => {
     }
 
     return (
-        <>
+        <div className="min-h-full bg-pitch pt-3 pb-6">
             <TeamSettingsMenu
                 isOpen={modals.isTeamMenuOpen}
                 setIsOpen={modals.setIsTeamMenuOpen}
@@ -107,12 +107,14 @@ export const MyTeam: React.FC = () => {
             />
 
             {!myTeam ? (
-                <NoTeamView
-                    setIsJoinTeamModalOpen={modals.setIsJoinTeamModalOpen}
-                    setIsCreateTeamModalOpen={modals.setIsCreateTeamModalOpen}
-                />
+                <div className="px-3 xs:px-4 sm:px-6">
+                    <NoTeamView
+                        setIsJoinTeamModalOpen={modals.setIsJoinTeamModalOpen}
+                        setIsCreateTeamModalOpen={modals.setIsCreateTeamModalOpen}
+                    />
+                </div>
             ) : (
-                <div className="animate-fade-in space-y-6">
+                <div className="animate-fade-in space-y-6 px-3 xs:px-4 sm:px-6">
                     <TeamHeaderCard
                         myTeam={myTeam}
                         bio={bio}
@@ -272,6 +274,6 @@ export const MyTeam: React.FC = () => {
                     </div>
                 </div>
             )}
-        </>
+        </div>
     );
 };

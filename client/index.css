@@ -10,9 +10,11 @@
   html {
     overscroll-behavior: none;
     height: 100%;
+    background: #0f172a;
   }
   body {
-    @apply bg-slate-900 text-slate-100;
+    background: #0f172a;
+    color: #f1f5f9;
     overscroll-behavior: none;
     height: 100%;
   }
@@ -134,6 +136,11 @@ body.modal-open .fixed.top-bell-safe {
 /* Tüm interactive elementlerde double-tap zoom engelle */
 button, a, [role="button"], input, select, textarea {
   touch-action: manipulation;
+}
+
+/* Sayfa içeriğinin status bar + notch altından başlaması — iPhone ~71px, Android ~32px */
+.pt-page-top {
+  padding-top: calc(max(env(safe-area-inset-top, 0px), 20px) + 0.75rem);
 }
 
 /* Navbar clearance — safe area dahil (80px navbar + iPhone home indicator) */
