@@ -8,7 +8,7 @@ import { useFilterContext } from '../../../../contexts/FilterContext';
 const PAGE_SIZE = 50;
 
 export const useMarketplace = () => {
-  const { coords, radius, permissionStatus, setRadius } = useLocationContext();
+  const { coords, radius, filterMode, permissionStatus, setRadius } = useLocationContext();
   const { selectedDate, setSelectedDate, marketplaceSortBy, setMarketplaceSortBy, isDateFilterModalOpen: isDateFilterOpen, setIsDateFilterModalOpen: setIsDateFilterOpen } = useFilterContext();
 
   const [matches, setMatches] = useState<any[]>([]);
@@ -35,17 +35,23 @@ export const useMarketplace = () => {
 
   const [isLocationFilterOpen, setIsLocationFilterOpen] = useState(false);
 
-  const locationFilter: LocationFilter = coords
-    ? { type: 'NEARBY', radius, coords }
-    : { type: 'ALL' };
+  const locationFilter: LocationFilter = filterMode === 'ALL'
+    ? { type: 'ALL' }
+    : coords
+      ? { type: 'NEARBY', radius, coords }
+      : { type: 'ALL' };
 
-  const fetchAnnouncements = async (lat: number, lng: number, r: number, off = 0, append = false) => {
+  const fetchAnnouncements = async (off = 0, append = false) => {
     if (!append) setIsLoading(true);
     else setLoadingMore(true);
     try {
-      const res = await api.get('/match-announcements', {
-        params: { lat, lng, radius: r, offset: off, limit: PAGE_SIZE },
-      });
+      const params: Record<string, any> = { offset: off, limit: PAGE_SIZE };
+      if (filterMode === 'NEARBY' && coords) {
+        params.lat = coords.lat;
+        params.lng = coords.lng;
+        params.radius = radius;
+      }
+      const res = await api.get('/match-announcements', { params });
       const data = (res.data as any[]).filter((m: any) => m.matchType !== 'kendi_aramizda');
       if (append) setMatches(prev => [...prev, ...data]);
       else setMatches(data);
@@ -92,13 +98,17 @@ export const useMarketplace = () => {
       setHasMore(false);
       setIsLoading(true);
       try {
-        if (!coords) {
+        if (filterMode === 'NEARBY' && !coords) {
           setMatches([]);
           return;
         }
-        const res = await api.get('/match-announcements', {
-          params: { lat: coords.lat, lng: coords.lng, radius, offset: 0, limit: PAGE_SIZE },
-        });
+        const params: Record<string, any> = { offset: 0, limit: PAGE_SIZE };
+        if (filterMode === 'NEARBY' && coords) {
+          params.lat = coords.lat;
+          params.lng = coords.lng;
+          params.radius = radius;
+        }
+        const res = await api.get('/match-announcements', { params });
         if (cancelled) return;
         const data = (res.data as any[]).filter((m: any) => m.matchType !== 'kendi_aramizda');
         setMatches(data);
@@ -121,13 +131,14 @@ export const useMarketplace = () => {
       cancelled = true;
       clearTimeout(safetyTimer);
     };
-  }, [coords, radius]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [coords, radius, filterMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadMore = () => {
-    if (!coords || loadingMore || !hasMore) return;
+    if (filterMode === 'NEARBY' && !coords) return;
+    if (loadingMore || !hasMore) return;
     const newOff = offsetRef.current + PAGE_SIZE;
     offsetRef.current = newOff;
-    fetchAnnouncements(coords.lat, coords.lng, radius, newOff, true);
+    fetchAnnouncements(newOff, true);
   };
 
   const applyLocationFilter = (filter: LocationFilter) => {

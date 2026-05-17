@@ -7,7 +7,7 @@ const PAGE_SIZE = 50;
 const POSITION_KEYS = ['kaleci', 'orta_saha', 'forvet', 'defans'];
 
 export const useJokerPool = () => {
-    const { coords, radius, isLocating, setRadius } = useLocationContext();
+    const { coords, radius, filterMode, isLocating, setRadius } = useLocationContext();
 
     const [jokers, setJokers] = useState<any[]>([]);
     const [currentUser, setCurrentUser] = useState<any>(null);
@@ -22,7 +22,9 @@ export const useJokerPool = () => {
     const [sortBy, setSortBy] = useState<string>('distance');
     const [isSortOpen, setIsSortOpen] = useState(false);
 
-    const locationFilter: LocationFilter = { type: 'NEARBY', radius, coords: coords ?? undefined };
+    const locationFilter: LocationFilter = filterMode === 'ALL'
+        ? { type: 'ALL' }
+        : { type: 'NEARBY', radius, coords: coords ?? undefined };
 
     const lastPatchedKey = useRef<string | null>(null);
 
@@ -30,19 +32,24 @@ export const useJokerPool = () => {
         api.get('/users/me').then(res => setCurrentUser(res.data)).catch(console.error);
     }, []);
 
-    const buildParams = (lat: number, lng: number, r: number, sort: string, off: number) => {
-        const params: Record<string, any> = { lat, lng, radius: r, offset: off, limit: PAGE_SIZE };
+    const buildParams = (sort: string, off: number, lat?: number, lng?: number, r?: number) => {
+        const params: Record<string, any> = { offset: off, limit: PAGE_SIZE };
+        if (lat !== undefined && lng !== undefined && r !== undefined) {
+            params.lat = lat;
+            params.lng = lng;
+            params.radius = r;
+        }
         if (POSITION_KEYS.includes(sort)) params.position = sort;
         if (sort === 'ucreteOrtak') params.sharesFee = true;
         if (sort === 'ucreteOrtakDegil') params.sharesFee = false;
         return params;
     };
 
-    const fetchJokers = async (lat: number, lng: number, r: number, sort: string, off: number, append = false) => {
+    const fetchJokers = async (sort: string, off: number, append = false, lat?: number, lng?: number, r?: number) => {
         if (off === 0) setIsLoading(true);
         else setLoadingMore(true);
         try {
-            const res = await api.get('/users/jokers', { params: buildParams(lat, lng, r, sort, off) });
+            const res = await api.get('/users/jokers', { params: buildParams(sort, off, lat, lng, r) });
             const { jokers: data, hasMore: more } = res.data;
             if (append) {
                 setJokers(prev => [...prev, ...data]);
@@ -58,18 +65,18 @@ export const useJokerPool = () => {
         }
     };
 
-    // coords veya radius değişince sıfırla ve yeniden yükle
+    // coords, radius veya filterMode değişince sıfırla ve yeniden yükle
     useEffect(() => {
-        if (!coords) { setJokers([]); return; }
+        if (filterMode === 'NEARBY' && !coords) { setJokers([]); return; }
         setOffset(0);
-        fetchJokers(coords.lat, coords.lng, radius, sortBy, 0, false);
-    }, [coords, radius]); // eslint-disable-line react-hooks/exhaustive-deps
+        fetchJokers(sortBy, 0, false, coords?.lat, coords?.lng, radius);
+    }, [coords, radius, filterMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // sortBy değişince sıfırla ve yeniden yükle
     useEffect(() => {
-        if (!coords) return;
+        if (filterMode === 'NEARBY' && !coords) return;
         setOffset(0);
-        fetchJokers(coords.lat, coords.lng, radius, sortBy, 0, false);
+        fetchJokers(sortBy, 0, false, coords?.lat, coords?.lng, radius);
     }, [sortBy]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Konum güncellemesi
@@ -82,10 +89,11 @@ export const useJokerPool = () => {
     }, [coords]);
 
     const loadMore = () => {
-        if (!coords || loadingMore || !hasMore) return;
+        if (filterMode === 'NEARBY' && !coords) return;
+        if (loadingMore || !hasMore) return;
         const newOffset = offset + PAGE_SIZE;
         setOffset(newOffset);
-        fetchJokers(coords.lat, coords.lng, radius, sortBy, newOffset, true);
+        fetchJokers(sortBy, newOffset, true, coords?.lat, coords?.lng, radius);
     };
 
     const applyLocationFilter = (filter: LocationFilter) => {
@@ -102,9 +110,9 @@ export const useJokerPool = () => {
             const res = await api.patch('/users/me', data);
             setCurrentUser(res.data);
             setIsProfileModalOpen(false);
-            if (coords) {
+            if (filterMode === 'ALL' || coords) {
                 setOffset(0);
-                fetchJokers(coords.lat, coords.lng, radius, sortBy, 0, false);
+                fetchJokers(sortBy, 0, false, coords?.lat, coords?.lng, radius);
             }
         } catch (err) {
             console.error('Failed to update profile:', err);
