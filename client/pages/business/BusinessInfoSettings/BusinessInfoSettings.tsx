@@ -5,6 +5,7 @@ import { Save, ArrowLeft, MapPin, AlertTriangle, Loader2, Navigation, X } from '
 import { APIProvider, Map, AdvancedMarker, useMap } from '@vis.gl/react-google-maps';
 import { Geolocation } from '@capacitor/geolocation';
 import { BusinessNavbar } from '../../../components/Business/BusinessNavbar';
+import { BusinessLoadingSpinner } from '../../../components/Business/BusinessLoadingSpinner';
 import { LocationSelectionModal } from '../../../components/Modals/LocationSelectionModal';
 import { locationService } from '../../../services/locationService';
 import { LocationPermissionSheet, LocationErrorType } from '../../../components/LocationPermissionSheet';
@@ -170,38 +171,38 @@ export const BusinessInfoSettings: React.FC = () => {
         setFormData(prev => ({ ...prev, [field]: value }));
     };
 
-    if (loading) {
-        return (
-            <div className="min-h-screen bg-slate-900 flex items-center justify-center text-white">
-                <div className="flex flex-col items-center gap-4">
-                    <div className="w-12 h-12 border-4 border-orange-500/20 border-t-orange-500 rounded-full animate-spin"></div>
-                    <span className="font-sport font-bold text-xl italic animate-pulse">YÜKLENİYOR...</span>
-                </div>
-            </div>
-        );
-    }
+    if (loading) return <BusinessLoadingSpinner fullScreen />;
 
     return (
-        <div className="pt-safe-top bg-gradient-to-b from-slate-900 to-slate-800 text-white pb-business-nav">
+        <div className="fixed inset-0 bg-gradient-to-b from-slate-900 to-slate-800 text-white flex flex-col overflow-hidden" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
             {/* Header */}
-            <div className="bg-slate-800 p-4 sticky top-0 z-10 border-b border-slate-700 shadow-lg flex items-center gap-3">
-                <button onClick={() => navigate('/business/settings')} className="p-2 bg-slate-700 rounded-lg hover:bg-slate-600 transition-colors">
-                    <ArrowLeft className="w-5 h-5 text-white" />
+            <div className="bg-slate-900/95 backdrop-blur-md z-20 border-b border-slate-800 px-4 py-4 flex items-center gap-3">
+                <button
+                    onClick={() => navigate('/business/settings')}
+                    className="w-10 h-10 bg-slate-800 rounded-xl flex items-center justify-center text-slate-300 hover:text-white hover:bg-slate-700 transition-colors"
+                >
+                    <ArrowLeft className="w-5 h-5" />
                 </button>
                 <div>
-                    <h1 className="font-sport font-bold text-xl text-white">İşletme Bilgileri</h1>
-                    <p className="text-xs text-slate-400">Temel bilgilerinizi güncelleyin</p>
+                    <h1 className="font-bold text-lg text-white leading-tight">İşletme Bilgileri</h1>
+                    <p className="text-slate-500 text-xs">Temel bilgilerinizi güncelleyin</p>
                 </div>
             </div>
 
+            <div
+                className="flex-1 overflow-y-auto overscroll-contain scrollbar-hide"
+                style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
+            >
+            <div className="px-4 py-5 space-y-4 pb-business-nav">
+
             {success && (
-                <div className="mx-4 mt-4 p-4 bg-green-600/20 border border-green-500 rounded-xl text-green-500 font-bold text-center">
+                <div className="p-4 bg-green-600/20 border border-green-500/40 rounded-2xl text-green-400 font-semibold text-center text-sm">
                     ✓ Bilgileriniz başarıyla güncellendi!
                 </div>
             )}
 
-            <form onSubmit={handleSubmit} className="p-4 space-y-6">
-                <div className="bg-slate-800 p-5 rounded-xl border border-slate-700 space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="bg-slate-800 p-5 rounded-3xl border border-slate-700 shadow-lg space-y-4">
                     {/* Name */}
                     <div>
                         <label className="block text-sm font-bold mb-2 text-slate-300 uppercase italic">İşletme Adı</label>
@@ -279,12 +280,15 @@ export const BusinessInfoSettings: React.FC = () => {
                 <button
                     type="submit"
                     disabled={saving}
-                    className="w-full bg-orange-600 hover:bg-orange-500 disabled:bg-slate-700 text-white py-5 rounded-2xl font-black text-lg uppercase tracking-wider transition-all shadow-xl shadow-orange-600/20 flex items-center justify-center gap-3 active:scale-[0.98]"
+                    className="w-full bg-orange-500 hover:bg-orange-600 active:scale-95 disabled:opacity-60 text-white py-4 rounded-2xl font-bold transition-all shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2.5"
                 >
-                    <Save className="w-6 h-6" />
-                    {saving ? 'KAYDEDİLİYOR...' : 'DEĞİŞİKLİKLERİ KAYDET'}
+                    <Save className="w-5 h-5" />
+                    {saving ? 'Kaydediliyor...' : 'Değişiklikleri Kaydet'}
                 </button>
             </form>
+
+            </div>
+            </div>
 
             <BusinessNavbar />
 

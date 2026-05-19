@@ -61,7 +61,7 @@ export const BusinessDashboard: React.FC = () => {
     const isSuspended = businessStatus === 'suspended';
 
     return (
-        <div className="pt-safe-top bg-slate-900 text-white pb-business-nav">
+        <div className="fixed inset-0 bg-slate-900 text-white flex flex-col overflow-hidden" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
             {/* Header */}
             <DashboardHeader
                 businessName={dashboardData.businessName}
@@ -70,6 +70,11 @@ export const BusinessDashboard: React.FC = () => {
                 navigate={navigate}
             />
 
+            <div
+                className="flex-1 overflow-y-auto overscroll-contain scrollbar-hide"
+                style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
+            >
+            <div className="pb-business-nav">
             {isSuspended ? (
                 /* Senaryo 2: Admin tarafından askıya alındı */
                 <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
@@ -133,6 +138,8 @@ export const BusinessDashboard: React.FC = () => {
                     />
                 </>
             )}
+            </div>
+            </div>
 
             {/* Modal for Slot Details */}
             <SlotDetailModal

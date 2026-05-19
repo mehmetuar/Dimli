@@ -106,6 +106,11 @@ function AppContent() {
   const prevGpsRef = useRef<{ lat: number; lng: number } | null>(null);
   const prevLocationNameRef = useRef<string | null>(null);
   const locationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: 0 });
+  }, [location.pathname]);
 
   // Android & iOS: StatusBar + SplashScreen + RevenueCat on first mount
   useEffect(() => {
@@ -327,7 +332,7 @@ function AppContent() {
 
   return (
     <div className="flex flex-col h-dvh bg-pitch text-white overflow-hidden">
-      <div className={`flex-1 overflow-y-auto overscroll-y-contain scrollbar-hide bg-pitch ${isAuthPage ? '' : 'pb-nav'}`}>
+      <div ref={scrollRef} className={`flex-1 overflow-y-auto overscroll-y-contain scrollbar-hide bg-pitch ${isAuthPage ? '' : 'pb-nav'}`}>
         <Suspense fallback={<PageLoader />}>
           <Routes>
             <Route path="/login" element={<Login />} />

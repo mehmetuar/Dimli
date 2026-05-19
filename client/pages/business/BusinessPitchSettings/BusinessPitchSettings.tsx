@@ -112,7 +112,7 @@ export const BusinessPitchSettings: React.FC = () => {
     };
 
     return (
-        <div className="h-[100dvh] pt-safe-top bg-gradient-to-b from-slate-900 via-slate-900 to-slate-800 text-white flex flex-col overflow-hidden">
+        <div className="fixed inset-0 bg-gradient-to-b from-slate-900 via-slate-900 to-slate-800 text-white flex flex-col overflow-hidden" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
             <PitchSettingsHeader name={formData.name} navigate={navigate} />
 
             <div className="flex-1 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>

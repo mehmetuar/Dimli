@@ -63,7 +63,7 @@ export const BusinessSettingsHub: React.FC = () => {
     ];
 
     return (
-        <div className="h-[100dvh] pt-safe-top bg-gradient-to-b from-slate-900 via-slate-900 to-slate-800 text-white flex flex-col overflow-hidden">
+        <div className="fixed inset-0 bg-gradient-to-b from-slate-900 via-slate-900 to-slate-800 text-white flex flex-col overflow-hidden" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
 
             {/* Header */}
             <div

@@ -97,12 +97,13 @@ export const BusinessStats: React.FC = () => {
 
     return (
         <div
-            className="pt-safe-top bg-gradient-to-b from-slate-900 via-slate-900 to-slate-800 text-white pb-business-nav"
+            className="fixed inset-0 bg-gradient-to-b from-slate-900 via-slate-900 to-slate-800 text-white flex flex-col overflow-hidden"
+            style={{ paddingTop: 'env(safe-area-inset-top)' }}
         >
 
             {/* Header */}
             <div
-                className="px-4 pt-4 pb-4 border-b border-slate-700/60"
+                className="shrink-0 px-4 pt-4 pb-4 border-b border-slate-700/60"
                 style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)' }}
             >
                 <div className="flex justify-between items-start gap-3">
@@ -127,7 +128,11 @@ export const BusinessStats: React.FC = () => {
                 </div>
             </div>
 
-            <div className="p-4 space-y-4">
+            <div
+                className="flex-1 overflow-y-auto overscroll-contain scrollbar-hide"
+                style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
+            >
+            <div className="p-4 space-y-4 pb-business-nav">
 
                 {/* Değerlendirme Kartı */}
                 <div className="bg-slate-800/70 rounded-2xl border border-slate-700/60 p-4 overflow-hidden shadow-lg">
@@ -223,6 +228,7 @@ export const BusinessStats: React.FC = () => {
                     </p>
                 </div>
 
+            </div>
             </div>
 
             <BusinessNavbar />

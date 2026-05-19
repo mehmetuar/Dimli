@@ -315,9 +315,9 @@ export const BusinessSubscriptionSettings: React.FC = () => {
 
     /* ── render ── */
     return (
-        <div className="pt-safe-top bg-gradient-to-b from-slate-900 to-slate-800 text-white pb-business-nav">
-            {/* sticky header */}
-            <div className="bg-slate-900/95 backdrop-blur-md sticky top-0 z-20 border-b border-slate-800 px-4 py-4 flex items-center gap-3">
+        <div className="fixed inset-0 bg-gradient-to-b from-slate-900 to-slate-800 text-white flex flex-col overflow-hidden" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+            {/* header */}
+            <div className="bg-slate-900/95 backdrop-blur-md z-20 border-b border-slate-800 px-4 py-4 flex items-center gap-3">
                 <button
                     onClick={() => navigate('/business/settings')}
                     className="w-10 h-10 bg-slate-800 rounded-xl flex items-center justify-center text-slate-300 hover:text-white hover:bg-slate-700 transition-colors"
@@ -333,12 +333,16 @@ export const BusinessSubscriptionSettings: React.FC = () => {
             <ToastBanner toast={toast} />
 
             {/* ── content ── */}
+            <div
+                className="flex-1 overflow-y-auto overscroll-contain scrollbar-hide"
+                style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
+            >
             {loading ? (
                 <div className="flex items-center justify-center py-32">
                     <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
                 </div>
             ) : (
-                <div className="px-4 py-5 space-y-4">
+                <div className="px-4 py-5 space-y-4 pb-business-nav" style={{ minHeight: 'calc(100% + 1px)' }}>
 
                     {/* ── NO SUBSCRIPTION ── */}
                     {!subscription && (
@@ -501,6 +505,7 @@ export const BusinessSubscriptionSettings: React.FC = () => {
                     </div>
                 </div>
             )}
+            </div>
 
             {/* ── modals ── */}
             <PlanPickerModal
