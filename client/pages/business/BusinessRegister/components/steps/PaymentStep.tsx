@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { AlertCircle, CheckCircle, Loader2, ShieldCheck } from 'lucide-react';
 import { SUBSCRIPTION_PLANS } from '../../hooks/useBusinessRegister';
 
@@ -12,6 +12,7 @@ interface PaymentStepProps {
 export const PaymentStep: React.FC<PaymentStepProps> = ({ formData, isLoading, error, onSubmit }) => {
     const count = formData.selectedPitchCount;
     const plan = SUBSCRIPTION_PLANS[count] || SUBSCRIPTION_PLANS[5];
+    const [eulaAccepted, setEulaAccepted] = useState(false);
 
     return (
         <div className="space-y-6 animate-fade-in">
@@ -76,10 +77,36 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ formData, isLoading, e
                 </div>
             )}
 
+            {/* Apple 1.2 — EULA onayı kayıt öncesi zorunlu */}
+            <label className="flex items-start gap-3 cursor-pointer select-none">
+                <input
+                    type="checkbox"
+                    checked={eulaAccepted}
+                    onChange={e => setEulaAccepted(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 accent-orange-500 shrink-0"
+                />
+                <span className="text-slate-400 text-xs leading-relaxed">
+                    <button
+                        type="button"
+                        onClick={() => window.open('https://dimli.com.tr/kullanim-sartlari', '_system')}
+                        className="text-orange-400 underline underline-offset-2"
+                    >
+                        Kullanım Şartları
+                    </button>'nı ve{' '}
+                    <button
+                        type="button"
+                        onClick={() => window.open('https://dimli.com.tr/kvkk', '_system')}
+                        className="text-orange-400 underline underline-offset-2"
+                    >
+                        Gizlilik Politikası
+                    </button>'nı okudum, kabul ediyorum.
+                </span>
+            </label>
+
             {/* Submit butonu */}
             <button
                 onClick={onSubmit}
-                disabled={isLoading}
+                disabled={isLoading || !eulaAccepted}
                 className="w-full bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-500 hover:to-red-500 disabled:opacity-50 text-white py-4 rounded-2xl font-black text-base flex items-center justify-center gap-2 transition-all shadow-lg shadow-orange-900/30"
             >
                 {isLoading ? (

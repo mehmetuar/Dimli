@@ -67,7 +67,7 @@ export async function linkRevenueCatUser(ownerId: string): Promise<void> {
 }
 
 /**
- * Kullanıcının mevcut aboneliğini App Store / Play Store'dan geri yükler.
+ * Kullanıcının mevcut aboneliğini mağazadan geri yükler.
  * Cihaz değişikliği veya uygulama yeniden yükleme senaryolarında kullanılır.
  */
 export async function restoreRevenueCatPurchases(): Promise<void> {

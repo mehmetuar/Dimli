@@ -41,6 +41,16 @@ export const Register: React.FC = () => {
         handleRegister
     } = useRegister();
 
+    const [eulaAccepted, setEulaAccepted] = React.useState(false);
+
+    const handleFormSubmit = (e: React.FormEvent) => {
+        if (step === 7 && !eulaAccepted) {
+            e.preventDefault();
+            return;
+        }
+        handleRegister(e);
+    };
+
     return (
         <div
             className="min-h-screen bg-pitch flex flex-col items-center justify-start px-4 pt-10 pb-16"
@@ -56,7 +66,7 @@ export const Register: React.FC = () => {
                     </div>
                 )}
 
-                <form onSubmit={handleRegister}>
+                <form onSubmit={handleFormSubmit}>
                     {step === 1 && <UsernameStep formData={formData} handleChange={handleChange} fieldErrors={fieldErrors} />}
                     {step === 2 && <PasswordStep formData={formData} handleChange={handleChange} fieldErrors={fieldErrors} />}
                     {step === 3 && <NameStep formData={formData} handleChange={handleChange} fieldErrors={fieldErrors} />}
@@ -85,6 +95,33 @@ export const Register: React.FC = () => {
                                 registerLoading={loading}
                                 onUpload={uploadAvatar}
                             />
+
+                            {/* Apple 1.2 — EULA onayı kayıt öncesi zorunlu */}
+                            <label className="flex items-start gap-3 mt-5 cursor-pointer select-none">
+                                <input
+                                    type="checkbox"
+                                    checked={eulaAccepted}
+                                    onChange={e => setEulaAccepted(e.target.checked)}
+                                    className="mt-0.5 w-4 h-4 accent-turf-500 shrink-0"
+                                />
+                                <span className="text-slate-400 text-xs leading-relaxed">
+                                    <button
+                                        type="button"
+                                        onClick={() => window.open('https://dimli.com.tr/kullanim-sartlari', '_system')}
+                                        className="text-turf-500 underline underline-offset-2"
+                                    >
+                                        Kullanım Şartları
+                                    </button>'nı ve{' '}
+                                    <button
+                                        type="button"
+                                        onClick={() => window.open('https://dimli.com.tr/kvkk', '_system')}
+                                        className="text-turf-500 underline underline-offset-2"
+                                    >
+                                        Gizlilik Politikası
+                                    </button>'nı okudum, kabul ediyorum.
+                                </span>
+                            </label>
+
                             <button
                                 type="button"
                                 onClick={prevStep}

@@ -28,7 +28,7 @@ const openStoreSubscriptions = () => {
         platform === 'ios'
             ? 'itms-apps://apps.apple.com/account/subscriptions'
             : 'https://play.google.com/store/account/subscriptions';
-    // '_system' makes Capacitor hand the URL to the OS (opens App Store / Play Store)
+    // '_system' makes Capacitor hand the URL to the OS (opens native subscription manager)
     window.open(url, '_system');
 };
 
@@ -123,11 +123,11 @@ const PlanPickerModal: React.FC<PlanPickerModalProps> = ({
                     <p className="text-slate-500 text-[11px] text-center leading-relaxed">
                         {Capacitor.getPlatform() === 'ios'
                             ? 'Satın alma App Store üzerinden gerçekleşir.'
-                            : 'Satın alma Google Play üzerinden gerçekleşir.'}
+                            : 'Satın alma Android mağazası üzerinden gerçekleşir.'}
                     </p>
                     <p className="text-slate-600 text-[10px] text-center leading-relaxed">
                         Abonelik, dönem sonunda otomatik olarak yenilenir. İptal için dönem bitişinden en az 24 saat önce{' '}
-                        {Capacitor.getPlatform() === 'ios' ? 'App Store' : 'Google Play'} ayarlarından işlem yapmanız gerekir.
+                        {Capacitor.getPlatform() === 'ios' ? 'App Store' : 'Android Mağazası'} ayarlarından işlem yapmanız gerekir.
                     </p>
                     <div className="flex justify-center gap-3 pt-1">
                         <a
@@ -525,7 +525,7 @@ export const BusinessSubscriptionSettings: React.FC = () => {
                                         <ExternalLink className="w-4 h-4" />
                                         {Capacitor.getPlatform() === 'ios'
                                             ? 'App Store\'dan İptal Et'
-                                            : 'Play Store\'dan İptal Et'}
+                                            : 'Mağazadan İptal Et'}
                                     </button>
                                 )}
                             </div>
