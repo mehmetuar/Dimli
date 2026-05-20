@@ -1,8 +1,13 @@
 import React, { useRef, useEffect } from 'react';
-import { Send, Bot, ChevronLeft, Users, Shield, Star, Phone, ArrowDown, Swords, MoreVertical, X, ChevronRight, Trash2, XCircle, AlertTriangle, Undo2, UserMinus, UserPlus, RefreshCw } from 'lucide-react';
+import { Send, Bot, ChevronLeft, Users, Shield, Star, Phone, ArrowDown, Swords, MoreVertical, X, ChevronRight, Trash2, XCircle, AlertTriangle, Undo2, UserMinus, UserPlus, RefreshCw, CheckCircle } from 'lucide-react';
 import { useChat } from './hooks/useChat';
+import { useMessageActions } from './hooks/useMessageActions';
 import { ChannelItem } from './components/ChannelItem';
 import { MatchStatusBadge } from './components/MatchStatusBadge';
+import { MessageBubble } from './components/MessageBubble';
+import { MessageContextMenu } from './components/MessageContextMenu';
+import { MessageActionModal } from './components/MessageActionModal';
+import { ReportNoteModal } from './components/ReportNoteModal';
 import { getMatchStatusInfo, formatMessageDate, teamAvatarFallback, userAvatarFallback } from './utils/chatUtils';
 import { SystemMessageRenderer } from '../../../components/UI/SystemMessageRenderer';
 import api from '../../../services/api';
@@ -48,6 +53,15 @@ export const Chat: React.FC = () => {
     isLoadingChannels, isLoadingMessages,
     fetchChannels,
   } = useChat();
+
+  const {
+    selectedMessage, isActionModalOpen, isReportModalOpen, blockAndReportPending,
+    actionLoading, toast: actionToast,
+    isContextMenuOpen, contextMenuMsg, contextMenuPosition,
+    openContextMenu, closeContextMenu, handleCopy, handleContextMenuReport,
+    openActionModal, openReportModal, handleBlock, handleBlockAndReport, handleReport,
+    filterMessage, closeAll,
+  } = useMessageActions();
 
   const keyboardHeight = useKeyboardHeight();
   useModalBodyClass(!!selectedChannelId);
@@ -286,6 +300,17 @@ export const Chat: React.FC = () => {
       className="fixed inset-0 z-[60] flex flex-col bg-pitch-surface"
       style={keyboardHeight > 0 ? { paddingBottom: `calc(${keyboardHeight}px - env(safe-area-inset-bottom, 0px))` } : undefined}
     >
+      {/* Action toast */}
+      {actionToast && (
+        <div className={`fixed top-16 left-4 right-4 z-[120] px-4 py-3 rounded-2xl flex items-center gap-3 shadow-2xl border animate-fade-in
+          ${actionToast.type === 'success'
+            ? 'bg-green-900/90 border-green-500/40 text-green-300'
+            : 'bg-red-900/90 border-red-500/40 text-red-300'}`}
+        >
+          <CheckCircle className="w-5 h-5 shrink-0" />
+          <p className="font-semibold text-sm">{actionToast.text}</p>
+        </div>
+      )}
       <InviteJokerModal
         isOpen={isInviteModalOpen}
         onClose={() => setIsInviteModalOpen(false)}
@@ -543,79 +568,19 @@ export const Chat: React.FC = () => {
           </>
         )}
 
-        {!isLoadingMessages && messages.map((msg, index) => {
-          const isNextSameTime = messages[index + 1]?.timestamp === msg.timestamp;
-          const prevMsg = messages[index - 1];
-          const nextMsg = messages[index + 1];
-          const isPrevSameSender = prevMsg && !prevMsg.isSystem && !msg.isSystem && prevMsg.senderId === msg.senderId;
-          const isNextSameSender = nextMsg && !nextMsg.isSystem && !msg.isSystem && nextMsg.senderId === msg.senderId;
-
-          return msg.isSystem ? (
-            <div key={msg.id} className="flex justify-center my-4 animate-fade-in px-4 w-full">
-              <div className="bg-slate-800/95 border border-slate-700 text-slate-200 text-sm font-medium px-6 py-4 rounded-xl text-center w-full shadow-lg whitespace-pre-wrap">
-                <SystemMessageRenderer text={msg.text} />
-
-                {msg.metadata?.type === 'PROPOSAL_ACTION' && (
-                  <button
-                    onClick={() => handleAcceptProposal(msg.metadata.reservationId)}
-                    className="mt-3 bg-green-600 hover:bg-green-700 text-white font-bold py-1.5 px-4 rounded-full text-xs transition-colors flex items-center gap-1 mx-auto"
-                  >
-                    <span>✅</span>
-                    <span>Teklifi Kabul Et</span>
-                  </button>
-                )}
-
-                {msg.metadata?.type === 'REMATCH_PROPOSAL' && msg.metadata?.matchAnnouncementId && (() => {
-                  const isCaptain = currentUser?.team?.captainId === currentUser?.id;
-                  const isViceCaptain = currentUser?.team?.viceCaptainIds?.includes(currentUser?.id);
-                  const isProposerTeam = msg.senderId === currentUser?.id;
-
-                  if ((isCaptain || isViceCaptain) && !isProposerTeam) {
-                    return (
-                      <button
-                        onClick={() => handleAcceptRematch(msg.metadata.matchAnnouncementId)}
-                        className="mt-3 bg-turf-600 hover:bg-turf-700 text-white font-bold py-2 px-5 rounded-full text-xs transition-colors flex items-center gap-2 mx-auto"
-                      >
-                        <Swords className="w-4 h-4" />
-                        <span>Teklifi Onayla</span>
-                      </button>
-                    );
-                  }
-                  return null;
-                })()}
-              </div>
-            </div>
-          ) : (
-            <div key={msg.id} className={`flex items-end gap-2 ${msg.isMe ? 'justify-end' : 'justify-start'} ${isPrevSameSender ? '!mt-0.5' : ''}`}>
-              {!msg.isMe && (
-                <div style={{ width: 28, flexShrink: 0 }}>
-                  {!isNextSameSender ? (
-                    <div className="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-bold text-white overflow-hidden">
-                      {msg.senderName.charAt(0)}
-                    </div>
-                  ) : null}
-                </div>
-              )}
-
-              <div className={`max-w-[75%]`}>
-                <div className={`px-3 py-2 rounded-2xl text-sm leading-relaxed shadow-sm relative ${msg.isMe
-                  ? `bg-turf-600 text-white ${!isNextSameSender ? 'rounded-br-sm' : ''}`
-                  : `bg-slate-800 text-slate-200 border border-slate-700 ${!isNextSameSender ? 'rounded-bl-sm' : ''}`
-                  }`}>
-                  {!msg.isMe && !isPrevSameSender && (
-                    <span className="text-[11px] font-semibold text-turf-400 block mb-0.5">{msg.senderName}</span>
-                  )}
-                  {msg.text}
-                </div>
-                {!isNextSameTime && !isNextSameSender && (
-                  <span className={`text-[10px] block mt-1 ${msg.isMe ? 'text-right text-slate-500' : 'text-left text-slate-500'}`}>
-                    {msg.timestamp}
-                  </span>
-                )}
-              </div>
-            </div>
-          );
-        })}
+        {!isLoadingMessages && messages.filter(filterMessage).map((msg, index, arr) => (
+          <MessageBubble
+            key={msg.id}
+            msg={msg as any}
+            prevMsg={(arr[index - 1] ?? null) as any}
+            nextMsg={(arr[index + 1] ?? null) as any}
+            currentUser={currentUser}
+            onLongPress={openContextMenu as any}
+            onAvatarClick={openActionModal as any}
+            onAcceptProposal={handleAcceptProposal}
+            onAcceptRematch={handleAcceptRematch}
+          />
+        ))}
 
         {showTactic && (
           <div className="flex justify-center my-6 animate-fade-in-up">
@@ -966,6 +931,32 @@ export const Chat: React.FC = () => {
         isOpen={isManageJokersModalOpen}
         onClose={() => setIsManageJokersModalOpen(false)}
         channelId={activeChannel?.id}
+      />
+
+      <MessageContextMenu
+        visible={isContextMenuOpen}
+        position={contextMenuPosition}
+        onCopy={handleCopy}
+        onReport={handleContextMenuReport}
+        onClose={closeContextMenu}
+      />
+
+      <MessageActionModal
+        visible={isActionModalOpen}
+        senderName={selectedMessage?.senderName ?? ''}
+        loading={actionLoading}
+        onClose={closeAll}
+        onBlock={handleBlock}
+        onReport={openReportModal}
+        onBlockAndReport={handleBlockAndReport}
+      />
+
+      <ReportNoteModal
+        visible={isReportModalOpen}
+        loading={actionLoading}
+        isBlockAndReport={blockAndReportPending}
+        onClose={closeAll}
+        onSubmit={(note) => handleReport(activeChannel?.id, note)}
       />
     </div>
   );

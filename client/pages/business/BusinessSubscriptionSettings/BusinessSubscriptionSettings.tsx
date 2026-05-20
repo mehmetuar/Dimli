@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import api from '../../../services/api';
-import { purchasePlan, linkRevenueCatUser } from '../../../services/revenuecatService';
+import { purchasePlan, linkRevenueCatUser, restoreRevenueCatPurchases } from '../../../services/revenuecatService';
 import { SUBSCRIPTION_PLANS } from '../BusinessRegister/hooks/useBusinessRegister';
 
 /* ─── helpers ─── */
@@ -109,7 +109,7 @@ const PlanPickerModal: React.FC<PlanPickerModalProps> = ({
                                 </div>
                                 <div className="flex items-center gap-1.5">
                                     <span className={`font-bold text-sm ${isCurrent ? 'text-emerald-400' : 'text-orange-400'}`}>
-                                        {formatPrice(plan.price)}
+                                        {formatPrice(plan.price)}<span className="font-normal text-xs">/ay</span>
                                     </span>
                                     <ChevronRight className="w-3.5 h-3.5 text-slate-500" />
                                 </div>
@@ -119,10 +119,35 @@ const PlanPickerModal: React.FC<PlanPickerModalProps> = ({
                 </div>
 
                 {/* footer note */}
-                <div className="px-5 pb-5 pt-2">
-                    <p className="text-slate-500 text-xs text-center">
-                        Satın alma App Store / Play Store üzerinden gerçekleşir.
+                <div className="px-5 pb-5 pt-2 space-y-2">
+                    <p className="text-slate-500 text-[11px] text-center leading-relaxed">
+                        {Capacitor.getPlatform() === 'ios'
+                            ? 'Satın alma App Store üzerinden gerçekleşir.'
+                            : 'Satın alma Google Play üzerinden gerçekleşir.'}
                     </p>
+                    <p className="text-slate-600 text-[10px] text-center leading-relaxed">
+                        Abonelik, dönem sonunda otomatik olarak yenilenir. İptal için dönem bitişinden en az 24 saat önce{' '}
+                        {Capacitor.getPlatform() === 'ios' ? 'App Store' : 'Google Play'} ayarlarından işlem yapmanız gerekir.
+                    </p>
+                    <div className="flex justify-center gap-3 pt-1">
+                        <a
+                            href="https://dimli.com.tr/kvkk"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-slate-500 text-[10px] underline underline-offset-2"
+                        >
+                            Gizlilik Politikası
+                        </a>
+                        <span className="text-slate-700 text-[10px]">·</span>
+                        <a
+                            href="https://dimli.com.tr/kullanim-sartlari"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-slate-500 text-[10px] underline underline-offset-2"
+                        >
+                            Kullanım Şartları
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
@@ -223,6 +248,7 @@ export const BusinessSubscriptionSettings: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [subscription, setSubscription] = useState<any>(null);
     const [purchaseLoading, setPurchaseLoading] = useState(false);
+    const [restoreLoading, setRestoreLoading] = useState(false);
     const [deleteLoading, setDeleteLoading] = useState(false);
     const [showPlanPicker, setShowPlanPicker] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -268,6 +294,19 @@ export const BusinessSubscriptionSettings: React.FC = () => {
             showToast(err?.message || 'Satın alma işlemi başarısız oldu.', 'error');
         } finally {
             setPurchaseLoading(false);
+        }
+    };
+
+    const handleRestorePurchases = async () => {
+        setRestoreLoading(true);
+        try {
+            await restoreRevenueCatPurchases();
+            await fetchSubscription();
+            showToast('Satın alımlar başarıyla geri yüklendi.', 'success');
+        } catch {
+            showToast('Geri yükleme başarısız. Lütfen tekrar deneyin.', 'error');
+        } finally {
+            setRestoreLoading(false);
         }
     };
 
@@ -463,6 +502,19 @@ export const BusinessSubscriptionSettings: React.FC = () => {
                                         ? 'İşleniyor…'
                                         : isExpiredOrCancelled ? 'Yeniden Abone Ol' : 'Planı Yükselt / Satın Al'}
                                 </button>
+
+                                {/* restore purchases — iOS only, Apple requirement */}
+                                {Capacitor.getPlatform() === 'ios' && (
+                                    <button
+                                        onClick={handleRestorePurchases}
+                                        disabled={restoreLoading}
+                                        className="w-full py-3.5 rounded-2xl font-medium text-sm transition-all bg-slate-800 border border-slate-700 text-slate-300 hover:text-white hover:border-slate-500 flex items-center justify-center gap-2 active:scale-95 disabled:opacity-60"
+                                    >
+                                        {restoreLoading
+                                            ? <Loader2 className="w-4 h-4 animate-spin" />
+                                            : 'Satın Alımları Geri Yükle'}
+                                    </button>
+                                )}
 
                                 {/* cancel via store — only for active subscriptions */}
                                 {isActive && (
