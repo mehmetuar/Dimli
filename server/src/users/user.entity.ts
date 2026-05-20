@@ -60,6 +60,9 @@ export class User {
     @Column({ default: true })
     sharesFee: boolean;
 
+    @Column({ default: false })
+    isChatBanned: boolean;
+
     @Index()
     @Column('float', { nullable: true })
     latitude: number | null;

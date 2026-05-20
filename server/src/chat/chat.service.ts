@@ -15,6 +15,7 @@ import { ReservationsService } from '../reservations/reservations.service';
 import { TeamsService } from '../teams/teams.service';
 import { RatingsService } from '../ratings/ratings.service';
 import { AppGateway } from '../gateway/app.gateway';
+import { UserBlocksService } from '../user-blocks/user-blocks.service';
 
 @Injectable()
 export class ChatService {
@@ -43,6 +44,7 @@ export class ChatService {
         private teamsService: TeamsService,
         private ratingsService: RatingsService,
         @Optional() private gateway: AppGateway,
+        private userBlocksService: UserBlocksService,
     ) { }
 
     async createChannel(type: 'DM' | 'MATCH_GROUP' | 'TEAM_INTERNAL' | 'JOKER_NEGOTIATION', name: string, participants: User[], relatedMatchId?: string): Promise<ChatChannel> {
@@ -338,6 +340,11 @@ export class ChatService {
     async sendMessage(channelId: string, senderId: string, content: string, isSystemMessage = false, metadata?: any): Promise<ChatMessage> {
         // System messages can always be sent
         if (!isSystemMessage) {
+            const sender = await this.userRepository.findOne({ where: { id: senderId } });
+            if (sender?.isChatBanned) {
+                throw new ForbiddenException('Mesaj engeliniz var. Lütfen destek ile iletişime geçin.');
+            }
+
             const statusType = await this.getChannelMatchStatusType(channelId);
             if (statusType === 'played' || statusType === 'unplayed') {
                 throw new ForbiddenException('Maç tamamlandığı için mesaj gönderilemez.');
@@ -399,26 +406,33 @@ export class ChatService {
         return savedMessage;
     }
 
-    async getChannelMessages(channelId: string, before?: string, limit = 50): Promise<ChatMessage[]> {
+    async getChannelMessages(channelId: string, requestingUserId: string, before?: string, limit = 50): Promise<ChatMessage[]> {
         const PAGE = Math.min(limit, 100);
 
+        const blockedUserIds = await this.userBlocksService.getBlockedUserIds(requestingUserId);
+
+        let messages: ChatMessage[];
         if (before) {
-            const messages = await this.chatMessageRepository.find({
+            messages = await this.chatMessageRepository.find({
                 where: { channelId, createdAt: LessThan(new Date(before)) },
                 relations: ['sender'],
                 order: { createdAt: 'DESC' },
                 take: PAGE,
             });
-            return messages.reverse();
+        } else {
+            messages = await this.chatMessageRepository.find({
+                where: { channelId },
+                relations: ['sender'],
+                order: { createdAt: 'DESC' },
+                take: PAGE,
+            });
         }
 
-        const messages = await this.chatMessageRepository.find({
-            where: { channelId },
-            relations: ['sender'],
-            order: { createdAt: 'DESC' },
-            take: PAGE,
-        });
-        return messages.reverse();
+        const filtered = blockedUserIds.length > 0
+            ? messages.filter(m => !m.senderId || !blockedUserIds.includes(m.senderId))
+            : messages;
+
+        return filtered.reverse();
     }
 
     async markAsRead(channelId: string, userId: string): Promise<void> {

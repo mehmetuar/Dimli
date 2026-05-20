@@ -18,6 +18,8 @@ import { TimeSlot } from '../pitches/entities/time-slot.entity';
 import { PitchChangeRequest } from '../pitches/entities/pitch-change-request.entity';
 import { Notification } from '../notifications/notification.entity';
 import { AccountDeletion } from '../account-deletions/account-deletion.entity';
+import { User } from '../users/user.entity';
+import { UserReport, ReportStatus } from '../user-reports/user-report.entity';
 
 const PLAN_LABELS: Record<string, string> = {
     '1_pitch': 'Starter',
@@ -57,6 +59,10 @@ export class AdminService {
         private notificationRepository: Repository<Notification>,
         @InjectRepository(AccountDeletion)
         private accountDeletionRepository: Repository<AccountDeletion>,
+        @InjectRepository(User)
+        private userRepository: Repository<User>,
+        @InjectRepository(UserReport)
+        private userReportRepository: Repository<UserReport>,
         private jwtService: JwtService,
     ) { }
 
@@ -507,6 +513,55 @@ export class AdminService {
             monthlyTrend,
             recent: deletions.slice(0, 30),
         };
+    }
+
+    // ─── User Reports ─────────────────────────────────────────────────────────
+
+    async getReports(status?: ReportStatus) {
+        return this.userReportRepository.find({
+            where: status ? { status } : {},
+            relations: ['reporter', 'reportedUser'],
+            order: { createdAt: 'DESC' },
+        });
+    }
+
+    async updateReportStatus(id: string, status: ReportStatus) {
+        const report = await this.userReportRepository.findOne({ where: { id } });
+        if (!report) throw new NotFoundException('Rapor bulunamadı.');
+        report.status = status;
+        return this.userReportRepository.save(report);
+    }
+
+    async getPendingReportCount(): Promise<number> {
+        return this.userReportRepository.count({ where: { status: 'pending' } });
+    }
+
+    // ─── Chat Ban ─────────────────────────────────────────────────────────────
+
+    async chatBanUser(userId: string) {
+        const user = await this.userRepository.findOne({ where: { id: userId } });
+        if (!user) throw new NotFoundException('Kullanıcı bulunamadı.');
+        user.isChatBanned = true;
+        await this.userRepository.save(user);
+
+        const notification = this.notificationRepository.create({
+            userId,
+            type: 'CHAT_BAN',
+            title: 'Mesaj Engeliniz Var',
+            message: 'Hesabınızda mesaj engeli uygulandı. Lütfen destek ile iletişime geçin.',
+            read: false,
+        });
+        await this.notificationRepository.save(notification);
+
+        return { success: true };
+    }
+
+    async chatUnbanUser(userId: string) {
+        const user = await this.userRepository.findOne({ where: { id: userId } });
+        if (!user) throw new NotFoundException('Kullanıcı bulunamadı.');
+        user.isChatBanned = false;
+        await this.userRepository.save(user);
+        return { success: true };
     }
 
     /**

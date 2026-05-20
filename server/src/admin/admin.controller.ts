@@ -120,6 +120,43 @@ export class AdminController {
         return this.adminService.rejectChangeRequest(id, body.reason);
     }
 
+    // ─── User Reports ─────────────────────────────────────────────────────────
+
+    @UseGuards(AdminJwtAuthGuard)
+    @Get('reports')
+    async getReports(@Query('status') status?: string) {
+        return this.adminService.getReports(status as any);
+    }
+
+    @UseGuards(AdminJwtAuthGuard)
+    @Patch('reports/:id/status')
+    async updateReportStatus(
+        @Param('id') id: string,
+        @Body('status') status: string,
+    ) {
+        return this.adminService.updateReportStatus(id, status as any);
+    }
+
+    @UseGuards(AdminJwtAuthGuard)
+    @Get('reports/pending-count')
+    async getPendingReportCount() {
+        return this.adminService.getPendingReportCount();
+    }
+
+    // ─── Chat Ban ─────────────────────────────────────────────────────────────
+
+    @UseGuards(AdminJwtAuthGuard)
+    @Post('users/:userId/chat-ban')
+    async chatBanUser(@Param('userId') userId: string) {
+        return this.adminService.chatBanUser(userId);
+    }
+
+    @UseGuards(AdminJwtAuthGuard)
+    @Delete('users/:userId/chat-ban')
+    async chatUnbanUser(@Param('userId') userId: string) {
+        return this.adminService.chatUnbanUser(userId);
+    }
+
     // ─── Maintenance ──────────────────────────────────────────────────────────
 
     /**

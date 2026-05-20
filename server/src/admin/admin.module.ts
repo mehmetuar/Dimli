@@ -14,11 +14,13 @@ import { TimeSlot } from '../pitches/entities/time-slot.entity';
 import { PitchChangeRequest } from '../pitches/entities/pitch-change-request.entity';
 import { Notification } from '../notifications/notification.entity';
 import { AccountDeletion } from '../account-deletions/account-deletion.entity';
+import { User } from '../users/user.entity';
+import { UserReport } from '../user-reports/user-report.entity';
 
 @Module({
     imports: [
         PassportModule,
-        TypeOrmModule.forFeature([AdminUser, Business, BusinessOwner, Subscription, Pitch, TimeSlot, PitchChangeRequest, Notification, AccountDeletion]),
+        TypeOrmModule.forFeature([AdminUser, Business, BusinessOwner, Subscription, Pitch, TimeSlot, PitchChangeRequest, Notification, AccountDeletion, User, UserReport]),
         JwtModule.register({
             secret: process.env.ADMIN_JWT_SECRET || 'ADMIN_SECRET_KEY',
             signOptions: { expiresIn: '8h' },

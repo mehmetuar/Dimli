@@ -15,10 +15,11 @@ export class ChatController {
     @Get('channels/:id/messages')
     getChannelMessages(
         @Param('id') id: string,
+        @Request() req,
         @Query('before') before?: string,
         @Query('limit') limit = 50,
     ) {
-        return this.chatService.getChannelMessages(id, before, Number(limit));
+        return this.chatService.getChannelMessages(id, req.user.id, before, Number(limit));
     }
 
     @Post('channels/:id/messages')

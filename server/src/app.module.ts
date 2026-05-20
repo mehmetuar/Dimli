@@ -21,6 +21,8 @@ import { AdminModule } from './admin/admin.module';
 import { SubscriptionModule } from './subscription/subscription.module';
 import { PitchChangeRequestsModule } from './pitch-change-requests/pitch-change-requests.module';
 import { GatewayModule } from './gateway/gateway.module';
+import { UserBlocksModule } from './user-blocks/user-blocks.module';
+import { UserReportsModule } from './user-reports/user-reports.module';
 
 @Module({
   imports: [
@@ -63,6 +65,8 @@ import { GatewayModule } from './gateway/gateway.module';
     SubscriptionModule,
     PitchChangeRequestsModule,
     GatewayModule,
+    UserBlocksModule,
+    UserReportsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
