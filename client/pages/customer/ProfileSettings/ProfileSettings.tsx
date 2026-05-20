@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     ChevronLeft, UserCircle2, Shield, User, Calendar,
-    Lock, Save, Key, Settings, Trash2, ChevronRight,
+    Lock, Save, Key, Settings, Trash2, ChevronRight, ShieldOff,
 } from 'lucide-react';
 import { LoadingSpinner } from '../../../components/UI/LoadingSpinner';
 import { useProfile } from './hooks/useProfile';
 import { ProfilePhotoManager } from './components/ProfilePhotoManager';
 import { DeleteAccountModal } from './components/DeleteAccountModal';
+import { BlockedUsersModal } from './components/BlockedUsersModal';
 import { PositionPickerModal } from '../../../components/UI/PositionPickerModal';
 
 const inputClass = 'w-full bg-slate-900/80 text-white px-4 py-3.5 rounded-xl border border-slate-700 focus:border-turf-500/70 focus:outline-none font-semibold text-sm placeholder-slate-600 transition-colors';
@@ -47,6 +48,7 @@ export const ProfileSettings: React.FC = () => {
 
     // Hesap yönetimi expand state
     const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+    const [isBlockedModalOpen, setIsBlockedModalOpen] = useState(false);
 
     // Position picker state
     const [positionPicker, setPositionPicker] = useState<{
@@ -315,7 +317,14 @@ export const ProfileSettings: React.FC = () => {
                             </button>
 
                             {accountMenuOpen && (
-                                <div className="mt-2 animate-fade-in">
+                                <div className="mt-2 space-y-2 animate-fade-in">
+                                    <button
+                                        onClick={() => setIsBlockedModalOpen(true)}
+                                        className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border border-slate-700 bg-slate-800/40 text-slate-300 hover:bg-slate-800 text-sm font-bold transition-all"
+                                    >
+                                        <ShieldOff className="w-4 h-4" />
+                                        Engellenen Kullanıcılar
+                                    </button>
                                     <button
                                         onClick={() => setIsDeleteModalOpen(true)}
                                         className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border border-red-900/50 bg-red-950/20 text-red-500 hover:bg-red-950/40 text-sm font-bold transition-all"
@@ -347,6 +356,12 @@ export const ProfileSettings: React.FC = () => {
                 isOpen={isDeleteModalOpen}
                 onClose={() => setIsDeleteModalOpen(false)}
                 onConfirm={deleteAccount}
+            />
+
+            {/* Engellenen Kullanıcılar Modalı */}
+            <BlockedUsersModal
+                isOpen={isBlockedModalOpen}
+                onClose={() => setIsBlockedModalOpen(false)}
             />
         </div>
     );

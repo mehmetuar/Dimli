@@ -21,6 +21,12 @@ export const ReportNoteModal: React.FC<Props> = ({
     if (!visible) return null;
 
     const title = isBlockAndReport ? 'Engelle & Şikayet Et' : 'Şikayet Et';
+    const canSubmit = note.trim().length > 0;
+
+    const handleSubmit = () => {
+        if (!canSubmit) return;
+        onSubmit(note.trim());
+    };
 
     return (
         <div className="fixed inset-0 z-[110] flex items-center justify-center px-4 bg-black/80 backdrop-blur-sm animate-fade-in">
@@ -38,18 +44,27 @@ export const ReportNoteModal: React.FC<Props> = ({
                 </div>
 
                 {/* Body */}
-                <div className="p-5 space-y-4">
+                <div className="p-5 space-y-3">
                     <p className="text-slate-400 text-sm leading-relaxed">
                         Şikayetiniz ekibimize iletilecek ve en kısa sürede incelenecektir.
                     </p>
-                    <textarea
-                        value={note}
-                        onChange={e => setNote(e.target.value)}
-                        placeholder="Neden şikayet ediyorsunuz? (isteğe bağlı)"
-                        rows={3}
-                        maxLength={500}
-                        className="w-full bg-slate-900 border border-slate-600 focus:border-slate-400 text-slate-200 text-sm rounded-xl px-3 py-2.5 resize-none placeholder:text-slate-600 focus:outline-none transition-colors"
-                    />
+                    <div className="relative">
+                        <textarea
+                            value={note}
+                            onChange={e => setNote(e.target.value)}
+                            placeholder="Şikayet nedeninizi yazın..."
+                            rows={3}
+                            maxLength={500}
+                            autoFocus
+                            className="w-full bg-slate-900 border border-slate-600 focus:border-orange-500/60 text-slate-200 text-sm rounded-xl px-3 py-2.5 resize-none placeholder:text-slate-600 focus:outline-none transition-colors"
+                        />
+                        <span className={`absolute bottom-2 right-3 text-[10px] ${note.length > 450 ? 'text-orange-400' : 'text-slate-600'}`}>
+                            {note.length}/500
+                        </span>
+                    </div>
+                    {!canSubmit && note.length === 0 && (
+                        <p className="text-slate-500 text-xs">Göndermek için bir açıklama yazmanız gerekiyor.</p>
+                    )}
                 </div>
 
                 {/* Buttons */}
@@ -62,9 +77,12 @@ export const ReportNoteModal: React.FC<Props> = ({
                         Vazgeç
                     </button>
                     <button
-                        onClick={() => onSubmit(note.trim())}
-                        disabled={loading}
-                        className="flex-1 py-3 rounded-2xl bg-orange-600 hover:bg-orange-500 disabled:opacity-60 text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2"
+                        onClick={handleSubmit}
+                        disabled={loading || !canSubmit}
+                        className={`flex-1 py-3 rounded-2xl font-semibold text-sm transition-all flex items-center justify-center gap-2
+                            ${canSubmit
+                                ? 'bg-orange-600 hover:bg-orange-500 text-white'
+                                : 'bg-slate-700/50 text-slate-500 cursor-not-allowed'}`}
                     >
                         {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Gönder'}
                     </button>

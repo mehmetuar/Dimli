@@ -113,17 +113,11 @@ export const useMessageActions = () => {
         setIsReportModalOpen(true);
     }, []);
 
-    const handleBlockAndReport = useCallback(async () => {
+    // Engelleme yapmaz — sadece not modalını açar.
+    // Gerçek engel, kullanıcı notu yazıp "Gönder"e bastığında handleReport içinde gerçekleşir.
+    // Kullanıcı vazgeçerse (X / Vazgeç) closeAll() her şeyi temizler, engel olmaz.
+    const handleBlockAndReport = useCallback(() => {
         if (!selectedMessage) return;
-        setActionLoading(true);
-        try {
-            await blockUser(selectedMessage.senderId);
-            setBlockedUserIds(prev => [...prev, selectedMessage.senderId]);
-        } catch {
-            // engel başarısız olsa da şikayet akışı devam eder
-        } finally {
-            setActionLoading(false);
-        }
         setBlockAndReportPending(true);
         setIsActionModalOpen(false);
         setIsReportModalOpen(true);
@@ -133,6 +127,11 @@ export const useMessageActions = () => {
         if (!selectedMessage) return;
         setActionLoading(true);
         try {
+            // "Engelle & Şikayet Et" seçildiyse engeli de şimdi uygula (not yazıldıktan sonra)
+            if (blockAndReportPending) {
+                await blockUser(selectedMessage.senderId);
+                setBlockedUserIds(prev => [...prev, selectedMessage.senderId]);
+            }
             await reportUser({
                 reportedUserId: selectedMessage.senderId,
                 messageId: selectedMessage.id,
@@ -147,7 +146,7 @@ export const useMessageActions = () => {
             );
             closeAll();
         } catch {
-            showToast('Şikayet gönderilemedi. Tekrar deneyin.', 'error');
+            showToast('İşlem başarısız. Tekrar deneyin.', 'error');
             setActionLoading(false);
         }
     }, [selectedMessage, blockAndReportPending, showToast, closeAll]);
