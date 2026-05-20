@@ -20,8 +20,13 @@ export class UserBlocksController {
     }
 
     @Get('blocks')
-    async getBlockedUsers(@Request() req) {
+    async getBlockedUserIds(@Request() req) {
         const blockedUserIds = await this.userBlocksService.getBlockedUserIds(req.user.id);
         return { blockedUserIds };
+    }
+
+    @Get('blocks/details')
+    async getBlockedUsers(@Request() req) {
+        return this.userBlocksService.getBlockedUsers(req.user.id);
     }
 }

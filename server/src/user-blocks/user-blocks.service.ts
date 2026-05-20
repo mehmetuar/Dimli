@@ -35,6 +35,21 @@ export class UserBlocksService {
         return blocks.map(b => b.blockedId);
     }
 
+    async getBlockedUsers(blockerId: string) {
+        const blocks = await this.userBlockRepository.find({
+            where: { blockerId },
+            relations: ['blocked'],
+        });
+        return blocks
+            .filter(b => b.blocked)
+            .map(b => ({
+                id: b.blocked.id,
+                username: b.blocked.username,
+                full_name: b.blocked.full_name,
+                avatarUrl: b.blocked.avatarUrl ?? null,
+            }));
+    }
+
     async isBlocked(blockerId: string, blockedId: string): Promise<boolean> {
         const count = await this.userBlockRepository.count({
             where: { blockerId, blockedId },
