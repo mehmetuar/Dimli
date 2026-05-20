@@ -30,15 +30,15 @@ export const ProfileSettingsMenu: React.FC<ProfileSettingsMenuProps> = ({ isMenu
                 </div>
                 <div className="p-4 space-y-2">
                     <button
-                        onClick={() => { setIsMenuOpen(false); navigate('/settings/profile'); }}
+                        onClick={() => { setIsMenuOpen(false); navigate('/settings/account'); }}
                         className="w-full flex items-center gap-4 p-4 rounded-2xl bg-slate-700/50 hover:bg-slate-700 text-white transition-all active:scale-95"
                     >
                         <div className="bg-blue-500/20 p-2 rounded-full text-blue-400">
                             <Settings className="w-6 h-6" />
                         </div>
                         <div className="text-left flex-1">
-                            <div className="font-bold text-base">Profil Ayarları</div>
-                            <div className="text-xs text-slate-400">Bilgilerini güncelle</div>
+                            <div className="font-bold text-base">Hesap Ayarları</div>
+                            <div className="text-xs text-slate-400">Profil, güvenlik ve gizlilik</div>
                         </div>
                         <ChevronRight className="w-5 h-5 text-slate-500" />
                     </button>

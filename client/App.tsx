@@ -52,6 +52,9 @@ const BusinessSubscriptionSettings = lazy(() => import('./pages/business/Busines
 const BusinessNotificationsPage = lazy(() => import('./pages/business/BusinessNotificationsPage/BusinessNotificationsPage').then(m => ({ default: m.BusinessNotificationsPage })));
 const BusinessStats = lazy(() => import('./pages/business/BusinessStats/BusinessStats').then(m => ({ default: m.BusinessStats })));
 const ForgotPassword = lazy(() => import('./pages/customer/ForgotPassword/ForgotPassword').then(m => ({ default: m.ForgotPassword })));
+const AccountSettings = lazy(() => import('./pages/customer/AccountSettings/AccountSettings').then(m => ({ default: m.AccountSettings })));
+const PrivacySecurity = lazy(() => import('./pages/customer/PrivacySecurity/PrivacySecurity').then(m => ({ default: m.PrivacySecurity })));
+const BlockedUsersPage = lazy(() => import('./pages/customer/BlockedUsers/BlockedUsersPage').then(m => ({ default: m.BlockedUsersPage })));
 
 // ── Animated full-screen loading fallback ────────────────────────────────────
 const PageLoader = () => (
@@ -359,6 +362,9 @@ function AppContent() {
               <Route path="/team" element={<TeamProfile />} />
               <Route path="/notifications" element={<Notifications />} />
               <Route path="/settings/profile" element={<ProfileSettings />} />
+              <Route path="/settings/account" element={<AccountSettings />} />
+              <Route path="/settings/privacy-security" element={<PrivacySecurity />} />
+              <Route path="/settings/blocked-users" element={<BlockedUsersPage />} />
               <Route path="/settings/favorites" element={<FavoriteBusinessesSettings />} />
               <Route path="/settings/team" element={<TeamSettings />} />
             </Route>
