@@ -60,7 +60,7 @@ export const Chat: React.FC = () => {
     isContextMenuOpen, contextMenuMsg, contextMenuPosition,
     openContextMenu, closeContextMenu, handleCopy, handleContextMenuReport,
     openActionModal, openReportModal, handleBlock, handleBlockAndReport, handleReport,
-    filterMessage, closeAll,
+    filterMessage, closeAll, blockedUserIds,
   } = useMessageActions();
 
   const keyboardHeight = useKeyboardHeight();
@@ -206,6 +206,7 @@ export const Chat: React.FC = () => {
                 <ChannelItem
                   key={channel.id}
                   channel={channel}
+                  blockedUserIds={blockedUserIds}
                   onClick={() => setSelectedChannelId(channel.id)}
                   onLongPress={() => setOptionsModalChannel(channel)}
                 />
@@ -935,6 +936,7 @@ export const Chat: React.FC = () => {
 
       <MessageContextMenu
         visible={isContextMenuOpen}
+        msg={contextMenuMsg}
         position={contextMenuPosition}
         onCopy={handleCopy}
         onReport={handleContextMenuReport}

@@ -1,9 +1,13 @@
 import React from 'react';
 import { Copy, Flag } from 'lucide-react';
-import type { MenuPosition } from '../hooks/useMessageActions';
+import type { ActionMessage, MenuPosition } from '../hooks/useMessageActions';
+
+const MENU_WIDTH = 192;
+const MENU_HEIGHT = 96; // 2 buton yaklaşık yükseklik
 
 interface Props {
     visible: boolean;
+    msg: ActionMessage | null;
     position: MenuPosition;
     onCopy: () => void;
     onReport: () => void;
@@ -11,58 +15,87 @@ interface Props {
 }
 
 export const MessageContextMenu: React.FC<Props> = ({
-    visible, position, onCopy, onReport, onClose,
+    visible, msg, position, onCopy, onReport, onClose,
 }) => {
-    if (!visible) return null;
+    if (!visible || !msg) return null;
 
-    // Menüyü dokunulan noktanın ~72px üzerinde göster, ekran üstüne taşmasın
-    const menuTop = Math.max(56, position.y - 72);
+    const vh = window.innerHeight;
+    const vw = window.innerWidth;
+    const GAP = 10;
+
+    // Menüyü bubble'ın altında göster; yeterli alan yoksa üstte
+    const showBelow = position.bottom + GAP + MENU_HEIGHT < vh - 24;
+    const menuTop = showBelow
+        ? position.bottom + GAP
+        : position.top - MENU_HEIGHT - GAP;
+
+    // Sol kenar bubble ile hizalı, ekran dışına taşmasın
+    const menuLeft = Math.min(Math.max(position.left, 8), vw - MENU_WIDTH - 8);
 
     return (
         <>
-            {/* Dokunmayı kapatan transparan overlay */}
+            {/* Karanlık overlay — tıklamak menüyü kapatır */}
             <div
-                className="fixed inset-0 z-[98]"
+                className="fixed inset-0 z-[98] bg-black/65"
+                style={{ backdropFilter: 'blur(2px)', WebkitBackdropFilter: 'blur(2px)' }}
                 onTouchStart={onClose}
                 onClick={onClose}
             />
 
-            {/* Context menü kartı */}
+            {/* Mesaj klonu — overlay üzerinde, orijinal konumda */}
             <div
-                className="fixed z-[99] flex overflow-hidden rounded-2xl border border-slate-600 bg-slate-800 shadow-2xl"
+                className="fixed z-[99] pointer-events-none"
                 style={{
-                    top: menuTop,
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    // Küçük scale-in animasyonu
-                    animation: 'ctxIn 120ms cubic-bezier(0.2,0,0,1) both',
+                    top: position.top,
+                    left: position.left,
+                    width: position.width,
+                    animation: 'msgLift 160ms cubic-bezier(0.34,1.56,0.64,1) both',
                 }}
             >
+                <div className="bg-slate-800 text-slate-200 border border-slate-700 px-3 py-2 rounded-2xl text-sm leading-relaxed shadow-2xl">
+                    {msg.text}
+                </div>
+            </div>
+
+            {/* Aksiyon popup */}
+            <div
+                className="fixed z-[99] rounded-2xl overflow-hidden bg-slate-800 border border-slate-700 shadow-2xl"
+                style={{
+                    top: menuTop,
+                    left: menuLeft,
+                    width: MENU_WIDTH,
+                    animation: 'menuPop 160ms cubic-bezier(0.34,1.56,0.64,1) both',
+                }}
+                onClick={e => e.stopPropagation()}
+                onTouchStart={e => e.stopPropagation()}
+            >
                 <button
-                    className="flex flex-col items-center gap-1 px-6 py-3 active:bg-slate-700 transition-colors"
-                    onTouchStart={e => e.stopPropagation()}
+                    className="flex flex-row items-center gap-3 px-4 py-3 w-full active:bg-slate-700 transition-colors"
                     onClick={e => { e.stopPropagation(); onCopy(); }}
                 >
-                    <Copy className="w-5 h-5 text-slate-200" />
-                    <span className="text-[11px] font-medium text-slate-300">Kopyala</span>
+                    <Copy className="w-5 h-5 text-slate-200 flex-shrink-0" />
+                    <span className="text-sm font-medium text-white">Kopyala</span>
                 </button>
 
-                <div className="w-px bg-slate-600/60 my-2" />
+                <div className="h-px bg-slate-700 mx-3" />
 
                 <button
-                    className="flex flex-col items-center gap-1 px-6 py-3 active:bg-slate-700 transition-colors"
-                    onTouchStart={e => e.stopPropagation()}
+                    className="flex flex-row items-center gap-3 px-4 py-3 w-full active:bg-slate-700 transition-colors"
                     onClick={e => { e.stopPropagation(); onReport(); }}
                 >
-                    <Flag className="w-5 h-5 text-orange-400" />
-                    <span className="text-[11px] font-medium text-orange-400">Bildir</span>
+                    <Flag className="w-5 h-5 text-orange-400 flex-shrink-0" />
+                    <span className="text-sm font-medium text-orange-400">Bildir</span>
                 </button>
             </div>
 
             <style>{`
-                @keyframes ctxIn {
-                    from { opacity: 0; transform: translateX(-50%) scale(0.85); }
-                    to   { opacity: 1; transform: translateX(-50%) scale(1); }
+                @keyframes msgLift {
+                    from { opacity: 0.6; transform: scale(0.96); }
+                    to   { opacity: 1;   transform: scale(1); }
+                }
+                @keyframes menuPop {
+                    from { opacity: 0; transform: scale(0.88) translateY(4px); }
+                    to   { opacity: 1; transform: scale(1) translateY(0); }
                 }
             `}</style>
         </>

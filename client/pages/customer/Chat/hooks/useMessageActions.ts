@@ -10,8 +10,11 @@ export interface ActionMessage {
 }
 
 export interface MenuPosition {
-    x: number;
-    y: number;
+    top: number;
+    bottom: number;
+    left: number;
+    right: number;
+    width: number;
 }
 
 interface Toast {
@@ -29,7 +32,7 @@ export const useMessageActions = () => {
 
     // ── Context menu (Kopyala / Bildir) ──────────────────────────────────────
     const [contextMenuMsg, setContextMenuMsg] = useState<ActionMessage | null>(null);
-    const [contextMenuPosition, setContextMenuPosition] = useState<MenuPosition>({ x: 0, y: 0 });
+    const [contextMenuPosition, setContextMenuPosition] = useState<MenuPosition>({ top: 0, bottom: 0, left: 0, right: 0, width: 0 });
     const [isContextMenuOpen, setIsContextMenuOpen] = useState(false);
 
     // ── Blocked IDs + toast ───────────────────────────────────────────────────
@@ -168,6 +171,6 @@ export const useMessageActions = () => {
         openActionModal, openReportModal, handleBlock,
         handleBlockAndReport, handleReport, closeAll,
         // shared
-        toast, filterMessage,
+        toast, filterMessage, blockedUserIds,
     };
 };

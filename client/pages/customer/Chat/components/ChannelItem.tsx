@@ -8,9 +8,10 @@ interface ChannelItemProps {
     channel: any;
     onClick: () => void;
     onLongPress: () => void;
+    blockedUserIds?: string[];
 }
 
-export const ChannelItem: React.FC<ChannelItemProps> = ({ channel, onClick, onLongPress }) => {
+export const ChannelItem: React.FC<ChannelItemProps> = ({ channel, onClick, onLongPress, blockedUserIds }) => {
     const [startLongPress, setStartLongPress] = useState(false);
     const [isLongPressTriggered, setIsLongPressTriggered] = useState(false);
     const timerRef = useRef<any>();
@@ -164,9 +165,13 @@ export const ChannelItem: React.FC<ChannelItemProps> = ({ channel, onClick, onLo
                 </div>
                 <p className="text-sm truncate mt-0.5 text-slate-400">
                     {channel.type === 'MATCH_GROUP' && <span className="text-turf-500 font-bold mr-1">Takım:</span>}
-                    {startLongPress ? 'Seçenekler...' : (
-                        channel.lastMessage?.content ? stripSystemMessageMarkers(channel.lastMessage.content) : 'Sohbete girmek için tıkla'
-                    )}
+                    {startLongPress ? 'Seçenekler...' : (() => {
+                        const lm = channel.lastMessage;
+                        const senderBlocked = lm && !lm.isSystemMessage && lm.senderId
+                            && blockedUserIds?.includes(lm.senderId);
+                        if (senderBlocked) return <span className="italic">Mesaj gizlendi</span>;
+                        return lm?.content ? stripSystemMessageMarkers(lm.content) : 'Sohbete girmek için tıkla';
+                    })()}
                 </p>
                 {statusInfo && (
                     <span className={`text-[10px] font-semibold mt-1 inline-block ${statusInfo.textColor}`}>

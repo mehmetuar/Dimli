@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { Swords } from 'lucide-react';
 import { SystemMessageRenderer } from '../../../../components/UI/SystemMessageRenderer';
 import type { ActionMessage, MenuPosition } from '../hooks/useMessageActions';
@@ -34,42 +34,88 @@ export const MessageBubble: React.FC<Props> = ({
 
     const timerRef = useRef<ReturnType<typeof setTimeout>>();
     const startPos = useRef({ x: 0, y: 0 });
+    // containerRef: native non-passive touchstart listener için (iOS metin seçimini önler)
+    const containerRef = useRef<HTMLDivElement>(null);
+    // bubbleWrapperRef: popup pozisyonu için DOMRect alınır
+    const bubbleWrapperRef = useRef<HTMLDivElement>(null);
+    // Callback ref — stale closure olmadan her zaman güncel değer
+    const onLongPressRef = useRef(onLongPress);
+    onLongPressRef.current = onLongPress;
 
-    const startPress = (x: number, y: number) => {
-        if (msg.isMe || msg.isSystem) return;
-        startPos.current = { x, y };
+    // Native (non-passive) touch listener — React synthetic onTouchStart ile
+    // e.preventDefault() iOS WebKit'te çalışmaz (React 17+ passive listener kullanır).
+    useEffect(() => {
+        const el = containerRef.current;
+        if (!el || msg.isMe || msg.isSystem) return;
+
+        const cancel = () => clearTimeout(timerRef.current);
+
+        const onStart = (e: TouchEvent) => {
+            // Avatar butonuna dokunuluyorsa long-press'i başlatma ve click'e izin ver
+            if ((e.target as HTMLElement).closest('[data-avatar]')) return;
+            e.preventDefault(); // iOS metin seçimi + callout menüsünü engeller
+            const t = e.touches[0];
+            startPos.current = { x: t.clientX, y: t.clientY };
+            timerRef.current = setTimeout(() => {
+                const rect = bubbleWrapperRef.current?.getBoundingClientRect();
+                if (rect) {
+                    onLongPressRef.current(msg, {
+                        top: rect.top,
+                        bottom: rect.bottom,
+                        left: rect.left,
+                        right: rect.right,
+                        width: rect.width,
+                    });
+                }
+            }, LONG_PRESS_MS);
+        };
+
+        const onMove = (e: TouchEvent) => {
+            const t = e.touches[0];
+            if (
+                Math.abs(t.clientX - startPos.current.x) > MOVE_THRESHOLD ||
+                Math.abs(t.clientY - startPos.current.y) > MOVE_THRESHOLD
+            ) cancel();
+        };
+
+        el.addEventListener('touchstart', onStart, { passive: false });
+        el.addEventListener('touchmove', onMove, { passive: true });
+        el.addEventListener('touchend', cancel, { passive: true });
+        el.addEventListener('touchcancel', cancel, { passive: true });
+
+        return () => {
+            el.removeEventListener('touchstart', onStart);
+            el.removeEventListener('touchmove', onMove);
+            el.removeEventListener('touchend', cancel);
+            el.removeEventListener('touchcancel', cancel);
+        };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // Keyed component — msg ve isMe değişmez
+
+    // Mouse handlers (desktop / simulator)
+    const onMouseDown = () => {
         timerRef.current = setTimeout(() => {
-            onLongPress(msg, { x, y });
+            const rect = bubbleWrapperRef.current?.getBoundingClientRect();
+            if (rect) {
+                onLongPress(msg, {
+                    top: rect.top,
+                    bottom: rect.bottom,
+                    left: rect.left,
+                    right: rect.right,
+                    width: rect.width,
+                });
+            }
         }, LONG_PRESS_MS);
     };
+    const onMouseUp    = () => clearTimeout(timerRef.current);
+    const onMouseLeave = () => clearTimeout(timerRef.current);
 
-    const cancelPress = () => clearTimeout(timerRef.current);
-
-    const checkMove = (x: number, y: number) => {
-        if (
-            Math.abs(x - startPos.current.x) > MOVE_THRESHOLD ||
-            Math.abs(y - startPos.current.y) > MOVE_THRESHOLD
-        ) {
-            cancelPress();
-        }
-    };
-
-    // ── Touch handlers (mobile primary) ──────────────────────────────────────
-    const onTouchStart = (e: React.TouchEvent) => startPress(e.touches[0].clientX, e.touches[0].clientY);
-    const onTouchMove  = (e: React.TouchEvent) => checkMove(e.touches[0].clientX, e.touches[0].clientY);
-    const onTouchEnd   = cancelPress;
-
-    // ── Mouse handlers (desktop / simulator) ─────────────────────────────────
-    const onMouseDown  = (e: React.MouseEvent) => startPress(e.clientX, e.clientY);
-    const onMouseUp    = cancelPress;
-    const onMouseLeave = cancelPress;
-
-    // ── Shared prevent-select style ───────────────────────────────────────────
     const noSelect: React.CSSProperties = {
         userSelect: 'none',
         WebkitUserSelect: 'none',
         // @ts-ignore — valid CSS on iOS WebView
         WebkitTouchCallout: 'none',
+        touchAction: 'manipulation',
     };
 
     if (msg.isSystem) {
@@ -112,11 +158,9 @@ export const MessageBubble: React.FC<Props> = ({
 
     return (
         <div
+            ref={containerRef}
             className={`flex items-end gap-2 ${msg.isMe ? 'justify-end' : 'justify-start'} ${isPrevSameSender ? '!mt-0.5' : ''}`}
-            onTouchStart={onTouchStart}
-            onTouchMove={onTouchMove}
-            onTouchEnd={onTouchEnd}
-            onMouseDown={onMouseDown}
+            onMouseDown={msg.isMe || msg.isSystem ? undefined : onMouseDown}
             onMouseUp={onMouseUp}
             onMouseLeave={onMouseLeave}
             style={noSelect}
@@ -126,6 +170,7 @@ export const MessageBubble: React.FC<Props> = ({
                 <div style={{ width: 28, flexShrink: 0 }}>
                     {!isNextSameSender ? (
                         <button
+                            data-avatar="true"
                             className="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-bold text-white overflow-hidden active:opacity-70 transition-opacity"
                             onClick={() => onAvatarClick(msg)}
                             onMouseDown={e => e.stopPropagation()}
@@ -139,14 +184,14 @@ export const MessageBubble: React.FC<Props> = ({
             )}
 
             {/* Bubble */}
-            <div className="max-w-[75%]">
+            <div ref={bubbleWrapperRef} className="max-w-[75%]">
                 <div className={`px-3 py-2 rounded-2xl text-sm leading-relaxed shadow-sm ${
                     msg.isMe
                         ? `bg-turf-600 text-white ${!isNextSameSender ? 'rounded-br-sm' : ''}`
                         : `bg-slate-800 text-slate-200 border border-slate-700 ${!isNextSameSender ? 'rounded-bl-sm' : ''}`
                 }`}>
                     {!msg.isMe && !isPrevSameSender && (
-                        <span className="text-[11px] font-semibold text-turf-400 block mb-0.5">{msg.senderName}</span>
+                        <span className="text-[11px] font-semibold text-turf-400 block mb-0.5 whitespace-nowrap">{msg.senderName}</span>
                     )}
                     {msg.text}
                 </div>
