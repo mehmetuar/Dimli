@@ -75,7 +75,7 @@ const PitchCard: React.FC<{ pitch: PitchStats }> = ({ pitch }) => (
 const PULL_THRESHOLD = 70;
 
 export const BusinessStats: React.FC = () => {
-    const { stats, loading, error, refetch } = useBusinessStats();
+    const { stats, loading, error, refetch, silentRefetch } = useBusinessStats();
 
     const scrollRef = useRef<HTMLDivElement>(null);
     const touchStartYRef = useRef(0);
@@ -101,10 +101,10 @@ export const BusinessStats: React.FC = () => {
         if (pullDistance >= PULL_THRESHOLD && !triggeredRef.current) {
             triggeredRef.current = true;
             setIsRefreshing(true);
-            try { await refetch(); } finally { setIsRefreshing(false); }
+            try { await silentRefetch(); } finally { setIsRefreshing(false); }
         }
         setPullDistance(0);
-    }, [pullDistance, refetch]);
+    }, [pullDistance, silentRefetch]);
 
     if (loading) return <BusinessLoadingSpinner fullScreen />;
 

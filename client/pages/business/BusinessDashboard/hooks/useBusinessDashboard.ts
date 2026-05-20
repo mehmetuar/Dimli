@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import api from '../../../../services/api';
 import { SuccessType } from '../../../../components/Modals/SuccessModal';
 
@@ -46,8 +46,8 @@ export const useBusinessDashboard = () => {
         return h < 6 ? mins + 24 * 60 : mins;
     };
 
-    const fetchDashboard = async () => {
-        setLoading(true);
+    const fetchDashboard = async (silent = false) => {
+        if (!silent) setLoading(true);
         try {
             const ownerId = localStorage.getItem('ownerId');
             if (!ownerId) return;
@@ -57,7 +57,6 @@ export const useBusinessDashboard = () => {
                 api.get(`/subscription/owner/${ownerId}`).catch(() => ({ data: null }))
             ]);
 
-            // Gece yarısı sonrası slotları (00-05) en sona al
             const data = dashboardRes.data;
             if (data?.pitches) {
                 data.pitches = data.pitches.map((pitch: any) => ({
@@ -74,9 +73,11 @@ export const useBusinessDashboard = () => {
         } catch (error) {
             console.error('Error fetching dashboard:', error);
         } finally {
-            setLoading(false);
+            if (!silent) setLoading(false);
         }
     };
+
+    const silentRefetch = useCallback(() => fetchDashboard(true), [selectedDate]);
 
     const isPastSlot = (time: string, date: string): boolean => {
         const now = new Date();
@@ -293,6 +294,7 @@ export const useBusinessDashboard = () => {
         handleRejectMatchRequest,
         handleTransaction,
         handleManualFillSlot,
-        processing
+        processing,
+        silentRefetch,
     };
 };

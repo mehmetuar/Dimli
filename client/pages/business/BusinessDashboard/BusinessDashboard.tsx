@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useRef, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Clock } from 'lucide-react';
+import { Clock, RefreshCw } from 'lucide-react';
 import { BusinessNavbar } from '../../../components/Business/BusinessNavbar';
 import { ConfirmModal } from '../../../components/Modals/ConfirmModal';
 import { SuccessModal } from '../../../components/Modals/SuccessModal';
@@ -50,8 +50,39 @@ export const BusinessDashboard: React.FC = () => {
         handleRejectMatchRequest,
         handleTransaction,
         handleManualFillSlot,
-        processing
+        processing,
+        silentRefetch,
     } = useBusinessDashboard();
+
+    const scrollRef = useRef<HTMLDivElement>(null);
+    const touchStartYRef = useRef(0);
+    const touchStartScrollRef = useRef(0);
+    const triggeredRef = useRef(false);
+    const [pullDistance, setPullDistance] = useState(0);
+    const [isPullRefreshing, setIsPullRefreshing] = useState(false);
+    const PULL_THRESHOLD = 70;
+
+    const onTouchStart = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
+        touchStartYRef.current = e.touches[0].clientY;
+        touchStartScrollRef.current = scrollRef.current?.scrollTop ?? 0;
+        triggeredRef.current = false;
+    }, []);
+
+    const onTouchMove = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
+        if (isPullRefreshing || touchStartScrollRef.current > 4) return;
+        const delta = e.touches[0].clientY - touchStartYRef.current;
+        if (delta > 0) setPullDistance(Math.min(delta * 0.45, 90));
+        else setPullDistance(0);
+    }, [isPullRefreshing]);
+
+    const onTouchEnd = useCallback(async () => {
+        if (pullDistance >= PULL_THRESHOLD && !triggeredRef.current) {
+            triggeredRef.current = true;
+            setIsPullRefreshing(true);
+            try { await silentRefetch(); } finally { setIsPullRefreshing(false); }
+        }
+        setPullDistance(0);
+    }, [pullDistance, silentRefetch]);
 
     if (loading) return <BusinessLoadingSpinner fullScreen />;
     if (!dashboardData) return <div className="min-h-screen bg-slate-800 flex items-center justify-center text-white font-bold italic">Veri bulunamadı.</div>;
@@ -71,9 +102,25 @@ export const BusinessDashboard: React.FC = () => {
             />
 
             <div
+                ref={scrollRef}
                 className="flex-1 overflow-y-auto overscroll-contain scrollbar-hide"
                 style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
+                onTouchStart={onTouchStart}
+                onTouchMove={onTouchMove}
+                onTouchEnd={onTouchEnd}
             >
+            {/* Pull-to-refresh — turuncu */}
+            <div
+                className="flex items-center justify-center overflow-hidden"
+                style={{ height: isPullRefreshing ? 56 : pullDistance, transition: isPullRefreshing ? 'none' : 'height 0.2s ease' }}
+            >
+                {(pullDistance > 0 || isPullRefreshing) && (
+                    <RefreshCw
+                        className={`w-5 h-5 text-orange-400 ${isPullRefreshing ? 'animate-spin' : ''}`}
+                        style={isPullRefreshing ? undefined : { transform: `rotate(${Math.min(pullDistance * 3, 360)}deg)` }}
+                    />
+                )}
+            </div>
             <div className="pb-business-nav">
             {isSuspended ? (
                 /* Senaryo 2: Admin tarafından askıya alındı */

@@ -41,28 +41,27 @@ export const useBusinessStats = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    const fetchStats = useCallback(async () => {
-        setLoading(true);
+    const fetchStats = useCallback(async (silent = false) => {
+        if (!silent) setLoading(true);
         setError(null);
         try {
             const ownerId = localStorage.getItem('ownerId');
-            if (!ownerId) {
-                setError('Oturum bulunamadı.');
-                return;
-            }
+            if (!ownerId) { setError('Oturum bulunamadı.'); return; }
             const response = await api.get(`/business-owner/stats?ownerId=${ownerId}`);
             setStats(response.data);
         } catch (err) {
             console.error('Error fetching stats:', err);
-            setError('Veriler yüklenirken bir hata oluştu.');
+            if (!silent) setError('Veriler yüklenirken bir hata oluştu.');
         } finally {
-            setLoading(false);
+            if (!silent) setLoading(false);
         }
     }, []);
+
+    const silentRefetch = useCallback(() => fetchStats(true), [fetchStats]);
 
     useEffect(() => {
         fetchStats();
     }, [fetchStats]);
 
-    return { stats, loading, error, refetch: fetchStats };
+    return { stats, loading, error, refetch: fetchStats, silentRefetch };
 };
