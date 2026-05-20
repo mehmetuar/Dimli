@@ -7,7 +7,7 @@ import { useLocationContext } from '../../../../contexts/LocationContext';
 import { useFilterContext } from '../../../../contexts/FilterContext';
 
 export const usePitchBooking = () => {
-    const { coords, radius, filterMode, isLocating, setRadius, setFilterMode } = useLocationContext();
+    const { coords, radius, filterMode, isLocating, setRadius, setFilterMode, requestLocation } = useLocationContext();
     const { selectedDate, setSelectedDate, pitchSortBy, setPitchSortBy, isDateFilterModalOpen: isDateFilterOpen, setIsDateFilterModalOpen: setIsDateFilterOpen } = useFilterContext();
 
     const [businesses, setBusinesses] = useState<Business[]>(() => {
@@ -295,6 +295,7 @@ export const usePitchBooking = () => {
         isLoadingBusinesses,
         handleSendOffer, handleConfirmCancel, handleConfirmDeleteAd,
         handleCreateAd, handleUnauthorizedSlotClick, openSlotDetail,
-        handleCancelClick, handleDeleteAdClick
+        handleCancelClick, handleDeleteAdClick,
+        requestLocation,
     };
 };

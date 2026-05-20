@@ -71,10 +71,10 @@ export const ProfileSettings: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-pitch pb-28 overflow-x-hidden">
+        <div className="fixed inset-0 bg-pitch flex flex-col overflow-hidden" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
 
             {/* Header */}
-            <header className="sticky top-0 z-20 bg-pitch/95 backdrop-blur-sm border-b border-slate-800/60">
+            <header className="bg-pitch/95 backdrop-blur-sm border-b border-slate-800/60">
                 <div className="flex items-center gap-3 px-4 py-4 max-w-lg mx-auto">
                     <button
                         onClick={() => navigate(-1)}
@@ -88,7 +88,8 @@ export const ProfileSettings: React.FC = () => {
                 </div>
             </header>
 
-            <div className="max-w-lg mx-auto px-4 pt-5 space-y-5">
+            <div className="flex-1 overflow-y-auto overscroll-contain scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
+            <div className="max-w-lg mx-auto px-4 pt-5 space-y-5 pb-10">
 
                 {/* Profil Fotoğrafı */}
                 <div className="bg-slate-800/40 rounded-2xl border border-slate-700/60 py-6">
@@ -327,6 +328,7 @@ export const ProfileSettings: React.FC = () => {
                         </div>
                     </div>
                 )}
+            </div>
             </div>
 
             {/* Position Picker Modal */}

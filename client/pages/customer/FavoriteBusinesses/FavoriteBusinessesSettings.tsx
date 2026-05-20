@@ -96,7 +96,7 @@ export const FavoriteBusinessesSettings: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-pitch pt-safe-top pb-32 overflow-x-hidden w-full max-w-full">
+        <div className="fixed inset-0 bg-pitch flex flex-col overflow-hidden" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
             {/* Header */}
             <header className="flex items-center gap-3 px-4 py-4 mb-4">
                 <button
@@ -113,6 +113,7 @@ export const FavoriteBusinessesSettings: React.FC = () => {
                 </div>
             </header>
 
+            <div className="flex-1 overflow-y-auto overscroll-contain scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
             {/* Message */}
             {message && (
                 <div className={`mx-4 p-4 rounded-xl mb-4 text-sm font-bold text-center ${message.type === 'success'
@@ -123,7 +124,7 @@ export const FavoriteBusinessesSettings: React.FC = () => {
                 </div>
             )}
 
-            <div className="px-4 space-y-4">
+            <div className="px-4 space-y-4 pb-32" style={{ minHeight: 'calc(100% + 1px)' }}>
                 {/* Info card */}
                 <div className="bg-turf-900/20 border border-turf-500/20 rounded-2xl p-4 flex items-start gap-3">
                     <Building2 className="w-5 h-5 text-turf-400 shrink-0 mt-0.5" />
@@ -202,6 +203,7 @@ export const FavoriteBusinessesSettings: React.FC = () => {
                         Arama sonucu bulunamadı.
                     </div>
                 )}
+            </div>
             </div>
 
             <LocationFilterModal

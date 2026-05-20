@@ -1,6 +1,5 @@
 import React from 'react';
 import { Goal, Clock, AlertTriangle } from 'lucide-react';
-import { BusinessNavbar } from '../../../components/Business/BusinessNavbar';
 import { BusinessLoadingSpinner } from '../../../components/Business/BusinessLoadingSpinner';
 
 // Hooks
@@ -33,7 +32,7 @@ export const BusinessPitchList: React.FC = () => {
             />
 
             <div className="flex-1 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
-                <div className="p-4 space-y-3 pb-business-nav" style={{ minHeight: 'calc(100% + 1px)' }}>
+                <div className="p-4 space-y-3" style={{ minHeight: 'calc(100% + 1px)' }}>
                     {isSuspended && (
                         <div className="flex items-start gap-3 bg-red-500/10 border border-red-500/30 px-4 py-3.5 rounded-2xl">
                             <AlertTriangle className="text-red-400 shrink-0 mt-0.5" size={18} />
@@ -78,7 +77,6 @@ export const BusinessPitchList: React.FC = () => {
                 </div>
             </div>
 
-            <BusinessNavbar />
         </div>
     );
 };

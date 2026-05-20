@@ -1,5 +1,5 @@
-import React from 'react';
-import { Star, TrendingUp, RotateCw, Lock, Trophy, Calendar } from 'lucide-react';
+import React, { useRef, useState, useCallback } from 'react';
+import { Star, TrendingUp, RotateCw, Lock, Trophy, Calendar, RefreshCw } from 'lucide-react';
 import { BusinessNavbar } from '../../../components/Business/BusinessNavbar';
 import { BusinessLoadingSpinner } from '../../../components/Business/BusinessLoadingSpinner';
 import { useBusinessStats, PitchStats } from './hooks/useBusinessStats';
@@ -72,8 +72,39 @@ const PitchCard: React.FC<{ pitch: PitchStats }> = ({ pitch }) => (
     </div>
 );
 
+const PULL_THRESHOLD = 70;
+
 export const BusinessStats: React.FC = () => {
     const { stats, loading, error, refetch } = useBusinessStats();
+
+    const scrollRef = useRef<HTMLDivElement>(null);
+    const touchStartYRef = useRef(0);
+    const touchStartScrollRef = useRef(0);
+    const triggeredRef = useRef(false);
+    const [pullDistance, setPullDistance] = useState(0);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+
+    const onTouchStart = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
+        touchStartYRef.current = e.touches[0].clientY;
+        touchStartScrollRef.current = scrollRef.current?.scrollTop ?? 0;
+        triggeredRef.current = false;
+    }, []);
+
+    const onTouchMove = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
+        if (isRefreshing || touchStartScrollRef.current > 4) return;
+        const delta = e.touches[0].clientY - touchStartYRef.current;
+        if (delta > 0) setPullDistance(Math.min(delta * 0.45, 90));
+        else setPullDistance(0);
+    }, [isRefreshing]);
+
+    const onTouchEnd = useCallback(async () => {
+        if (pullDistance >= PULL_THRESHOLD && !triggeredRef.current) {
+            triggeredRef.current = true;
+            setIsRefreshing(true);
+            try { await refetch(); } finally { setIsRefreshing(false); }
+        }
+        setPullDistance(0);
+    }, [pullDistance, refetch]);
 
     if (loading) return <BusinessLoadingSpinner fullScreen />;
 
@@ -118,20 +149,29 @@ export const BusinessStats: React.FC = () => {
                             {stats.businessName}
                         </h1>
                     </div>
-                    <button
-                        onClick={refetch}
-                        className="flex-shrink-0 p-2.5 bg-slate-700/60 rounded-xl border border-slate-600/50 text-slate-300 active:scale-95 transition-all mt-1"
-                        style={{ WebkitTapHighlightColor: 'transparent' }}
-                    >
-                        <RotateCw className="w-4 h-4" />
-                    </button>
                 </div>
             </div>
 
             <div
+                ref={scrollRef}
                 className="flex-1 overflow-y-auto overscroll-contain scrollbar-hide"
                 style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
+                onTouchStart={onTouchStart}
+                onTouchMove={onTouchMove}
+                onTouchEnd={onTouchEnd}
             >
+            {/* Pull-to-refresh — turuncu */}
+            <div
+                className="flex items-center justify-center overflow-hidden"
+                style={{ height: isRefreshing ? 56 : pullDistance, transition: isRefreshing ? 'none' : 'height 0.2s ease' }}
+            >
+                {(pullDistance > 0 || isRefreshing) && (
+                    <RefreshCw
+                        className={`w-5 h-5 text-orange-400 ${isRefreshing ? 'animate-spin' : ''}`}
+                        style={isRefreshing ? undefined : { transform: `rotate(${Math.min(pullDistance * 3, 360)}deg)` }}
+                    />
+                )}
+            </div>
             <div className="p-4 space-y-4 pb-business-nav">
 
                 {/* Değerlendirme Kartı */}

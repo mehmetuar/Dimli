@@ -8,7 +8,7 @@ import { useFilterContext } from '../../../../contexts/FilterContext';
 const PAGE_SIZE = 50;
 
 export const useMarketplace = () => {
-  const { coords, radius, filterMode, permissionStatus, setRadius } = useLocationContext();
+  const { coords, radius, filterMode, permissionStatus, setRadius, requestLocation } = useLocationContext();
   const { selectedDate, setSelectedDate, marketplaceSortBy, setMarketplaceSortBy, isDateFilterModalOpen: isDateFilterOpen, setIsDateFilterModalOpen: setIsDateFilterOpen } = useFilterContext();
 
   const [matches, setMatches] = useState<any[]>([]);
@@ -229,5 +229,6 @@ export const useMarketplace = () => {
     setSortBy,
     isSortOpen,
     setIsSortOpen,
+    requestLocation,
   };
 };

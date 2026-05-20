@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import api from '../../../../services/api';
 import { getTacticalAdvice } from '../../../../services/geminiService';
@@ -63,20 +63,21 @@ export const useChat = () => {
         fetchUser();
     }, []);
 
-    useEffect(() => {
-        const fetchChannels = async () => {
-            try {
-                const response = await api.get('/chat/channels');
-                setChannels(response.data);
-            } catch (error) {
-                console.error('Failed to fetch channels:', error);
-            } finally {
-                if (isFirstChannelFetchRef.current) {
-                    isFirstChannelFetchRef.current = false;
-                    setIsLoadingChannels(false);
-                }
+    const fetchChannels = useCallback(async () => {
+        try {
+            const response = await api.get('/chat/channels');
+            setChannels(response.data);
+        } catch (error) {
+            console.error('Failed to fetch channels:', error);
+        } finally {
+            if (isFirstChannelFetchRef.current) {
+                isFirstChannelFetchRef.current = false;
+                setIsLoadingChannels(false);
             }
-        };
+        }
+    }, []);
+
+    useEffect(() => {
         fetchChannels();
         // 60s fallback — socket koptuğunda liste güncel kalır
         const interval = setInterval(fetchChannels, 60000);
@@ -477,5 +478,6 @@ export const useChat = () => {
         handleAcceptProposal, handleAcceptRematch, handleInviteJokerToMatch, handleCancelJokerNegotiation,
         hasMore, loadingMore, loadMoreMessages,
         isLoadingChannels, isLoadingMessages,
+        fetchChannels,
     };
 };

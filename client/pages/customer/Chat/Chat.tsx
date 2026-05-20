@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { Send, Bot, ChevronLeft, Users, Shield, Star, Phone, ArrowDown, Swords, MoreVertical, X, ChevronRight, Trash2, XCircle, AlertTriangle, Undo2, UserMinus, UserPlus } from 'lucide-react';
+import { Send, Bot, ChevronLeft, Users, Shield, Star, Phone, ArrowDown, Swords, MoreVertical, X, ChevronRight, Trash2, XCircle, AlertTriangle, Undo2, UserMinus, UserPlus, RefreshCw } from 'lucide-react';
 import { useChat } from './hooks/useChat';
 import { ChannelItem } from './components/ChannelItem';
 import { MatchStatusBadge } from './components/MatchStatusBadge';
@@ -46,10 +46,42 @@ export const Chat: React.FC = () => {
     handleAcceptProposal, handleAcceptRematch, handleInviteJokerToMatch, handleCancelJokerNegotiation,
     hasMore, loadingMore, loadMoreMessages,
     isLoadingChannels, isLoadingMessages,
+    fetchChannels,
   } = useChat();
 
   const keyboardHeight = useKeyboardHeight();
   useModalBodyClass(!!selectedChannelId);
+
+  // Pull-to-refresh (sadece kanal listesi görünümünde)
+  const listScrollRef = useRef<HTMLDivElement>(null);
+  const listTouchStartY = useRef(0);
+  const listTouchStartScroll = useRef(0);
+  const listRefreshTriggered = useRef(false);
+  const [listPullDistance, setListPullDistance] = React.useState(0);
+  const [listIsRefreshing, setListIsRefreshing] = React.useState(false);
+  const PULL_THRESHOLD = 70;
+
+  const handleListTouchStart = React.useCallback((e: React.TouchEvent<HTMLDivElement>) => {
+    listTouchStartY.current = e.touches[0].clientY;
+    listTouchStartScroll.current = listScrollRef.current?.scrollTop ?? 0;
+    listRefreshTriggered.current = false;
+  }, []);
+
+  const handleListTouchMove = React.useCallback((e: React.TouchEvent<HTMLDivElement>) => {
+    if (listIsRefreshing || listTouchStartScroll.current > 4) return;
+    const delta = e.touches[0].clientY - listTouchStartY.current;
+    if (delta > 0) setListPullDistance(Math.min(delta * 0.45, 90));
+    else setListPullDistance(0);
+  }, [listIsRefreshing]);
+
+  const handleListTouchEnd = React.useCallback(async () => {
+    if (listPullDistance >= PULL_THRESHOLD && !listRefreshTriggered.current) {
+      listRefreshTriggered.current = true;
+      setListIsRefreshing(true);
+      try { await fetchChannels(); } finally { setListIsRefreshing(false); }
+    }
+    setListPullDistance(0);
+  }, [listPullDistance, fetchChannels]);
   const [showScrollButton, setShowScrollButton] = React.useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const isUserAtBottomRef = useRef(true);
@@ -106,36 +138,66 @@ export const Chat: React.FC = () => {
 
   if (!selectedChannelId) {
     return (
-      <div className="pb-24 pt-20 px-4 max-w-3xl mx-auto min-h-screen bg-pitch">
-        <header className="mb-6">
-          <h1 className="font-sport font-black text-4xl text-white uppercase italic tracking-tighter">
+      <div
+        className="fixed inset-0 bg-pitch text-white flex flex-col overflow-hidden"
+        style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}
+      >
+        {/* Sabit başlık */}
+        <div className="px-4 pt-3 pb-3 shrink-0">
+          <h1
+            className="font-sport font-black text-white uppercase italic tracking-tighter leading-none"
+            style={{ fontSize: 'clamp(2rem, 9vw, 3rem)' }}
+          >
             OPERASYON <span className="text-turf-500">MERKEZİ</span>
           </h1>
-          <p className="text-slate-400 text-sm">Maçlarını planla, taktik al, kazan.</p>
-        </header>
+          <p className="text-slate-400 font-medium text-sm mt-1">Maçlarını planla, taktik al, kazan.</p>
+        </div>
 
-        <div className="space-y-4">
-          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Aktif Sohbetler</h3>
-
-          {isLoadingChannels ? (
-            <div className="flex flex-col items-center justify-center py-16 gap-3">
-              <div className="w-8 h-8 border-2 border-turf-500 border-t-transparent rounded-full animate-spin" />
-              <span className="text-slate-500 text-sm">Sohbetler yükleniyor...</span>
-            </div>
-          ) : channels.length === 0 ? (
-            <div className="text-center py-12 text-slate-400">
-              Henüz aktif sohbet yok.
-            </div>
-          ) : (
-            channels.map(channel => (
-              <ChannelItem
-                key={channel.id}
-                channel={channel}
-                onClick={() => setSelectedChannelId(channel.id)}
-                onLongPress={() => setOptionsModalChannel(channel)}
+        {/* Elastic içerik — pull-to-refresh ile */}
+        <div
+          ref={listScrollRef}
+          className="flex-1 overflow-y-auto overscroll-contain scrollbar-hide"
+          style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
+          onTouchStart={handleListTouchStart}
+          onTouchMove={handleListTouchMove}
+          onTouchEnd={handleListTouchEnd}
+        >
+          {/* Pull-to-refresh indicator */}
+          <div
+            className="flex items-center justify-center overflow-hidden"
+            style={{ height: listIsRefreshing ? 56 : listPullDistance, transition: listIsRefreshing ? 'none' : 'height 0.2s ease' }}
+          >
+            {(listPullDistance > 0 || listIsRefreshing) && (
+              <RefreshCw
+                className={`w-5 h-5 text-turf-400 ${listIsRefreshing ? 'animate-spin' : ''}`}
+                style={listIsRefreshing ? undefined : { transform: `rotate(${Math.min(listPullDistance * 3, 360)}deg)` }}
               />
-            ))
-          )}
+            )}
+          </div>
+
+          <div className="px-4 pb-4 space-y-4" style={{ minHeight: 'calc(100% + 1px)' }}>
+            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Aktif Sohbetler</h3>
+
+            {isLoadingChannels ? (
+              <div className="flex flex-col items-center justify-center py-16 gap-3">
+                <div className="w-8 h-8 border-2 border-turf-500 border-t-transparent rounded-full animate-spin" />
+                <span className="text-slate-500 text-sm">Sohbetler yükleniyor...</span>
+              </div>
+            ) : channels.length === 0 ? (
+              <div className="text-center py-12 text-slate-400">
+                Henüz aktif sohbet yok.
+              </div>
+            ) : (
+              channels.map(channel => (
+                <ChannelItem
+                  key={channel.id}
+                  channel={channel}
+                  onClick={() => setSelectedChannelId(channel.id)}
+                  onLongPress={() => setOptionsModalChannel(channel)}
+                />
+              ))
+            )}
+          </div>
         </div>
 
         <SuccessModal

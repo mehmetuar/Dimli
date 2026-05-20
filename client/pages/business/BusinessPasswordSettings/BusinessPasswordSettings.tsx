@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Save, ArrowLeft, Lock } from 'lucide-react';
-import { BusinessNavbar } from '../../../components/Business/BusinessNavbar';
 import api from '../../../services/api';
 
 export const BusinessPasswordSettings: React.FC = () => {
@@ -66,7 +65,7 @@ export const BusinessPasswordSettings: React.FC = () => {
                 className="flex-1 overflow-y-auto overscroll-contain scrollbar-hide"
                 style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
             >
-            <div className="px-4 py-5 space-y-4 pb-business-nav" style={{ minHeight: 'calc(100% + 1px)' }}>
+            <div className="px-4 py-5 space-y-4" style={{ minHeight: 'calc(100% + 1px)' }}>
                 {success && (
                     <div className="p-4 bg-green-600/20 border border-green-500/40 rounded-2xl text-green-400 font-semibold text-center text-sm">
                         ✓ Şifreniz başarıyla güncellendi!
@@ -144,7 +143,6 @@ export const BusinessPasswordSettings: React.FC = () => {
             </div>
             </div>
 
-            <BusinessNavbar />
         </div>
     );
 };

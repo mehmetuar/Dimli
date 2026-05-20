@@ -4,7 +4,6 @@ import api from '../../../services/api';
 import { Save, ArrowLeft, MapPin, AlertTriangle, Loader2, Navigation, X } from 'lucide-react';
 import { APIProvider, Map, AdvancedMarker, useMap } from '@vis.gl/react-google-maps';
 import { Geolocation } from '@capacitor/geolocation';
-import { BusinessNavbar } from '../../../components/Business/BusinessNavbar';
 import { BusinessLoadingSpinner } from '../../../components/Business/BusinessLoadingSpinner';
 import { LocationSelectionModal } from '../../../components/Modals/LocationSelectionModal';
 import { locationService } from '../../../services/locationService';
@@ -193,7 +192,7 @@ export const BusinessInfoSettings: React.FC = () => {
                 className="flex-1 overflow-y-auto overscroll-contain scrollbar-hide"
                 style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
             >
-            <div className="px-4 py-5 space-y-4 pb-business-nav">
+            <div className="px-4 py-5 space-y-4">
 
             {success && (
                 <div className="p-4 bg-green-600/20 border border-green-500/40 rounded-2xl text-green-400 font-semibold text-center text-sm">
@@ -289,8 +288,6 @@ export const BusinessInfoSettings: React.FC = () => {
 
             </div>
             </div>
-
-            <BusinessNavbar />
 
             {/* ── Location Selection Modal (City/District) ─────────────────── */}
             <LocationSelectionModal

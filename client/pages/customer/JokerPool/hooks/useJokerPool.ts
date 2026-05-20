@@ -7,7 +7,7 @@ const PAGE_SIZE = 50;
 const POSITION_KEYS = ['kaleci', 'orta_saha', 'forvet', 'defans'];
 
 export const useJokerPool = () => {
-    const { coords, radius, filterMode, isLocating, setRadius } = useLocationContext();
+    const { coords, radius, filterMode, isLocating, setRadius, requestLocation } = useLocationContext();
 
     const [jokers, setJokers] = useState<any[]>([]);
     const [currentUser, setCurrentUser] = useState<any>(null);
@@ -138,5 +138,6 @@ export const useJokerPool = () => {
         visibleJokers,
         handleSaveProfile,
         fetchJokers,
+        requestLocation,
     };
 };

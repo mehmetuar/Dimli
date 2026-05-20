@@ -27,8 +27,8 @@ export const Notifications: React.FC = () => {
    } = useNotifications();
 
    return (
-      <div className="pb-28 pt-safe-top px-4 max-w-3xl mx-auto min-h-screen bg-pitch">
-         <header className="mb-6 pt-4">
+      <div className="fixed inset-0 bg-pitch flex flex-col overflow-hidden" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+         <header className="px-4 pt-4 max-w-3xl mx-auto w-full">
             <button
                onClick={() => navigate(-1)}
                className="flex items-center gap-1 text-slate-400 hover:text-white transition-colors mb-4 -ml-1 active:scale-95"
@@ -44,63 +44,69 @@ export const Notifications: React.FC = () => {
             </p>
          </header>
 
-         {successMessage && (
-            <div className="mb-6 bg-green-500/10 border border-green-500/50 text-green-400 p-4 rounded-xl flex items-center gap-3 animate-fade-in">
-               <CheckCircle className="w-5 h-5 flex-shrink-0" />
-               <p className="font-bold text-sm">{successMessage}</p>
-            </div>
-         )}
-         {errorMessage && (
-            <div className="mb-6 bg-red-500/10 border border-red-500/50 text-red-400 p-4 rounded-xl flex items-center gap-3 animate-fade-in">
-               <AlertCircle className="w-5 h-5 flex-shrink-0" />
-               <p className="font-bold text-sm">{errorMessage}</p>
-            </div>
-         )}
+         <div className="px-4 max-w-3xl mx-auto w-full pt-4">
+            <NotificationTabs
+               activeTab={activeTab}
+               setActiveTab={setActiveTab}
+               notificationsCount={notifications.length}
+               matchRequestsCount={filteredMatchRequests.length + rematchProposals.length + jokerInvites.length}
+               joinRequestsCount={filteredJoinRequests.length}
+            />
+         </div>
 
-         <NotificationTabs
-            activeTab={activeTab}
-            setActiveTab={setActiveTab}
-            notificationsCount={notifications.length}
-            matchRequestsCount={filteredMatchRequests.length + rematchProposals.length + jokerInvites.length}
-            joinRequestsCount={filteredJoinRequests.length}
-         />
-
-         {loading ? (
-            <LoadingSpinner fullScreen text="Bildirimler Yükleniyor..." />
-         ) : (
-            <div className="space-y-4">
-               {activeTab === 'MATCH_REQUESTS' && (
-                  <MatchRequestsTab
-                     matchRequests={filteredMatchRequests}
-                     rematchProposals={rematchProposals}
-                     jokerInvites={jokerInvites}
-                     setSelectedTeamId={setSelectedTeamId}
-                     handleAcceptChallenge={handleAcceptChallenge}
-                     handleRejectChallenge={handleRejectChallenge}
-                     handleAcceptRematchFromNotif={handleAcceptRematchFromNotif}
-                     handleAcceptJokerInvite={handleAcceptJokerInvite}
-                     handleRejectJokerInvite={handleRejectJokerInvite}
-                  />
+         <div className="flex-1 overflow-y-auto overscroll-contain scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
+            <div className="px-4 max-w-3xl mx-auto pt-4 pb-28" style={{ minHeight: 'calc(100% + 1px)' }}>
+               {successMessage && (
+                  <div className="mb-6 bg-green-500/10 border border-green-500/50 text-green-400 p-4 rounded-xl flex items-center gap-3 animate-fade-in">
+                     <CheckCircle className="w-5 h-5 flex-shrink-0" />
+                     <p className="font-bold text-sm">{successMessage}</p>
+                  </div>
+               )}
+               {errorMessage && (
+                  <div className="mb-6 bg-red-500/10 border border-red-500/50 text-red-400 p-4 rounded-xl flex items-center gap-3 animate-fade-in">
+                     <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                     <p className="font-bold text-sm">{errorMessage}</p>
+                  </div>
                )}
 
-               {activeTab === 'JOIN_REQUESTS' && (
-                  <JoinRequestsTab
-                     joinRequests={filteredJoinRequests}
-                     setSelectedJoinRequest={setSelectedJoinRequest}
-                     handleAccept={handleAcceptJoinRequest}
-                     handleReject={handleRejectJoinRequest}
-                  />
-               )}
+               {loading ? (
+                  <LoadingSpinner fullScreen text="Bildirimler Yükleniyor..." />
+               ) : (
+                  <div className="space-y-4">
+                     {activeTab === 'MATCH_REQUESTS' && (
+                        <MatchRequestsTab
+                           matchRequests={filteredMatchRequests}
+                           rematchProposals={rematchProposals}
+                           jokerInvites={jokerInvites}
+                           setSelectedTeamId={setSelectedTeamId}
+                           handleAcceptChallenge={handleAcceptChallenge}
+                           handleRejectChallenge={handleRejectChallenge}
+                           handleAcceptRematchFromNotif={handleAcceptRematchFromNotif}
+                           handleAcceptJokerInvite={handleAcceptJokerInvite}
+                           handleRejectJokerInvite={handleRejectJokerInvite}
+                        />
+                     )}
 
-               {activeTab === 'ALL' && (
-                  <AllNotificationsTab
-                     notifications={notifications}
-                     handleAcceptRematchFromNotif={handleAcceptRematchFromNotif}
-                     setActiveTab={setActiveTab}
-                  />
+                     {activeTab === 'JOIN_REQUESTS' && (
+                        <JoinRequestsTab
+                           joinRequests={filteredJoinRequests}
+                           setSelectedJoinRequest={setSelectedJoinRequest}
+                           handleAccept={handleAcceptJoinRequest}
+                           handleReject={handleRejectJoinRequest}
+                        />
+                     )}
+
+                     {activeTab === 'ALL' && (
+                        <AllNotificationsTab
+                           notifications={notifications}
+                           handleAcceptRematchFromNotif={handleAcceptRematchFromNotif}
+                           setActiveTab={setActiveTab}
+                        />
+                     )}
+                  </div>
                )}
             </div>
-         )}
+         </div>
 
          <PlayerDetailModal
             isOpen={!!selectedJoinRequest}

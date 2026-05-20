@@ -16,23 +16,23 @@ export const JokerLocationFilter: React.FC<JokerLocationFilterProps> = ({
     setIsSortOpen,
 }) => {
     return (
-        <div className="mb-6 flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
             <button
                 onClick={() => setIsLocationFilterOpen(true)}
-                className="flex items-center gap-2 px-4 py-3 rounded-xl font-bold text-sm transition-all border bg-turf-600 border-turf-500 text-white shadow-lg shadow-turf-600/20"
+                className="flex items-center gap-1.5 px-3 sm:px-4 py-3 rounded-xl font-bold text-sm transition-all border bg-turf-600 border-turf-500 text-white shadow-lg shadow-turf-600/20 whitespace-nowrap shrink-0"
             >
-                <MapPin className="w-4 h-4" />
+                <MapPin className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
                 {`Yakınımda (${locationFilter.radius ?? 20}km)`}
             </button>
             <button
                 onClick={() => setIsSortOpen(true)}
-                className={`flex items-center gap-2 px-4 py-3 rounded-xl font-bold text-sm transition-all border ${
+                className={`flex items-center gap-1.5 px-3 sm:px-4 py-3 rounded-xl font-bold text-sm transition-all border whitespace-nowrap shrink-0 ${
                     sortBy !== 'distance'
-                        ? 'bg-turf-600 border-turf-500 text-white shadow-lg shadow-turf-600/20'
-                        : 'bg-slate-700/50 border-slate-600 text-slate-300 hover:border-turf-500 hover:text-white'
+                        ? 'bg-turf-900/40 border-turf-500 text-turf-400'
+                        : 'bg-slate-800 border-slate-700 text-slate-300 hover:border-turf-500 hover:text-white'
                 }`}
             >
-                <ArrowUpDown className="w-4 h-4" />
+                <ArrowUpDown className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
                 Sırala
             </button>
         </div>

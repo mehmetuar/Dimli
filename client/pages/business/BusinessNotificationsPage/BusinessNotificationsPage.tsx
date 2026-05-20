@@ -39,12 +39,12 @@ export const BusinessNotificationsPage: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen pt-safe-top bg-gradient-to-b from-slate-900 to-slate-800 text-white pb-business-nav">
+        <div className="fixed inset-0 bg-gradient-to-b from-slate-900 to-slate-800 text-white flex flex-col overflow-hidden" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
             {/* Header */}
-            <div className="bg-slate-800 p-4 sticky top-0 z-20 border-b border-slate-700 shadow-lg flex items-center gap-4">
+            <div className="bg-slate-900/95 backdrop-blur-md z-20 border-b border-slate-800 px-4 py-4 flex items-center gap-3">
                 <button
                     onClick={() => navigate(-1)}
-                    className="p-2 hover:bg-slate-700 rounded-full transition-colors"
+                    className="w-10 h-10 bg-slate-800 rounded-xl flex items-center justify-center text-slate-300 hover:text-white hover:bg-slate-700 transition-colors"
                 >
                     <ArrowLeft className="w-6 h-6" />
                 </button>
@@ -55,7 +55,11 @@ export const BusinessNotificationsPage: React.FC = () => {
             </div>
 
             {/* Content */}
-            <div className="p-4 space-y-3">
+            <div
+                className="flex-1 overflow-y-auto overscroll-contain scrollbar-hide"
+                style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
+            >
+            <div className="p-4 space-y-3 pb-business-nav" style={{ minHeight: 'calc(100% + 1px)' }}>
                 {loading ? (
                     <div className="py-40 flex justify-center w-full">
                         <BusinessLoadingSpinner />
@@ -98,6 +102,7 @@ export const BusinessNotificationsPage: React.FC = () => {
                         <p className="text-sm text-slate-600 mt-2">Maç istekleri ve önemli güncellemeler burada görünecek.</p>
                     </div>
                 )}
+            </div>
             </div>
 
             <BusinessNavbar />

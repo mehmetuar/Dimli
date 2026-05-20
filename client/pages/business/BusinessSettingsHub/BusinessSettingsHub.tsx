@@ -1,12 +1,45 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, MapPin, Lock, LogOut, ChevronRight, CreditCard, Settings } from 'lucide-react';
+import { Building2, MapPin, Lock, LogOut, ChevronRight, CreditCard, Settings, RefreshCw } from 'lucide-react';
 import { BusinessNavbar } from '../../../components/Business/BusinessNavbar';
 import { ConfirmModal } from '../../../components/Modals/ConfirmModal';
+
+const PULL_THRESHOLD = 70;
 
 export const BusinessSettingsHub: React.FC = () => {
     const navigate = useNavigate();
     const [showConfirm, setShowConfirm] = useState(false);
+
+    const scrollRef = useRef<HTMLDivElement>(null);
+    const touchStartYRef = useRef(0);
+    const touchStartScrollRef = useRef(0);
+    const triggeredRef = useRef(false);
+    const [pullDistance, setPullDistance] = useState(0);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+
+    const onTouchStart = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
+        touchStartYRef.current = e.touches[0].clientY;
+        touchStartScrollRef.current = scrollRef.current?.scrollTop ?? 0;
+        triggeredRef.current = false;
+    }, []);
+
+    const onTouchMove = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
+        if (isRefreshing || touchStartScrollRef.current > 4) return;
+        const delta = e.touches[0].clientY - touchStartYRef.current;
+        if (delta > 0) setPullDistance(Math.min(delta * 0.45, 90));
+        else setPullDistance(0);
+    }, [isRefreshing]);
+
+    const onTouchEnd = useCallback(async () => {
+        if (pullDistance >= PULL_THRESHOLD && !triggeredRef.current) {
+            triggeredRef.current = true;
+            setIsRefreshing(true);
+            await new Promise(r => setTimeout(r, 800));
+            setIsRefreshing(false);
+            window.location.reload();
+        }
+        setPullDistance(0);
+    }, [pullDistance]);
 
     const handleLogout = () => {
         localStorage.removeItem('token');
@@ -83,7 +116,26 @@ export const BusinessSettingsHub: React.FC = () => {
                 </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
+            <div
+                ref={scrollRef}
+                className="flex-1 overflow-y-auto overscroll-contain scrollbar-hide"
+                style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
+                onTouchStart={onTouchStart}
+                onTouchMove={onTouchMove}
+                onTouchEnd={onTouchEnd}
+            >
+            {/* Pull-to-refresh — turuncu */}
+            <div
+                className="flex items-center justify-center overflow-hidden"
+                style={{ height: isRefreshing ? 56 : pullDistance, transition: isRefreshing ? 'none' : 'height 0.2s ease' }}
+            >
+                {(pullDistance > 0 || isRefreshing) && (
+                    <RefreshCw
+                        className={`w-5 h-5 text-orange-400 ${isRefreshing ? 'animate-spin' : ''}`}
+                        style={isRefreshing ? undefined : { transform: `rotate(${Math.min(pullDistance * 3, 360)}deg)` }}
+                    />
+                )}
+            </div>
             <div className="p-4 pt-5 space-y-3 pb-business-nav">
                 {menuItems.map((item) => (
                     <button

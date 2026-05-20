@@ -5,7 +5,6 @@ import {
     Star, ExternalLink, ChevronRight, Sparkles, Lock, X, Eye, EyeOff,
 } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
-import { BusinessNavbar } from '../../../components/Business/BusinessNavbar';
 import api from '../../../services/api';
 import { purchasePlan, linkRevenueCatUser } from '../../../services/revenuecatService';
 import { SUBSCRIPTION_PLANS } from '../BusinessRegister/hooks/useBusinessRegister';
@@ -342,7 +341,7 @@ export const BusinessSubscriptionSettings: React.FC = () => {
                     <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
                 </div>
             ) : (
-                <div className="px-4 py-5 space-y-4 pb-business-nav" style={{ minHeight: 'calc(100% + 1px)' }}>
+                <div className="px-4 py-5 space-y-4" style={{ minHeight: 'calc(100% + 1px)' }}>
 
                     {/* ── NO SUBSCRIPTION ── */}
                     {!subscription && (
@@ -523,7 +522,6 @@ export const BusinessSubscriptionSettings: React.FC = () => {
                 onConfirm={handleDeleteAccount}
             />
 
-            <BusinessNavbar />
         </div>
     );
 };

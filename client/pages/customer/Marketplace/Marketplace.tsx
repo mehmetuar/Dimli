@@ -1,5 +1,5 @@
-import React from 'react';
-import { MapPin, Settings } from 'lucide-react';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
+import { MapPin, Settings, RefreshCw, Calendar, ArrowUpDown } from 'lucide-react';
 import { openLocationSettings } from '../../../utils/openLocationSettings';
 import { LoadingSpinner } from '../../../components/UI/LoadingSpinner';
 import { CreateMatchModal } from '../../../components/Modals/CreateMatchModal';
@@ -12,9 +12,12 @@ import { SortModal } from '../../../components/Modals/SortModal';
 
 import { useMarketplace } from './hooks/useMarketplace';
 import { useMarketplaceActions } from './hooks/useMarketplaceActions';
-import { MarketplaceHeader } from './components/MarketplaceHeader';
 import { MatchAnnouncementCard } from './components/MatchAnnouncementCard';
 import { DateFilterModal } from '../PitchBooking/components/DateFilterModal';
+
+// Başlık bu kadar px içinde kademeli soluklaşır — yavaş ve doğal his
+const HEADER_FADE_PX = 140;
+const PULL_THRESHOLD = 70;
 
 export const Marketplace: React.FC = () => {
   const {
@@ -52,6 +55,7 @@ export const Marketplace: React.FC = () => {
     setSortBy,
     isSortOpen,
     setIsSortOpen,
+    requestLocation,
   } = useMarketplace();
 
   const {
@@ -75,26 +79,80 @@ export const Marketplace: React.FC = () => {
     setMatches
   });
 
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const touchStartYRef = useRef(0);
+  const touchStartScrollTopRef = useRef(0);
+  const hasTriggeredRefreshRef = useRef(false);
+
+  const [headerOpacity, setHeaderOpacity] = useState(1);
+  const [pullDistance, setPullDistance] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      document.documentElement.style.removeProperty('--header-opacity');
+      document.documentElement.style.removeProperty('--header-pointer-events');
+    };
+  }, []);
+
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const st = e.currentTarget.scrollTop;
+    const opacity = Math.max(0, 1 - st / HEADER_FADE_PX);
+    setHeaderOpacity(opacity);
+    document.documentElement.style.setProperty('--header-opacity', String(opacity));
+    document.documentElement.style.setProperty('--header-pointer-events', opacity > 0.1 ? 'auto' : 'none');
+  }, []);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
+    touchStartYRef.current = e.touches[0].clientY;
+    touchStartScrollTopRef.current = scrollRef.current?.scrollTop ?? 0;
+    hasTriggeredRefreshRef.current = false;
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
+    if (isRefreshing || touchStartScrollTopRef.current > 4) return;
+    const delta = e.touches[0].clientY - touchStartYRef.current;
+    if (delta > 0) {
+      setPullDistance(Math.min(delta * 0.45, 90));
+    } else {
+      setPullDistance(0);
+    }
+  }, [isRefreshing]);
+
+  const handleTouchEnd = useCallback(async () => {
+    if (pullDistance >= PULL_THRESHOLD && !hasTriggeredRefreshRef.current) {
+      hasTriggeredRefreshRef.current = true;
+      setIsRefreshing(true);
+      try {
+        await requestLocation();
+      } finally {
+        setIsRefreshing(false);
+      }
+    }
+    setPullDistance(0);
+  }, [pullDistance, requestLocation]);
+
+  const pullIndicatorH = isRefreshing ? 56 : pullDistance;
   const displayMatches = filteredMatches;
   const authorized = isAuthorized();
   const canChallenge = !!myTeam && (myTeam.captainId === currentUser?.id || myTeam.viceCaptainIds?.includes(currentUser?.id));
+  const isNonDefaultSort = sortBy !== 'date_desc';
 
   const handleOpenChallengeModal = (match: any) => {
     setSelectedMatch(match);
     setIsChallengeModalOpen(true);
   };
 
-  if (isLoading && matches.length === 0) {
-    return <LoadingSpinner fullScreen text="Maçlar Yükleniyor..." />;
-  }
-
   return (
-    <div className="pb-28 pt-20 px-4 max-w-3xl mx-auto min-h-screen bg-pitch">
+    <div
+      className="fixed inset-0 bg-pitch text-white flex flex-col overflow-hidden"
+      style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}
+    >
+      {/* Modals */}
       <CreateMatchModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
       />
-
       {selectedTeamId && (
         <TeamDetailModal
           isOpen={!!selectedTeamId}
@@ -103,28 +161,24 @@ export const Marketplace: React.FC = () => {
           currentUserId={currentUser?.id}
         />
       )}
-
       <LocationFilterModal
         isOpen={isLocationFilterOpen}
         onClose={() => setIsLocationFilterOpen(false)}
         currentFilter={locationFilter}
         onApply={setLocationFilter}
       />
-
       <DateFilterModal
         isOpen={isDateFilterOpen}
         onClose={() => setIsDateFilterOpen(false)}
         selectedDate={selectedDate}
         setSelectedDate={setSelectedDate}
       />
-
       <SuccessModal
         isOpen={successModal.isOpen}
         onClose={() => setSuccessModal({ ...successModal, isOpen: false })}
         message={successModal.message}
         type={successModal.type}
       />
-
       <ConfirmModal
         isOpen={confirmCancelModal.isOpen}
         onClose={() => setConfirmCancelModal({ isOpen: false, challengeId: null })}
@@ -135,7 +189,6 @@ export const Marketplace: React.FC = () => {
         cancelText="Vazgeç"
         isDangerous={true}
       />
-
       <ConfirmModal
         isOpen={confirmDeleteAdModal.isOpen}
         onClose={() => setConfirmDeleteAdModal({ isOpen: false, adId: null })}
@@ -146,7 +199,6 @@ export const Marketplace: React.FC = () => {
         cancelText="Vazgeç"
         isDangerous={true}
       />
-
       <SortModal
         isOpen={isSortOpen}
         onClose={() => setIsSortOpen(false)}
@@ -154,83 +206,14 @@ export const Marketplace: React.FC = () => {
         value={sortBy}
         onChange={(key) => setSortBy(key as typeof sortBy)}
         options={[
-          { key: 'date_desc',  label: 'Tarihe Göre (Önce En Yeni)' },
-          { key: 'date_asc',   label: 'Tarihe Göre (Önce En Eski)' },
-          { key: 'price_asc',  label: 'Fiyata Göre (Önce En Düşük)' },
+          { key: 'date_desc', label: 'Tarihe Göre (Önce En Yeni)' },
+          { key: 'date_asc', label: 'Tarihe Göre (Önce En Eski)' },
+          { key: 'price_asc', label: 'Fiyata Göre (Önce En Düşük)' },
           { key: 'price_desc', label: 'Fiyata Göre (Önce En Yüksek)' },
-          { key: 'fair_play',  label: 'Fair Play Skoruna Göre' },
-          { key: 'distance',   label: 'Yakınlığa Göre' },
+          { key: 'fair_play', label: 'Fair Play Skoruna Göre' },
+          { key: 'distance', label: 'Yakınlığa Göre' },
         ]}
       />
-
-      <MarketplaceHeader
-        locationFilter={locationFilter}
-        setLocationFilter={setLocationFilter}
-        setIsLocationFilterOpen={setIsLocationFilterOpen}
-        selectedDate={selectedDate}
-        onOpenDateFilter={() => setIsDateFilterOpen(true)}
-        sortBy={sortBy}
-        onOpenSort={() => setIsSortOpen(true)}
-      />
-
-      <div className="space-y-5">
-        {displayMatches.length === 0 && (
-          locationPermissionDenied ? (
-            <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
-              <div className="w-16 h-16 rounded-2xl bg-turf-600/10 border border-turf-600/20 flex items-center justify-center mb-5">
-                <MapPin className="w-8 h-8 text-turf-400" />
-              </div>
-              <h3 className="text-white font-bold text-lg mb-2">Konum İzni Gerekli</h3>
-              <p className="text-slate-400 text-sm leading-relaxed mb-6">
-                Yakınındaki maç ilanlarını görmek için ayarlardan konum iznini etkinleştir.
-              </p>
-              <button
-                onClick={openLocationSettings}
-                className="flex items-center gap-2 bg-turf-600 hover:bg-turf-500 active:scale-95 text-white font-bold py-3 px-6 rounded-xl transition-all"
-              >
-                <Settings className="w-4 h-4" />
-                Ayarlara Git
-              </button>
-            </div>
-          ) : (
-            <div className="text-center py-12 text-slate-400">
-              {matches.length === 0
-                ? "Henüz aktif ilan yok. İlk ilanı sen oluştur!"
-                : "Seçilen kriterlere uygun ilan bulunamadı."}
-            </div>
-          )
-        )}
-
-        {displayMatches.map((announcement) => (
-          <MatchAnnouncementCard
-            key={announcement.id}
-            announcement={announcement}
-            myTeam={myTeam}
-            myChallenges={myChallenges}
-            isAuthorized={authorized}
-            canChallenge={canChallenge}
-            getPitchDetails={getPitchDetails}
-            setSelectedTeamId={setSelectedTeamId}
-            handleDeleteAdClick={handleDeleteAdClick}
-            handleCancelClick={handleCancelClick}
-            handleOpenChallengeModal={handleOpenChallengeModal}
-          />
-        ))}
-
-        {(hasMore || loadingMore) && (
-          <div className="flex justify-center pt-4 pb-2">
-            <button
-              onClick={loadMore}
-              disabled={loadingMore}
-              className="px-6 py-3 bg-slate-800 border border-slate-700 text-white rounded-2xl font-semibold text-sm hover:bg-slate-700 disabled:opacity-50 transition-colors"
-            >
-              {loadingMore ? 'Yükleniyor...' : 'Daha Fazla Göster'}
-            </button>
-          </div>
-        )}
-
-      </div>
-
       {selectedMatch && (
         <ChallengeModal
           isOpen={isChallengeModalOpen}
@@ -255,6 +238,143 @@ export const Marketplace: React.FC = () => {
         />
       )}
 
+      {/* Scroll container */}
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto overscroll-y-contain scrollbar-hide"
+        style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
+        onScroll={handleScroll}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        {/* Pull-to-refresh indicator */}
+        <div
+          className="flex items-center justify-center overflow-hidden"
+          style={{
+            height: pullIndicatorH,
+            transition: isRefreshing ? 'none' : 'height 0.2s ease',
+          }}
+        >
+          {(pullDistance > 0 || isRefreshing) && (
+            <RefreshCw
+              className={`w-5 h-5 text-turf-400 ${isRefreshing ? 'animate-spin' : ''}`}
+              style={isRefreshing ? undefined : { transform: `rotate(${Math.min(pullDistance * 3, 360)}deg)` }}
+            />
+          )}
+        </div>
+
+        {/* Başlık — scroll'a göre kademeli kaybolur */}
+        <div className="px-4 pt-3 pb-5 pr-14" style={{ opacity: headerOpacity }}>
+          <h1 className="font-sport font-black text-white uppercase italic tracking-tighter leading-none"
+            style={{ fontSize: 'clamp(2.75rem, 12vw, 4.25rem)' }}>
+            MAÇ <span className="text-turf-500">PAZARI</span>
+          </h1>
+          <p className="text-slate-400 mt-1 font-medium">Sahaya çıkmaya hazır mısın kaptan?</p>
+        </div>
+
+        {/* Filtre — sticky, her zaman görünür */}
+        <div className="sticky top-0 px-4 pb-3 pt-1" style={{ backgroundColor: '#0f172a', borderBottom: '1px solid rgba(255,255,255,0.06)', zIndex: 40, willChange: 'transform' }}>
+          <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+            <button
+              onClick={() => setIsDateFilterOpen(true)}
+              className="px-4 py-3 border border-turf-500/50 bg-turf-900/20 text-white rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap hover:bg-turf-800 transition-colors skew-x-[-6deg] shrink-0"
+            >
+              <span className="skew-x-[6deg] flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-turf-500 shrink-0" />
+                {new Date(selectedDate).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })}
+              </span>
+            </button>
+            <button
+              onClick={() => setIsLocationFilterOpen(true)}
+              className={`px-4 py-3 border text-slate-300 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap hover:border-turf-500 hover:text-white transition-colors skew-x-[-6deg] shrink-0 ${locationFilter.type === 'NEARBY' ? 'bg-turf-900/50 border-turf-500 text-white' : 'bg-slate-800 border-slate-700'}`}
+            >
+              <span className="skew-x-[6deg] flex items-center gap-1.5">
+                <MapPin className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+                {locationFilter.type === 'NEARBY' ? `Yakınımda (${locationFilter.radius}km)` : 'Yakınımda'}
+              </span>
+            </button>
+            <button
+              onClick={() => setIsSortOpen(true)}
+              className={`px-4 py-3 border rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-colors skew-x-[-6deg] shrink-0 ${isNonDefaultSort
+                ? 'bg-turf-900/40 border-turf-500 text-turf-400'
+                : 'bg-slate-800 border-slate-700 text-slate-300 hover:border-turf-500 hover:text-white'
+                }`}
+            >
+              <span className="skew-x-[6deg] flex items-center gap-1.5">
+                <ArrowUpDown className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+                Sırala
+              </span>
+            </button>
+          </div>
+        </div>
+
+        {/* İçerik */}
+        <div className="px-4 pt-3 space-y-5 pb-4" style={{ minHeight: 'calc(100% + 1px)' }}>
+          {isLoading && matches.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+              <LoadingSpinner />
+              <p className="mt-4 text-sm font-medium">Maçlar Yükleniyor...</p>
+            </div>
+          ) : displayMatches.length === 0 ? (
+            locationPermissionDenied ? (
+              <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+                <div className="w-16 h-16 rounded-2xl bg-turf-600/10 border border-turf-600/20 flex items-center justify-center mb-5">
+                  <MapPin className="w-8 h-8 text-turf-400" />
+                </div>
+                <h3 className="text-white font-bold text-lg mb-2">Konum İzni Gerekli</h3>
+                <p className="text-slate-400 text-sm leading-relaxed mb-6">
+                  Yakınındaki maç ilanlarını görmek için ayarlardan konum iznini etkinleştir.
+                </p>
+                <button
+                  onClick={openLocationSettings}
+                  className="flex items-center gap-2 bg-turf-600 hover:bg-turf-500 active:scale-95 text-white font-bold py-3 px-6 rounded-xl transition-all"
+                >
+                  <Settings className="w-4 h-4" />
+                  Ayarlara Git
+                </button>
+              </div>
+            ) : (
+              <div className="text-center py-12 text-slate-400">
+                {matches.length === 0
+                  ? "Henüz aktif ilan yok. İlk ilanı sen oluştur!"
+                  : "Seçilen kriterlere uygun ilan bulunamadı."}
+              </div>
+            )
+          ) : (
+            <>
+              {displayMatches.map((announcement) => (
+                <MatchAnnouncementCard
+                  key={announcement.id}
+                  announcement={announcement}
+                  myTeam={myTeam}
+                  myChallenges={myChallenges}
+                  isAuthorized={authorized}
+                  canChallenge={canChallenge}
+                  getPitchDetails={getPitchDetails}
+                  setSelectedTeamId={setSelectedTeamId}
+                  handleDeleteAdClick={handleDeleteAdClick}
+                  handleCancelClick={handleCancelClick}
+                  handleOpenChallengeModal={handleOpenChallengeModal}
+                />
+              ))}
+              {(hasMore || loadingMore) && (
+                <div className="flex justify-center pt-4 pb-2">
+                  <button
+                    onClick={loadMore}
+                    disabled={loadingMore}
+                    className="px-6 py-3 bg-slate-800 border border-slate-700 text-white rounded-2xl font-semibold text-sm hover:bg-slate-700 disabled:opacity-50 transition-colors"
+                  >
+                    {loadingMore ? 'Yükleniyor...' : 'Daha Fazla Göster'}
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Floating action button */}
       {authorized && (
         <button
           onClick={() => setIsCreateModalOpen(true)}

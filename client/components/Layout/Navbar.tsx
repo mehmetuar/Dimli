@@ -86,7 +86,14 @@ export const Navbar: React.FC = () => {
 
       {/* Notification Bell (Top Right - Visible Mobile & Desktop) - Conditioned */}
       {showBell && isLoggedIn && location.pathname !== '/chat' && location.pathname !== '/team' && location.pathname !== '/jokers' && (
-        <div className="fixed top-bell-safe right-4 z-50">
+        <div
+          className="fixed top-bell-safe right-4 z-50"
+          style={
+            (location.pathname === '/' || location.pathname === '/pitches')
+              ? { opacity: 'var(--header-opacity, 1)', pointerEvents: 'var(--header-pointer-events, auto)' } as React.CSSProperties
+              : undefined
+          }
+        >
           <button
             onClick={handleNotificationClick}
             className={`relative p-2 rounded-full border transition-all group ${location.pathname === '/notifications'
