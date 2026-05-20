@@ -405,6 +405,22 @@ export const FACILITY_ICON_MAP: Record<string, React.FC<P>> = {
 export const getFacilityIcon = (name: string): React.FC<P> =>
     FACILITY_ICON_MAP[name] ?? IconFacility;
 
+/** Bayrak — şikayetler / raporlar */
+export const IconFlag: React.FC<P> = ({ className = '', size = 16 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+        <line x1="4" y1="22" x2="4" y2="15" />
+    </svg>
+);
+
+/** Yasak — chat ban */
+export const IconBan: React.FC<P> = ({ className = '', size = 16 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <circle cx="12" cy="12" r="10" />
+        <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+    </svg>
+);
+
 /** Pano — değişiklik istekleri */
 export const IconClipboard: React.FC<P> = ({ className = '', size = 16 }) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>

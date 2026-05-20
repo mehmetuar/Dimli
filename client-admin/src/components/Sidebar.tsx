@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
     DimliLogo,
@@ -11,10 +11,11 @@ import {
     IconShield,
     IconMenu,
     IconClipboard,
+    IconFlag,
 } from './Icons';
 import LogoutModal from './LogoutModal';
+import adminApi from '../services/adminApi';
 
-// JWT payload'ından admin bilgisi çek
 function decodeAdminToken(): { email: string; adminRole: string } | null {
     try {
         const token = localStorage.getItem('admin_token');
@@ -36,10 +37,12 @@ interface NavItemProps {
     to: string;
     icon: React.ReactNode;
     label: string;
+    badge?: number;
+    collapsed?: boolean;
     onClick?: () => void;
 }
 
-const NavItem: React.FC<NavItemProps> = ({ to, icon, label, onClick }) => (
+const NavItem: React.FC<NavItemProps> = ({ to, icon, label, badge, collapsed, onClick }) => (
     <NavLink
         to={to}
         onClick={onClick}
@@ -51,8 +54,27 @@ const NavItem: React.FC<NavItemProps> = ({ to, icon, label, onClick }) => (
             }`
         }
     >
-        <span className="shrink-0">{icon}</span>
-        <span className="truncate">{label}</span>
+        {/* İkon + collapsed badge noktası */}
+        <span className="relative shrink-0">
+            {icon}
+            {collapsed && badge !== undefined && badge > 0 && (
+                <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-red-500 border border-[#0f1827] flex items-center justify-center text-[8px] text-white font-black">
+                    {badge > 9 ? '9' : badge}
+                </span>
+            )}
+        </span>
+
+        {/* Etiket + expanded badge sayısı */}
+        {!collapsed && (
+            <>
+                <span className="truncate">{label}</span>
+                {badge !== undefined && badge > 0 && (
+                    <span className="ml-auto bg-red-500/20 text-red-300 text-[10px] font-black px-1.5 py-0.5 rounded-full border border-red-500/30 shrink-0">
+                        {badge > 99 ? '99+' : badge}
+                    </span>
+                )}
+            </>
+        )}
     </NavLink>
 );
 
@@ -64,7 +86,14 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ collapsed = false, onToggle }) => {
     const navigate = useNavigate();
     const [showLogout, setShowLogout] = useState(false);
+    const [pendingReports, setPendingReports] = useState(0);
     const adminInfo = decodeAdminToken();
+
+    useEffect(() => {
+        adminApi.get('/admin/reports/pending-count')
+            .then(r => setPendingReports(r.data ?? 0))
+            .catch(() => {});
+    }, []);
 
     const handleLogout = () => {
         localStorage.removeItem('admin_token');
@@ -116,12 +145,13 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed = false, onToggle }) => {
                     {!collapsed && (
                         <p className="text-slate-600 text-[10px] font-bold uppercase tracking-widest px-3 mb-2">Menü</p>
                     )}
-                    <NavItem to="/dashboard" icon={<IconHome size={18} />} label={collapsed ? '' : 'Dashboard'} />
-                    <NavItem to="/pending" icon={<IconPending size={18} />} label={collapsed ? '' : 'Bekleyen'} />
-                    <NavItem to="/approved" icon={<IconCheck size={18} />} label={collapsed ? '' : 'Onaylı'} />
-                    <NavItem to="/rejected" icon={<IconX size={18} />} label={collapsed ? '' : 'Reddedilen'} />
-                    <NavItem to="/suspended" icon={<IconPause size={18} />} label={collapsed ? '' : 'Askıda'} />
-                    <NavItem to="/change-requests" icon={<IconClipboard size={18} />} label={collapsed ? '' : 'Değişiklik İstekleri'} />
+                    <NavItem to="/dashboard"       icon={<IconHome      size={18} />} label={collapsed ? '' : 'Dashboard'}              collapsed={collapsed} />
+                    <NavItem to="/pending"         icon={<IconPending   size={18} />} label={collapsed ? '' : 'Bekleyen'}               collapsed={collapsed} />
+                    <NavItem to="/approved"        icon={<IconCheck     size={18} />} label={collapsed ? '' : 'Onaylı'}                 collapsed={collapsed} />
+                    <NavItem to="/rejected"        icon={<IconX         size={18} />} label={collapsed ? '' : 'Reddedilen'}             collapsed={collapsed} />
+                    <NavItem to="/suspended"       icon={<IconPause     size={18} />} label={collapsed ? '' : 'Askıda'}                 collapsed={collapsed} />
+                    <NavItem to="/change-requests" icon={<IconClipboard size={18} />} label={collapsed ? '' : 'Değişiklik İstekleri'}   collapsed={collapsed} />
+                    <NavItem to="/reports"         icon={<IconFlag      size={18} />} label={collapsed ? '' : 'Şikayetler'}             collapsed={collapsed} badge={pendingReports} />
                 </nav>
 
                 {/* Alt — Çıkış */}
@@ -143,6 +173,11 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed = false, onToggle }) => {
                 </button>
                 <DimliLogo size={28} className="drop-shadow-[0_0_8px_rgba(74,222,128,0.2)]" />
                 <span className="text-[#dde8f5] font-black text-sm">DİMLİ Admin</span>
+                {pendingReports > 0 && (
+                    <span className="ml-1 bg-red-500/20 text-red-300 text-[10px] font-black px-1.5 py-0.5 rounded-full border border-red-500/30">
+                        {pendingReports}
+                    </span>
+                )}
                 <button
                     onClick={() => setShowLogout(true)}
                     className="ml-auto text-slate-400 hover:text-red-400 transition-colors"
