@@ -429,7 +429,7 @@ export class ChatService {
         }
 
         const filtered = blockedUserIds.length > 0
-            ? messages.filter(m => !m.senderId || !blockedUserIds.includes(m.senderId))
+            ? messages.filter(m => m.isSystemMessage || !m.senderId || !blockedUserIds.includes(m.senderId))
             : messages;
 
         return filtered.reverse();
