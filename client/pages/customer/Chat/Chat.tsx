@@ -512,6 +512,7 @@ export const Chat: React.FC = () => {
 
         {(() => {
           const res = activeChannel?.reservation as any;
+          if (activeChannel?.type !== 'MATCH_GROUP') return null;
           if (!res || res.status !== 'PENDING' || !res.requiredPlayerCount) return null;
           if (res.slotTime && new Date(res.slotTime) < new Date()) return null;
           const required = res.requiredPlayerCount;
