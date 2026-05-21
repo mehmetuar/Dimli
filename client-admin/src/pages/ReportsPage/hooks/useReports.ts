@@ -14,6 +14,7 @@ export interface Report {
     createdAt: string;
     reporter: { id: string; username: string; full_name: string } | null;
     reportedUser: { id: string; username: string; full_name: string; isChatBanned: boolean } | null;
+    message: { id: string; content: string; createdAt: string } | null;
 }
 
 export const useReports = () => {
@@ -60,11 +61,11 @@ export const useReports = () => {
         }
     }, [fetchReports, showToast]);
 
-    const handleChatBanAndReview = useCallback(async (report: Report) => {
+    const handleChatBanAndReview = useCallback(async (report: Report, durationHours?: number) => {
         if (!report.reportedUser) return;
         setProcessing(true);
         try {
-            await adminApi.post(`/admin/users/${report.reportedUserId}/chat-ban`);
+            await adminApi.post(`/admin/users/${report.reportedUserId}/chat-ban`, { durationHours });
             await adminApi.patch(`/admin/reports/${report.id}/status`, { status: 'reviewed' });
             setSelectedReport(null);
             await fetchReports();

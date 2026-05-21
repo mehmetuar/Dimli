@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { IconFlag, IconBan, IconCheck, IconX, IconUser, IconChevronRight, IconAlertCircle } from '../../components/Icons';
 import { useReports, Report } from './hooks/useReports';
 
@@ -71,15 +71,24 @@ const ReportCard: React.FC<{ report: Report; onClick: () => void }> = ({ report,
 
 // ─── Detay Modalı ─────────────────────────────────────────────────────────────
 
+const BAN_DURATIONS = [
+    { label: 'Kalıcı',  hours: undefined },
+    { label: '1 Saat',  hours: 1 },
+    { label: '24 Saat', hours: 24 },
+    { label: '7 Gün',   hours: 168 },
+    { label: '30 Gün',  hours: 720 },
+] as const;
+
 const ReportDetailModal: React.FC<{
     report: Report;
     processing: boolean;
     onClose: () => void;
     onReview: () => void;
     onDismiss: () => void;
-    onBanAndReview: () => void;
+    onBanAndReview: (durationHours?: number) => void;
     onUnban: () => void;
 }> = ({ report, processing, onClose, onReview, onDismiss, onBanAndReview, onUnban }) => {
+    const [showBanOptions, setShowBanOptions] = useState(false);
     const reporterName  = report.reporter?.full_name  || report.reporter?.username  || 'Bilinmiyor';
     const reportedName  = report.reportedUser?.full_name || report.reportedUser?.username || 'Bilinmiyor';
     const isBanned      = report.reportedUser?.isChatBanned ?? false;
@@ -143,6 +152,15 @@ const ReportDetailModal: React.FC<{
                         </div>
                     </div>
 
+                    {/* Şikayet edilen mesaj */}
+                    {report.message && (
+                        <div className="bg-slate-800/60 rounded-xl p-3.5">
+                            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-1.5">Şikayet Konusu Mesaj</p>
+                            <p className="text-slate-300 text-sm leading-relaxed">"{report.message.content}"</p>
+                            <p className="text-slate-600 text-[10px] mt-1">{fmtDate(report.message.createdAt)}</p>
+                        </div>
+                    )}
+
                     {/* Not */}
                     {report.note && (
                         <div className="bg-slate-800/60 rounded-xl p-3.5">
@@ -170,14 +188,43 @@ const ReportDetailModal: React.FC<{
                         <div className="pt-1 space-y-2">
                             {/* Chat ban */}
                             {!isBanned ? (
-                                <button
-                                    onClick={onBanAndReview}
-                                    disabled={processing}
-                                    className="w-full flex items-center justify-center gap-2 bg-amber-600/15 hover:bg-amber-600/25 border border-amber-500/40 text-amber-300 py-3 rounded-xl font-black text-sm transition-all disabled:opacity-50"
-                                >
-                                    <IconBan size={15} />
-                                    Chat Yasağı Uygula + İncele
-                                </button>
+                                <div className="space-y-2">
+                                    <button
+                                        onClick={() => setShowBanOptions(v => !v)}
+                                        disabled={processing}
+                                        className="w-full flex items-center justify-center gap-2 bg-amber-600/15 hover:bg-amber-600/25 border border-amber-500/40 text-amber-300 py-3 rounded-xl font-black text-sm transition-all disabled:opacity-50"
+                                    >
+                                        <IconBan size={15} />
+                                        Chat Yasağı Uygula + İncele
+                                    </button>
+                                    {showBanOptions && (
+                                        <div className="bg-slate-800/80 border border-slate-700 rounded-xl p-3 space-y-2">
+                                            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider">Yasak Süresi Seç</p>
+                                            <div className="flex flex-wrap gap-2">
+                                                {BAN_DURATIONS.map(({ label, hours }) => (
+                                                    <button
+                                                        key={label}
+                                                        onClick={() => { onBanAndReview(hours); setShowBanOptions(false); }}
+                                                        disabled={processing}
+                                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all disabled:opacity-50
+                                                            ${hours === undefined
+                                                                ? 'bg-red-500/20 border-red-500/40 text-red-300 hover:bg-red-500/30'
+                                                                : 'bg-amber-500/15 border-amber-500/30 text-amber-300 hover:bg-amber-500/25'
+                                                            }`}
+                                                    >
+                                                        {label}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                            <button
+                                                onClick={() => setShowBanOptions(false)}
+                                                className="text-slate-500 text-xs hover:text-slate-300 transition-colors"
+                                            >
+                                                İptal
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
                             ) : (
                                 <button
                                     onClick={onUnban}
@@ -305,7 +352,7 @@ const ReportsPage: React.FC = () => {
                     onClose={() => setSelectedReport(null)}
                     onReview={() => handleUpdateStatus(selectedReport.id, 'reviewed')}
                     onDismiss={() => handleUpdateStatus(selectedReport.id, 'dismissed')}
-                    onBanAndReview={() => handleChatBanAndReview(selectedReport)}
+                    onBanAndReview={(durationHours) => handleChatBanAndReview(selectedReport, durationHours)}
                     onUnban={() => handleChatUnban(selectedReport.reportedUserId)}
                 />
             )}
