@@ -548,11 +548,17 @@ export class AdminService {
             : null;
         await this.userRepository.save(user);
 
+        const durationLabel = !durationHours
+            ? 'süresiz'
+            : durationHours < 24
+                ? `${durationHours} saatlik`
+                : `${Math.round(durationHours / 24)} günlük`;
+
         const notification = this.notificationRepository.create({
             userId,
             type: 'CHAT_BAN',
             title: 'Mesaj Engeliniz Var',
-            message: 'Hesabınızda mesaj engeli uygulandı. Lütfen destek ile iletişime geçin.',
+            message: `Hesabınıza ${durationLabel} mesaj engeli uygulandı. Lütfen destek ile iletişime geçin.`,
             read: false,
         });
         await this.notificationRepository.save(notification);

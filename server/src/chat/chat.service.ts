@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, ForbiddenException, NotFoundException, Logger, Inject, Optional, forwardRef } from '@nestjs/common';
+import { Injectable, BadRequestException, ForbiddenException, HttpException, NotFoundException, Logger, Inject, Optional, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull, In, MoreThan, LessThan } from 'typeorm';
 import { ChatChannel } from './chat-channel.entity';
@@ -347,7 +347,12 @@ export class ChatService {
                         isChatBanned: false, chatBannedAt: null, chatBanExpiry: null,
                     });
                 } else {
-                    throw new ForbiddenException('Mesaj engeliniz var. Lütfen destek ile iletişime geçin.');
+                    throw new HttpException({
+                        statusCode: 403,
+                        error: 'Forbidden',
+                        message: 'Mesaj engeliniz var.',
+                        chatBanExpiry: sender.chatBanExpiry?.toISOString() ?? null,
+                    }, 403);
                 }
             }
 
