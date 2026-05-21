@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, NotFoundException, UnauthorizedException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from './user.entity';
@@ -68,8 +68,13 @@ export class UsersService {
         return this.usersRepository.findOne({ where: { username }, relations: ['team'] });
     }
 
-    async isUsernameTaken(username: string): Promise<boolean> {
-        const user = await this.usersRepository.findOne({ where: { username } });
+    async isUsernameTaken(username: string, excludeId?: string): Promise<boolean> {
+        const qb = this.usersRepository.createQueryBuilder('user')
+            .where('user.username = :username', { username });
+        if (excludeId) {
+            qb.andWhere('user.id != :excludeId', { excludeId });
+        }
+        const user = await qb.getOne();
         return !!user;
     }
 
@@ -191,6 +196,12 @@ export class UsersService {
     }
 
     async update(id: string, updateUserDto: UpdateUserDto): Promise<User | null> {
+        if (updateUserDto.username) {
+            const taken = await this.isUsernameTaken(updateUserDto.username, id);
+            if (taken) {
+                throw new ConflictException('Bu kullanıcı adı zaten kullanılıyor.');
+            }
+        }
         await this.usersRepository.update(id, updateUserDto);
         return this.usersRepository.findOne({ where: { id }, relations: ['team'] });
     }
