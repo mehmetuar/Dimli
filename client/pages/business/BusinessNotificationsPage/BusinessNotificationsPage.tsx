@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Bell, Calendar, Clock, ChevronRight } from 'lucide-react';
 import api from '../../../services/api';
+import { getOwnerId } from '../../../services/authStorage';
 import { BusinessNavbar } from '../../../components/Business/BusinessNavbar';
 import { BusinessLoadingSpinner } from '../../../components/Business/BusinessLoadingSpinner';
 
@@ -17,7 +18,7 @@ export const BusinessNotificationsPage: React.FC = () => {
     const fetchNotifications = async () => {
         setLoading(true);
         try {
-            const ownerId = localStorage.getItem('ownerId');
+            const ownerId = getOwnerId();
             if (!ownerId) return;
 
             const response = await api.get(`/business-owner/notifications?ownerId=${ownerId}`);

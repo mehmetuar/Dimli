@@ -17,6 +17,8 @@ import { initRevenueCat } from './services/revenuecatService';
 import { LocationProvider, useLocationContext } from './contexts/LocationContext';
 import { FilterProvider } from './contexts/FilterContext';
 import { SocketProvider } from './contexts/SocketContext';
+import { AuthProvider } from './contexts/AuthContext';
+import { getToken, getRole } from './services/authStorage';
 import { useKeyboardScroll } from './utils/useKeyboardScroll';
 
 // Haversine — iki koordinat arası km mesafe
@@ -148,13 +150,15 @@ function AppContent() {
     };
   }, []);
 
-  // Oturum süresi dolduğunda veya token geçersizleştiğinde login'e yönlendir
+  // Oturum süresi dolduğunda veya token geçersizleştiğinde doğru login sayfasına yönlendir
   useEffect(() => {
     const handleExpired = () => {
       const hash = window.location.hash;
-      const authPrefixes = ['#/login', '#/register', '#/forgot-password', '#/business/'];
+      const authPrefixes = ['#/login', '#/register', '#/forgot-password', '#/business/login', '#/business/register'];
       if (!authPrefixes.some(p => hash.startsWith(p))) {
-        navigate('/login', { replace: true, state: { sessionExpired: true } });
+        const role = getRole();
+        const target = role === 'business_owner' ? '/business/login' : '/login';
+        navigate(target, { replace: true, state: { sessionExpired: true } });
       }
     };
     window.addEventListener('auth:sessionExpired', handleExpired);
@@ -164,8 +168,7 @@ function AppContent() {
   // Render free tier'ı uyanık tut — 8 dk < Render'ın 15 dk uyku timeout'u
   useEffect(() => {
     const id = setInterval(() => {
-      const token = localStorage.getItem('token');
-      if (token) api.get('/users/me').catch(() => {});
+      if (getToken()) api.get('/users/me').catch(() => {});
     }, 8 * 60 * 1000);
     return () => clearInterval(id);
   }, []);
@@ -261,8 +264,7 @@ function AppContent() {
     };
 
     const startLocationTracking = () => {
-      const token = localStorage.getItem('token');
-      if (!token || isAuthPage) return;
+      if (!getToken() || isAuthPage) return;
       if (locationIntervalRef.current) clearInterval(locationIntervalRef.current);
       poll();
       locationIntervalRef.current = setInterval(poll, LOCATION_INTERVAL_MS);
@@ -276,8 +278,7 @@ function AppContent() {
     };
 
     const initServices = async () => {
-      const token = localStorage.getItem('token');
-      if (!token || isAuthPage) return;
+      if (!getToken() || isAuthPage) return;
 
       // Push notifications ve rating kontrolünü geciktir:
       // Marketplace verileri yüklendikten sonra başlasın (Android WebView'ı yormasın)
@@ -388,11 +389,13 @@ function App() {
   return (
     <LocationProvider>
       <FilterProvider>
-        <SocketProvider>
-          <HashRouter>
-            <AppContent />
-          </HashRouter>
-        </SocketProvider>
+        <AuthProvider>
+          <SocketProvider>
+            <HashRouter>
+              <AppContent />
+            </HashRouter>
+          </SocketProvider>
+        </AuthProvider>
       </FilterProvider>
     </LocationProvider>
   );

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../../../../services/api';
+import { getOwnerId } from '../../../../services/authStorage';
 import { SuccessType } from '../../../../components/Modals/SuccessModal';
 
 export const useBusinessDashboard = () => {
@@ -49,7 +50,7 @@ export const useBusinessDashboard = () => {
     const fetchDashboard = async (silent = false) => {
         if (!silent) setLoading(true);
         try {
-            const ownerId = localStorage.getItem('ownerId');
+            const ownerId = getOwnerId();
             if (!ownerId) return;
 
             const [dashboardRes, subRes] = await Promise.all([

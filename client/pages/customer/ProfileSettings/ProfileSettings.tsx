@@ -31,7 +31,7 @@ const scrollToInput = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElemen
 export const ProfileSettings: React.FC = () => {
     const navigate = useNavigate();
     const {
-        loading, saving, isUploadingAvatar,
+        loading, loadError, loadProfile, saving, isUploadingAvatar,
         message,
         profileData, setProfileData,
         uploadAvatar, removeAvatar,
@@ -55,6 +55,20 @@ export const ProfileSettings: React.FC = () => {
         return (
             <div className="min-h-screen bg-pitch flex items-center justify-center">
                 <LoadingSpinner size="lg" text="Profil yükleniyor..." />
+            </div>
+        );
+    }
+
+    if (loadError) {
+        return (
+            <div className="min-h-screen bg-pitch flex flex-col items-center justify-center gap-4 px-6">
+                <p className="text-slate-400 text-center font-semibold">Profil yüklenemedi.</p>
+                <button
+                    onClick={loadProfile}
+                    className="px-6 py-3 bg-turf-600 text-white rounded-xl font-bold hover:bg-turf-500 transition-colors"
+                >
+                    Tekrar Dene
+                </button>
             </div>
         );
     }

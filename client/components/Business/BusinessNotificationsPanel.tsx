@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Bell, Calendar, Clock, ChevronRight, CheckCircle2 } from 'lucide-react';
 import api from '../../services/api';
+import { getOwnerId } from '../../services/authStorage';
 import { ConfirmModal } from '../Modals/ConfirmModal';
 
 interface BusinessNotificationsPanelProps {
@@ -31,7 +32,7 @@ export const BusinessNotificationsPanel: React.FC<BusinessNotificationsPanelProp
     const fetchNotifications = async () => {
         setLoading(true);
         try {
-            const ownerId = localStorage.getItem('ownerId');
+            const ownerId = getOwnerId();
             if (!ownerId) return;
 
             const response = await api.get(`/business-owner/notifications?ownerId=${ownerId}`);

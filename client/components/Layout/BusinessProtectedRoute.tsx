@@ -1,25 +1,20 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 
-function isTokenValid(token: string | null): boolean {
-    if (!token) return false;
-    try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        return Date.now() < payload.exp * 1000;
-    } catch {
-        return false;
-    }
-}
+const PageLoader = () => (
+    <div className="flex items-center justify-center h-full w-full bg-slate-900" />
+);
 
 export const BusinessProtectedRoute: React.FC = () => {
-    const [hasValidSession] = useState(() => {
-        const token = localStorage.getItem('token');
-        const ownerId = localStorage.getItem('ownerId');
-        const valid = isTokenValid(token) && !!ownerId;
-        if (!valid && token) localStorage.removeItem('token');
-        return valid;
-    });
+    const { isReady, token, isBusiness, isCustomer, ownerId } = useAuth();
 
-    if (!hasValidSession) return <Navigate to="/business/login" replace />;
+    if (!isReady) return <PageLoader />;
+    if (!token) return <Navigate to="/business/login" replace />;
+    // Müşteri JWT'si işletme sayfalarına giremez
+    if (isCustomer) return <Navigate to="/" replace />;
+    // İşletme token'ı var ama ownerId kaybolmuşsa yeniden giriş iste
+    if (isBusiness && !ownerId) return <Navigate to="/business/login" replace />;
+
     return <Outlet />;
 };

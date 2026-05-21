@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../../../services/api';
+import { getOwnerId } from '../../../../services/authStorage';
 
 export const useBusinessPitchList = () => {
     const navigate = useNavigate();
@@ -15,7 +16,7 @@ export const useBusinessPitchList = () => {
 
     const fetchPitches = async () => {
         try {
-            const ownerId = localStorage.getItem('ownerId');
+            const ownerId = getOwnerId();
             if (!ownerId) { navigate('/business/login'); return; }
 
             const ownerResponse = await api.get(`/business-owner/${ownerId}`);

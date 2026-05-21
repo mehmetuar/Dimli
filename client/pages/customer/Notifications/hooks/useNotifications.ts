@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../../../services/api';
+import { getToken, decodeTokenPayload } from '../../../../services/authStorage';
 import { Challenge } from '../../../../types';
 
 export interface JoinRequest {
@@ -70,14 +71,10 @@ export const useNotifications = () => {
     }, []);
 
     const getCurrentUserId = () => {
-        const token = localStorage.getItem('token');
+        const token = getToken();
         if (!token) return null;
-        try {
-            const payload = JSON.parse(atob(token.split('.')[1]));
-            return payload.sub || payload.id || payload.userId;
-        } catch {
-            return null;
-        }
+        const payload = decodeTokenPayload(token);
+        return payload?.sub ?? null;
     };
 
     const fetchData = async () => {

@@ -8,6 +8,8 @@ import { Capacitor } from '@capacitor/core';
 import api from '../../../services/api';
 import { purchasePlan, linkRevenueCatUser, restoreRevenueCatPurchases } from '../../../services/revenuecatService';
 import { SUBSCRIPTION_PLANS } from '../BusinessRegister/hooks/useBusinessRegister';
+import { useAuth } from '../../../contexts/AuthContext';
+import { getOwnerId } from '../../../services/authStorage';
 
 /* ─── helpers ─── */
 const formatPrice = (price: number) =>
@@ -244,6 +246,7 @@ const DeleteModal: React.FC<DeleteModalProps> = ({ visible, loading, onClose, on
 
 export const BusinessSubscriptionSettings: React.FC = () => {
     const navigate = useNavigate();
+    const { logout } = useAuth();
 
     const [loading, setLoading] = useState(true);
     const [subscription, setSubscription] = useState<any>(null);
@@ -259,7 +262,7 @@ export const BusinessSubscriptionSettings: React.FC = () => {
     const fetchSubscription = async () => {
         setLoading(true);
         try {
-            const ownerId = localStorage.getItem('ownerId');
+            const ownerId = getOwnerId();
             if (!ownerId) return;
             const res = await api.get(`/subscription/owner/${ownerId}`);
             setSubscription(res.data ?? null);
@@ -280,7 +283,7 @@ export const BusinessSubscriptionSettings: React.FC = () => {
         setPurchaseLoading(true);
         try {
             const rcCustomerId = await purchasePlan(planType);
-            const ownerId = localStorage.getItem('ownerId') ?? '';
+            const ownerId = getOwnerId() ?? '';
 
             // Webhook'tan bağımsız garantili backend güncelleme
             await api.post('/subscription/confirm-purchase', { ownerId, planType, rcCustomerId });
@@ -314,9 +317,7 @@ export const BusinessSubscriptionSettings: React.FC = () => {
         setDeleteLoading(true);
         try {
             await api.delete('/business-owner/account', { data: { password } });
-            localStorage.removeItem('token');
-            localStorage.removeItem('role');
-            localStorage.removeItem('ownerId');
+            await logout();
             navigate('/business/login');
         } catch (err: any) {
             setShowDeleteModal(false);

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Bell } from 'lucide-react';
 import api from '../../services/api';
+import { getOwnerId } from '../../services/authStorage';
 import { useSocket } from '../../contexts/SocketContext';
 
 interface BusinessNotificationBellProps {
@@ -27,7 +28,7 @@ export const BusinessNotificationBell: React.FC<BusinessNotificationBellProps> =
 
     const fetchUnreadCount = async () => {
         try {
-            const ownerId = localStorage.getItem('ownerId');
+            const ownerId = getOwnerId();
             if (!ownerId) return;
 
             const response = await api.get(`/business-owner/notifications/unread-count?ownerId=${ownerId}`);
@@ -39,7 +40,7 @@ export const BusinessNotificationBell: React.FC<BusinessNotificationBellProps> =
 
     const handleClick = async () => {
         try {
-            const ownerId = localStorage.getItem('ownerId');
+            const ownerId = getOwnerId();
             if (ownerId && unreadCount > 0) {
                 await api.post('/business-owner/notifications/mark-all-read', { ownerId });
                 setUnreadCount(0);

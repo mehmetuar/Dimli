@@ -2,13 +2,13 @@ import { FirebaseMessaging } from '@capacitor-firebase/messaging';
 import { LocalNotifications, LocalNotificationSchema } from '@capacitor/local-notifications';
 import { Capacitor } from '@capacitor/core';
 import api from './api';
+import { getRole } from './authStorage';
 
 let _initialized = false;
 
 export const sendPushTokenToServer = async (tokenValue: string, retries = 1): Promise<void> => {
     try {
-        const role = localStorage.getItem('role');
-        const endpoint = role === 'business_owner'
+        const endpoint = getRole() === 'business_owner'
             ? '/business-owner/push-token'
             : '/users/push-token';
         await api.patch(endpoint, { token: tokenValue });

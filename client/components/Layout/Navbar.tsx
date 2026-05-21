@@ -5,13 +5,14 @@ import { Search, Zap, MessageSquare, User, Bell, Trophy } from 'lucide-react';
 import api from '../../services/api';
 import { useSocket } from '../../contexts/SocketContext';
 import { useFilterContext } from '../../contexts/FilterContext';
+import { getToken } from '../../services/authStorage';
 
 export const Navbar: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { isDateFilterModalOpen } = useFilterContext();
   const isAuthPage = ['/login', '/register'].includes(location.pathname);
-  const isLoggedIn = !!localStorage.getItem('token');
+  const isLoggedIn = !!getToken();
   const showBell = true;
   const [unreadCount, setUnreadCount] = React.useState(0);
   const [unreadChatCount, setUnreadChatCount] = React.useState(0);

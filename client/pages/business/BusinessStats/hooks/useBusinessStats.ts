@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../../../../services/api';
+import { getOwnerId } from '../../../../services/authStorage';
 
 export interface PitchStats {
     pitchId: string;
@@ -45,7 +46,7 @@ export const useBusinessStats = () => {
         if (!silent) setLoading(true);
         setError(null);
         try {
-            const ownerId = localStorage.getItem('ownerId');
+            const ownerId = getOwnerId();
             if (!ownerId) { setError('Oturum bulunamadı.'); return; }
             const response = await api.get(`/business-owner/stats?ownerId=${ownerId}`);
             setStats(response.data);

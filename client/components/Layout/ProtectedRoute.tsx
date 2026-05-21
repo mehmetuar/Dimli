@@ -1,33 +1,18 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 
-function isTokenValid(token: string | null): boolean {
-    if (!token) return false;
-    try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        return Date.now() < payload.exp * 1000;
-    } catch {
-        return false;
-    }
-}
+const PageLoader = () => (
+    <div className="flex items-center justify-center h-full w-full bg-slate-900" />
+);
 
 export const ProtectedRoute: React.FC = () => {
-    const [hasToken, setHasToken] = useState(() => {
-        const token = localStorage.getItem('token');
-        const valid = isTokenValid(token);
-        if (!valid && token) localStorage.removeItem('token');
-        return valid;
-    });
+    const { isReady, token, isBusiness } = useAuth();
 
-    useEffect(() => {
-        const onExpired = () => setHasToken(false);
-        window.addEventListener('auth:sessionExpired', onExpired);
-        return () => window.removeEventListener('auth:sessionExpired', onExpired);
-    }, []);
-
-    if (!hasToken) {
-        return <Navigate to="/login" replace />;
-    }
+    if (!isReady) return <PageLoader />;
+    if (!token) return <Navigate to="/login" replace />;
+    // İşletme JWT'si müşteri sayfalarına giremez
+    if (isBusiness) return <Navigate to="/business/dashboard" replace />;
 
     return <Outlet />;
 };

@@ -2,32 +2,28 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation, Link, Navigate } from 'react-router-dom';
 import api from '../../../services/api';
 import { initializePushNotifications } from '../../../services/pushNotificationService';
+import { useAuth } from '../../../contexts/AuthContext';
 
 export const Login: React.FC = () => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const navigate = useNavigate();
+    const { token, loginAsCustomer } = useAuth();
 
     const location = useLocation();
-    if (localStorage.getItem('token') && !location.state?.sessionExpired) {
+    if (token && !location.state?.sessionExpired) {
         return <Navigate to="/" replace />;
     }
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
-        console.log('Login button clicked');
-        // alert('Login button clicked'); // Debug
         try {
-            console.log('Sending login request to:', api.defaults.baseURL);
             const response = await api.post('/auth/login', { username, password });
-            console.log('Login response:', response);
-            localStorage.setItem('token', response.data.access_token);
+            await loginAsCustomer(response.data.access_token);
             navigate('/');
             setTimeout(() => initializePushNotifications(), 2000);
         } catch (err: any) {
-            console.error('Login error:', err);
-            // alert(`Login error: ${err.message}`); // Debug
             setError('Giriş başarısız. Lütfen bilgilerinizi kontrol edin.');
         }
     };

@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api, { getProfile, updateProfile, changePassword } from '../../../../services/api';
+import { useAuth } from '../../../../contexts/AuthContext';
 
 export const useProfile = () => {
     const navigate = useNavigate();
+    const { logout } = useAuth();
     const [activeTab, setActiveTab] = useState<'profile' | 'password'>('profile');
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState(false);
     const [saving, setSaving] = useState(false);
     const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
@@ -42,6 +45,10 @@ export const useProfile = () => {
     }, []);
 
     const loadProfile = async () => {
+        setLoadError(false);
+        setLoading(true);
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 12000);
         try {
             const user = await getProfile();
             setProfileData({
@@ -54,10 +61,15 @@ export const useProfile = () => {
                 location: user.location || '',
                 avatarUrl: user.avatarUrl || null,
             });
-        } catch (error) {
-            console.error('Error loading profile:', error);
-            setMessage({ type: 'error', text: 'Profil bilgileri yüklenemedi.' });
+        } catch (error: any) {
+            if (!error?.response) {
+                // Network hatası veya timeout — server erişilemez
+                window.dispatchEvent(new CustomEvent('auth:sessionExpired'));
+            } else {
+                setLoadError(true);
+            }
         } finally {
+            clearTimeout(timer);
             setLoading(false);
         }
     };
@@ -174,7 +186,7 @@ export const useProfile = () => {
 
     const deleteAccount = async (reason: string, note: string, password: string): Promise<void> => {
         await api.delete('/users/me', { data: { reason, note, password } });
-        localStorage.clear();
+        await logout();
         navigate('/login');
     };
 
@@ -182,6 +194,8 @@ export const useProfile = () => {
         activeTab,
         setActiveTab,
         loading,
+        loadError,
+        loadProfile,
         saving,
         isUploadingAvatar,
         message,

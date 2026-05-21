@@ -4,6 +4,7 @@ import api from '../../../services/api';
 import { Briefcase } from 'lucide-react';
 import { initializePushNotifications } from '../../../services/pushNotificationService';
 import { BusinessForgotPasswordModal } from './BusinessForgotPasswordModal';
+import { useAuth } from '../../../contexts/AuthContext';
 
 export const BusinessLogin: React.FC = () => {
     const [email, setEmail] = useState('');
@@ -11,19 +12,17 @@ export const BusinessLogin: React.FC = () => {
     const [error, setError] = useState('');
     const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
     const navigate = useNavigate();
+    const { loginAsBusiness } = useAuth();
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
             const response = await api.post('/auth/business/login', { email, password });
-            localStorage.setItem('token', response.data.access_token);
-            localStorage.setItem('role', 'business_owner');
-            localStorage.setItem('ownerId', response.data.ownerId); // Use ownerId from response
+            await loginAsBusiness(response.data.access_token, response.data.ownerId);
             initializePushNotifications();
             navigate('/business/dashboard');
         } catch (err) {
             setError('Giriş başarısız. Lütfen bilgilerinizi kontrol edin.');
-            console.error(err);
         }
     };
 

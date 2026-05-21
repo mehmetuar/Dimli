@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../../services/api';
+import { getOwnerId } from '../../../services/authStorage';
 import { Save, ArrowLeft, MapPin, AlertTriangle, Loader2, Navigation, X } from 'lucide-react';
 import { APIProvider, Map, AdvancedMarker, useMap } from '@vis.gl/react-google-maps';
 import { Geolocation } from '@capacitor/geolocation';
@@ -58,7 +59,7 @@ export const BusinessInfoSettings: React.FC = () => {
 
     const fetchBusinessData = async () => {
         try {
-            const ownerId = localStorage.getItem('ownerId');
+            const ownerId = getOwnerId();
             if (!ownerId) { navigate('/business/login'); return; }
 
             const ownerResponse = await api.get(`/business-owner/${ownerId}`);

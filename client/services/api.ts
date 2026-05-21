@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getToken, clearAuthSession } from './authStorage';
 
 const BASE_URL = 'https://dimli-server.onrender.com';
 
@@ -15,7 +16,7 @@ const verifyAxios = axios.create({
 
 api.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem('token');
+        const token = getToken();
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
@@ -33,7 +34,7 @@ api.interceptors.response.use(
             if (!isVerifyingAuth) {
                 isVerifyingAuth = true;
                 try {
-                    const token = localStorage.getItem('token');
+                    const token = getToken();
                     if (!token) {
                         window.dispatchEvent(new CustomEvent('auth:sessionExpired'));
                         return Promise.reject(error);
@@ -42,14 +43,16 @@ api.interceptors.response.use(
                     await verifyAxios.get('/users/me', {
                         headers: { Authorization: `Bearer ${token}` },
                     });
-                    // Başarılı → token geçerli, asıl endpoint geçici hata verdi, token korundu
+                    // Başarılı → token geçerli, asıl endpoint geçici hata verdi
                 } catch (ve: any) {
                     if (ve.response?.status === 401 || ve.response?.status === 403) {
-                        // Kesin: token geçersiz
-                        localStorage.removeItem('token');
+                        // Token kesinlikle geçersiz
+                        await clearAuthSession();
+                        window.dispatchEvent(new CustomEvent('auth:sessionExpired'));
+                    } else if (!ve.response) {
+                        // Server tamamen erişilemez — kullanıcıyı login ekranına yönlendir
                         window.dispatchEvent(new CustomEvent('auth:sessionExpired'));
                     }
-                    // Network hatası (response yok) → server erişilemez, logout yok
                 } finally {
                     setTimeout(() => { isVerifyingAuth = false; }, 5000);
                 }

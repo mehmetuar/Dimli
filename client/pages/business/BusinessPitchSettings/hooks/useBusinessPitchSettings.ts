@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../../../../services/api';
+import { getOwnerId } from '../../../../services/authStorage';
 import { DEFAULT_FACILITIES } from '../../../../constants';
 
 // ─── Slot yardımcı fonksiyonları ─────────────────────────────────────────────
@@ -135,7 +136,7 @@ export const useBusinessPitchSettings = () => {
 
     const fetchPitchData = async () => {
         try {
-            const ownerId = localStorage.getItem('ownerId');
+            const ownerId = getOwnerId();
             let busId: string | null = null;
             if (ownerId) {
                 const ownerResp = await api.get(`/business-owner/${ownerId}`);

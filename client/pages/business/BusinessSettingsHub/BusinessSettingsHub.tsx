@@ -3,15 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { Building2, MapPin, Lock, LogOut, ChevronRight, CreditCard, Settings } from 'lucide-react';
 import { BusinessNavbar } from '../../../components/Business/BusinessNavbar';
 import { ConfirmModal } from '../../../components/Modals/ConfirmModal';
+import { useAuth } from '../../../contexts/AuthContext';
 
 export const BusinessSettingsHub: React.FC = () => {
     const navigate = useNavigate();
     const [showConfirm, setShowConfirm] = useState(false);
+    const { logout } = useAuth();
 
-    const handleLogout = () => {
-        localStorage.removeItem('token');
-        localStorage.removeItem('role');
-        localStorage.removeItem('ownerId');
+    const handleLogout = async () => {
+        await logout();
         navigate('/business/login');
     };
 

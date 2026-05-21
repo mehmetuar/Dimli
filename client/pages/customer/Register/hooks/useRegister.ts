@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../../../services/api';
 import { initializePushNotifications } from '../../../../services/pushNotificationService';
+import { useAuth } from '../../../../contexts/AuthContext';
 
 export const useRegister = () => {
     const [step, setStep] = useState(1);
@@ -34,6 +35,7 @@ export const useRegister = () => {
     const [uploadLoading, setUploadLoading] = useState(false);
 
     const navigate = useNavigate();
+    const { loginAsCustomer } = useAuth();
 
     // Geri sayım timer'ı
     useEffect(() => {
@@ -231,7 +233,7 @@ export const useRegister = () => {
             }
 
             const token = loginResponse.data.access_token;
-            localStorage.setItem('token', token);
+            await loginAsCustomer(token);
             setTimeout(() => initializePushNotifications(), 2000);
 
             // Adım 3: Seçili fotoğraf varsa şimdi yükle (artık JWT var)

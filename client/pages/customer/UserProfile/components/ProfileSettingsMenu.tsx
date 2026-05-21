@@ -2,6 +2,7 @@ import React from 'react';
 import { User, Settings, LogOut, ChevronRight, Building2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useModalBodyClass } from '../../../../utils/useModalBodyClass';
+import { useAuth } from '../../../../contexts/AuthContext';
 
 interface ProfileSettingsMenuProps {
     isMenuOpen: boolean;
@@ -10,6 +11,7 @@ interface ProfileSettingsMenuProps {
 
 export const ProfileSettingsMenu: React.FC<ProfileSettingsMenuProps> = ({ isMenuOpen, setIsMenuOpen }) => {
     const navigate = useNavigate();
+    const { logout } = useAuth();
     useModalBodyClass(isMenuOpen);
 
     if (!isMenuOpen) return null;
@@ -58,7 +60,7 @@ export const ProfileSettingsMenu: React.FC<ProfileSettingsMenuProps> = ({ isMenu
                     </button>
 
                     <button
-                        onClick={() => { localStorage.removeItem('token'); navigate('/login'); }}
+                        onClick={async () => { await logout(); navigate('/login'); }}
                         className="w-full flex items-center gap-4 p-4 rounded-2xl bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-all active:scale-95 mt-2"
                     >
                         <div className="bg-red-500/20 p-2 rounded-full text-red-400">

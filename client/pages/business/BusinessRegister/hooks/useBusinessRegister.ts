@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import api from '../../../../services/api';
 import { purchasePlan, linkRevenueCatUser } from '../../../../services/revenuecatService';
+import { useAuth } from '../../../../contexts/AuthContext';
 
 export const SUBSCRIPTION_PLANS: Record<number, { label: string; price: number; planType: string }> = {
     1: { label: 'Starter', price: 1709.99, planType: '1_pitch' },
@@ -40,6 +41,7 @@ export const useBusinessRegister = () => {
     const [error, setError] = useState('');
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const [isLoading, setIsLoading] = useState(false);
+    const { loginAsBusiness } = useAuth();
     const [isGeocoding, setIsGeocoding] = useState(false);
 
     // OTP states
@@ -267,9 +269,7 @@ export const useBusinessRegister = () => {
 
             // Otomatik giriş: kayıt yanıtındaki token'ı sakla
             if (response.data?.access_token) {
-                localStorage.setItem('token', response.data.access_token);
-                localStorage.setItem('ownerId', response.data.ownerId);
-                localStorage.setItem('role', 'business_owner');
+                await loginAsBusiness(response.data.access_token, response.data.ownerId);
             }
 
             // ADIM 4: Anonim RC kullanıcısını gerçek ownerId'ye bağla
