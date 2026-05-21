@@ -146,9 +146,18 @@ export class AdminController {
     // ─── Chat Ban ─────────────────────────────────────────────────────────────
 
     @UseGuards(AdminJwtAuthGuard)
+    @Get('users/banned')
+    async getBannedUsers() {
+        return this.adminService.getBannedUsers();
+    }
+
+    @UseGuards(AdminJwtAuthGuard)
     @Post('users/:userId/chat-ban')
-    async chatBanUser(@Param('userId') userId: string) {
-        return this.adminService.chatBanUser(userId);
+    async chatBanUser(
+        @Param('userId') userId: string,
+        @Body('durationHours') durationHours?: number,
+    ) {
+        return this.adminService.chatBanUser(userId, durationHours);
     }
 
     @UseGuards(AdminJwtAuthGuard)

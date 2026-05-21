@@ -63,6 +63,12 @@ export class User {
     @Column({ default: false })
     isChatBanned: boolean;
 
+    @Column({ type: 'timestamptz', nullable: true })
+    chatBannedAt: Date | null;
+
+    @Column({ type: 'timestamptz', nullable: true })
+    chatBanExpiry: Date | null;
+
     @Index()
     @Column('float', { nullable: true })
     latitude: number | null;

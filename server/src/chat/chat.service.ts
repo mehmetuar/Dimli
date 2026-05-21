@@ -342,7 +342,13 @@ export class ChatService {
         if (!isSystemMessage) {
             const sender = await this.userRepository.findOne({ where: { id: senderId } });
             if (sender?.isChatBanned) {
-                throw new ForbiddenException('Mesaj engeliniz var. Lütfen destek ile iletişime geçin.');
+                if (sender.chatBanExpiry && sender.chatBanExpiry < new Date()) {
+                    await this.userRepository.update(sender.id, {
+                        isChatBanned: false, chatBannedAt: null, chatBanExpiry: null,
+                    });
+                } else {
+                    throw new ForbiddenException('Mesaj engeliniz var. Lütfen destek ile iletişime geçin.');
+                }
             }
 
             const statusType = await this.getChannelMatchStatusType(channelId);

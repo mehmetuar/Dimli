@@ -520,7 +520,7 @@ export class AdminService {
     async getReports(status?: ReportStatus) {
         return this.userReportRepository.find({
             where: status ? { status } : {},
-            relations: ['reporter', 'reportedUser'],
+            relations: ['reporter', 'reportedUser', 'message'],
             order: { createdAt: 'DESC' },
         });
     }
@@ -538,10 +538,14 @@ export class AdminService {
 
     // ─── Chat Ban ─────────────────────────────────────────────────────────────
 
-    async chatBanUser(userId: string) {
+    async chatBanUser(userId: string, durationHours?: number) {
         const user = await this.userRepository.findOne({ where: { id: userId } });
         if (!user) throw new NotFoundException('Kullanıcı bulunamadı.');
         user.isChatBanned = true;
+        user.chatBannedAt = new Date();
+        user.chatBanExpiry = durationHours
+            ? new Date(Date.now() + durationHours * 60 * 60 * 1000)
+            : null;
         await this.userRepository.save(user);
 
         const notification = this.notificationRepository.create({
@@ -560,8 +564,33 @@ export class AdminService {
         const user = await this.userRepository.findOne({ where: { id: userId } });
         if (!user) throw new NotFoundException('Kullanıcı bulunamadı.');
         user.isChatBanned = false;
+        user.chatBannedAt = null;
+        user.chatBanExpiry = null;
         await this.userRepository.save(user);
         return { success: true };
+    }
+
+    async getBannedUsers() {
+        const users = await this.userRepository.find({
+            where: { isChatBanned: true },
+            select: ['id', 'username', 'full_name', 'chatBannedAt', 'chatBanExpiry'],
+            order: { chatBannedAt: 'DESC' },
+        });
+        const now = new Date();
+        const expiredIds: string[] = [];
+        const active = users.filter(u => {
+            if (u.chatBanExpiry && u.chatBanExpiry < now) {
+                expiredIds.push(u.id);
+                return false;
+            }
+            return true;
+        });
+        if (expiredIds.length) {
+            await this.userRepository.update(expiredIds, {
+                isChatBanned: false, chatBannedAt: null, chatBanExpiry: null,
+            });
+        }
+        return active;
     }
 
     /**

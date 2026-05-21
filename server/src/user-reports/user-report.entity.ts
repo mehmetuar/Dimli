@@ -1,5 +1,6 @@
 import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { User } from '../users/user.entity';
+import { ChatMessage } from '../chat/chat-message.entity';
 
 export type ReportStatus = 'pending' | 'reviewed' | 'dismissed';
 
@@ -27,6 +28,10 @@ export class UserReport {
 
     @Column({ nullable: true, type: 'varchar' })
     messageId: string | null;
+
+    @ManyToOne(() => ChatMessage, { nullable: true, onDelete: 'SET NULL' })
+    @JoinColumn({ name: 'messageId' })
+    message: ChatMessage | null;
 
     @Column({ nullable: true, type: 'varchar' })
     channelId: string | null;
