@@ -15,8 +15,8 @@ export const TeamSettingsHeader: React.FC<TeamSettingsHeaderProps> = ({
     onSave,
 }) => {
     return (
-        <header className="sticky top-0 z-10 bg-pitch/95 backdrop-blur-md border-b border-slate-700/50">
-            <div className="flex items-center gap-3 px-4 py-3">
+        <header className="bg-pitch/95 backdrop-blur-sm border-b border-slate-800/60">
+            <div className="flex items-center gap-3 px-4 py-4 max-w-lg mx-auto">
                 <button
                     onClick={() => navigate(-1)}
                     className="p-2 -ml-2 rounded-full hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"

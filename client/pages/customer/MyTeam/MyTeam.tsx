@@ -107,14 +107,14 @@ export const MyTeam: React.FC = () => {
             />
 
             {!myTeam ? (
-                <div className="px-1 xs:px-2 sm:px-3">
+                <div className="px-1">
                     <NoTeamView
                         setIsJoinTeamModalOpen={modals.setIsJoinTeamModalOpen}
                         setIsCreateTeamModalOpen={modals.setIsCreateTeamModalOpen}
                     />
                 </div>
             ) : (
-                <div className="animate-fade-in space-y-6 px-1 xs:px-2 sm:px-3">
+                <div className="animate-fade-in space-y-6 px-1">
                     <TeamHeaderCard
                         myTeam={myTeam}
                         bio={bio}

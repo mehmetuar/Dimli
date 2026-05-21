@@ -40,7 +40,7 @@ export const TeamSettings: React.FC = () => {
     const selectedLevel = LEVELS.find(l => l.value === level) || LEVELS[0];
 
     return (
-        <div className="min-h-screen bg-pitch pt-safe-top">
+        <div className="fixed inset-0 bg-pitch flex flex-col overflow-hidden" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
             <TeamSettingsHeader
                 isCaptain={isCaptain}
                 isSaving={isSaving}
@@ -62,59 +62,61 @@ export const TeamSettings: React.FC = () => {
                 </div>
             )}
 
-            <div className="px-4 py-5 space-y-4 pb-28">
+            <div className="flex-1 overflow-y-auto overscroll-contain scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
+                <div className="max-w-lg mx-auto px-4 py-5 space-y-4 pb-10">
 
-                {/* Canlı Önizleme */}
-                <TeamPreviewCard
-                    name={name}
-                    logoUrl={logoUrl}
-                    primaryColor={primaryColor}
-                    secondaryColor={secondaryColor}
-                    levelLabel={selectedLevel.label}
-                    levelStyle={`${selectedLevel.bg} ${selectedLevel.color}`}
-                />
+                    {/* Canlı Önizleme */}
+                    <TeamPreviewCard
+                        name={name}
+                        logoUrl={logoUrl}
+                        primaryColor={primaryColor}
+                        secondaryColor={secondaryColor}
+                        levelLabel={selectedLevel.label}
+                        levelStyle={`${selectedLevel.bg} ${selectedLevel.color}`}
+                    />
 
-                {/* Takım Kimliği */}
-                <TeamSettingsForm
-                    name={name} setName={setName}
-                    level={level} setLevel={setLevel}
-                    isCaptain={isCaptain}
-                    LEVELS={LEVELS}
-                />
+                    {/* Takım Kimliği */}
+                    <TeamSettingsForm
+                        name={name} setName={setName}
+                        level={level} setLevel={setLevel}
+                        isCaptain={isCaptain}
+                        LEVELS={LEVELS}
+                    />
 
-                {/* Logo & Görsel */}
-                <TeamLogoManager
-                    logoUrl={logoUrl}
-                    teamName={name}
-                    primaryColor={primaryColor}
-                    secondaryColor={secondaryColor}
-                    isCaptain={isCaptain}
-                    isUploading={isUploadingLogo}
-                    onUpload={uploadLogo}
-                    onRemove={removeLogo}
-                />
+                    {/* Logo & Görsel */}
+                    <TeamLogoManager
+                        logoUrl={logoUrl}
+                        teamName={name}
+                        primaryColor={primaryColor}
+                        secondaryColor={secondaryColor}
+                        isCaptain={isCaptain}
+                        isUploading={isUploadingLogo}
+                        onUpload={uploadLogo}
+                        onRemove={removeLogo}
+                    />
 
-                {/* Takım Renkleri */}
-                <TeamColorPicker
-                    primaryColor={primaryColor} setPrimaryColor={setPrimaryColor}
-                    secondaryColor={secondaryColor} setSecondaryColor={setSecondaryColor}
-                    isCaptain={isCaptain}
-                />
+                    {/* Takım Renkleri */}
+                    <TeamColorPicker
+                        primaryColor={primaryColor} setPrimaryColor={setPrimaryColor}
+                        secondaryColor={secondaryColor} setSecondaryColor={setSecondaryColor}
+                        isCaptain={isCaptain}
+                    />
 
-                {/* Kaydet (alt) — sadece küçük ekranlar için yedek */}
-                {isCaptain && (
-                    <button
-                        onClick={handleSave}
-                        disabled={isSaving}
-                        className="w-full flex items-center justify-center gap-2 bg-turf-600 hover:bg-turf-500 disabled:opacity-50 text-white font-black text-base py-4 rounded-2xl transition-all shadow-lg shadow-turf-600/20 active:scale-95"
-                    >
-                        {isSaving ? (
-                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        ) : (
-                            'Değişiklikleri Kaydet'
-                        )}
-                    </button>
-                )}
+                    {/* Kaydet (alt) */}
+                    {isCaptain && (
+                        <button
+                            onClick={handleSave}
+                            disabled={isSaving}
+                            className="w-full flex items-center justify-center gap-2 bg-turf-600 hover:bg-turf-500 disabled:opacity-50 text-white font-black text-base py-4 rounded-2xl transition-all shadow-lg shadow-turf-600/20 active:scale-95"
+                        >
+                            {isSaving ? (
+                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            ) : (
+                                'Değişiklikleri Kaydet'
+                            )}
+                        </button>
+                    )}
+                </div>
             </div>
         </div>
     );
