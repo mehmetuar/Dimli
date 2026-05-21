@@ -46,6 +46,7 @@ export const Chat: React.FC = () => {
     confirmAction, confirmTitle, confirmMessage, confirmIsDangerous, confirmButtonText,
     setConfirmAction, setConfirmTitle, setConfirmMessage, setConfirmIsDangerous, setConfirmButtonText,
     successModalOpen, setSuccessModalOpen, successModalMessage, successModalType,
+    banModalExpiry, setBanModalExpiry,
     handleSend, handleGetTactics, handleDeleteChannel, handleOpenMatchDetail,
     handleCancelMatch, handleCancelRequest, handleUndoCancelRequest,
     handleAcceptProposal, handleAcceptRematch, handleInviteJokerToMatch, handleCancelJokerNegotiation,
@@ -149,6 +150,13 @@ export const Chat: React.FC = () => {
     }
   }, [keyboardHeight]);
 
+  // Ban modalı açılınca klavyeyi kapat
+  useEffect(() => {
+    if (banModalExpiry !== undefined) {
+      (document.activeElement as HTMLElement)?.blur();
+    }
+  }, [banModalExpiry]);
+
 
   if (!selectedChannelId) {
     return (
@@ -189,7 +197,7 @@ export const Chat: React.FC = () => {
             )}
           </div>
 
-          <div className="px-4 pb-4 space-y-4" style={{ minHeight: 'calc(100% + 1px)' }}>
+          <div className="px-4 pb-4 space-y-2" style={{ minHeight: 'calc(100% + 1px)' }}>
             <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Aktif Sohbetler</h3>
 
             {isLoadingChannels ? (
@@ -206,6 +214,7 @@ export const Chat: React.FC = () => {
                 <ChannelItem
                   key={channel.id}
                   channel={channel}
+                  currentUserId={currentUser?.id}
                   blockedUserIds={blockedUserIds}
                   onClick={() => setSelectedChannelId(channel.id)}
                   onLongPress={() => setOptionsModalChannel(channel)}
@@ -960,6 +969,45 @@ export const Chat: React.FC = () => {
         onClose={closeAll}
         onSubmit={(note) => handleReport(activeChannel?.id, note)}
       />
+
+      {/* Chat ban modal */}
+      {banModalExpiry !== undefined && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 px-6">
+          <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 w-full max-w-sm shadow-2xl flex flex-col items-center gap-4">
+            {/* Özel chat-ban ikonu */}
+            <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/25 flex items-center justify-center">
+              <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M6 6C6 4.34 7.34 3 9 3H27C28.66 3 30 4.34 30 6V21C30 22.66 28.66 24 27 24H21L17 29L13 24H9C7.34 24 6 22.66 6 21V6Z" fill="#EF444420" stroke="#EF4444" strokeWidth="1.5" strokeLinejoin="round"/>
+                <line x1="11" y1="8" x2="25" y2="19" stroke="#EF4444" strokeWidth="2" strokeLinecap="round"/>
+                <line x1="25" y1="8" x2="11" y2="19" stroke="#EF4444" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
+            </div>
+            <div className="text-center space-y-1.5">
+              <p className="text-white font-black text-base">Sohbet Yasağınız Var</p>
+              <p className="text-slate-400 text-sm leading-relaxed">
+                {banModalExpiry
+                  ? (() => {
+                      const diff = new Date(banModalExpiry).getTime() - Date.now();
+                      if (diff <= 0) return 'Yasak süreniz dolmuş, lütfen tekrar deneyin.';
+                      const h = Math.floor(diff / 3_600_000);
+                      const m = Math.floor((diff % 3_600_000) / 60_000);
+                      const label = h >= 24
+                        ? `${Math.floor(h / 24)} gün ${h % 24} saat`
+                        : h > 0 ? `${h} saat ${m} dakika` : `${m} dakika`;
+                      return `Hesabınıza sohbet yasağı uygulandı. Yasağınızın bitmesine ${label} kaldı.`;
+                    })()
+                  : 'Hesabınıza süresiz sohbet yasağı uygulandı. Lütfen destek ile iletişime geçin.'}
+              </p>
+            </div>
+            <button
+              onClick={() => setBanModalExpiry(undefined)}
+              className="w-full py-3 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-bold text-sm transition-colors"
+            >
+              Anladım
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

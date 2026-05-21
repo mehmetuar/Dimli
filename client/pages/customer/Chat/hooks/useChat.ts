@@ -40,6 +40,9 @@ export const useChat = () => {
     const [successModalMessage, setSuccessModalMessage] = useState('');
     const [successModalType, setSuccessModalType] = useState<any>('DEFAULT');
 
+    // Ban modal: null = kapalı, { expiry: ISO string | null } = açık
+    const [banModalExpiry, setBanModalExpiry] = useState<string | null | undefined>(undefined);
+
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [hasMore, setHasMore] = useState(false);
     const [loadingMore, setLoadingMore] = useState(false);
@@ -239,8 +242,11 @@ export const useChat = () => {
             }));
             setMessages(mappedMessages);
             await api.post(`/chat/channels/${selectedChannelId}/read`);
-        } catch (error) {
-            console.error('Failed to send message:', error);
+        } catch (error: any) {
+            const data = error.response?.data;
+            if (data?.statusCode === 403 && 'chatBanExpiry' in data) {
+                setBanModalExpiry(data.chatBanExpiry ?? null);
+            }
         }
     };
 
@@ -473,6 +479,7 @@ export const useChat = () => {
         confirmIsDangerous, setConfirmIsDangerous,
         confirmButtonText, setConfirmButtonText,
         successModalOpen, setSuccessModalOpen, successModalMessage, successModalType,
+        banModalExpiry, setBanModalExpiry,
         handleSend, handleGetTactics, handleDeleteChannel, handleOpenMatchDetail,
         handleCancelMatch, handleCancelRequest, handleUndoCancelRequest,
         handleAcceptProposal, handleAcceptRematch, handleInviteJokerToMatch, handleCancelJokerNegotiation,

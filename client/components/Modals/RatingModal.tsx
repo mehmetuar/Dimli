@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Star, Building2, Shield } from 'lucide-react';
 import { PendingRating } from '../../types';
 import { useModalBodyClass } from '../../utils/useModalBodyClass';
@@ -41,6 +41,7 @@ const FP_LABELS: Record<number, string> = { 1: 'Çok Kötü', 2: 'Kötü', 3: 'O
 
 export const RatingModal: React.FC<RatingModalProps> = ({ pending, onSubmit, onSkip }) => {
     useModalBodyClass(true);
+    useEffect(() => { (document.activeElement as HTMLElement)?.blur(); }, []);
     const hasBothSteps = pending.needsFairPlayRating && !!pending.opponentTeamId;
 
     // If business is already rated, start directly at fairplay step

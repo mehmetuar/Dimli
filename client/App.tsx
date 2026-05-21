@@ -17,7 +17,7 @@ import { initRevenueCat } from './services/revenuecatService';
 import { LocationProvider, useLocationContext } from './contexts/LocationContext';
 import { FilterProvider } from './contexts/FilterContext';
 import { SocketProvider } from './contexts/SocketContext';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { getToken, getRole } from './services/authStorage';
 import { useKeyboardScroll } from './utils/useKeyboardScroll';
 
@@ -99,6 +99,7 @@ function AppContent() {
   useKeyboardScroll();
   const location = useLocation();
   const navigate = useNavigate();
+  const { isReady } = useAuth();
   const isAuthPage =
     location.pathname === '/login' ||
     location.pathname === '/register' ||
@@ -333,6 +334,9 @@ function AppContent() {
       if (stateListener) stateListener.remove();
     };
   }, [isAuthPage]);
+
+  // Auth durumu belirlenene kadar hiçbir şey render etme — Navbar flash'ını önler
+  if (!isReady) return <PageLoader />;
 
   return (
     <div className="flex flex-col h-dvh bg-pitch text-white overflow-hidden">

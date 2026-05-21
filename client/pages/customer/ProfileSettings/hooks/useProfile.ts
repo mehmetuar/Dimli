@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api, { getProfile, updateProfile, changePassword } from '../../../../services/api';
 import { useAuth } from '../../../../contexts/AuthContext';
+
+export type UsernameStatus = null | 'checking' | 'available' | 'taken';
 
 export const useProfile = () => {
     const navigate = useNavigate();
@@ -13,10 +15,15 @@ export const useProfile = () => {
     const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [originalUsername, setOriginalUsername] = useState('');
+    const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>(null);
+    const usernameTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const [profileData, setProfileData] = useState<{
+        id: string;
         full_name: string;
         username: string;
+        phone: string;
         birthDate: string;
         position: string;
         secondaryPosition: string;
@@ -24,8 +31,10 @@ export const useProfile = () => {
         location: string;
         avatarUrl: string | null;
     }>({
+        id: '',
         full_name: '',
         username: '',
+        phone: '',
         birthDate: '',
         position: '',
         secondaryPosition: '',
@@ -44,6 +53,30 @@ export const useProfile = () => {
         loadProfile();
     }, []);
 
+    const checkUsernameAvailability = useCallback((username: string, original: string) => {
+        if (usernameTimerRef.current) {
+            clearTimeout(usernameTimerRef.current);
+        }
+        if (username === original || username.length < 3) {
+            setUsernameStatus(null);
+            return;
+        }
+        setUsernameStatus('checking');
+        usernameTimerRef.current = setTimeout(async () => {
+            try {
+                const res = await api.get('/users/check-username', { params: { username } });
+                setUsernameStatus(res.data.available ? 'available' : 'taken');
+            } catch {
+                setUsernameStatus(null);
+            }
+        }, 500);
+    }, []);
+
+    // Trigger username check whenever username field changes
+    useEffect(() => {
+        checkUsernameAvailability(profileData.username, originalUsername);
+    }, [profileData.username]);
+
     const loadProfile = async () => {
         setLoadError(false);
         setLoading(true);
@@ -51,9 +84,12 @@ export const useProfile = () => {
         const timer = setTimeout(() => controller.abort(), 12000);
         try {
             const user = await getProfile();
+            const username = user.username || '';
             setProfileData({
+                id: user.id || '',
                 full_name: user.full_name || '',
-                username: user.username || '',
+                username,
+                phone: user.phone || '',
                 birthDate: user.birthDate ? user.birthDate.split('T')[0] : '',
                 position: user.position || '',
                 secondaryPosition: user.secondaryPosition || '',
@@ -61,9 +97,9 @@ export const useProfile = () => {
                 location: user.location || '',
                 avatarUrl: user.avatarUrl || null,
             });
+            setOriginalUsername(username);
         } catch (error: any) {
             if (!error?.response) {
-                // Network hatası veya timeout — server erişilemez
                 window.dispatchEvent(new CustomEvent('auth:sessionExpired'));
             } else {
                 setLoadError(true);
@@ -130,6 +166,16 @@ export const useProfile = () => {
 
     const handleProfileUpdate = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (usernameStatus === 'taken') {
+            showError('Bu kullanıcı adı zaten kullanılıyor.');
+            return;
+        }
+        if (usernameStatus === 'checking') {
+            showError('Kullanıcı adı kontrol ediliyor, lütfen bekleyin.');
+            return;
+        }
+
         setSaving(true);
         setMessage(null);
 
@@ -146,10 +192,16 @@ export const useProfile = () => {
 
         try {
             await updateProfile(payload);
+            setOriginalUsername(profileData.username);
+            setUsernameStatus(null);
             showSuccess('Profil başarıyla güncellendi.');
         } catch (error: any) {
             console.error(error);
-            showError('Profil güncellenirken bir hata oluştu.');
+            if (error.response?.status === 409) {
+                showError(error.response.data.message || 'Bu kullanıcı adı zaten kullanılıyor.');
+            } else {
+                showError('Profil güncellenirken bir hata oluştu.');
+            }
         } finally {
             setSaving(false);
         }
@@ -202,6 +254,8 @@ export const useProfile = () => {
         setMessage,
         profileData,
         setProfileData,
+        originalUsername,
+        usernameStatus,
         passwordData,
         setPasswordData,
         uploadAvatar,

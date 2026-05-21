@@ -8,10 +8,20 @@ interface ChannelItemProps {
     channel: any;
     onClick: () => void;
     onLongPress: () => void;
+    currentUserId?: string;
     blockedUserIds?: string[];
 }
 
-export const ChannelItem: React.FC<ChannelItemProps> = ({ channel, onClick, onLongPress, blockedUserIds }) => {
+// iOS native image context menu'yü engeller
+const noCalloutStyle: React.CSSProperties = {
+    WebkitTouchCallout: 'none' as any,
+    userSelect: 'none',
+    pointerEvents: 'none',
+};
+
+export const ChannelItem: React.FC<ChannelItemProps> = ({
+    channel, onClick, onLongPress, currentUserId, blockedUserIds,
+}) => {
     const [startLongPress, setStartLongPress] = useState(false);
     const [isLongPressTriggered, setIsLongPressTriggered] = useState(false);
     const timerRef = useRef<any>();
@@ -25,36 +35,131 @@ export const ChannelItem: React.FC<ChannelItemProps> = ({ channel, onClick, onLo
         } else {
             clearTimeout(timerRef.current);
         }
-
         return () => clearTimeout(timerRef.current);
     }, [startLongPress, onLongPress]);
 
-    const handleMouseDown = () => {
-        setStartLongPress(true);
-        setIsLongPressTriggered(false);
-    };
-
-    const handleMouseUp = () => {
-        setStartLongPress(false);
-    };
-
-    const handleMouseLeave = () => {
-        setStartLongPress(false);
-    };
-
+    const handleMouseDown = () => { setStartLongPress(true); setIsLongPressTriggered(false); };
+    const handleMouseUp = () => { setStartLongPress(false); };
+    const handleMouseLeave = () => { setStartLongPress(false); };
     const handleClick = (e: React.MouseEvent) => {
-        if (isLongPressTriggered) {
-            e.stopPropagation();
-            return;
-        }
+        if (isLongPressTriggered) { e.stopPropagation(); return; }
         onClick();
     };
 
     const statusInfo = getMatchStatusInfo(channel.reservation);
-    let bgClass = statusInfo ? statusInfo.bgTint : '';
-    if (channel.type === 'JOKER_NEGOTIATION') {
-        bgClass = 'bg-yellow-500/5';
-    }
+    const isJoker = channel.type === 'JOKER_NEGOTIATION';
+    const isGroup = channel.type === 'MATCH_GROUP';
+    const bgClass = isJoker ? 'bg-yellow-500/5' : (statusInfo?.bgTint ?? '');
+
+    // Son mesaj satırı: gönderen + içerik
+    const renderLastMessage = () => {
+        if (startLongPress) return <span className="text-slate-500 italic">Seçenekler...</span>;
+
+        const lm = channel.lastMessage;
+        if (!lm) return <span className="text-slate-600">Sohbete girmek için tıkla</span>;
+
+        const senderBlocked = !lm.isSystemMessage && lm.senderId && blockedUserIds?.includes(lm.senderId);
+        if (senderBlocked) return <span className="italic text-slate-500">Mesaj gizlendi</span>;
+
+        const content = lm.content ? stripSystemMessageMarkers(lm.content) : '';
+
+        // Sistem mesajı
+        if (lm.isSystemMessage || !lm.senderId) {
+            return <span className="text-slate-500">{content}</span>;
+        }
+
+        // Gönderen adı
+        let senderLabel: string;
+        if (lm.senderId === currentUserId) {
+            senderLabel = 'Sen';
+        } else {
+            senderLabel = lm.sender?.full_name || lm.sender?.username || '';
+        }
+
+        return (
+            <>
+                {senderLabel && (
+                    <span className="text-slate-300 font-medium">{senderLabel}: </span>
+                )}
+                <span>{content}</span>
+            </>
+        );
+    };
+
+    const renderAvatar = () => {
+        const ad = channel.avatarData;
+
+        // VS maçı: iki takım logosu
+        if (
+            isGroup &&
+            ad?.matchType !== 'kendi_aramizda' &&
+            ad?.awayTeamLogo != null
+        ) {
+            return (
+                <div className="relative w-12 h-12 flex-shrink-0">
+                    <div className="w-12 h-12 bg-slate-900 rounded-2xl border border-slate-700/80 overflow-hidden relative">
+                        <img
+                            src={ad.homeTeamLogo || teamAvatarFallback(ad.homeTeamName || '')}
+                            alt="" draggable={false} style={noCalloutStyle}
+                            className="w-[26px] h-[26px] rounded-lg object-cover absolute top-1 left-1"
+                        />
+                        <span className="absolute inset-0 flex items-center justify-center text-[6px] font-black text-orange-500 leading-none z-10">VS</span>
+                        <img
+                            src={ad.awayTeamLogo || teamAvatarFallback(ad.awayTeamName || '')}
+                            alt="" draggable={false} style={noCalloutStyle}
+                            className="w-[26px] h-[26px] rounded-lg object-cover absolute bottom-1 right-1 border-2 border-slate-900"
+                        />
+                    </div>
+                    <div className="absolute -bottom-0.5 -right-0.5 bg-turf-600 p-0.5 rounded-md border border-slate-800 z-20">
+                        <Users className="w-2.5 h-2.5 text-white" />
+                    </div>
+                </div>
+            );
+        }
+
+        // Kendi aramızda / tek logo
+        if (isGroup) {
+            return (
+                <div className="relative flex-shrink-0">
+                    <img
+                        src={ad?.homeTeamLogo || teamAvatarFallback(ad?.homeTeamName || channel.name)}
+                        alt="" draggable={false} style={noCalloutStyle}
+                        className="w-12 h-12 rounded-2xl object-cover"
+                    />
+                    <div className="absolute -bottom-0.5 -right-0.5 bg-turf-600 p-0.5 rounded-md border border-slate-800">
+                        <Users className="w-2.5 h-2.5 text-white" />
+                    </div>
+                </div>
+            );
+        }
+
+        // Joker müzakeresi
+        if (isJoker) {
+            return (
+                <div className="relative flex-shrink-0">
+                    <img
+                        src={ad?.otherUserAvatar || userAvatarFallback(ad?.otherUserName || channel.name)}
+                        alt="" draggable={false} style={noCalloutStyle}
+                        className="w-12 h-12 rounded-full object-cover"
+                    />
+                    <div className="absolute -bottom-0.5 -right-0.5 bg-yellow-500 p-0.5 rounded-md border border-slate-800">
+                        <Star className="w-2.5 h-2.5 text-slate-900 fill-slate-900" />
+                    </div>
+                </div>
+            );
+        }
+
+        // DM / fallback
+        return (
+            <div className="relative flex-shrink-0">
+                <img
+                    src={channel.avatarUrl || 'https://picsum.photos/200'}
+                    alt="" draggable={false} style={noCalloutStyle}
+                    className="w-12 h-12 rounded-full object-cover"
+                />
+            </div>
+        );
+    };
 
     return (
         <div
@@ -64,119 +169,67 @@ export const ChannelItem: React.FC<ChannelItemProps> = ({ channel, onClick, onLo
             onTouchStart={handleMouseDown}
             onTouchEnd={handleMouseUp}
             onClick={handleClick}
-            className={`bg-slate-800 ${bgClass} p-4 rounded-2xl border border-slate-700/50 flex gap-4 items-center hover:bg-slate-750 active:scale-95 transition-all cursor-pointer select-none`}
+            className={`bg-slate-800/60 ${bgClass} px-4 py-3 rounded-2xl border border-slate-700/40 flex gap-3 items-center active:scale-[0.98] active:bg-slate-700/60 transition-all cursor-pointer select-none`}
         >
-            {(() => {
-                const ad = channel.avatarData;
+            {/* Avatar */}
+            {renderAvatar()}
 
-                // ── MATCH_GROUP: VS (iki takım) ───────────────────────────────
-                if (
-                    channel.type === 'MATCH_GROUP' &&
-                    ad?.matchType !== 'kendi_aramizda' &&
-                    ad?.awayTeamLogo !== undefined &&
-                    ad?.awayTeamLogo !== null
-                ) {
-                    return (
-                        <div className="relative w-14 h-14 bg-slate-900 rounded-2xl border border-slate-700 flex-shrink-0 overflow-visible">
-                            {/* Sol üst: Home team */}
-                            <img
-                                src={ad.homeTeamLogo || teamAvatarFallback(ad.homeTeamName || '')}
-                                alt={ad.homeTeamName}
-                                className="w-[30px] h-[30px] rounded-lg object-cover absolute top-1 left-1 z-10"
-                            />
-                            {/* Merkez: VS */}
-                            <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
-                                <span className="text-[7px] font-black text-orange-500 bg-slate-950/90 px-1 py-px rounded leading-none tracking-wider">VS</span>
-                            </div>
-                            {/* Sağ alt: Away team */}
-                            <img
-                                src={ad.awayTeamLogo || teamAvatarFallback(ad.awayTeamName || '')}
-                                alt={ad.awayTeamName}
-                                className="w-[30px] h-[30px] rounded-lg object-cover absolute bottom-1 right-1 z-10 border-2 border-slate-900"
-                            />
-                            {/* Users badge */}
-                            <div className="absolute -bottom-1 -right-1 bg-turf-600 p-1 rounded-lg border border-slate-800 z-30">
-                                <Users className="w-3 h-3 text-white" />
-                            </div>
-                        </div>
-                    );
-                }
+            {/* İçerik */}
+            <div className="flex-1 min-w-0 flex flex-col justify-center gap-1.5">
 
-                // ── MATCH_GROUP: kendi aramizda veya rakip yoksa tek logo ─────
-                if (channel.type === 'MATCH_GROUP') {
-                    return (
-                        <div className="relative flex-shrink-0">
-                            <img
-                                src={ad?.homeTeamLogo || teamAvatarFallback(ad?.homeTeamName || channel.name)}
-                                alt={channel.name}
-                                className="w-14 h-14 rounded-2xl object-cover"
-                            />
-                            <div className="absolute -bottom-1 -right-1 bg-turf-600 p-1 rounded-lg border border-slate-800">
-                                <Users className="w-3 h-3 text-white" />
-                            </div>
-                        </div>
-                    );
-                }
-
-                // ── JOKER_NEGOTIATION: karşı tarafın fotoğrafı ───────────────
-                if (channel.type === 'JOKER_NEGOTIATION') {
-                    return (
-                        <div className="relative flex-shrink-0">
-                            <img
-                                src={ad?.otherUserAvatar || userAvatarFallback(ad?.otherUserName || channel.name)}
-                                alt={ad?.otherUserName || channel.name}
-                                className="w-14 h-14 rounded-full object-cover"
-                            />
-                            <div className="absolute -bottom-1 -right-1 bg-yellow-500 p-1 rounded-lg border border-slate-800 shadow-lg shadow-yellow-500/20">
-                                <Star className="w-3 h-3 text-slate-900 fill-slate-900" />
-                            </div>
-                        </div>
-                    );
-                }
-
-                // ── Fallback (DM / diğer) ─────────────────────────────────────
-                return (
-                    <div className="relative flex-shrink-0">
-                        <img
-                            src={channel.avatarUrl || 'https://picsum.photos/200'}
-                            alt={channel.name}
-                            className="w-14 h-14 rounded-full object-cover"
-                        />
-                    </div>
-                );
-            })()}
-            <div className="flex-1 min-w-0">
-                <div className="flex justify-between items-start">
-                    <h4 className="text-white font-bold truncate pr-2 flex items-center">
-                        {channel.type === 'JOKER_NEGOTIATION' && <span className="text-yellow-500 text-xs font-black uppercase tracking-wider mr-2 bg-yellow-500/10 px-2 py-0.5 rounded-full border border-yellow-500/20">Joker DM</span>}
-                        {channel.name}
-                        <MatchStatusBadge reservation={channel.reservation} />
-                    </h4>
-                    <div className="flex flex-col items-end gap-1">
-                        <span className={`text-[10px] whitespace-nowrap ${channel.unreadCount > 0 ? 'text-blue-500 font-bold' : 'text-slate-500'}`}>
-                            {formatMessageDate(channel.lastActivityAt)}
+                {/* Satır 1: Kanal adı + status ikonu */}
+                <div className="flex items-center gap-1 min-w-0">
+                    {isJoker && (
+                        <span
+                            className="text-yellow-500 font-black uppercase tracking-wider bg-yellow-500/10 px-1.5 py-0.5 rounded-full border border-yellow-500/20 flex-shrink-0"
+                            style={{ fontSize: 'clamp(9px, 2.4vw, 11px)' }}
+                        >
+                            Joker
                         </span>
-                        {channel.unreadCount > 0 && (
-                            <div className="bg-blue-500 text-white text-[10px] font-bold min-w-[1.25rem] h-5 px-1.5 rounded-full flex items-center justify-center">
-                                {channel.unreadCount}
-                            </div>
-                        )}
-                    </div>
+                    )}
+                    <span
+                        className="text-white font-bold truncate"
+                        style={{ fontSize: 'clamp(14px, 3.8vw, 16px)' }}
+                    >
+                        {channel.name}
+                    </span>
+                    <MatchStatusBadge reservation={channel.reservation} />
                 </div>
-                <p className="text-sm truncate mt-0.5 text-slate-400">
-                    {channel.type === 'MATCH_GROUP' && <span className="text-turf-500 font-bold mr-1">Takım:</span>}
-                    {startLongPress ? 'Seçenekler...' : (() => {
-                        const lm = channel.lastMessage;
-                        const senderBlocked = lm && !lm.isSystemMessage && lm.senderId
-                            && blockedUserIds?.includes(lm.senderId);
-                        if (senderBlocked) return <span className="italic">Mesaj gizlendi</span>;
-                        return lm?.content ? stripSystemMessageMarkers(lm.content) : 'Sohbete girmek için tıkla';
-                    })()}
+
+                {/* Satır 2: Gönderen adı + son mesaj içeriği */}
+                <p
+                    className="truncate text-slate-400"
+                    style={{ fontSize: 'clamp(12px, 3.2vw, 14px)' }}
+                >
+                    {renderLastMessage()}
                 </p>
+
+                {/* Satır 3: Maç durumu etiketi (opsiyonel) */}
                 {statusInfo && (
-                    <span className={`text-[10px] font-semibold mt-1 inline-block ${statusInfo.textColor}`}>
+                    <span
+                        className={`${statusInfo.textColor} font-semibold`}
+                        style={{ fontSize: 'clamp(10px, 2.6vw, 12px)' }}
+                    >
                         {statusInfo.label}
                     </span>
+                )}
+            </div>
+
+            {/* Sağ sütun: zaman + okunmamış badge */}
+            <div className="flex flex-col items-end gap-1.5 flex-shrink-0 self-start pt-0.5">
+                <span
+                    className={`whitespace-nowrap ${channel.unreadCount > 0 ? 'text-blue-400 font-bold' : 'text-slate-500'}`}
+                    style={{ fontSize: 'clamp(10px, 2.6vw, 12px)' }}
+                >
+                    {formatMessageDate(channel.lastActivityAt)}
+                </span>
+                {channel.unreadCount > 0 && (
+                    <div
+                        className="bg-blue-500 text-white font-bold min-w-[20px] h-5 px-1.5 rounded-full flex items-center justify-center"
+                        style={{ fontSize: 'clamp(10px, 2.6vw, 12px)' }}
+                    >
+                        {channel.unreadCount > 99 ? '99+' : channel.unreadCount}
+                    </div>
                 )}
             </div>
         </div>
