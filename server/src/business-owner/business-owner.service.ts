@@ -58,7 +58,24 @@ export class BusinessOwnerService {
     }
 
     async findByPhone(phone: string): Promise<BusinessOwner | null> {
-        return this.businessOwnerRepository.findOne({ where: { phone } });
+        const cleaned = phone.replace(/\s/g, '');
+        const normalizedInput = cleaned.startsWith('0')
+            ? '90' + cleaned.slice(1)
+            : cleaned.startsWith('90') ? cleaned : '90' + cleaned;
+
+        return this.businessOwnerRepository
+            .createQueryBuilder('bo')
+            .where(
+                `CASE
+                   WHEN replace(bo.phone, ' ', '') LIKE '0%'
+                     THEN '90' || substring(replace(bo.phone, ' ', ''), 2)
+                   WHEN replace(bo.phone, ' ', '') LIKE '90%'
+                     THEN replace(bo.phone, ' ', '')
+                   ELSE '90' || replace(bo.phone, ' ', '')
+                 END = :phone`,
+                { phone: normalizedInput },
+            )
+            .getOne();
     }
 
     async findOne(id: string): Promise<BusinessOwner | null> {
@@ -404,9 +421,11 @@ export class BusinessOwnerService {
                     await queryRunner.manager.delete(Pitch, { business: { id: owner.business.id } });
                 }
                 
+                // business_owner.businessId → businesses.id FK kısıtını kaldır
+                await queryRunner.manager.update(BusinessOwner, { id: owner.id }, { businessId: null } as any);
                 await queryRunner.manager.delete(Business, { id: owner.business.id });
             }
-            
+
             await queryRunner.manager.delete(BusinessOwner, { id: owner.id });
 
             await queryRunner.commitTransaction();
