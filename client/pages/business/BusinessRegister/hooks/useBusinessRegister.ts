@@ -196,15 +196,17 @@ export const useBusinessRegister = () => {
 
     // ─── OTP ──────────────────────────────────────────────────────────────────
 
-    const sendOtp = async () => {
-        if (!formData.owner.phone) { setError('Telefon numarası gerekli.'); return; }
+    const sendOtp = async (): Promise<boolean> => {
+        if (!formData.owner.phone) { setError('Telefon numarası gerekli.'); return false; }
         setOtpSending(true);
         setError('');
         try {
             await api.post('/auth/business/send-otp', { phone: formData.owner.phone });
             setOtpSent(true);
+            return true;
         } catch (err: any) {
             setError(err.response?.data?.message || err.message || 'OTP gönderilemedi.');
+            return false;
         } finally {
             setOtpSending(false);
         }
@@ -301,8 +303,7 @@ export const useBusinessRegister = () => {
         if (!validateStep(currentStep)) return;
 
         if (currentStep === 2) {
-            // After account info, go to OTP verification
-            if (!otpSent) { sendOtp().then(() => setCurrentStep(3)); }
+            if (!otpSent) { sendOtp().then(success => { if (success) setCurrentStep(3); }); }
             else setCurrentStep(3);
             return;
         }
