@@ -10,6 +10,7 @@ import { Business } from '../business/entities/business.entity';
 import { RatingsService } from '../ratings/ratings.service';
 import { Subscription } from '../subscription/entities/subscription.entity';
 import { TimeSlot } from '../pitches/entities/time-slot.entity';
+import { MatchAnnouncement } from '../match-announcements/match-announcement.entity';
 
 @Injectable()
 export class BusinessOwnerService {
@@ -413,16 +414,17 @@ export class BusinessOwnerService {
         try {
             if (owner.business) {
                 await queryRunner.manager.delete(Subscription, { ownerId: owner.id });
-                
+
                 if (owner.business.pitches && owner.business.pitches.length > 0) {
                     const pitchIds = owner.business.pitches.map(p => p.id);
+                    await queryRunner.manager.delete(MatchAnnouncement, { pitch: { id: In(pitchIds) } });
                     await queryRunner.manager.delete(Reservation, { pitch: { id: In(pitchIds) } });
                     await queryRunner.manager.delete(TimeSlot, { pitchId: In(pitchIds) });
                     await queryRunner.manager.delete(Pitch, { business: { id: owner.business.id } });
                 }
-                
-                // business_owner.businessId → businesses.id FK kısıtını kaldır
-                await queryRunner.manager.update(BusinessOwner, { id: owner.id }, { businessId: null } as any);
+
+                // Raw SQL: business_owner.businessId → businesses.id FK kısıtını kaldır
+                await queryRunner.query('UPDATE business_owner SET "businessId" = NULL WHERE id = $1', [owner.id]);
                 await queryRunner.manager.delete(Business, { id: owner.business.id });
             }
 
