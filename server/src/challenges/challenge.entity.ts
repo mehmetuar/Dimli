@@ -23,7 +23,7 @@ export class Challenge {
     @Column({ nullable: true })
     fromTeamId: string;
 
-    @ManyToOne('MatchAnnouncement', { eager: true })
+    @ManyToOne('MatchAnnouncement', { eager: true, onDelete: 'CASCADE' })
     @JoinColumn({ name: 'toMatchId' })
     match: any;
 

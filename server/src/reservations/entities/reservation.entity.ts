@@ -59,7 +59,7 @@ export class Reservation {
     @Column({ nullable: true })
     matchAnnouncementId: string;
 
-    @ManyToOne(() => MatchAnnouncement, { nullable: true })
+    @ManyToOne(() => MatchAnnouncement, { nullable: true, onDelete: 'SET NULL' })
     @JoinColumn({ name: 'matchAnnouncementId' })
     matchAnnouncement: MatchAnnouncement;
 

@@ -366,10 +366,12 @@ export class MatchAnnouncementsService {
             if (announcement.date < todayStr) {
                 isExpired = true;
             }
-            // Check if date is today but time has passed
+            // Check if date is today but time has passed (minute-accurate)
             else if (announcement.date === todayStr) {
-                const [announcementHour] = (announcement.time || '00:00').split(':').map(Number);
-                if (announcementHour < currentHour) {
+                const [announcementHour, announcementMin = 0] = (announcement.time || '00:00').split(':').map(Number);
+                const announcementTotalMin = announcementHour * 60 + announcementMin;
+                const currentTotalMin = currentHour * 60 + now.getMinutes();
+                if (announcementTotalMin < currentTotalMin) {
                     isExpired = true;
                 }
             }
@@ -408,19 +410,29 @@ export class MatchAnnouncementsService {
     }
 
     private async deleteExpired(): Promise<void> {
-        // Keeping this for redundancy or immediate cleanup on GET requests if cron fails
         const today = new Date();
         const year = today.getFullYear();
         const month = String(today.getMonth() + 1).padStart(2, '0');
         const day = String(today.getDate()).padStart(2, '0');
         const todayStr = `${year}-${month}-${day}`;
+        const currentTimeStr = `${String(today.getHours()).padStart(2, '0')}:${String(today.getMinutes()).padStart(2, '0')}`;
 
-        // Expire announcements where date is less than today
+        // Geçmiş günlerin ilanlarını expire et
         await this.matchAnnouncementsRepository
             .createQueryBuilder()
             .update(MatchAnnouncement)
             .set({ status: 'EXPIRED' })
             .where('date < :today', { today: todayStr })
+            .andWhere('status = :status', { status: 'PENDING' })
+            .execute();
+
+        // Bugünün geçmiş saatli ilanlarını expire et (HH:MM string karşılaştırması doğru çalışır)
+        await this.matchAnnouncementsRepository
+            .createQueryBuilder()
+            .update(MatchAnnouncement)
+            .set({ status: 'EXPIRED' })
+            .where('date = :today', { today: todayStr })
+            .andWhere('time < :currentTime', { currentTime: currentTimeStr })
             .andWhere('status = :status', { status: 'PENDING' })
             .execute();
     }
