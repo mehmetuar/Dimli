@@ -70,28 +70,28 @@ export const BusinessNotificationsPage: React.FC = () => {
                         <button
                             key={notif.id}
                             onClick={() => handleNotificationClick(notif)}
-                            className="w-full p-5 rounded-[2rem] border bg-slate-800/40 border-slate-700/50 text-left transition-all relative group flex gap-4 hover:border-orange-500/40 active:scale-[0.98]"
+                            className="w-full rounded-2xl border bg-slate-800/40 border-slate-700/50 text-left transition-all relative group flex gap-3 hover:border-orange-500/40 active:scale-[0.98]"
+                            style={{ padding: 'clamp(0.75rem, 3vw, 1.25rem)' }}
                         >
-                            <div className="w-14 h-14 rounded-2xl bg-orange-500/10 border border-orange-500/20 text-orange-500 flex items-center justify-center shrink-0 shadow-inner">
-                                {notif.type === 'RESERVATION_REQUEST' ? <Calendar className="w-7 h-7" /> : <Bell className="w-7 h-7" />}
+                            <div className="w-12 h-12 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-500 flex items-center justify-center shrink-0 shadow-inner">
+                                {notif.type === 'RESERVATION_REQUEST' ? <Calendar className="w-6 h-6" /> : <Bell className="w-6 h-6" />}
                             </div>
 
                             <div className="flex-1 min-w-0">
                                 <div className="flex justify-between items-start mb-1">
-                                    <h4 className="text-base font-black text-white leading-tight">
+                                    <h4 className="font-black text-white leading-tight" style={{ fontSize: 'clamp(0.8rem, 3.5vw, 1rem)' }}>
                                         {notif.title}
                                     </h4>
-                                    <span className="text-[10px] text-slate-500 font-bold whitespace-nowrap ml-2">
+                                    <span className="text-[10px] text-slate-500 font-bold whitespace-nowrap ml-2 shrink-0">
                                         {new Date(notif.createdAt).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })}
                                     </span>
                                 </div>
-                                <p className="text-sm text-slate-400 leading-relaxed line-clamp-2">
+                                <p className="text-slate-400 leading-relaxed line-clamp-2" style={{ fontSize: 'clamp(0.75rem, 3vw, 0.875rem)' }}>
                                     {notif.message}
                                 </p>
-
                             </div>
 
-                            <ChevronRight className="w-5 h-5 absolute right-5 top-1/2 -translate-y-1/2 text-slate-600 transition-all group-hover:text-orange-500 group-hover:translate-x-1" />
+                            <ChevronRight className="w-4 h-4 absolute right-4 top-1/2 -translate-y-1/2 text-slate-600 transition-all group-hover:text-orange-500 group-hover:translate-x-1" />
                         </button>
                     ))
                 ) : (

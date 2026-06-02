@@ -27,12 +27,12 @@ export const BusinessLogin: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center px-4 pt-20 pb-28">
-            <div className="w-full max-w-md bg-slate-800 p-8 rounded-3xl border border-orange-500/30 shadow-2xl shadow-orange-900/20">
-                <div className="text-center mb-8">
-                    <img src="/icon.png" alt="DİMLİ" className="h-14 w-auto object-contain mx-auto mb-3" />
-                    <h1 className="font-sport font-black text-4xl text-white italic">İŞLETME PANELİ</h1>
-                    <p className="text-slate-400 mt-2">DİMLİ Business</p>
+        <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center px-4 pt-10 pb-10" style={{ paddingTop: 'max(2.5rem, env(safe-area-inset-top))' }}>
+            <div className="w-full max-w-md bg-slate-800 rounded-3xl border border-orange-500/30 shadow-2xl shadow-orange-900/20" style={{ padding: 'clamp(1.25rem, 5vw, 2rem)' }}>
+                <div className="text-center mb-6">
+                    <img src="/icon.png" alt="DİMLİ" className="h-12 w-auto object-contain mx-auto mb-3" />
+                    <h1 className="font-sport font-black text-white italic" style={{ fontSize: 'clamp(1.5rem, 8vw, 2.25rem)' }}>İŞLETME PANELİ</h1>
+                    <p className="text-slate-400 mt-1" style={{ fontSize: 'clamp(0.75rem, 3vw, 0.875rem)' }}>DİMLİ Business</p>
                 </div>
 
                 {error && (

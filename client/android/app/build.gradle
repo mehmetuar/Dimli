@@ -1,5 +1,11 @@
 apply plugin: 'com.android.application'
 
+def keystorePropertiesFile = rootProject.file("keystore.properties")
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
 android {
     namespace "com.dimli.app"
     compileSdk rootProject.ext.compileSdkVersion
@@ -12,12 +18,21 @@ android {
         applicationId "com.dimli.app"
         minSdk rootProject.ext.minSdkVersion
         targetSdk rootProject.ext.targetSdkVersion
-        versionCode 7
+        versionCode 10
         versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
+    signingConfigs {
+        release {
+            keyAlias keystoreProperties['keyAlias'] ?: System.getenv('KEY_ALIAS')
+            keyPassword keystoreProperties['keyPassword'] ?: System.getenv('KEY_PASSWORD')
+            storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
+            storePassword keystoreProperties['storePassword'] ?: System.getenv('STORE_PASSWORD')
+        }
+    }
     buildTypes {
         release {
+            signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

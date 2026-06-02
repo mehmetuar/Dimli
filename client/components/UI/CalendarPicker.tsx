@@ -92,7 +92,7 @@ export const CalendarPicker: React.FC<CalendarPickerProps> = ({
 
         // Empty slots for previous month
         for (let i = 0; i < firstDay; i++) {
-            days.push(<div key={`empty-${i}`} className="h-10 w-10"></div>);
+            days.push(<div key={`empty-${i}`} className="w-full aspect-square"></div>);
         }
 
         for (let day = 1; day <= totalDays; day++) {
@@ -112,7 +112,7 @@ export const CalendarPicker: React.FC<CalendarPickerProps> = ({
                         onDateSelect(formattedDate);
                     }}
                     className={`
-                        h-10 w-10 rounded-xl flex items-center justify-center text-sm font-bold transition-all relative
+                        w-full aspect-square rounded-xl flex items-center justify-center text-xs sm:text-sm font-bold transition-all relative
                         ${disabled ? 'text-slate-700 cursor-not-allowed' : `text-white ${accent.hover}`}
                         ${selected ? accent.selected : ''}
                         ${isToday && !selected ? accent.todayBorder : ''}
@@ -130,8 +130,8 @@ export const CalendarPicker: React.FC<CalendarPickerProps> = ({
     };
 
     return (
-        <div className="bg-slate-900/50 rounded-2xl p-4 border border-slate-700/50 backdrop-blur-sm">
-            <div className="flex items-center justify-between mb-4">
+        <div className="bg-slate-900/50 rounded-2xl p-2 sm:p-4 border border-slate-700/50 backdrop-blur-sm">
+            <div className="flex items-center justify-between mb-2 sm:mb-4">
                 <button
                     onClick={handlePrevMonth}
                     className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors"
@@ -149,15 +149,15 @@ export const CalendarPicker: React.FC<CalendarPickerProps> = ({
                 </button>
             </div>
 
-            <div className="grid grid-cols-7 gap-1 mb-2">
+            <div className="grid grid-cols-7 gap-0.5 sm:gap-1 mb-2">
                 {dayNames.map(day => (
-                    <div key={day} className="h-10 w-10 flex items-center justify-center text-[10px] font-black text-slate-500 uppercase tracking-tighter">
+                    <div key={day} className="w-full aspect-square flex items-center justify-center text-[10px] font-black text-slate-500 uppercase tracking-tighter">
                         {day}
                     </div>
                 ))}
             </div>
 
-            <div className="grid grid-cols-7 gap-1">
+            <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
                 {renderDays()}
             </div>
         </div>

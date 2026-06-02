@@ -35,13 +35,13 @@ export const BusinessDateFilterModal: React.FC<BusinessDateFilterModalProps> = (
             onClick={onClose}
         >
             <div
-                className="bg-[#0e1e3a] w-full max-w-md sm:rounded-3xl rounded-t-3xl border border-blue-900/50 shadow-2xl overflow-hidden"
+                className="bg-[#0e1e3a] w-full max-w-md sm:rounded-3xl rounded-t-3xl border border-blue-900/50 shadow-2xl overflow-hidden max-h-[90dvh] flex flex-col"
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Header */}
-                <div className="p-6 border-b border-blue-900/40 bg-[#0a1628] flex justify-between items-center">
+                <div className="p-3 sm:p-6 border-b border-blue-900/40 bg-[#0a1628] flex justify-between items-center flex-shrink-0">
                     <div>
-                        <h2 className="font-sport font-black text-2xl text-white italic uppercase tracking-wide">
+                        <h2 className="font-sport font-black text-xl sm:text-2xl text-white italic uppercase tracking-wide">
                             TARİH <span className="text-orange-500">SEÇ</span>
                         </h2>
                         <p className="text-blue-300/60 text-xs font-bold uppercase tracking-tighter">
@@ -57,7 +57,7 @@ export const BusinessDateFilterModal: React.FC<BusinessDateFilterModalProps> = (
                 </div>
 
                 {/* Body */}
-                <div className="p-6 space-y-6">
+                <div className="p-3 sm:p-6 space-y-3 sm:space-y-6 overflow-y-auto">
                     <CalendarPicker
                         selectedDate={selectedDate}
                         onDateSelect={(date) => {
@@ -70,7 +70,7 @@ export const BusinessDateFilterModal: React.FC<BusinessDateFilterModalProps> = (
                     />
 
                     {/* Hızlı Seçim */}
-                    <div className="space-y-3">
+                    <div className="space-y-2 sm:space-y-3">
                         <label className="text-[10px] font-black text-blue-300/50 uppercase tracking-widest pl-1">
                             Hızlı Seçim
                         </label>
@@ -82,7 +82,7 @@ export const BusinessDateFilterModal: React.FC<BusinessDateFilterModalProps> = (
                                     onSelect(formatted);
                                     onClose();
                                 }}
-                                className="flex-1 px-4 py-4 bg-[#0a1628]/80 hover:bg-orange-500 hover:text-white border border-blue-900/50 text-white rounded-2xl text-sm font-black uppercase italic transition-all"
+                                className="flex-1 px-4 py-2 sm:py-4 bg-[#0a1628]/80 hover:bg-orange-500 hover:text-white border border-blue-900/50 text-white rounded-2xl text-sm font-black uppercase italic transition-all"
                             >
                                 Bugün
                             </button>
@@ -94,7 +94,7 @@ export const BusinessDateFilterModal: React.FC<BusinessDateFilterModalProps> = (
                                     onSelect(formatted);
                                     onClose();
                                 }}
-                                className="flex-1 px-4 py-4 bg-[#0a1628]/80 hover:bg-orange-500 hover:text-white border border-blue-900/50 text-white rounded-2xl text-sm font-black uppercase italic transition-all"
+                                className="flex-1 px-4 py-2 sm:py-4 bg-[#0a1628]/80 hover:bg-orange-500 hover:text-white border border-blue-900/50 text-white rounded-2xl text-sm font-black uppercase italic transition-all"
                             >
                                 Yarın
                             </button>
@@ -102,10 +102,10 @@ export const BusinessDateFilterModal: React.FC<BusinessDateFilterModalProps> = (
                     </div>
                 </div>
 
-                <div className="p-6 bg-[#0a1628]/60 border-t border-blue-900/40">
+                <div className="p-3 sm:p-6 bg-[#0a1628]/60 border-t border-blue-900/40 flex-shrink-0">
                     <button
                         onClick={onClose}
-                        className="w-full py-4 bg-slate-700 hover:bg-slate-600 text-white font-black uppercase italic rounded-2xl transition-colors"
+                        className="w-full py-2 sm:py-4 bg-slate-700 hover:bg-slate-600 text-white font-black uppercase italic rounded-2xl transition-colors"
                     >
                         KAPAT
                     </button>
