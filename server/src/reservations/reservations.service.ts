@@ -25,8 +25,6 @@ export class ReservationsService {
         private pitchRepository: Repository<Pitch>,
         @InjectRepository(BusinessOwner)
         private businessOwnerRepository: Repository<BusinessOwner>,
-        @InjectRepository(MatchAnnouncement)
-        private matchAnnouncementRepository: Repository<MatchAnnouncement>,
         @InjectRepository(User)
         private userRepository: Repository<User>,
         private chatService: ChatService,
@@ -129,7 +127,7 @@ export class ReservationsService {
                     slotTime: Between(windowStart, windowEnd),
                     status: ReservationStatus.PENDING
                 },
-                relations: ['team', 'team.captain']
+                relations: ['team', 'team.captain', 'team.players']
             });
 
             if (pendingReservations.length > 0) {
@@ -241,11 +239,18 @@ export class ReservationsService {
             where: { id: createReservationDto.pitchId },
             relations: ['business', 'business.owner'],
         });
-        if (pitch?.business?.owner?.id) {
-            const subscription = await this.subscriptionService.findByOwner(pitch.business.owner.id);
-            if (!subscription || !['active', 'trial'].includes(subscription.status)) {
-                throw new ForbiddenException('Bu işletmenin aboneliği aktif değil, rezervasyon yapılamaz.');
-            }
+
+        if (!pitch) {
+            throw new BadRequestException('Saha bulunamadı.');
+        }
+
+        if (!pitch.business?.owner?.id) {
+            throw new BadRequestException('Saha için işletme sahibi bilgisi bulunamadı.');
+        }
+
+        const subscription = await this.subscriptionService.findByOwner(pitch.business.owner.id);
+        if (!subscription || !['active', 'trial'].includes(subscription.status)) {
+            throw new ForbiddenException('Bu işletmenin aboneliği aktif değil, rezervasyon yapılamaz.');
         }
 
         const reservation = this.reservationRepository.create(createReservationDto);
@@ -253,11 +258,6 @@ export class ReservationsService {
 
         // Notify Business Owner
         try {
-            const pitch = await this.pitchRepository.findOne({
-                where: { id: (savedReservation as any).pitchId },
-                relations: ['business']
-            });
-
             if (pitch && pitch.business) {
                 const owner = await this.businessOwnerRepository.findOne({
                     where: { business: { id: pitch.business.id } }
@@ -329,11 +329,21 @@ export class ReservationsService {
         this.logger.log(`Approval process started for reservation: ${id}`);
 
         return this.dataSource.transaction(async (manager) => {
-            // 1. Fetch the reservation with all necessary relations
-            const reservation = await manager.findOne(Reservation, {
-                where: { id },
-                relations: ['pitch', 'pitch.business', 'pitch.timeSlots', 'team', 'team.captain', 'team.players', 'opponentTeam', 'opponentTeam.players']
-            });
+            // 1. Fetch the reservation with pessimistic write lock to prevent concurrent double-booking
+            const reservation = await manager
+                .getRepository(Reservation)
+                .createQueryBuilder('reservation')
+                .setLock('pessimistic_write')
+                .where('reservation.id = :id', { id })
+                .leftJoinAndSelect('reservation.pitch', 'pitch')
+                .leftJoinAndSelect('pitch.business', 'business')
+                .leftJoinAndSelect('pitch.timeSlots', 'timeSlots')
+                .leftJoinAndSelect('reservation.team', 'team')
+                .leftJoinAndSelect('team.captain', 'captain')
+                .leftJoinAndSelect('team.players', 'players')
+                .leftJoinAndSelect('reservation.opponentTeam', 'opponentTeam')
+                .leftJoinAndSelect('opponentTeam.players', 'opponentPlayers')
+                .getOne();
 
             if (!reservation) {
                 this.logger.error(`Reservation not found: ${id}`);
@@ -638,7 +648,7 @@ export class ReservationsService {
                                     await this.notificationsService.create({
                                         userId: player.id,
                                         type: 'SYSTEM',
-                                        title: '❌ Maç Fırsatı Kaçtı',
+                                        title: 'Maç Fırsatı Kaçtı',
                                         message: `İşletme farklı bir takımı kesinleştirdi. Bu saatteki rezervasyonunuz iptal oldu.`,
                                         relatedId: other.id,
                                         read: false,
@@ -746,7 +756,7 @@ export class ReservationsService {
         return this.dataSource.transaction(async (manager) => {
             const reservation = await manager.findOne(Reservation, {
                 where: { id },
-                relations: ['pitch', 'pitch.business', 'team', 'team.captain']
+                relations: ['pitch', 'pitch.business', 'team', 'team.captain', 'team.players', 'opponentTeam', 'opponentTeam.players']
             });
 
             if (!reservation) {
@@ -928,7 +938,7 @@ export class ReservationsService {
 
         const reservation = await this.reservationRepository.findOne({
             where: { id: reservationId },
-            relations: ['team', 'team.captain', 'pitch', 'pitch.business']
+            relations: ['team', 'team.captain', 'team.players', 'opponentTeam', 'opponentTeam.players', 'pitch', 'pitch.business']
         });
 
         if (!reservation) {
@@ -1040,81 +1050,72 @@ export class ReservationsService {
     }
 
     async cancel(id: string, teamId: string) {
-        const reservation = await this.reservationRepository.findOne({
-            where: { id, team: { id: teamId } },
-            relations: ['team', 'team.captain', 'pitch', 'pitch.business', 'matchAnnouncement']
-        });
+        return this.dataSource.transaction(async (manager) => {
+            const reservation = await manager.findOne(Reservation, {
+                where: { id, team: { id: teamId } },
+                relations: ['team', 'team.captain', 'team.players', 'opponentTeam', 'opponentTeam.players', 'pitch', 'pitch.business', 'matchAnnouncement']
+            });
 
-        if (!reservation) {
-            throw new Error('Reservation not found or unauthorized');
-        }
-
-        // Allow cancelling APPROVED as well now (Captain cancellation)
-        if (reservation.status !== ReservationStatus.PENDING &&
-            reservation.status !== ReservationStatus.REJECTED &&
-            reservation.status !== ReservationStatus.APPROVED) {
-            throw new Error('Bu rezervasyon iptal edilemez.');
-        }
-
-        reservation.status = ReservationStatus.CANCELLED;
-        await this.reservationRepository.save(reservation);
-
-        // Notify chat if it was an approved match and update announcement status
-        if (reservation.matchAnnouncement) {
-            await this.matchAnnouncementRepository.update(
-                reservation.matchAnnouncement.id,
-                { status: 'CANCELLED' }
-            );
-
-            const slotTime = new Date(reservation.slotTime);
-            const dateStr = slotTime.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', weekday: 'long' });
-            const timeStr = slotTime.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
-            const endTimeStr = new Date(slotTime.getTime() + 60 * 60 * 1000).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
-            const businessName = reservation.pitch?.business?.name || 'İşletme';
-            const pitchName = reservation.pitch?.name || 'Saha';
-
-            await this.sendSystemMessage(
-                this.dataSource.manager,
-                reservation.matchAnnouncement.id,
-                reservation.team, // Sender context (Captain)
-                `Takım kaptanı maçı iptal etti. {{CANCEL}}\n\n` +
-                `{{STADIUM}} ${businessName}\n` +
-                `{{PIN}} ${pitchName}\n` +
-                `{{CALENDAR}} ${dateStr}\n` +
-                `{{CLOCK}} ${timeStr} - ${endTimeStr}`,
-                { type: 'MATCH_CANCELLED_BY_CAPTAIN', reservationId: reservation.id }
-            );
-
-            try {
-                const playersToNotify: any[] = [];
-                // Only notify if there are players loaded. In cancel(), relations 'team' and 'team.captain' were loaded.
-                // We might not have players loaded, but that's okay, they will see it in the chat. 
-                // We'll query participants via chat service for robust notification delivery later, or load players here:
-                const resWithPlayers = await this.reservationRepository.findOne({
-                    where: { id: reservation.id },
-                    relations: ['team', 'team.players', 'opponentTeam', 'opponentTeam.players']
-                });
-
-                if (resWithPlayers?.team?.players) playersToNotify.push(...resWithPlayers.team.players);
-                if (resWithPlayers?.opponentTeam?.players) playersToNotify.push(...resWithPlayers.opponentTeam.players);
-
-                for (const player of playersToNotify) {
-                    await this.notificationsService.create({
-                        userId: player.id,
-                        type: 'SYSTEM',
-                        title: '🚫 Maç İptal Edildi',
-                        message: `${businessName} - ${pitchName}\n${dateStr} ${timeStr}\n\nTakım kaptanı maçı iptal etti.`,
-                        relatedId: reservation.id,
-                        read: false,
-                        metadata: { type: 'MATCH_CANCELLED_BY_CAPTAIN', reservationId: reservation.id }
-                    });
-                }
-            } catch (error) {
-                this.logger.error('Failed to send player cancellation notifications:', error);
+            if (!reservation) {
+                throw new Error('Reservation not found or unauthorized');
             }
-        }
 
-        return reservation;
+            // Allow cancelling APPROVED as well now (Captain cancellation)
+            if (reservation.status !== ReservationStatus.PENDING &&
+                reservation.status !== ReservationStatus.REJECTED &&
+                reservation.status !== ReservationStatus.APPROVED) {
+                throw new Error('Bu rezervasyon iptal edilemez.');
+            }
+
+            reservation.status = ReservationStatus.CANCELLED;
+            await manager.save(reservation);
+
+            // Notify chat if it was an approved match and update announcement status
+            if (reservation.matchAnnouncement) {
+                await manager.update(MatchAnnouncement, reservation.matchAnnouncement.id, { status: 'CANCELLED' });
+
+                const slotTime = new Date(reservation.slotTime);
+                const dateStr = slotTime.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', weekday: 'long' });
+                const timeStr = slotTime.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+                const endTimeStr = new Date(slotTime.getTime() + 60 * 60 * 1000).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+                const businessName = reservation.pitch?.business?.name || 'İşletme';
+                const pitchName = reservation.pitch?.name || 'Saha';
+
+                await this.sendSystemMessage(
+                    manager,
+                    reservation.matchAnnouncement.id,
+                    reservation.team,
+                    `Takım kaptanı maçı iptal etti. {{CANCEL}}\n\n` +
+                    `{{STADIUM}} ${businessName}\n` +
+                    `{{PIN}} ${pitchName}\n` +
+                    `{{CALENDAR}} ${dateStr}\n` +
+                    `{{CLOCK}} ${timeStr} - ${endTimeStr}`,
+                    { type: 'MATCH_CANCELLED_BY_CAPTAIN', reservationId: reservation.id }
+                );
+
+                try {
+                    const playersToNotify: any[] = [];
+                    if (reservation.team?.players) playersToNotify.push(...reservation.team.players);
+                    if (reservation.opponentTeam?.players) playersToNotify.push(...reservation.opponentTeam.players);
+
+                    for (const player of playersToNotify) {
+                        await this.notificationsService.create({
+                            userId: player.id,
+                            type: 'SYSTEM',
+                            title: 'Maç İptal Edildi',
+                            message: `${businessName} - ${pitchName}\n${dateStr} ${timeStr}\n\nTakım kaptanı maçı iptal etti.`,
+                            relatedId: reservation.id,
+                            read: false,
+                            metadata: { type: 'MATCH_CANCELLED_BY_CAPTAIN', reservationId: reservation.id }
+                        });
+                    }
+                } catch (error) {
+                    this.logger.error('Failed to send player cancellation notifications:', error);
+                }
+            }
+
+            return reservation;
+        });
     }
     async requestCancel(id: string, teamId: string, userId: string) {
         const reservation = await this.reservationRepository.findOne({
@@ -1343,7 +1344,7 @@ export class ReservationsService {
                         await this.notificationsService.create({
                             userId: player.id,
                             type: 'SYSTEM',
-                            title: '🚫 Maç İptal Edildi',
+                            title: 'Maç İptal Edildi',
                             message: `${businessName} - ${pitchName}\n${dateStr} ${timeStr}\n\nİşletme iptal isteğini onayladı.`,
                             relatedId: reservation.id,
                             read: false,

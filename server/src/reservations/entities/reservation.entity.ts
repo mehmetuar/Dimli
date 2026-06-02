@@ -1,4 +1,4 @@
-import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, JoinColumn, CreateDateColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, JoinColumn, CreateDateColumn, Index } from 'typeorm';
 import { Pitch } from '../../pitches/entities/pitch.entity';
 import { Team } from '../../teams/team.entity';
 import { MatchAnnouncement } from '../../match-announcements/match-announcement.entity';
@@ -10,6 +10,8 @@ export enum ReservationStatus {
     CANCELLED = 'CANCELLED'
 }
 
+@Index(['pitchId', 'slotTime'])
+@Index(['teamId', 'status'])
 @Entity()
 export class Reservation {
     @PrimaryGeneratedColumn('uuid')
