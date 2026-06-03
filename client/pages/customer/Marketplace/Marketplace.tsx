@@ -1,5 +1,5 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
-import { MapPin, Settings, RefreshCw, Calendar, ArrowUpDown } from 'lucide-react';
+import { MapPin, Settings, RefreshCw, Calendar, ArrowUpDown, EyeOff } from 'lucide-react';
 import { openLocationSettings } from '../../../utils/openLocationSettings';
 import { LoadingSpinner } from '../../../components/UI/LoadingSpinner';
 import { CreateMatchModal } from '../../../components/Modals/CreateMatchModal';
@@ -55,6 +55,8 @@ export const Marketplace: React.FC = () => {
     setSortBy,
     isSortOpen,
     setIsSortOpen,
+    hideMyListings,
+    setHideMyListings,
     requestLocation,
   } = useMarketplace();
 
@@ -274,38 +276,52 @@ export const Marketplace: React.FC = () => {
         </div>
 
         {/* Filtre — sticky, her zaman görünür */}
-        <div className="sticky top-0 px-4 pb-3 pt-1" style={{ backgroundColor: '#0f172a', borderBottom: '1px solid rgba(255,255,255,0.06)', zIndex: 40, willChange: 'transform' }}>
-          <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+        <div className="sticky top-0 px-3 pb-3 pt-1" style={{ backgroundColor: '#0f172a', borderBottom: '1px solid rgba(255,255,255,0.06)', zIndex: 40, willChange: 'transform' }}>
+          <div className="flex gap-1.5 overflow-x-auto scrollbar-hide">
             <button
               onClick={() => setIsDateFilterOpen(true)}
-              className="px-4 py-3 border border-turf-500/50 bg-turf-900/20 text-white rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap hover:bg-turf-800 transition-colors skew-x-[-6deg] shrink-0"
+              className="px-3 py-2.5 border border-turf-500/50 bg-turf-900/20 text-white rounded-xl text-[11px] font-bold whitespace-nowrap hover:bg-turf-800 transition-colors skew-x-[-6deg] shrink-0"
             >
-              <span className="skew-x-[6deg] flex items-center gap-1.5">
-                <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-turf-500 shrink-0" />
+              <span className="skew-x-[6deg] flex items-center gap-1">
+                <Calendar className="w-3 h-3 text-turf-500 shrink-0" />
                 {new Date(selectedDate).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })}
               </span>
             </button>
             <button
               onClick={() => setIsLocationFilterOpen(true)}
-              className={`px-4 py-3 border text-slate-300 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap hover:border-turf-500 hover:text-white transition-colors skew-x-[-6deg] shrink-0 ${locationFilter.type === 'NEARBY' ? 'bg-turf-900/50 border-turf-500 text-white' : 'bg-slate-800 border-slate-700'}`}
+              className={`px-3 py-2.5 border text-slate-300 rounded-xl text-[11px] font-bold whitespace-nowrap hover:border-turf-500 hover:text-white transition-colors skew-x-[-6deg] shrink-0 ${locationFilter.type === 'NEARBY' ? 'bg-turf-900/50 border-turf-500 text-white' : 'bg-slate-800 border-slate-700'}`}
             >
-              <span className="skew-x-[6deg] flex items-center gap-1.5">
-                <MapPin className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+              <span className="skew-x-[6deg] flex items-center gap-1">
+                <MapPin className="w-3 h-3 shrink-0" />
                 {locationFilter.type === 'NEARBY' ? `Yakınımda (${locationFilter.radius}km)` : 'Yakınımda'}
               </span>
             </button>
             <button
               onClick={() => setIsSortOpen(true)}
-              className={`px-4 py-3 border rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-colors skew-x-[-6deg] shrink-0 ${isNonDefaultSort
+              className={`px-3 py-2.5 border rounded-xl text-[11px] font-bold whitespace-nowrap transition-colors skew-x-[-6deg] shrink-0 ${isNonDefaultSort
                 ? 'bg-turf-900/40 border-turf-500 text-turf-400'
                 : 'bg-slate-800 border-slate-700 text-slate-300 hover:border-turf-500 hover:text-white'
                 }`}
             >
-              <span className="skew-x-[6deg] flex items-center gap-1.5">
-                <ArrowUpDown className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+              <span className="skew-x-[6deg] flex items-center gap-1">
+                <ArrowUpDown className="w-3 h-3 shrink-0" />
                 Sırala
               </span>
             </button>
+            {myTeam && (
+              <button
+                onClick={() => setHideMyListings(!hideMyListings)}
+                className={`px-3 py-2.5 border rounded-xl text-[11px] font-bold whitespace-nowrap transition-colors skew-x-[-6deg] shrink-0 ${hideMyListings
+                  ? 'bg-turf-900/40 border-turf-500 text-turf-400'
+                  : 'bg-slate-800 border-slate-700 text-slate-300 hover:border-turf-500 hover:text-white'
+                  }`}
+              >
+                <span className="skew-x-[6deg] flex items-center gap-1">
+                  <EyeOff className="w-3 h-3 shrink-0" />
+                  İlanlarımı Gizle
+                </span>
+              </button>
+            )}
           </div>
         </div>
 

@@ -283,7 +283,7 @@ const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelected
 
                         {/* Step 1: Pitch/Business Selection */}
                         <div className="mb-8 animate-fade-in">
-                            <label className="text-xs font-bold text-slate-500 uppercase mb-3 block flex items-center gap-2">
+                            <label className="text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-2">
                                 <span className="w-5 h-5 rounded-full bg-turf-600 text-slate-900 flex items-center justify-center text-[10px]">1</span>
                                 Saha Seçimi
                             </label>

@@ -33,6 +33,15 @@ export const useMarketplace = () => {
   const setSortBy = setMarketplaceSortBy;
   const [isSortOpen, setIsSortOpen] = useState(false);
 
+  const HIDE_MY_KEY = 'marketplace_hide_my_listings';
+  const [hideMyListings, setHideMyListingsRaw] = useState(
+    () => localStorage.getItem(HIDE_MY_KEY) === 'true'
+  );
+  const setHideMyListings = (v: boolean) => {
+    localStorage.setItem(HIDE_MY_KEY, String(v));
+    setHideMyListingsRaw(v);
+  };
+
   const [isLocationFilterOpen, setIsLocationFilterOpen] = useState(false);
 
   const locationFilter: LocationFilter = filterMode === 'ALL'
@@ -161,34 +170,41 @@ export const useMarketplace = () => {
   };
 
   // Birikmiş tüm matches üzerinde client-side date + sort
+  // Kendi takım ilanları filtre/sıralama bağımsız her zaman en üstte sabitlenir
   const filteredMatches = useMemo(() => {
-    const filtered = !selectedDate
-      ? matches
-      : matches.filter(m => m.date === selectedDate);
+    const myTeamId = myTeam?.id;
+    const myListings = myTeamId ? matches.filter(m => m.teamId === myTeamId) : [];
+    const otherListings = myTeamId ? matches.filter(m => m.teamId !== myTeamId) : matches;
 
-    const sorted = [...filtered];
+    const filteredOthers = !selectedDate
+      ? otherListings
+      : otherListings.filter(m => m.date === selectedDate);
+
+    const sortedOthers = [...filteredOthers];
     switch (sortBy) {
       case 'date_asc':
-        sorted.sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+        sortedOthers.sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
         break;
       case 'date_desc':
-        sorted.sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time));
+        sortedOthers.sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time));
         break;
       case 'price_asc':
-        sorted.sort((a, b) => (getPitchDetails(a.pitchId).pitch?.pricePerHour ?? 0) - (getPitchDetails(b.pitchId).pitch?.pricePerHour ?? 0));
+        sortedOthers.sort((a, b) => (getPitchDetails(a.pitchId).pitch?.pricePerHour ?? 0) - (getPitchDetails(b.pitchId).pitch?.pricePerHour ?? 0));
         break;
       case 'price_desc':
-        sorted.sort((a, b) => (getPitchDetails(b.pitchId).pitch?.pricePerHour ?? 0) - (getPitchDetails(a.pitchId).pitch?.pricePerHour ?? 0));
+        sortedOthers.sort((a, b) => (getPitchDetails(b.pitchId).pitch?.pricePerHour ?? 0) - (getPitchDetails(a.pitchId).pitch?.pricePerHour ?? 0));
         break;
       case 'fair_play':
-        sorted.sort((a, b) => (b.team?.fairPlayScore ?? 0) - (a.team?.fairPlayScore ?? 0));
+        sortedOthers.sort((a, b) => (b.team?.fairPlayScore ?? 0) - (a.team?.fairPlayScore ?? 0));
         break;
       case 'distance':
-        sorted.sort((a, b) => (a.distanceKm ?? 999) - (b.distanceKm ?? 999));
+        sortedOthers.sort((a, b) => (a.distanceKm ?? 999) - (b.distanceKm ?? 999));
         break;
     }
-    return sorted;
-  }, [matches, businesses, selectedDate, sortBy]);
+
+    if (hideMyListings) return sortedOthers;
+    return [...myListings, ...sortedOthers];
+  }, [matches, businesses, selectedDate, sortBy, myTeam, hideMyListings]);
 
   useEffect(() => () => setIsDateFilterOpen(false), []);
 
@@ -229,6 +245,8 @@ export const useMarketplace = () => {
     setSortBy,
     isSortOpen,
     setIsSortOpen,
+    hideMyListings,
+    setHideMyListings,
     requestLocation,
   };
 };
