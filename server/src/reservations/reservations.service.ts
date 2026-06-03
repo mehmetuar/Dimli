@@ -329,21 +329,20 @@ export class ReservationsService {
         this.logger.log(`Approval process started for reservation: ${id}`);
 
         return this.dataSource.transaction(async (manager) => {
-            // 1. Fetch the reservation with pessimistic write lock to prevent concurrent double-booking
-            const reservation = await manager
+            // 1. Acquire row-level lock WITHOUT joins — LEFT JOIN + FOR UPDATE OF causes
+            //    errors in PostgreSQL when nullable relations (opponentTeam) are null.
+            await manager
                 .getRepository(Reservation)
                 .createQueryBuilder('reservation')
                 .setLock('pessimistic_write')
                 .where('reservation.id = :id', { id })
-                .leftJoinAndSelect('reservation.pitch', 'pitch')
-                .leftJoinAndSelect('pitch.business', 'business')
-                .leftJoinAndSelect('pitch.timeSlots', 'timeSlots')
-                .leftJoinAndSelect('reservation.team', 'team')
-                .leftJoinAndSelect('team.captain', 'captain')
-                .leftJoinAndSelect('team.players', 'players')
-                .leftJoinAndSelect('reservation.opponentTeam', 'opponentTeam')
-                .leftJoinAndSelect('opponentTeam.players', 'opponentPlayers')
                 .getOne();
+
+            // Load relations separately; lock is held for the duration of this transaction.
+            const reservation = await manager.findOne(Reservation, {
+                where: { id },
+                relations: ['pitch', 'pitch.business', 'pitch.timeSlots', 'team', 'team.captain', 'team.players', 'opponentTeam', 'opponentTeam.players']
+            });
 
             if (!reservation) {
                 this.logger.error(`Reservation not found: ${id}`);
