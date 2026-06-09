@@ -1,5 +1,5 @@
-import React, { useRef, useEffect } from 'react';
-import { Briefcase, MapPin, CheckCircle, User, Store, Star, CreditCard, Phone } from 'lucide-react';
+import React, { useRef, useEffect, useState } from 'react';
+import { Briefcase, MapPin, CheckCircle, User, Store, Star, CreditCard, Phone, Eye, EyeOff } from 'lucide-react';
 
 export const steps = [
     { id: 1, title: 'Hoşgeldiniz', icon: Star },
@@ -92,41 +92,56 @@ interface InputProps {
     inputMode?: string;
 }
 
-export const Input: React.FC<InputProps> = ({ label, type = "text", value, onChange, required, textarea, icon, error, placeholder, inputMode }) => (
-    <div className="flex flex-col gap-1 w-full min-w-0">
-        <label className="text-xs text-slate-400 font-bold uppercase ml-1 block">
-            {label} {required && <span className="text-red-500">*</span>}
-        </label>
-        <div className="relative">
-            {icon && <div className="absolute left-3 top-3.5 text-slate-500">{icon}</div>}
-            {textarea ? (
-                <textarea
-                    className={`w-full bg-slate-800 border text-white text-sm p-3 rounded-xl focus:outline-none transition-all font-medium min-h-[90px] resize-none ${icon ? 'pl-10' : ''} ${
-                        error ? 'border-red-500 focus:border-red-400' : 'border-slate-700 focus:border-orange-500'
-                    }`}
-                    value={value}
-                    onChange={onChange}
-                    required={required}
-                    onFocus={scrollInputIntoView}
-                    placeholder={placeholder}
-                />
-            ) : (
-                <input
-                    type={type}
-                    className={`w-full bg-slate-800 border text-white text-sm p-3 rounded-xl focus:outline-none transition-all font-medium ${icon ? 'pl-10' : ''} ${
-                        error ? 'border-red-500 focus:border-red-400' : 'border-slate-700 focus:border-orange-500'
-                    }`}
-                    value={value}
-                    onChange={onChange}
-                    required={required}
-                    onFocus={scrollInputIntoView}
-                    placeholder={placeholder}
-                    inputMode={inputMode as any}
-                />
+export const Input: React.FC<InputProps> = ({ label, type = "text", value, onChange, required, textarea, icon, error, placeholder, inputMode }) => {
+    const [showPassword, setShowPassword] = useState(false);
+    const inputType = type === 'password' ? (showPassword ? 'text' : 'password') : type;
+
+    return (
+        <div className="flex flex-col gap-1 w-full min-w-0">
+            <label className="text-xs text-slate-400 font-bold uppercase ml-1 block">
+                {label} {required && <span className="text-red-500">*</span>}
+            </label>
+            <div className="relative">
+                {icon && <div className="absolute left-3 top-3.5 text-slate-500">{icon}</div>}
+                {textarea ? (
+                    <textarea
+                        className={`w-full bg-slate-800 border text-white text-sm p-3 rounded-xl focus:outline-none transition-all font-medium min-h-[90px] resize-none ${icon ? 'pl-10' : ''} ${
+                            error ? 'border-red-500 focus:border-red-400' : 'border-slate-700 focus:border-orange-500'
+                        }`}
+                        value={value}
+                        onChange={onChange}
+                        required={required}
+                        onFocus={scrollInputIntoView}
+                        placeholder={placeholder}
+                    />
+                ) : (
+                    <input
+                        type={inputType}
+                        className={`w-full bg-slate-800 border text-white text-sm p-3 rounded-xl focus:outline-none transition-all font-medium ${icon ? 'pl-10' : ''} ${type === 'password' ? 'pr-10' : ''} ${
+                            error ? 'border-red-500 focus:border-red-400' : 'border-slate-700 focus:border-orange-500'
+                        }`}
+                        value={value}
+                        onChange={onChange}
+                        required={required}
+                        onFocus={scrollInputIntoView}
+                        placeholder={placeholder}
+                        inputMode={inputMode as any}
+                    />
+                )}
+                {type === 'password' && (
+                    <button
+                        type="button"
+                        onClick={() => setShowPassword(v => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 active:text-orange-400 p-1"
+                        tabIndex={-1}
+                    >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                )}
+            </div>
+            {error && (
+                <p className="text-red-400 text-xs font-bold ml-1 mt-0.5 animate-fade-in">{error}</p>
             )}
         </div>
-        {error && (
-            <p className="text-red-400 text-xs font-bold ml-1 mt-0.5 animate-fade-in">{error}</p>
-        )}
-    </div>
-);
+    );
+};

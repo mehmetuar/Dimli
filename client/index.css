@@ -90,6 +90,52 @@
   transform: translateZ(0);
 }
 
+/* ── Kullanıcı ↔ İşletme Dünya Geçiş Animasyonları ─────────────────────── */
+
+@keyframes slideExitLeft {
+  from { transform: translateX(0) translateZ(0); opacity: 1; }
+  to   { transform: translateX(-30%) translateZ(0); opacity: 0; }
+}
+
+@keyframes slideEnterRight {
+  from { transform: translateX(30%) translateZ(0); opacity: 0; }
+  to   { transform: translateX(0) translateZ(0); opacity: 1; }
+}
+
+@keyframes slideExitRight {
+  from { transform: translateX(0) translateZ(0); opacity: 1; }
+  to   { transform: translateX(30%) translateZ(0); opacity: 0; }
+}
+
+@keyframes slideEnterLeft {
+  from { transform: translateX(-30%) translateZ(0); opacity: 0; }
+  to   { transform: translateX(0) translateZ(0); opacity: 1; }
+}
+
+.animate-slide-exit-left {
+  animation: slideExitLeft 0.28s cubic-bezier(0.4, 0, 1, 1) forwards;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+}
+
+.animate-slide-enter-right {
+  animation: slideEnterRight 0.28s cubic-bezier(0, 0, 0.2, 1) forwards;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+}
+
+.animate-slide-exit-right {
+  animation: slideExitRight 0.28s cubic-bezier(0.4, 0, 1, 1) forwards;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+}
+
+.animate-slide-enter-left {
+  animation: slideEnterLeft 0.28s cubic-bezier(0, 0, 0.2, 1) forwards;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+}
+
 /* ── Android WebView Modal Düzeltmeleri ────────────────────────────────── */
 
 /* Modal açıkken body scroll kilitle */

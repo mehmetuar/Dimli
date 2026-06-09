@@ -1,18 +1,34 @@
-import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import api from '../../../services/api';
-import { Briefcase } from 'lucide-react';
+import { Briefcase, Eye, EyeOff } from 'lucide-react';
 import { initializePushNotifications } from '../../../services/pushNotificationService';
 import { BusinessForgotPasswordModal } from './BusinessForgotPasswordModal';
 import { useAuth } from '../../../contexts/AuthContext';
 
+type Phase = 'entering' | 'idle' | 'exiting-right';
+
 export const BusinessLogin: React.FC = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
     const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
     const navigate = useNavigate();
+    const location = useLocation();
     const { loginAsBusiness } = useAuth();
+
+    const [phase, setPhase] = useState<Phase>(() =>
+        location.state?.from === 'customer' ? 'entering' : 'idle'
+    );
+
+    useEffect(() => {
+        if (phase !== 'entering') return;
+        const frame = requestAnimationFrame(() =>
+            requestAnimationFrame(() => setPhase('idle'))
+        );
+        return () => cancelAnimationFrame(frame);
+    }, []);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -26,8 +42,18 @@ export const BusinessLogin: React.FC = () => {
         }
     };
 
+    const goToCustomer = () => {
+        if (phase !== 'idle') return;
+        setPhase('exiting-right');
+        setTimeout(() => navigate('/login', { state: { from: 'business' } }), 280);
+    };
+
+    const animClass =
+        phase === 'entering' ? 'animate-slide-enter-right' :
+        phase === 'exiting-right' ? 'animate-slide-exit-right' : '';
+
     return (
-        <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center px-4 pt-10 pb-10" style={{ paddingTop: 'max(2.5rem, env(safe-area-inset-top))' }}>
+        <div className={`min-h-screen bg-slate-900 flex flex-col items-center justify-center px-4 pt-10 pb-10 ${animClass}`} style={{ paddingTop: 'max(2.5rem, env(safe-area-inset-top))' }}>
             <div className="w-full max-w-md bg-slate-800 rounded-3xl border border-orange-500/30 shadow-2xl shadow-orange-900/20" style={{ padding: 'clamp(1.25rem, 5vw, 2rem)' }}>
                 <div className="text-center mb-6">
                     <img src="/icon.png" alt="DİMLİ" className="h-12 w-auto object-contain mx-auto mb-3" />
@@ -58,14 +84,24 @@ export const BusinessLogin: React.FC = () => {
                     </div>
                     <div>
                         <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Şifre</label>
-                        <input
-                            type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            className="w-full bg-slate-900/50 text-white p-4 rounded-xl border border-slate-700 focus:border-orange-500 focus:outline-none font-bold"
-                            placeholder="••••••••"
-                            required
-                        />
+                        <div className="relative">
+                            <input
+                                type={showPassword ? 'text' : 'password'}
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                className="w-full bg-slate-900/50 text-white p-4 pr-12 rounded-xl border border-slate-700 focus:border-orange-500 focus:outline-none font-bold"
+                                placeholder="••••••••"
+                                required
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(v => !v)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 active:text-orange-400 p-1"
+                                tabIndex={-1}
+                            >
+                                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                            </button>
+                        </div>
                         <div className="flex justify-end mt-2">
                             <button
                                 type="button"
@@ -93,18 +129,20 @@ export const BusinessLogin: React.FC = () => {
                         </Link>
                     </p>
 
-                    <Link
-                        to="/login"
+                    <button
+                        type="button"
+                        onClick={goToCustomer}
                         className="inline-block px-6 py-2 bg-slate-700/50 text-slate-400 border border-slate-600 rounded-lg text-sm font-bold hover:bg-slate-700 transition-colors"
+                        style={{ WebkitTapHighlightColor: 'transparent' }}
                     >
                         Oyuncu Girişine Dön
-                    </Link>
+                    </button>
                 </div>
             </div>
 
-            <BusinessForgotPasswordModal 
-                isOpen={isForgotModalOpen} 
-                onClose={() => setIsForgotModalOpen(false)} 
+            <BusinessForgotPasswordModal
+                isOpen={isForgotModalOpen}
+                onClose={() => setIsForgotModalOpen(false)}
             />
         </div>
     );

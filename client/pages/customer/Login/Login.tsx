@@ -1,17 +1,33 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link, Navigate } from 'react-router-dom';
+import { Eye, EyeOff } from 'lucide-react';
 import api from '../../../services/api';
 import { initializePushNotifications } from '../../../services/pushNotificationService';
 import { useAuth } from '../../../contexts/AuthContext';
 
+type Phase = 'entering' | 'idle' | 'exiting-left';
+
 export const Login: React.FC = () => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
     const navigate = useNavigate();
+    const location = useLocation();
     const { token, loginAsCustomer } = useAuth();
 
-    const location = useLocation();
+    const [phase, setPhase] = useState<Phase>(() =>
+        location.state?.from === 'business' ? 'entering' : 'idle'
+    );
+
+    useEffect(() => {
+        if (phase !== 'entering') return;
+        const frame = requestAnimationFrame(() =>
+            requestAnimationFrame(() => setPhase('idle'))
+        );
+        return () => cancelAnimationFrame(frame);
+    }, []);
+
     if (token && !location.state?.sessionExpired) {
         return <Navigate to="/" replace />;
     }
@@ -28,8 +44,18 @@ export const Login: React.FC = () => {
         }
     };
 
+    const goToBusiness = () => {
+        if (phase !== 'idle') return;
+        setPhase('exiting-left');
+        setTimeout(() => navigate('/business/login', { state: { from: 'customer' } }), 280);
+    };
+
+    const animClass =
+        phase === 'entering' ? 'animate-slide-enter-left' :
+        phase === 'exiting-left' ? 'animate-slide-exit-left' : '';
+
     return (
-        <div className="min-h-screen bg-pitch flex flex-col items-center justify-start px-4 pt-16 pb-16">
+        <div className={`min-h-screen bg-pitch flex flex-col items-center justify-start px-4 pt-16 pb-16 ${animClass}`}>
             <div className="w-full max-w-md bg-slate-800 p-8 rounded-3xl border border-slate-700 shadow-2xl">
                 <div className="text-center mb-8">
                     <img src="/dimli.png" alt="DİMLİ" className="h-24 w-auto object-contain mx-auto mb-4 rounded-2xl" />
@@ -60,14 +86,24 @@ export const Login: React.FC = () => {
                     </div>
                     <div>
                         <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Şifre</label>
-                        <input
-                            type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            className="w-full bg-slate-900 text-white p-4 rounded-xl border border-slate-700 focus:border-turf-500 focus:outline-none font-bold"
-                            placeholder="••••••••"
-                            required
-                        />
+                        <div className="relative">
+                            <input
+                                type={showPassword ? 'text' : 'password'}
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                className="w-full bg-slate-900 text-white p-4 pr-12 rounded-xl border border-slate-700 focus:border-turf-500 focus:outline-none font-bold"
+                                placeholder="••••••••"
+                                required
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(v => !v)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 active:text-slate-300 p-1"
+                                tabIndex={-1}
+                            >
+                                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                            </button>
+                        </div>
                     </div>
 
                     <button
@@ -92,8 +128,9 @@ export const Login: React.FC = () => {
                         </Link>
                     </p>
 
-                    <Link
-                        to="/business/login"
+                    <button
+                        type="button"
+                        onClick={goToBusiness}
                         className="block w-full py-3.5 rounded-xl text-center text-sm font-bold tracking-wide transition-all active:scale-[0.98]"
                         style={{
                             background: 'rgba(249,115,22,0.07)',
@@ -103,7 +140,7 @@ export const Login: React.FC = () => {
                         }}
                     >
                         İşletme Hesabına Geçiş Yap
-                    </Link>
+                    </button>
                 </div>
             </div>
         </div>
