@@ -1,22 +1,9 @@
-export const isPastSlot = (startTime: string, date: string): boolean => {
-    const now = new Date();
-    const [h, m] = startTime.split(':').map(Number);
-    const slotDate = new Date(date);
-    slotDate.setHours(h, m || 0, 0, 0);
-    return slotDate < now;
-};
+import { sortSlotsByNightRule } from '../../../../utils/nightSlot';
 
-// 00-05 arası saatler "ertesi gün" → diğer slotlardan sonra sıralanır.
-const timeToSortMinutes = (time: string): number => {
-    const [h, m] = time.split(':').map(Number);
-    const minutes = h * 60 + m;
-    return h < 6 ? minutes + 24 * 60 : minutes;
-};
+export { isPastSlot, getNightSlotDateLabel } from '../../../../utils/nightSlot';
 
 export const sortSlotsForDisplay = (slots: { startTime: string; endTime: string; status?: string }[]) => {
-    return [...slots].sort((a, b) =>
-        timeToSortMinutes(a.startTime) - timeToSortMinutes(b.startTime)
-    );
+    return sortSlotsByNightRule(slots);
 };
 
 export const groupMatchesByDate = (matches: any[]) => {

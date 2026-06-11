@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import api from '../../../../services/api';
 import { getOwnerId } from '../../../../services/authStorage';
 import { SuccessType } from '../../../../components/Modals/SuccessModal';
+import { isPastSlot as isPastSlotShared } from '../../../../utils/nightSlot';
 
 export const useBusinessDashboard = () => {
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -81,14 +82,8 @@ export const useBusinessDashboard = () => {
     const silentRefetch = useCallback(() => fetchDashboard(true), [selectedDate]);
 
     const isPastSlot = (time: string, date: string): boolean => {
-        const now = new Date();
         const startTimeStr = time.includes(' - ') ? time.split(' - ')[0] : time;
-        const [hour, minute] = startTimeStr.split(':').map(Number);
-        const slotDate = new Date(date);
-        slotDate.setHours(hour, minute || 0, 0, 0);
-        // Gece yarısı sonrası (00-05) slotlar aslında ertesi güne ait
-        if (hour < 6) slotDate.setDate(slotDate.getDate() + 1);
-        return slotDate < now;
+        return isPastSlotShared(startTimeStr, date);
     };
 
     const openActionModal = (type: 'APPROVE' | 'SEND_NOTE', reservationId: string) => {

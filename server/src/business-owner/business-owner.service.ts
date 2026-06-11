@@ -185,10 +185,6 @@ export class BusinessOwnerService {
                     const slotTime = new Date(startOfDay);
                     slotTime.setHours(hour);
 
-                    if (endHour < startHour && hour < startHour) {
-                        slotTime.setDate(slotTime.getDate() + 1);
-                    }
-
                     const reservations = await this.reservationsService.findByPitchAndDate(pitch.id, slotTime, slotTime);
                     const slotReservations = reservations.filter((r: any) => {
                         const rTime = new Date(r.slotTime);

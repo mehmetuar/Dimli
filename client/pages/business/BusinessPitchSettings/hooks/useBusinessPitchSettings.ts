@@ -3,59 +3,13 @@ import { useNavigate, useParams } from 'react-router-dom';
 import api from '../../../../services/api';
 import { getOwnerId } from '../../../../services/authStorage';
 import { DEFAULT_FACILITIES } from '../../../../constants';
-
-// ─── Slot yardımcı fonksiyonları ─────────────────────────────────────────────
-
-const toMin = (t: string): number => {
-    if (!t) return 0;
-    const [h, m] = t.split(':').map(Number);
-    return h * 60 + (m || 0);
-};
-
-/** Gece yarısını geçen slotlarda bitiş dakikasını düzelt */
-const slotEndMin = (startTime: string, endTime: string): number => {
-    const s = toMin(startTime);
-    let e = toMin(endTime);
-    if (e === 0) e = 1440;
-    if (e <= s) e += 1440;
-    return e;
-};
-
-/** İşletme gece yarısını geçiyor mu? */
-const crossesMidnight = (open: string, close: string): boolean => {
-    if (!open || !close) return false;
-    const c = toMin(close);
-    return c === 0 || c < toMin(open);
-};
-
-/** Gece yarısı geçen işletmelerde erken sabah saatlerini ertesi güne taşı */
-const normalizeMin = (t: string, openMin: number, crosses: boolean): number => {
-    const m = toMin(t);
-    if (crosses && m < openMin) return m + 1440;
-    return m;
-};
-
-const slotsOverlap = (
-    a: { startTime: string; endTime: string },
-    b: { startTime: string; endTime: string }
-): boolean => {
-    const aS = toMin(a.startTime);
-    const aE = slotEndMin(a.startTime, a.endTime);
-    let bS = toMin(b.startTime);
-    let bE = slotEndMin(b.startTime, b.endTime);
-    if (aS > 12 * 60 && bS < 6 * 60) { bS += 1440; bE += 1440; }
-    return aS < bE && aE > bS;
-};
-
-// 00-05 arası saatler "ertesi gün" → diğer slotlardan sonra sıralanır.
-const sortTimeSlotsForDisplay = (slots: { startTime: string; endTime: string }[]) => {
-    const toSortMin = (time: string) => {
-        const [h, m] = time.split(':').map(Number);
-        const mins = h * 60 + m;
-        return h < 6 ? mins + 24 * 60 : mins;
-    };
-    return [...slots].sort((a, b) => toSortMin(a.startTime) - toSortMin(b.startTime));
-};
+import {
+    toMinutes as toMin,
+    crossesMidnight,
+    normalizeMin,
+    slotsOverlap,
+    sortSlotsByNightRule as sortTimeSlotsForDisplay,
+} from '../../../../utils/nightSlot';
 
 interface TimePickerState {
     open: boolean;

@@ -145,9 +145,17 @@ export class PitchesService {
     }
 
     async getTimeSlots(pitchId: string) {
-        return this.timeSlotRepository.find({
+        const slots = await this.timeSlotRepository.find({
             where: { pitchId, isActive: true },
-            order: { startTime: 'ASC' }
         });
+
+        // 00:00-05:59 arası başlayan slotlar "ertesi gün" kabul edilir → sona alınır.
+        const sortMinutes = (time: string): number => {
+            const [h, m] = time.split(':').map(Number);
+            const minutes = h * 60 + (m || 0);
+            return h < 6 ? minutes + 24 * 60 : minutes;
+        };
+
+        return slots.sort((a, b) => sortMinutes(a.startTime) - sortMinutes(b.startTime));
     }
 }

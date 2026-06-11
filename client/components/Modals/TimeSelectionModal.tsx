@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { X, Clock, AlertTriangle } from 'lucide-react';
 import { Business, Pitch } from '../../types';
 import { useModalBodyClass } from '../../utils/useModalBodyClass';
+import { isPastSlot } from '../../utils/nightSlot';
 
 interface TimeSelectionModalProps {
     isOpen: boolean;
@@ -41,12 +42,7 @@ const TimeSelectionModalContent: React.FC<TimeSelectionModalProps> = ({
                     const timeStr = ts.startTime;
                     const label = `${ts.startTime} – ${ts.endTime}`;
 
-                    // Check past
-                    const [h, m] = ts.startTime.split(':').map(Number);
-                    const now = new Date();
-                    const slotDate = new Date(selectedDate);
-                    slotDate.setHours(h, m || 0, 0, 0);
-                    const isPast = slotDate < now;
+                    const isPast = isPastSlot(ts.startTime, selectedDate);
 
                     const isBooked = bookedHours.includes(ts.startTime);
 
@@ -73,10 +69,7 @@ const TimeSelectionModalContent: React.FC<TimeSelectionModalProps> = ({
             const timeStr = `${String(h).padStart(2, '0')}:00`;
             const label = `${String(h).padStart(2, '0')}:00 – ${String(h + 1).padStart(2, '0')}:00`;
 
-            const now = new Date();
-            const slotDate = new Date(selectedDate);
-            slotDate.setHours(h, 0, 0, 0);
-            const isPast = slotDate < now;
+            const isPast = isPastSlot(timeStr, selectedDate);
 
             const isBooked = bookedHours.includes(timeStr);
 
