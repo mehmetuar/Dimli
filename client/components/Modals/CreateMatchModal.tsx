@@ -7,6 +7,7 @@ import { SkillLevel, Business, ReservationStatus } from '../../types';
 import api, { getReservationsByPitch, getBusinesses } from '../../services/api';
 import { useLocationContext } from '../../contexts/LocationContext';
 import { useKeyboardHeight } from '../../utils/useKeyboardHeight';
+import { getSlotRealDateTime, isNightHour } from '../../utils/nightSlot';
 
 import { DateSelectionModal } from './DateSelectionModal';
 import { TimeSelectionModal } from './TimeSelectionModal';
@@ -208,6 +209,23 @@ const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelected
         return undefined;
     };
     const selectedBusiness = getSelectedBusiness();
+
+    // Gece slotları (00:00-05:59) bir önceki günün gece devamı kabul edilir;
+    // formda gerçek tarih (örn. "12 Haziran") gösterilir.
+    const [timeHour] = (time || '').split(':').map(Number);
+    const displayDate = date
+        ? (time && isNightHour(timeHour) ? getSlotRealDateTime(date, time) : new Date(date))
+        : null;
+
+    const getEndTime = (startTime: string): string | null => {
+        if (!startTime) return null;
+        const match = selectedPitch?.timeSlots?.find(ts => ts.startTime === startTime);
+        if (match) return match.endTime;
+        const [h, m] = startTime.split(':').map(Number);
+        const endHour = (h + 1) % 24;
+        return `${String(endHour).padStart(2, '0')}:${String(m || 0).padStart(2, '0')}`;
+    };
+    const endTime = time ? getEndTime(time) : null;
 
     // Filter by search query only — server already handled geo + ordering
     const filteredBusinesses = useMemo(() => {
@@ -412,8 +430,8 @@ const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelected
                                     <div className="flex-1 flex flex-col">
                                         <div className="text-[10px] text-slate-500 font-bold uppercase mb-0.5">TARİH</div>
                                         <div className="text-white text-sm font-semibold">
-                                            {date
-                                                ? new Date(date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', weekday: 'long' })
+                                            {displayDate
+                                                ? displayDate.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', weekday: 'long' })
                                                 : 'Tarih Seçin'}
                                         </div>
                                     </div>
@@ -431,7 +449,9 @@ const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelected
                                     <div className="flex-1 flex flex-col">
                                         <div className="text-[10px] text-slate-500 font-bold uppercase mb-0.5">SAAT</div>
                                         <div className="text-white text-sm font-semibold">
-                                            {time ? `${time}` : selectedBusiness ? 'Saat Seçin' : 'Önce Saha Seçin'}
+                                            {time
+                                                ? (endTime ? `${time} - ${endTime}` : time)
+                                                : selectedBusiness ? 'Saat Seçin' : 'Önce Saha Seçin'}
                                         </div>
                                     </div>
                                     <ChevronRight className="w-4 h-4 text-slate-600" />
