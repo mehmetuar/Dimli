@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Clock, Phone, AlertCircle, Navigation, X } from 'lucide-react';
-import { generateSlots, isPastSlot, getNightSlotDateLabel } from '../utils/pitchUtils';
+import { generateSlots, isPastSlot } from '../utils/pitchUtils';
 
 interface PitchScheduleProps {
     business: any;
@@ -125,7 +125,6 @@ export const PitchSchedule: React.FC<PitchScheduleProps> = ({
             {!isPitchClosed && <div className="grid grid-cols-3 gap-2">
                 {generateSlots(selectedPitch, business).map((slot: any, slotIdx: number) => {
                     const isPast = isPastSlot(slot.startTime, selectedDate);
-                    const nightLabel = getNightSlotDateLabel(slot.startTime, selectedDate);
 
                     if (isPast) {
                         return (
@@ -211,11 +210,6 @@ export const PitchSchedule: React.FC<PitchScheduleProps> = ({
                             <span className="text-[15px] sm:text-base font-black tracking-tighter leading-none">{slot.startTime}</span>
                             {slot.endTime && (
                                 <span className="text-[10px] font-bold opacity-75 mt-0.5 mb-1">{slot.endTime}</span>
-                            )}
-                            {nightLabel && (
-                                <span className="text-[8px] font-bold text-slate-500 tracking-wide -mt-0.5 mb-0.5">
-                                    {nightLabel} gecesi
-                                </span>
                             )}
 
                             {subLabel ? (

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, CalendarX, Settings, Clock } from 'lucide-react';
-import { getNightSlotDateLabel } from '../../../../utils/nightSlot';
 
 interface PitchGridProps {
     pitches: any[];
@@ -116,7 +115,6 @@ export const PitchGrid: React.FC<PitchGridProps> = ({
                         {activePitch.slots.map((slot: any, slotIdx: number) => {
                             const isPast = isPastSlot(slot.time, selectedDate);
                             const formattedTime = formatTimeRange(slot.time);
-                            const nightLabel = getNightSlotDateLabel(slot.startTime || slot.time, selectedDate);
 
                             return (
                                 <button
@@ -150,12 +148,6 @@ export const PitchGrid: React.FC<PitchGridProps> = ({
                                     `}>
                                         {formattedTime}
                                     </span>
-
-                                    {nightLabel && (
-                                        <span className="text-[7px] font-bold text-slate-500 tracking-wide !whitespace-nowrap">
-                                            {nightLabel} gecesi
-                                        </span>
-                                    )}
 
                                     <span className={`
                                         text-[clamp(8px,2.2vw,10px)] font-bold uppercase mt-1.5 tracking-widest !whitespace-nowrap overflow-hidden text-ellipsis

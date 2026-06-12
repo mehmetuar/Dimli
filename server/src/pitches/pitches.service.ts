@@ -149,11 +149,9 @@ export class PitchesService {
             where: { pitchId, isActive: true },
         });
 
-        // 00:00-05:59 arası başlayan slotlar "ertesi gün" kabul edilir → sona alınır.
         const sortMinutes = (time: string): number => {
             const [h, m] = time.split(':').map(Number);
-            const minutes = h * 60 + (m || 0);
-            return h < 6 ? minutes + 24 * 60 : minutes;
+            return h * 60 + (m || 0);
         };
 
         return slots.sort((a, b) => sortMinutes(a.startTime) - sortMinutes(b.startTime));

@@ -1,10 +1,3 @@
-// Gece slotları (00:00-05:59 arası başlayan saatler) bir önceki günün gece
-// devamı kabul edilir: o günün listesinde gösterilir, ama gerçek anı bir
-// sonraki takvim gününe denk gelir.
-export const NIGHT_HOUR_THRESHOLD = 6;
-
-export const isNightHour = (hour: number): boolean => hour < NIGHT_HOUR_THRESHOLD;
-
 export const toMinutes = (t: string): number => {
     if (!t) return 0;
     const [h, m] = t.split(':').map(Number);
@@ -65,36 +58,18 @@ export const isWithinBounds = (
     return sS >= openMin && sE <= closeMin;
 };
 
-// 00-05 arası başlayan slotlar "ertesi gün" → diğer slotlardan sonra sıralanır.
-const sortMinutes = (time: string): number => {
-    const [h, m] = time.split(':').map(Number);
-    const minutes = h * 60 + (m || 0);
-    return isNightHour(h) ? minutes + 24 * 60 : minutes;
-};
-
+/** Slotları başlangıç saatine göre düz kronolojik sırala (00:00 ilk sırada). */
 export const sortSlotsByNightRule = <T extends { startTime: string }>(slots: T[]): T[] =>
-    [...slots].sort((a, b) => sortMinutes(a.startTime) - sortMinutes(b.startTime));
+    [...slots].sort((a, b) => toMinutes(a.startTime) - toMinutes(b.startTime));
 
-/** Bir slotun "gerçek" tarih+saatini döner (gece slotları için +1 gün). */
+/** Slot, ait olduğu takvim gününün (dateStr) gerçek tarih+saatini döner — kayma yok. */
 export const getSlotRealDateTime = (dateStr: string, startTime: string): Date => {
     const [h, m] = startTime.split(':').map(Number);
     const d = new Date(dateStr);
     d.setHours(h, m || 0, 0, 0);
-    if (isNightHour(h)) d.setDate(d.getDate() + 1);
     return d;
 };
 
 export const isPastSlot = (startTime: string, dateStr: string): boolean => {
     return getSlotRealDateTime(dateStr, startTime) < new Date();
-};
-
-/**
- * Gece slotu için "asıl oynanacağı" takvim tarihini "12 Haziran" formatında döner.
- * Gündüz slotları için null döner (badge gösterilmeyecek).
- */
-export const getNightSlotDateLabel = (startTime: string, dateStr: string): string | null => {
-    const [h] = startTime.split(':').map(Number);
-    if (!isNightHour(h)) return null;
-    const real = getSlotRealDateTime(dateStr, startTime);
-    return real.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' });
 };

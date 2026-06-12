@@ -7,7 +7,6 @@ import { SkillLevel, Business, ReservationStatus } from '../../types';
 import api, { getReservationsByPitch, getBusinesses } from '../../services/api';
 import { useLocationContext } from '../../contexts/LocationContext';
 import { useKeyboardHeight } from '../../utils/useKeyboardHeight';
-import { getSlotRealDateTime, isNightHour } from '../../utils/nightSlot';
 
 import { DateSelectionModal } from './DateSelectionModal';
 import { TimeSelectionModal } from './TimeSelectionModal';
@@ -209,13 +208,6 @@ const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelected
         return undefined;
     };
     const selectedBusiness = getSelectedBusiness();
-
-    // Gece slotları (00:00-05:59) bir önceki günün gece devamı kabul edilir;
-    // formda gerçek tarih (örn. "12 Haziran") gösterilir.
-    const [timeHour] = (time || '').split(':').map(Number);
-    const displayDate = date
-        ? (time && isNightHour(timeHour) ? getSlotRealDateTime(date, time) : new Date(date))
-        : null;
 
     const getEndTime = (startTime: string): string | null => {
         if (!startTime) return null;
@@ -430,8 +422,8 @@ const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelected
                                     <div className="flex-1 flex flex-col">
                                         <div className="text-[10px] text-slate-500 font-bold uppercase mb-0.5">TARİH</div>
                                         <div className="text-white text-sm font-semibold">
-                                            {displayDate
-                                                ? displayDate.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', weekday: 'long' })
+                                            {date
+                                                ? new Date(date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', weekday: 'long' })
                                                 : 'Tarih Seçin'}
                                         </div>
                                     </div>

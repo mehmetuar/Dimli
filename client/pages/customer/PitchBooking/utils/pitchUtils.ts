@@ -1,6 +1,6 @@
 import { sortSlotsByNightRule } from '../../../../utils/nightSlot';
 
-export { isPastSlot, getNightSlotDateLabel } from '../../../../utils/nightSlot';
+export { isPastSlot } from '../../../../utils/nightSlot';
 
 export const sortSlotsForDisplay = (slots: { startTime: string; endTime: string; status?: string }[]) => {
     return sortSlotsByNightRule(slots);

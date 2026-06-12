@@ -40,12 +40,10 @@ export const useBusinessDashboard = () => {
         fetchDashboard();
     }, [selectedDate]);
 
-    // 06:00'dan önce başlayan slotlar ertesi güne ait → en sona sırala
     const slotSortMin = (time: string): number => {
         const startStr = time.includes(' - ') ? time.split(' - ')[0] : time;
         const [h, m] = startStr.split(':').map(Number);
-        const mins = h * 60 + (m || 0);
-        return h < 6 ? mins + 24 * 60 : mins;
+        return h * 60 + (m || 0);
     };
 
     const fetchDashboard = async (silent = false) => {

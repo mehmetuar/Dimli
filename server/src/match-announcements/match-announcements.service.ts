@@ -99,19 +99,14 @@ export class MatchAnnouncementsService {
         const now = new Date();
         const [hours, minutes] = data.time.split(':').map(Number);
 
-        // Literal tarih+saat: date 00:00 + time, kayma yok.
-        // DB'deki date/time kolonları, slotTime ve çakışma kontrolü bu konvansiyonu kullanır.
-        const literalDateTime = new Date(data.date);
-        literalDateTime.setHours(hours, minutes, 0, 0);
-
-        // Gerçek tarih+saat: gece slotları (00:00-05:59) bir önceki günün gece
-        // devamı kabul edilir, gerçek anı +1 gündür (bkz. client/utils/nightSlot.ts).
-        // Sadece "geçmiş mi?" ve "30 gün sınırı" kontrollerinde kullanılır.
-        const realDateTime = new Date(literalDateTime);
-        if (hours < 6) realDateTime.setDate(realDateTime.getDate() + 1);
+        // Tarih+saat: date 00:00 + time, kayma yok. DB'deki date/time
+        // kolonları, slotTime, geçmiş/30 gün kontrolleri ve çakışma kontrolü
+        // hepsi bu literal değeri kullanır.
+        const slotDateTime = new Date(data.date);
+        slotDateTime.setHours(hours, minutes, 0, 0);
 
         // 🆕 Strictly check if the slot time is in the past
-        if (realDateTime < now) {
+        if (slotDateTime < now) {
             throw new HttpException(
                 'Geçmiş bir saat için ilan oluşturamazsınız. Lütfen gelecek bir tarih ve saat seçin.',
                 HttpStatus.BAD_REQUEST
@@ -122,7 +117,7 @@ export class MatchAnnouncementsService {
         const maxAllowedDate = new Date(now);
         maxAllowedDate.setDate(maxAllowedDate.getDate() + 30);
 
-        if (realDateTime > maxAllowedDate) {
+        if (slotDateTime > maxAllowedDate) {
             throw new HttpException(
                 'En fazla 30 gün ilerisi için ilan oluşturabilirsiniz.',
                 HttpStatus.BAD_REQUEST
@@ -132,7 +127,7 @@ export class MatchAnnouncementsService {
         // Kesinleşmiş maç saati çakışma kontrolü
         const conflictingMatch = await this.reservationsService.hasConflictingApprovedMatch(
             user.team.id,
-            literalDateTime
+            slotDateTime
         );
         if (conflictingMatch) {
             throw new HttpException(
@@ -196,8 +191,8 @@ export class MatchAnnouncementsService {
                 const pitchName = pitchData?.name || 'Saha';
 
                 // Format date with day name
-                const dayName = literalDateTime.toLocaleDateString('tr-TR', { weekday: 'long' });
-                const formattedDate = literalDateTime.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
+                const dayName = slotDateTime.toLocaleDateString('tr-TR', { weekday: 'long' });
+                const formattedDate = slotDateTime.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
 
                 // Calculate end time from pitch time slots or default +1 hour
                 let endTimeStr = '';
@@ -209,7 +204,7 @@ export class MatchAnnouncementsService {
                     }
                 }
                 if (!endTimeStr) {
-                    const endTime = new Date(literalDateTime.getTime() + 60 * 60 * 1000);
+                    const endTime = new Date(slotDateTime.getTime() + 60 * 60 * 1000);
                     endTimeStr = endTime.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
                 }
 
@@ -229,7 +224,7 @@ export class MatchAnnouncementsService {
                 await this.reservationsService.create({
                     pitchId: saved.pitchId,
                     teamId: user.team.id,
-                    slotTime: literalDateTime,
+                    slotTime: slotDateTime,
                     type: 'MATCH',
                     matchAnnouncementId: saved.id
                 });
