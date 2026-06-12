@@ -1,16 +1,20 @@
 
 import React, { useState } from 'react';
 import { X, Search, UserPlus, CheckCircle, AlertCircle, Share2 } from 'lucide-react';
+import { Browser } from '@capacitor/browser';
 import { Player } from '../../types';
 
 import api from '../../services/api';
 import { useModalBodyClass } from '../../utils/useModalBodyClass';
+import { getToken, decodeTokenPayload } from '../../services/authStorage';
 
 interface Props {
     isOpen: boolean;
     onClose: () => void;
     currentRosterIds: string[];
     teamId?: string;
+    teamShortId?: string;
+    teamName?: string;
 }
 
 export const AddPlayerModal: React.FC<Props> = (props) => {
@@ -19,7 +23,7 @@ export const AddPlayerModal: React.FC<Props> = (props) => {
     return <AddPlayerModalContent {...props} />;
 };
 
-const AddPlayerModalContent: React.FC<Props> = ({ isOpen, onClose, currentRosterIds, teamId }) => {
+const AddPlayerModalContent: React.FC<Props> = ({ isOpen, onClose, currentRosterIds, teamId, teamShortId, teamName }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [searchResults, setSearchResults] = useState<Player[]>([]);
     const [invitedIds, setInvitedIds] = useState<string[]>([]);
@@ -62,10 +66,35 @@ const AddPlayerModalContent: React.FC<Props> = ({ isOpen, onClose, currentRoster
         }
     };
 
+    const getInviteLink = () => {
+        const token = getToken();
+        const ref = token ? decodeTokenPayload(token)?.sub : undefined;
+        const code = teamShortId || teamId;
+        return `https://dimli.app/invite/team/${code}${ref ? `?ref=${ref}` : ''}`;
+    };
+
+    const getInviteMessage = () => {
+        const link = getInviteLink();
+        const name = teamName ? `${teamName} takımına` : 'takımıma';
+        return `Dimli'de ${name} katıl, birlikte maç yapalım! ${link}`;
+    };
+
     const copyInviteLink = () => {
-        const link = `https://dimli.app/invite/team/${teamId}`;
-        navigator.clipboard.writeText(link);
+        navigator.clipboard.writeText(getInviteLink());
         alert("Davet linki kopyalandı! Arkadaşına gönderebilirsin.");
+    };
+
+    const shareInviteLink = async () => {
+        const message = getInviteMessage();
+        if (navigator.share) {
+            try {
+                await navigator.share({ text: message });
+            } catch {
+                // Kullanıcı paylaşım menüsünü kapattı
+            }
+            return;
+        }
+        await Browser.open({ url: `https://wa.me/?text=${encodeURIComponent(message)}` });
     };
 
     return (
@@ -151,7 +180,7 @@ const AddPlayerModalContent: React.FC<Props> = ({ isOpen, onClose, currentRoster
                             </h4>
                             <div className="flex gap-2">
                                 <div className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-400 truncate">
-                                    https://dimli.app/invite/team/t1...
+                                    {getInviteLink()}
                                 </div>
                                 <button
                                     onClick={copyInviteLink}
@@ -160,6 +189,12 @@ const AddPlayerModalContent: React.FC<Props> = ({ isOpen, onClose, currentRoster
                                     Kopyala
                                 </button>
                             </div>
+                            <button
+                                onClick={shareInviteLink}
+                                className="mt-2 w-full bg-turf-600 hover:bg-turf-500 text-white px-3 py-2 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-2 shadow-neon"
+                            >
+                                <Share2 className="w-3.5 h-3.5" /> WhatsApp'tan Paylaş
+                            </button>
                             <p className="text-[10px] text-slate-500 mt-2">
                                 Bu linki WhatsApp veya sosyal medyadan paylaşarak takımına oyuncu çekebilirsin.
                             </p>

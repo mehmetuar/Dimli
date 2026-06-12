@@ -20,6 +20,8 @@ import { SocketProvider } from './contexts/SocketContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { getToken, getRole } from './services/authStorage';
 import { useKeyboardScroll } from './utils/useKeyboardScroll';
+import { savePendingInvite, getPendingInvite, clearPendingInvite } from './services/pendingInvite';
+import { BusinessInviteNoticeModal } from './components/Modals/BusinessInviteNoticeModal';
 
 // Haversine — iki koordinat arası km mesafe
 function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -33,6 +35,7 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): nu
 // ── Lazy page imports (code splitting — reduces initial bundle from ~1.17MB → ~200KB) ──
 const Marketplace = lazy(() => import('./pages/customer/Marketplace/Marketplace').then(m => ({ default: m.Marketplace })));
 const TeamProfile = lazy(() => import('./pages/customer/TeamProfile/TeamProfile').then(m => ({ default: m.TeamProfile })));
+const TeamInvite = lazy(() => import('./pages/customer/TeamInvite/TeamInvite').then(m => ({ default: m.TeamInvite })));
 const JokerPool = lazy(() => import('./pages/customer/JokerPool/JokerPool').then(m => ({ default: m.JokerPool })));
 const PitchBooking = lazy(() => import('./pages/customer/PitchBooking/PitchBooking').then(m => ({ default: m.PitchBooking })));
 const Chat = lazy(() => import('./pages/customer/Chat/Chat').then(m => ({ default: m.Chat })));
@@ -99,7 +102,7 @@ function AppContent() {
   useKeyboardScroll();
   const location = useLocation();
   const navigate = useNavigate();
-  const { isReady } = useAuth();
+  const { isReady, token, isBusiness, isCustomer, logout } = useAuth();
   const isAuthPage =
     location.pathname === '/login' ||
     location.pathname === '/register' ||
@@ -108,6 +111,7 @@ function AppContent() {
     location.pathname.startsWith('/business') ||
     location.pathname.startsWith('/settings');
   const [pendingRatings, setPendingRatings] = useState<PendingRating[]>([]);
+  const [businessInviteNotice, setBusinessInviteNotice] = useState(false);
   const { updateCoords } = useLocationContext();
   const prevGpsRef = useRef<{ lat: number; lng: number } | null>(null);
   const prevLocationNameRef = useRef<string | null>(null);
@@ -150,6 +154,59 @@ function AppContent() {
       listenerPromise.then(h => h.remove());
     };
   }, []);
+
+  // Takım davet linki (Universal Link / App Link): https://dimli.app/invite/team/ABC-123?ref=...
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    const handleInviteUrl = async (rawUrl: string) => {
+      let path: string;
+      let ref: string | undefined;
+      try {
+        const url = new URL(rawUrl);
+        path = url.pathname;
+        ref = url.searchParams.get('ref') || undefined;
+      } catch {
+        return;
+      }
+
+      const match = path.match(/\/invite\/team\/([^/]+)/);
+      if (!match) return;
+      const shortId = match[1];
+
+      if (!token) {
+        await savePendingInvite({ shortId, ref });
+        navigate('/login');
+        return;
+      }
+
+      if (isBusiness) {
+        await savePendingInvite({ shortId, ref });
+        setBusinessInviteNotice(true);
+        return;
+      }
+
+      navigate(`/invite/team/${shortId}`);
+    };
+
+    const listenerPromise = CapApp.addListener('appUrlOpen', (data) => {
+      handleInviteUrl(data.url);
+    });
+
+    return () => {
+      listenerPromise.then(h => h.remove());
+    };
+  }, [token, isBusiness, navigate]);
+
+  // Login/Register tamamlandığında (veya işletmeden oyuncu hesabına geçişte) bekleyen davet varsa devam ettir
+  useEffect(() => {
+    if (!isReady || !token || !isCustomer) return;
+    getPendingInvite().then((invite) => {
+      if (!invite) return;
+      clearPendingInvite();
+      navigate(`/invite/team/${invite.shortId}`);
+    });
+  }, [isReady, token, isCustomer, navigate]);
 
   // Oturum süresi dolduğunda veya token geçersizleştiğinde doğru login sayfasına yönlendir
   useEffect(() => {
@@ -365,6 +422,7 @@ function AppContent() {
               <Route path="/jokers" element={<JokerPool />} />
               <Route path="/chat" element={<Chat />} />
               <Route path="/team" element={<TeamProfile />} />
+              <Route path="/invite/team/:shortId" element={<TeamInvite />} />
               <Route path="/notifications" element={<Notifications />} />
               <Route path="/settings/profile" element={<ProfileSettings />} />
               <Route path="/settings/account" element={<AccountSettings />} />
@@ -385,6 +443,16 @@ function AppContent() {
         />
       )}
       {!isAuthPage && <Navbar />}
+      {businessInviteNotice && (
+        <BusinessInviteNoticeModal
+          onClose={() => setBusinessInviteNotice(false)}
+          onSwitchAccount={async () => {
+            setBusinessInviteNotice(false);
+            await logout();
+            navigate('/login', { replace: true });
+          }}
+        />
+      )}
     </div>
   );
 }

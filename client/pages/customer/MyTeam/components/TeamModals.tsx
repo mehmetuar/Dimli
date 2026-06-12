@@ -97,6 +97,8 @@ export const TeamModals: React.FC<TeamModalsProps> = ({
                 onClose={() => modals.setIsAddPlayerModalOpen(false)}
                 currentRosterIds={roster.map(p => p.id!)}
                 teamId={myTeam?.id}
+                teamShortId={myTeam?.shortId}
+                teamName={myTeam?.name}
             />
         </>
     );

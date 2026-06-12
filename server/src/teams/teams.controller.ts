@@ -50,6 +50,12 @@ export class TeamsController {
     }
 
     @UseGuards(JwtAuthGuard)
+    @Post(':id/join-via-invite')
+    joinViaInvite(@Param('id') id: string, @Request() req) {
+        return this.teamsService.joinTeamViaInvite(id, req.user.id);
+    }
+
+    @UseGuards(JwtAuthGuard)
     @Delete(':id/players/:playerId')
     async removePlayer(@Param('id') id: string, @Param('playerId') playerId: string) {
         const result = await this.teamsService.removePlayer(id, playerId);

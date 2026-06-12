@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit, HttpException, HttpStatus } from '@nestjs/common';
+import { Injectable, OnModuleInit, HttpException, HttpStatus, ConflictException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Team } from './team.entity';
@@ -189,6 +189,27 @@ export class TeamsService implements OnModuleInit {
         if (!updatedTeam) throw new Error('Team not found after update');
 
         return updatedTeam;
+    }
+
+    // Davet linki üzerinden kullanıcının kendisi tarafından tetiklenen katılım.
+    // addPlayer ile aynı kuralları uygular ama hata mesajları istemciye iletilebilsin
+    // diye HttpException alt sınıflarını kullanır.
+    async joinTeamViaInvite(teamId: string, userId: string): Promise<Team> {
+        const team = await this.findOne(teamId);
+        if (!team) throw new NotFoundException('Takım bulunamadı.');
+
+        const user = await this.usersService.findById(userId);
+        if (!user) throw new NotFoundException('Kullanıcı bulunamadı.');
+
+        if (user.team) {
+            throw new ConflictException('Zaten bir takımdasın. Yeni bir takıma katılmak için önce mevcut takımından ayrılmalısın.');
+        }
+
+        if (team.players && team.players.length >= 28) {
+            throw new ConflictException('Bu takımın kadrosu dolu (maksimum 28 kişi).');
+        }
+
+        return this.addPlayer(teamId, userId);
     }
 
     async removePlayer(teamId: string, playerId: string): Promise<Team> {
