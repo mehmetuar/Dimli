@@ -1,4 +1,4 @@
-import { Injectable, Optional } from '@nestjs/common';
+import { Injectable, Optional, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Notification } from './notification.entity';
@@ -26,6 +26,7 @@ export class NotificationsService {
         private businessOwnerRepository: Repository<BusinessOwner>,
         @InjectRepository(User)
         private usersRepository: Repository<User>,
+        @Inject(forwardRef(() => TeamsService))
         private teamsService: TeamsService,
         @Optional() private gateway: AppGateway,
         private firebaseService: FirebaseService,

@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, ForbiddenException } from '@nestjs/common';
+import { Injectable, ConflictException, ForbiddenException, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JoinRequest } from './join-request.entity';
@@ -9,6 +9,7 @@ export class JoinRequestsService {
     constructor(
         @InjectRepository(JoinRequest)
         private joinRequestsRepository: Repository<JoinRequest>,
+        @Inject(forwardRef(() => NotificationsService))
         private notificationsService: NotificationsService,
     ) { }
 
