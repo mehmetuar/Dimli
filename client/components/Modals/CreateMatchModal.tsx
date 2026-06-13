@@ -100,15 +100,24 @@ const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelected
                     return;
                 }
 
-                // 3. Normal open OR preSelectedBusinessId: use geo filter (same as Marketplace)
+                // 2b. For pre-selected business: fetch all businesses to locate it and default its first pitch
+                if (preSelectedBusinessId) {
+                    const bList: Business[] = await getBusinesses();
+                    setBusinesses(bList);
+                    setSelectedBusinessId(preSelectedBusinessId);
+                    const business = bList.find(b => b.id === preSelectedBusinessId);
+                    const firstPitch = business?.pitches?.[0];
+                    if (firstPitch) setSelectedPitchId(firstPitch.id);
+                    setIsLoadingLocation(false);
+                    return;
+                }
+
+                // 3. Normal open: use geo filter (same as Marketplace)
                 if (filterMode === 'ALL') {
                     const bList: Business[] = await getBusinesses();
                     setBusinesses(bList);
                 } else if (coords) {
                     await fetchBusinessesNearby(coords);
-                }
-                if (preSelectedBusinessId) {
-                    setSelectedBusinessId(preSelectedBusinessId);
                 }
                 setIsLoadingLocation(false);
 
