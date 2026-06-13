@@ -11,6 +11,7 @@ export const TeamInvite: React.FC = () => {
 
     const [team, setTeam] = useState<Team | null>(null);
     const [alreadyInTeam, setAlreadyInTeam] = useState(false);
+    const [isSameTeam, setIsSameTeam] = useState(false);
     const [status, setStatus] = useState<'loading' | 'ready' | 'error' | 'joining' | 'joined'>('loading');
     const [errorMessage, setErrorMessage] = useState('');
 
@@ -31,6 +32,7 @@ export const TeamInvite: React.FC = () => {
                 }
                 setTeam(found);
                 setAlreadyInTeam(!!meRes.data?.teamId);
+                setIsSameTeam(!!meRes.data?.teamId && meRes.data.teamId === found.id);
                 setStatus('ready');
             } catch {
                 setErrorMessage('Davet bilgileri yüklenirken bir hata oluştu.');
@@ -114,6 +116,19 @@ export const TeamInvite: React.FC = () => {
                                     <p className="text-white font-bold text-sm">Takıma katıldın!</p>
                                     <p className="text-slate-400 text-xs">Takım sayfana yönlendiriliyorsun...</p>
                                 </div>
+                            ) : isSameTeam ? (
+                                <div className="bg-slate-900/60 border border-slate-700 border-dashed rounded-xl p-4 text-center">
+                                    <CheckCircle className="w-6 h-6 text-turf-500 mx-auto mb-2" />
+                                    <p className="text-slate-300 text-sm">
+                                        Zaten <span className="font-bold">{team.name}</span> takımının bir üyesisin.
+                                    </p>
+                                    <button
+                                        onClick={() => navigate('/team', { state: { openModal: true } })}
+                                        className="mt-3 bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg text-xs font-bold transition-colors"
+                                    >
+                                        Takımıma Git
+                                    </button>
+                                </div>
                             ) : alreadyInTeam ? (
                                 <div className="bg-slate-900/60 border border-slate-700 border-dashed rounded-xl p-4 text-center">
                                     <AlertCircle className="w-6 h-6 text-amber-400 mx-auto mb-2" />
@@ -122,7 +137,7 @@ export const TeamInvite: React.FC = () => {
                                         katılmak için önce mevcut takımından ayrılmalısın.
                                     </p>
                                     <button
-                                        onClick={() => navigate('/settings/team')}
+                                        onClick={() => navigate('/team', { state: { openModal: true } })}
                                         className="mt-3 bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg text-xs font-bold transition-colors"
                                     >
                                         Takım Ayarlarına Git

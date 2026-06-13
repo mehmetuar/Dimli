@@ -155,7 +155,7 @@ function AppContent() {
     };
   }, []);
 
-  // Takım davet linki (Universal Link / App Link): https://dimli.app/invite/team/ABC-123?ref=...
+  // Takım davet linki (Universal Link / App Link): https://www.dimli.com.tr/invite/team/ABC-123?ref=...
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
 

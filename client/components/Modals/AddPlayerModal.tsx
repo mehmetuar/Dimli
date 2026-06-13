@@ -70,7 +70,7 @@ const AddPlayerModalContent: React.FC<Props> = ({ isOpen, onClose, currentRoster
         const token = getToken();
         const ref = token ? decodeTokenPayload(token)?.sub : undefined;
         const code = teamShortId || teamId;
-        return `https://dimli.app/invite/team/${code}${ref ? `?ref=${ref}` : ''}`;
+        return `https://www.dimli.com.tr/invite/team/${code}${ref ? `?ref=${ref}` : ''}`;
     };
 
     const getInviteMessage = () => {
@@ -191,9 +191,9 @@ const AddPlayerModalContent: React.FC<Props> = ({ isOpen, onClose, currentRoster
                             </div>
                             <button
                                 onClick={shareInviteLink}
-                                className="mt-2 w-full bg-turf-600 hover:bg-turf-500 text-white px-3 py-2 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-2 shadow-neon"
+                                className="mt-2 w-full bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-2 shadow-neon"
                             >
-                                <Share2 className="w-3.5 h-3.5" /> WhatsApp'tan Paylaş
+                                <Share2 className="w-3.5 h-3.5" /> Paylaş
                             </button>
                             <p className="text-[10px] text-slate-500 mt-2">
                                 Bu linki WhatsApp veya sosyal medyadan paylaşarak takımına oyuncu çekebilirsin.

@@ -6,7 +6,7 @@
 	<string>production</string>
 	<key>com.apple.developer.associated-domains</key>
 	<array>
-		<string>applinks:dimli.app</string>
+		<string>applinks:www.dimli.com.tr</string>
 	</array>
 </dict>
 </plist>
