@@ -57,8 +57,8 @@ export class TeamsController {
 
     @UseGuards(JwtAuthGuard)
     @Delete(':id/players/:playerId')
-    async removePlayer(@Param('id') id: string, @Param('playerId') playerId: string) {
-        const result = await this.teamsService.removePlayer(id, playerId);
+    async removePlayer(@Param('id') id: string, @Param('playerId') playerId: string, @Request() req) {
+        const result = await this.teamsService.removePlayer(id, playerId, req.user.id);
         await this.chatService.removeUserFromTeamActiveMatchChannels(playerId, id);
         await this.notificationsService.createPlayerRemovedNotification(id, playerId);
         return result;

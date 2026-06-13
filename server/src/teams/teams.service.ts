@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit, HttpException, HttpStatus, ConflictException, NotFoundException, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, OnModuleInit, HttpException, HttpStatus, ConflictException, ForbiddenException, NotFoundException, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Team } from './team.entity';
@@ -8,6 +8,7 @@ import { RatingsService } from '../ratings/ratings.service';
 import { MatchAnnouncement } from '../match-announcements/match-announcement.entity';
 import { Reservation, ReservationStatus } from '../reservations/entities/reservation.entity';
 import { JoinRequestsService } from '../join-requests/join-requests.service';
+import { TeamBansService } from '../team-bans/team-bans.service';
 
 @Injectable()
 export class TeamsService implements OnModuleInit {
@@ -22,6 +23,7 @@ export class TeamsService implements OnModuleInit {
         private ratingsService: RatingsService,
         @Inject(forwardRef(() => JoinRequestsService))
         private joinRequestsService: JoinRequestsService,
+        private teamBansService: TeamBansService,
     ) { }
 
     async onModuleInit() {
@@ -191,6 +193,10 @@ export class TeamsService implements OnModuleInit {
         // isteklerini çözümle (kabul edilen takım: ACCEPTED, diğerleri: CANCELLED)
         await this.joinRequestsService.resolveOnTeamJoin(userId, teamId);
 
+        // Kaptan bu kullanıcıyı (tekrar) eklediği için, bu takımdan
+        // önceden atılmış olsa bile ban kaydını kaldır
+        await this.teamBansService.unbanPlayer(teamId, userId);
+
         // Reload the team to get the updated players list
         const updatedTeam = await this.findOne(teamId);
         if (!updatedTeam) throw new Error('Team not found after update');
@@ -216,12 +222,23 @@ export class TeamsService implements OnModuleInit {
             throw new ConflictException('Bu takımın kadrosu dolu (maksimum 28 kişi).');
         }
 
+        if (await this.teamBansService.isBanned(teamId, userId)) {
+            throw new ForbiddenException('Bu takımdan çıkarıldığın için davet linkiyle tekrar katılamazsın. Takıma katılmak için kaptanın seni tekrar eklemesi gerekir.');
+        }
+
         return this.addPlayer(teamId, userId);
     }
 
-    async removePlayer(teamId: string, playerId: string): Promise<Team> {
+    async removePlayer(teamId: string, playerId: string, requesterId: string): Promise<Team> {
         const team = await this.findOne(teamId);
         if (!team) throw new Error('Team not found');
+
+        // Only the captain or a vice-captain can remove players
+        const isCaptain = team.captain.id === requesterId;
+        const isViceCaptain = team.viceCaptainIds?.includes(requesterId);
+        if (!isCaptain && !isViceCaptain) {
+            throw new ForbiddenException('Sadece kaptan veya yardımcı kaptan oyuncu atabilir.');
+        }
 
         // Cannot remove captain
         if (team.captain.id === playerId) {
@@ -235,7 +252,12 @@ export class TeamsService implements OnModuleInit {
             team.viceCaptainIds = team.viceCaptainIds.filter(id => id !== playerId);
         }
 
-        return this.teamsRepository.save(team);
+        const savedTeam = await this.teamsRepository.save(team);
+
+        // Atılan oyuncu, davet linkiyle bu takıma tekrar otomatik katılamasın
+        await this.teamBansService.banPlayer(teamId, playerId);
+
+        return savedTeam;
     }
 
     async updatePlayerRole(teamId: string, playerId: string, role: 'CAPTAIN' | 'VICE'): Promise<Team> {

@@ -10,6 +10,7 @@ import { Reservation } from '../reservations/entities/reservation.entity';
 import { ChatModule } from '../chat/chat.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { JoinRequestsModule } from '../join-requests/join-requests.module';
+import { TeamBansModule } from '../team-bans/team-bans.module';
 
 @Module({
     imports: [
@@ -19,6 +20,7 @@ import { JoinRequestsModule } from '../join-requests/join-requests.module';
         forwardRef(() => ChatModule),
         forwardRef(() => NotificationsModule),
         forwardRef(() => JoinRequestsModule),
+        TeamBansModule,
     ],
     providers: [TeamsService],
     controllers: [TeamsController],
