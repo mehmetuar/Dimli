@@ -19,6 +19,7 @@ export const makePitch = (index: number) => ({
     closeTime: '',
     facilities: [] as string[],
     timeSlots: [] as Array<{ startTime: string; endTime: string }>,
+    closedDays: [] as string[],
     photoFile: null as File | null,
     imageUrl: '',
 });
@@ -133,6 +134,13 @@ export const useBusinessRegister = () => {
         updatePitch(pitchIndex, 'facilities', current.includes(facility)
             ? current.filter(f => f !== facility)
             : [...current, facility]);
+    };
+
+    const toggleClosedDay = (pitchIndex: number, day: string) => {
+        const current = formData.pitches[pitchIndex].closedDays;
+        updatePitch(pitchIndex, 'closedDays', current.includes(day)
+            ? current.filter(d => d !== day)
+            : [...current, day]);
     };
 
     const addTimeSlot = (pitchIndex: number, startTime: string, endTime: string) => {
@@ -262,6 +270,7 @@ export const useBusinessRegister = () => {
                     closeTime: p.closeTime,
                     facilities: p.facilities,
                     timeSlots: p.timeSlots,
+                    closedDays: p.closedDays,
                     imageUrl: p.imageUrl,
                 })),
                 planType: formData.planType,
@@ -331,7 +340,7 @@ export const useBusinessRegister = () => {
         otpSent, otpSending, otpVerified,
         otpCode, setOtpCode,
         updateOwner, updateBusiness, updatePitch,
-        setPitchCount, toggleFacility, addTimeSlot, removeTimeSlot,
+        setPitchCount, toggleFacility, toggleClosedDay, addTimeSlot, removeTimeSlot,
         sendOtp, verifyOtp,
         handleSubmit, nextStep, prevStep,
     };

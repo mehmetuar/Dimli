@@ -514,6 +514,7 @@ export class AuthService {
                     if (pitchData.type) pitch.type = pitchData.type;
                     pitch.pricePerHour = pitchData.pricePerHour;
                     if (pitchData.facilities) pitch.facilities = pitchData.facilities;
+                    if (pitchData.closedDays) pitch.closedDays = pitchData.closedDays;
                     if ((pitchData as any).imageUrl) pitch.imageUrl = (pitchData as any).imageUrl;
 
                     if (pitchData.openTime) {

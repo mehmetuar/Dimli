@@ -31,7 +31,7 @@ export const BusinessRegister: React.FC = () => {
         formData,
         otpSent, otpSending, otpCode, setOtpCode,
         updateOwner, updateBusiness, updatePitch,
-        setPitchCount, toggleFacility, addTimeSlot, removeTimeSlot,
+        setPitchCount, toggleFacility, toggleClosedDay, addTimeSlot, removeTimeSlot,
         sendOtp, verifyOtp,
         handleSubmit, nextStep, prevStep,
     } = useBusinessRegister();
@@ -90,6 +90,7 @@ export const BusinessRegister: React.FC = () => {
                         tempSlot={tempSlot}
                         addTimeSlot={addTimeSlot}
                         toggleFacility={toggleFacility}
+                        toggleClosedDay={toggleClosedDay}
                         fieldErrors={fieldErrors}
                     />
                 );

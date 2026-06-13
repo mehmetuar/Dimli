@@ -98,6 +98,11 @@ class RegisterPitchDto {
     @Type(() => RegisterTimeSlotDto)
     @IsOptional()
     timeSlots?: RegisterTimeSlotDto[];
+
+    @IsArray()
+    @IsString({ each: true })
+    @IsOptional()
+    closedDays?: string[];
 }
 
 export class RegisterBusinessDto {

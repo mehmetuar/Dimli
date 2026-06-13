@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Camera, TurkishLira, X, Layers, Clock, AlertCircle } from 'lucide-react';
+import { Camera, TurkishLira, X, Layers, Clock, AlertCircle, Calendar } from 'lucide-react';
 import { ImageCropModal } from '../../../../../components/Modals/ImageCropModal';
 import { Input } from '../RegisterSidebar';
 import { SUBSCRIPTION_PLANS } from '../../hooks/useBusinessRegister';
@@ -7,6 +7,16 @@ import { FacilitiesModal } from '../../../../../components/Modals/FacilitiesModa
 import { TimeSlotsModal } from '../../../../../components/Modals/TimeSlotsModal';
 
 const PITCH_COUNT_OPTIONS = [1, 2, 3, 4, 5];
+
+const DAYS = [
+    { label: 'Pzt', value: 'Monday' },
+    { label: 'Sal', value: 'Tuesday' },
+    { label: 'Çar', value: 'Wednesday' },
+    { label: 'Per', value: 'Thursday' },
+    { label: 'Cum', value: 'Friday' },
+    { label: 'Cmt', value: 'Saturday' },
+    { label: 'Paz', value: 'Sunday' },
+];
 
 interface TimeSlot { startTime: string; endTime: string; }
 
@@ -19,6 +29,7 @@ interface PitchesAndPlanStepProps {
     tempSlot?: { startTime: string; endTime: string };
     addTimeSlot?: (pitchIndex: number, startTime: string, endTime: string) => void;
     toggleFacility: (pitchIndex: number, facility: string) => void;
+    toggleClosedDay: (pitchIndex: number, day: string) => void;
     fieldErrors?: Record<string, string>;
 }
 
@@ -70,7 +81,7 @@ const PriceInput: React.FC<{ value: number; onChange: (val: number) => void; err
 };
 
 export const PitchesAndPlanStep: React.FC<PitchesAndPlanStepProps> = ({
-    formData, updatePitch, setPitchCount, setIsTimePickerOpen, toggleFacility, fieldErrors = {},
+    formData, updatePitch, setPitchCount, setIsTimePickerOpen, toggleFacility, toggleClosedDay, fieldErrors = {},
 }) => {
     const fileInputRefs = useRef<(HTMLInputElement | null)[]>([]);
     const [facilitiesModalIdx, setFacilitiesModalIdx] = useState<number | null>(null);
@@ -347,6 +358,36 @@ export const PitchesAndPlanStep: React.FC<PitchesAndPlanStepProps> = ({
                                             ))}
                                         </div>
                                     )}
+                                </div>
+
+                                {/* Kapalı Günler */}
+                                <div>
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <Calendar size={16} className="text-slate-400 shrink-0" />
+                                        <p className="text-xs font-bold text-slate-300">Kapalı Günler</p>
+                                    </div>
+                                    <p className="text-xs text-slate-500 mb-2">
+                                        Sahanızın kapalı olduğu bir gün varsa seçin. Saha her gün rezervasyon alıyorsa seçim yapmanıza gerek yok.
+                                    </p>
+                                    <div className="grid grid-cols-7 gap-1.5">
+                                        {DAYS.map(day => {
+                                            const pitchClosedDays: string[] = pitch.closedDays || [];
+                                            const isClosed = pitchClosedDays.includes(day.value);
+                                            return (
+                                                <button
+                                                    key={day.value}
+                                                    type="button"
+                                                    onClick={() => toggleClosedDay(index, day.value)}
+                                                    className={`py-2.5 rounded-xl text-xs font-black transition-all border ${isClosed
+                                                        ? 'bg-red-500/15 border-red-500/50 text-red-400'
+                                                        : 'bg-slate-800 border-slate-700 text-slate-400'
+                                                        }`}
+                                                >
+                                                    {day.label}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
                             </div>
                         </div>
