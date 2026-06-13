@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit, HttpException, HttpStatus, ConflictException, NotFoundException } from '@nestjs/common';
+import { Injectable, OnModuleInit, HttpException, HttpStatus, ConflictException, NotFoundException, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Team } from './team.entity';
@@ -7,6 +7,7 @@ import { UsersService } from '../users/users.service';
 import { RatingsService } from '../ratings/ratings.service';
 import { MatchAnnouncement } from '../match-announcements/match-announcement.entity';
 import { Reservation, ReservationStatus } from '../reservations/entities/reservation.entity';
+import { JoinRequestsService } from '../join-requests/join-requests.service';
 
 @Injectable()
 export class TeamsService implements OnModuleInit {
@@ -19,6 +20,8 @@ export class TeamsService implements OnModuleInit {
         private reservationsRepository: Repository<Reservation>,
         private usersService: UsersService,
         private ratingsService: RatingsService,
+        @Inject(forwardRef(() => JoinRequestsService))
+        private joinRequestsService: JoinRequestsService,
     ) { }
 
     async onModuleInit() {
@@ -183,6 +186,10 @@ export class TeamsService implements OnModuleInit {
         // We need to save the user to persist the team relationship
         // Since usersService doesn't have an update method, we'll use the repository
         await this.usersService['usersRepository'].save(user);
+
+        // Kullanıcının bu takıma veya başka takımlara olan bekleyen katılma
+        // isteklerini çözümle (kabul edilen takım: ACCEPTED, diğerleri: CANCELLED)
+        await this.joinRequestsService.resolveOnTeamJoin(userId, teamId);
 
         // Reload the team to get the updated players list
         const updatedTeam = await this.findOne(teamId);

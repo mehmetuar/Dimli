@@ -71,6 +71,15 @@ export class JoinRequestsService {
         return this.findById(id);
     }
 
+    async resolveOnTeamJoin(userId: string, joinedTeamId: string): Promise<void> {
+        const pending = await this.findPendingByUser(userId);
+        if (!pending.length) return;
+        for (const request of pending) {
+            request.status = request.teamId === joinedTeamId ? 'ACCEPTED' : 'CANCELLED';
+        }
+        await this.joinRequestsRepository.save(pending);
+    }
+
     async cancelAllPendingExcept(userId: string, exceptId: string): Promise<void> {
         await this.joinRequestsRepository
             .createQueryBuilder()

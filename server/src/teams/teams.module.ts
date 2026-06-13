@@ -9,6 +9,7 @@ import { MatchAnnouncement } from '../match-announcements/match-announcement.ent
 import { Reservation } from '../reservations/entities/reservation.entity';
 import { ChatModule } from '../chat/chat.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { JoinRequestsModule } from '../join-requests/join-requests.module';
 
 @Module({
     imports: [
@@ -17,6 +18,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
         RatingsModule,
         forwardRef(() => ChatModule),
         forwardRef(() => NotificationsModule),
+        forwardRef(() => JoinRequestsModule),
     ],
     providers: [TeamsService],
     controllers: [TeamsController],
