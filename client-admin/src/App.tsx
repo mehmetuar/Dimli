@@ -8,6 +8,7 @@ import RejectedPage from './pages/RejectedPage/RejectedPage';
 import SuspendedPage from './pages/SuspendedPage/SuspendedPage';
 import AdminApplicationDetail from './pages/AdminApplicationDetail/AdminApplicationDetail';
 import ChangeRequestsPage from './pages/ChangeRequestsPage/ChangeRequestsPage';
+import PitchApprovalsPage from './pages/PitchApprovalsPage/PitchApprovalsPage';
 import ReportsPage from './pages/ReportsPage/ReportsPage';
 import BannedUsersPage from './pages/BannedUsersPage/BannedUsersPage';
 import Layout from './components/Layout';
@@ -35,6 +36,7 @@ export default function App() {
             <Route path="/suspended" element={<WithLayout><SuspendedPage /></WithLayout>} />
             <Route path="/applications/:id" element={<WithLayout><AdminApplicationDetail /></WithLayout>} />
             <Route path="/change-requests" element={<WithLayout><ChangeRequestsPage /></WithLayout>} />
+            <Route path="/pitch-approvals" element={<WithLayout><PitchApprovalsPage /></WithLayout>} />
             <Route path="/reports" element={<WithLayout><ReportsPage /></WithLayout>} />
             <Route path="/banned-users" element={<WithLayout><BannedUsersPage /></WithLayout>} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />

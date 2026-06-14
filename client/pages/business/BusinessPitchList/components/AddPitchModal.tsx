@@ -75,7 +75,7 @@ export const AddPitchModal: React.FC<AddPitchModalProps> = ({
 
                         <div className="grid grid-cols-2 gap-3 pb-4 border-b border-slate-800">
                             <div>
-                                <label className="block text-sm font-bold mb-2 text-slate-300 flex items-center gap-1">
+                                <label className="text-sm font-bold mb-2 text-slate-300 flex items-center gap-1">
                                     <Clock className="w-3 h-3" /> Açılış
                                 </label>
                                 <button type="button"
@@ -86,7 +86,7 @@ export const AddPitchModal: React.FC<AddPitchModalProps> = ({
                                 </button>
                             </div>
                             <div>
-                                <label className="block text-sm font-bold mb-2 text-slate-300 flex items-center gap-1">
+                                <label className="text-sm font-bold mb-2 text-slate-300 flex items-center gap-1">
                                     <Clock className="w-3 h-3" /> Kapanış
                                 </label>
                                 <button type="button"
@@ -166,7 +166,7 @@ export const AddPitchModal: React.FC<AddPitchModalProps> = ({
 
                         {/* Facilities */}
                         <div>
-                            <label className="block text-sm font-bold mb-2 text-slate-300 flex items-center gap-1">
+                            <label className="text-sm font-bold mb-2 text-slate-300 flex items-center gap-1">
                                 <ListChecks className="w-3 h-3" /> İmkanlar
                             </label>
                             <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-1 scrollbar-hide">

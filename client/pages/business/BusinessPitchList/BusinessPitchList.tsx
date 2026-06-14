@@ -1,5 +1,5 @@
 import React from 'react';
-import { Goal, Clock, AlertTriangle } from 'lucide-react';
+import { Goal, Clock, AlertTriangle, Plus, CheckCircle, XCircle } from 'lucide-react';
 import { BusinessLoadingSpinner } from '../../../components/Business/BusinessLoadingSpinner';
 
 // Hooks
@@ -8,6 +8,7 @@ import { useBusinessPitchList } from './hooks/useBusinessPitchList';
 // Components
 import { PitchListHeader } from './components/PitchListHeader';
 import { PitchListItem } from './components/PitchListItem';
+import { AddPitchModal } from './components/AddPitchModal';
 
 export const BusinessPitchList: React.FC = () => {
     const {
@@ -16,6 +17,22 @@ export const BusinessPitchList: React.FC = () => {
         pitches,
         subscription,
         businessStatus,
+        canAddPitch,
+        toast,
+        showAddPitchModal,
+        newPitchData,
+        setNewPitchData,
+        isTimePickerOpen,
+        setIsTimePickerOpen,
+        tempSlot,
+        setTempSlot,
+        adding,
+        openAddPitchModal,
+        closeAddPitchModal,
+        submitNewPitch,
+        toggleFacility,
+        addTimeSlot,
+        removeTimeSlot,
     } = useBusinessPitchList();
 
     if (loading) return <BusinessLoadingSpinner fullScreen />;
@@ -74,8 +91,46 @@ export const BusinessPitchList: React.FC = () => {
                             <p className="text-xs text-slate-600 mt-1">Sahalar kayıt sırasında abonelik planınıza göre oluşturulur.</p>
                         </div>
                     )}
+
+                    {canAddPitch && !isSuspended && (
+                        <button
+                            onClick={openAddPitchModal}
+                            className="w-full flex items-center justify-center gap-2 border border-dashed border-emerald-500/40 text-emerald-400 rounded-2xl py-3.5 font-bold text-sm hover:bg-emerald-500/5 active:scale-[0.98] transition-all"
+                            style={{ WebkitTapHighlightColor: 'transparent' }}
+                        >
+                            <Plus className="w-4 h-4" />
+                            Yeni Saha Ekle
+                        </button>
+                    )}
                 </div>
             </div>
+
+            {showAddPitchModal && (
+                <AddPitchModal
+                    newPitchData={newPitchData}
+                    setNewPitchData={setNewPitchData}
+                    isTimePickerOpen={isTimePickerOpen}
+                    setIsTimePickerOpen={setIsTimePickerOpen}
+                    tempSlot={tempSlot}
+                    setTempSlot={setTempSlot}
+                    adding={adding}
+                    onClose={closeAddPitchModal}
+                    onSubmit={submitNewPitch}
+                    toggleFacility={toggleFacility}
+                    addTimeSlot={addTimeSlot}
+                    removeTimeSlot={removeTimeSlot}
+                />
+            )}
+
+            {toast && (
+                <div
+                    className={`fixed top-16 left-4 right-4 z-50 px-4 py-3 rounded-2xl flex items-center gap-3 shadow-2xl border
+                        ${toast.type === 'success' ? 'bg-green-900/90 border-green-500/40 text-green-300' : 'bg-red-900/90 border-red-500/40 text-red-300'}`}
+                >
+                    {toast.type === 'success' ? <CheckCircle className="w-5 h-5 shrink-0" /> : <XCircle className="w-5 h-5 shrink-0" />}
+                    <p className="font-semibold text-sm">{toast.text}</p>
+                </div>
+            )}
 
         </div>
     );

@@ -47,6 +47,8 @@ export const BusinessPitchSettings: React.FC = () => {
         togglingStatus,
         savingClosedDays,
         closedDaysSuccess,
+        approvalStatus,
+        rejectionReason,
         changeRequestSentModal, setChangeRequestSentModal,
         hasPendingPhoto,
         hasPendingFacility,
@@ -123,6 +125,34 @@ export const BusinessPitchSettings: React.FC = () => {
             )}
 
             <div className="p-4 space-y-4 pb-nav">
+
+                {/* ── Onay Durumu Banner'ları ──────────────────────────────── */}
+                {approvalStatus === 'pending' && (
+                    <div className="flex items-start gap-3 bg-orange-500/10 border border-orange-500/30 px-4 py-3.5 rounded-2xl">
+                        <Clock className="text-orange-400 shrink-0 mt-0.5" size={18} />
+                        <div className="space-y-0.5">
+                            <p className="text-orange-300 text-sm font-bold">Bu Saha Admin Onayı Bekliyor</p>
+                            <p className="text-orange-200/70 text-xs leading-relaxed">
+                                Sahanız onaylandığında yayına alınacak ve rezervasyon almaya başlayacaktır.
+                            </p>
+                        </div>
+                    </div>
+                )}
+
+                {approvalStatus === 'rejected' && (
+                    <div className="flex items-start gap-3 bg-red-500/10 border border-red-500/30 px-4 py-3.5 rounded-2xl">
+                        <AlertTriangle className="text-red-400 shrink-0 mt-0.5" size={18} />
+                        <div className="space-y-0.5">
+                            <p className="text-red-300 text-sm font-bold">Saha Reddedildi</p>
+                            <p className="text-red-200/70 text-xs leading-relaxed">
+                                {rejectionReason || 'Sebep belirtilmedi.'}
+                            </p>
+                            <p className="text-red-200/70 text-xs leading-relaxed mt-1">
+                                Bilgileri düzenleyip "Kaydet" butonuna bastığınızda saha yeniden onaya gönderilecektir.
+                            </p>
+                        </div>
+                    </div>
+                )}
 
                 {/* ── Saha Durumu (Aktif / Pasif toggle) ──────────────────── */}
                 <div className="bg-slate-800/70 p-4 rounded-2xl border border-slate-700/60"
@@ -338,7 +368,9 @@ export const BusinessPitchSettings: React.FC = () => {
                                 boxShadow: saving ? 'none' : '0 6px 24px rgba(234,88,12,0.3)',
                             }}>
                             <Save className="w-5 h-5" />
-                            {saving ? 'Kaydediliyor...' : 'Değişiklikleri Kaydet'}
+                            {saving
+                                ? 'Kaydediliyor...'
+                                : approvalStatus === 'rejected' ? 'Düzenle ve Yeniden Gönder' : 'Değişiklikleri Kaydet'}
                         </button>
                     </div>
                 </form>

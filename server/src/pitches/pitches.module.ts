@@ -6,12 +6,22 @@ import { Pitch } from './entities/pitch.entity';
 import { TimeSlot } from './entities/time-slot.entity';
 import { Reservation } from '../reservations/entities/reservation.entity';
 import { PitchChangeRequest } from './entities/pitch-change-request.entity';
+import { Subscription } from '../subscription/entities/subscription.entity';
+import { BusinessOwner } from '../business-owner/entities/business-owner.entity';
 
 @Module({
-    imports: [TypeOrmModule.forFeature([Pitch, TimeSlot, Reservation, PitchChangeRequest])],
-    controllers: [PitchesController],
-    providers: [PitchesService],
-    exports: [PitchesService],
+  imports: [
+    TypeOrmModule.forFeature([
+      Pitch,
+      TimeSlot,
+      Reservation,
+      PitchChangeRequest,
+      Subscription,
+      BusinessOwner,
+    ]),
+  ],
+  controllers: [PitchesController],
+  providers: [PitchesService],
+  exports: [PitchesService],
 })
-export class PitchesModule { }
-
+export class PitchesModule {}

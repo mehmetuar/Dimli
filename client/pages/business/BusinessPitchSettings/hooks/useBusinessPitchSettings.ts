@@ -84,6 +84,10 @@ export const useBusinessPitchSettings = () => {
     const [savingClosedDays, setSavingClosedDays] = useState(false);
     const [closedDaysSuccess, setClosedDaysSuccess] = useState(false);
 
+    // Onay durumu (yeni saha / yeniden gönderim akışı)
+    const [approvalStatus, setApprovalStatus] = useState<'approved' | 'pending' | 'rejected'>('approved');
+    const [rejectionReason, setRejectionReason] = useState<string | null>(null);
+
     useEffect(() => {
         fetchPitchData();
     }, [pitchId]);
@@ -116,6 +120,8 @@ export const useBusinessPitchSettings = () => {
             if (pitch.pendingChangeRequests) {
                 setPendingChangeRequests(pitch.pendingChangeRequests);
             }
+            setApprovalStatus(pitch.approvalStatus || 'approved');
+            setRejectionReason(pitch.rejectionReason || null);
             setLoading(false);
         } catch (error) {
             console.error('Error fetching pitch data:', error);
@@ -128,7 +134,13 @@ export const useBusinessPitchSettings = () => {
         setSaving(true);
         setSuccess(false);
         try {
-            await api.patch(`/pitches/${pitchId}`, { ...formData, pricePerHour: parseFloat(formData.pricePerHour) });
+            if (approvalStatus === 'rejected') {
+                const response = await api.patch(`/pitches/${pitchId}/resubmit`, { ...formData, pricePerHour: parseFloat(formData.pricePerHour), timeSlots });
+                setApprovalStatus(response.data.approvalStatus || 'pending');
+                setRejectionReason(response.data.rejectionReason || null);
+            } else {
+                await api.patch(`/pitches/${pitchId}`, { ...formData, pricePerHour: parseFloat(formData.pricePerHour) });
+            }
             setSuccess(true);
             setTimeout(() => setSuccess(false), 3000);
         } catch (error) {
@@ -360,6 +372,8 @@ export const useBusinessPitchSettings = () => {
         savingClosedDays,
         closedDaysSuccess,
         pendingChangeRequests,
+        approvalStatus,
+        rejectionReason,
         changeRequestSentModal, setChangeRequestSentModal,
         hasPendingFacility,
         hasPendingPhoto,
