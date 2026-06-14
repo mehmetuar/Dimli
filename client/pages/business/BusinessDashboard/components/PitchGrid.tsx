@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, CalendarX, Settings, Clock } from 'lucide-react';
+import { Lock, CalendarX, Settings, Clock, AlertTriangle } from 'lucide-react';
 
 interface PitchGridProps {
     pitches: any[];
@@ -73,7 +73,44 @@ export const PitchGrid: React.FC<PitchGridProps> = ({
                         </h2>
                     </div>
 
-                    {isPending ? (
+                    {activePitch.approvalStatus === 'pending' ? (
+                        <div className="flex flex-col items-center justify-center py-14 bg-slate-800/40 rounded-2xl border border-dashed border-orange-500/30 text-center px-6 relative overflow-hidden">
+                            <div className="w-14 h-14 bg-orange-500/10 rounded-full flex items-center justify-center mb-4 border border-orange-500/20">
+                                <Clock className="w-6 h-6 text-orange-400" />
+                            </div>
+                            <h3 className="text-white font-black text-[clamp(14px,4vw,18px)] uppercase tracking-wide mb-2">SAHANIZ ONAY BEKLİYOR</h3>
+                            <p className="text-slate-400 text-[clamp(11px,3vw,13px)] leading-relaxed max-w-xs mb-6">
+                                Saha bilgileriniz admin incelemesindedir. Onaylandığında saat slotları aktif hale gelecek ve rezervasyon almaya başlayabileceksiniz.
+                            </p>
+                            <button
+                                onClick={() => navigate(`/business/settings/pitches/${activePitch.pitchId}`)}
+                                className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white font-bold px-5 py-3 rounded-xl transition-all"
+                            >
+                                <Settings className="w-4 h-4 shrink-0" />
+                                <span>Saha Ayarlarını Görüntüle</span>
+                            </button>
+                        </div>
+                    ) : activePitch.approvalStatus === 'rejected' ? (
+                        <div className="flex flex-col items-center justify-center py-14 bg-slate-800/40 rounded-2xl border border-dashed border-red-500/30 text-center px-6 relative overflow-hidden">
+                            <div className="w-14 h-14 bg-red-500/10 rounded-full flex items-center justify-center mb-4 border border-red-500/20">
+                                <AlertTriangle className="w-6 h-6 text-red-400" />
+                            </div>
+                            <h3 className="text-white font-black text-[clamp(14px,4vw,18px)] uppercase tracking-wide mb-2">SAHANIZ REDDEDİLDİ</h3>
+                            <p className="text-red-300 text-[clamp(11px,3vw,13px)] leading-relaxed max-w-xs mb-1 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2">
+                                {activePitch.rejectionReason || 'Sebep belirtilmedi.'}
+                            </p>
+                            <p className="text-slate-400 text-[clamp(11px,3vw,13px)] leading-relaxed max-w-xs mb-6 mt-2">
+                                Bilgileri düzenleyip yeniden onaya gönderebilirsiniz.
+                            </p>
+                            <button
+                                onClick={() => navigate(`/business/settings/pitches/${activePitch.pitchId}`)}
+                                className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-bold px-5 py-3 rounded-xl transition-all shadow-lg shadow-orange-500/20"
+                            >
+                                <Settings className="w-4 h-4 shrink-0" />
+                                <span>Saha Ayarlarına Git</span>
+                            </button>
+                        </div>
+                    ) : isPending ? (
                         <div className="flex flex-col items-center justify-center py-14 bg-slate-800/40 rounded-2xl border border-dashed border-orange-500/30 text-center px-6 relative overflow-hidden">
                             <div className="w-14 h-14 bg-orange-500/10 rounded-full flex items-center justify-center mb-4 border border-orange-500/20">
                                 <Clock className="w-6 h-6 text-orange-400" />

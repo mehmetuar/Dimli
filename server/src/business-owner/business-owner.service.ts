@@ -113,6 +113,8 @@ export class BusinessOwnerService {
                     hasCustomSlots: false,
                     isClosed: true,
                     closedReason: pitch.isActive === false ? 'PASSIVE' : 'CLOSED_DAY',
+                    approvalStatus: pitch.approvalStatus,
+                    rejectionReason: pitch.rejectionReason,
                     slots: []
                 });
                 continue;
@@ -228,6 +230,8 @@ export class BusinessOwnerService {
                 pitchId: pitch.id,
                 pitchName: pitch.name,
                 hasCustomSlots,
+                approvalStatus: pitch.approvalStatus,
+                rejectionReason: pitch.rejectionReason,
                 slots: pitchSlots
             });
         }
