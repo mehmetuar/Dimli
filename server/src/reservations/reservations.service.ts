@@ -244,6 +244,10 @@ export class ReservationsService {
             throw new BadRequestException('Saha bulunamadı.');
         }
 
+        if (pitch.approvalStatus !== 'approved' || !pitch.isActive) {
+            throw new ForbiddenException('Bu saha şu anda rezervasyona açık değil.');
+        }
+
         if (!pitch.business?.owner?.id) {
             throw new BadRequestException('Saha için işletme sahibi bilgisi bulunamadı.');
         }

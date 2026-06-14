@@ -297,6 +297,7 @@ export const useBusinessPitchSettings = () => {
     // ─── Active/Passive toggle ────────────────────────────────────────────────
 
     const toggleActive = async () => {
+        if (isReadOnly) return;
         setTogglingStatus(true);
         try {
             const response = await api.patch(`/pitches/${pitchId}/status`);
@@ -319,6 +320,7 @@ export const useBusinessPitchSettings = () => {
     // ─── Closed days ─────────────────────────────────────────────────────────
 
     const handleClosedDayToggle = async (day: string) => {
+        if (isReadOnly) return;
         const current = formData.closedDays;
         const updated = current.includes(day)
             ? current.filter(d => d !== day)
@@ -342,6 +344,9 @@ export const useBusinessPitchSettings = () => {
     };
 
     const allFacilities = Array.from(new Set([...DEFAULT_FACILITIES, ...formData.facilities]));
+
+    // Onay bekleyen sahalar admin onayı gelene kadar salt okunur
+    const isReadOnly = approvalStatus === 'pending';
 
     const hasPendingFacility = pendingChangeRequests.some(r => r.type === 'CUSTOM_FACILITY');
     const hasPendingPhoto = pendingChangeRequests.some(r => r.type === 'PHOTO_UPDATE');
@@ -374,6 +379,7 @@ export const useBusinessPitchSettings = () => {
         pendingChangeRequests,
         approvalStatus,
         rejectionReason,
+        isReadOnly,
         changeRequestSentModal, setChangeRequestSentModal,
         hasPendingFacility,
         hasPendingPhoto,

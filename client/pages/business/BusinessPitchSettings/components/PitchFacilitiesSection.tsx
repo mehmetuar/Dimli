@@ -7,6 +7,7 @@ interface PitchFacilitiesSectionProps {
     onToggle: (facility: string) => void;
     onOpenModal: () => void;
     hasPendingFacility: boolean;
+    disabled?: boolean;
 }
 
 const FACILITY_ICONS: Record<string, React.ElementType> = {
@@ -37,6 +38,7 @@ function getFacilityIcon(name: string): React.ElementType {
 export const PitchFacilitiesSection: React.FC<PitchFacilitiesSectionProps> = ({
     allFacilities, selectedFacilities,
     onToggle, onOpenModal, hasPendingFacility,
+    disabled = false,
 }) => {
     return (
         <div className="bg-slate-800/70 rounded-2xl border border-slate-700/60 overflow-hidden"
@@ -68,10 +70,11 @@ export const PitchFacilitiesSection: React.FC<PitchFacilitiesSectionProps> = ({
                         return (
                             <button key={facility} type="button"
                                 onClick={() => onToggle(facility)}
+                                disabled={disabled}
                                 className={`relative p-3 rounded-xl border text-left transition-all active:scale-[0.97] min-h-[52px] ${isSelected
                                     ? 'bg-orange-500/15 border-orange-500/50 text-orange-400'
                                     : 'bg-slate-900/50 border-slate-700/50 text-slate-400'
-                                }`}
+                                } ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
                                 style={{ WebkitTapHighlightColor: 'transparent' }}
                             >
                                 <div className="flex items-center gap-2 min-w-0">
@@ -100,7 +103,7 @@ export const PitchFacilitiesSection: React.FC<PitchFacilitiesSectionProps> = ({
                 <button
                     type="button"
                     onClick={onOpenModal}
-                    disabled={hasPendingFacility}
+                    disabled={hasPendingFacility || disabled}
                     className="w-full py-3 bg-slate-900/50 border border-dashed border-slate-600/60 rounded-xl text-slate-400 hover:text-white hover:border-slate-500 active:scale-[0.98] transition-all flex items-center justify-center gap-2 font-bold text-sm disabled:opacity-40 disabled:cursor-not-allowed"
                     style={{ WebkitTapHighlightColor: 'transparent' }}
                 >

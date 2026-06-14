@@ -7,10 +7,11 @@ interface PitchGeneralFormProps {
     isTimePickerOpen: { open: boolean; type: 'OPEN' | 'CLOSE' | 'SLOT_START' | 'SLOT_END' };
     setIsTimePickerOpen: (state: any) => void;
     handleChange: (field: string, value: string) => void;
+    disabled?: boolean;
 }
 
 export const PitchGeneralForm: React.FC<PitchGeneralFormProps> = ({
-    formData, isTimePickerOpen, setIsTimePickerOpen, handleChange
+    formData, isTimePickerOpen, setIsTimePickerOpen, handleChange, disabled = false
 }) => {
     return (
         <div className="bg-slate-800/70 rounded-2xl border border-slate-700/60 overflow-hidden"
@@ -39,7 +40,8 @@ export const PitchGeneralForm: React.FC<PitchGeneralFormProps> = ({
                             type="number"
                             value={formData.pricePerHour}
                             onChange={(e) => handleChange('pricePerHour', e.target.value)}
-                            className="w-full pl-9 pr-4 py-3.5 bg-slate-900/60 border border-slate-700/60 rounded-xl text-white font-black text-[clamp(14px,4vw,16px)] focus:outline-none focus:border-orange-500/70 transition-colors"
+                            disabled={disabled}
+                            className={`w-full pl-9 pr-4 py-3.5 bg-slate-900/60 border border-slate-700/60 rounded-xl text-white font-black text-[clamp(14px,4vw,16px)] focus:outline-none focus:border-orange-500/70 transition-colors ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
                             required
                         />
                         <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-sm font-bold">TL/sa</div>
@@ -52,7 +54,8 @@ export const PitchGeneralForm: React.FC<PitchGeneralFormProps> = ({
                         <label className="block text-[clamp(10px,2.8vw,12px)] font-bold mb-2 text-slate-400 uppercase tracking-wider">Açılış</label>
                         <button type="button"
                             onClick={() => setIsTimePickerOpen({ open: true, type: 'OPEN' })}
-                            className="w-full flex items-center gap-2 p-3.5 bg-slate-900/60 border border-slate-700/60 rounded-xl text-white hover:border-orange-500/50 active:border-orange-500 transition-all font-mono font-black text-[clamp(14px,4vw,16px)] min-h-[48px]"
+                            disabled={disabled}
+                            className={`w-full flex items-center gap-2 p-3.5 bg-slate-900/60 border border-slate-700/60 rounded-xl text-white hover:border-orange-500/50 active:border-orange-500 transition-all font-mono font-black text-[clamp(14px,4vw,16px)] min-h-[48px] ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
                             style={{ WebkitTapHighlightColor: 'transparent' }}
                         >
                             <Clock className="w-4 h-4 text-slate-500 flex-shrink-0" />
@@ -63,7 +66,8 @@ export const PitchGeneralForm: React.FC<PitchGeneralFormProps> = ({
                         <label className="block text-[clamp(10px,2.8vw,12px)] font-bold mb-2 text-slate-400 uppercase tracking-wider">Kapanış</label>
                         <button type="button"
                             onClick={() => setIsTimePickerOpen({ open: true, type: 'CLOSE' })}
-                            className="w-full flex items-center gap-2 p-3.5 bg-slate-900/60 border border-slate-700/60 rounded-xl text-white hover:border-orange-500/50 active:border-orange-500 transition-all font-mono font-black text-[clamp(14px,4vw,16px)] min-h-[48px]"
+                            disabled={disabled}
+                            className={`w-full flex items-center gap-2 p-3.5 bg-slate-900/60 border border-slate-700/60 rounded-xl text-white hover:border-orange-500/50 active:border-orange-500 transition-all font-mono font-black text-[clamp(14px,4vw,16px)] min-h-[48px] ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
                             style={{ WebkitTapHighlightColor: 'transparent' }}
                         >
                             <Clock className="w-4 h-4 text-slate-500 flex-shrink-0" />

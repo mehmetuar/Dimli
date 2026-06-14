@@ -8,7 +8,6 @@ import { useBusinessPitchList } from './hooks/useBusinessPitchList';
 // Components
 import { PitchListHeader } from './components/PitchListHeader';
 import { PitchListItem } from './components/PitchListItem';
-import { AddPitchModal } from './components/AddPitchModal';
 
 export const BusinessPitchList: React.FC = () => {
     const {
@@ -19,20 +18,6 @@ export const BusinessPitchList: React.FC = () => {
         businessStatus,
         canAddPitch,
         toast,
-        showAddPitchModal,
-        newPitchData,
-        setNewPitchData,
-        isTimePickerOpen,
-        setIsTimePickerOpen,
-        tempSlot,
-        setTempSlot,
-        adding,
-        openAddPitchModal,
-        closeAddPitchModal,
-        submitNewPitch,
-        toggleFacility,
-        addTimeSlot,
-        removeTimeSlot,
     } = useBusinessPitchList();
 
     if (loading) return <BusinessLoadingSpinner fullScreen />;
@@ -94,7 +79,7 @@ export const BusinessPitchList: React.FC = () => {
 
                     {canAddPitch && !isSuspended && (
                         <button
-                            onClick={openAddPitchModal}
+                            onClick={() => navigate('/business/settings/pitches/add')}
                             className="w-full flex items-center justify-center gap-2 border border-dashed border-emerald-500/40 text-emerald-400 rounded-2xl py-3.5 font-bold text-sm hover:bg-emerald-500/5 active:scale-[0.98] transition-all"
                             style={{ WebkitTapHighlightColor: 'transparent' }}
                         >
@@ -104,23 +89,6 @@ export const BusinessPitchList: React.FC = () => {
                     )}
                 </div>
             </div>
-
-            {showAddPitchModal && (
-                <AddPitchModal
-                    newPitchData={newPitchData}
-                    setNewPitchData={setNewPitchData}
-                    isTimePickerOpen={isTimePickerOpen}
-                    setIsTimePickerOpen={setIsTimePickerOpen}
-                    tempSlot={tempSlot}
-                    setTempSlot={setTempSlot}
-                    adding={adding}
-                    onClose={closeAddPitchModal}
-                    onSubmit={submitNewPitch}
-                    toggleFacility={toggleFacility}
-                    addTimeSlot={addTimeSlot}
-                    removeTimeSlot={removeTimeSlot}
-                />
-            )}
 
             {toast && (
                 <div

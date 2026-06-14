@@ -49,6 +49,7 @@ export const BusinessPitchSettings: React.FC = () => {
         closedDaysSuccess,
         approvalStatus,
         rejectionReason,
+        isReadOnly,
         changeRequestSentModal, setChangeRequestSentModal,
         hasPendingPhoto,
         hasPendingFacility,
@@ -155,7 +156,7 @@ export const BusinessPitchSettings: React.FC = () => {
                 )}
 
                 {/* ── Saha Durumu (Aktif / Pasif toggle) ──────────────────── */}
-                <div className="bg-slate-800/70 p-4 rounded-2xl border border-slate-700/60"
+                <div className={`bg-slate-800/70 p-4 rounded-2xl border border-slate-700/60 ${isReadOnly ? 'opacity-50' : ''}`}
                     style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.25)' }}>
                     <div className="flex items-center justify-between gap-4">
                         <div className="flex-1 min-w-0">
@@ -164,15 +165,17 @@ export const BusinessPitchSettings: React.FC = () => {
                                 <h2 className="text-[clamp(13px,3.8vw,15px)] font-black text-white">Saha Durumu</h2>
                             </div>
                             <p className="text-[clamp(10px,2.8vw,12px)] text-slate-400 ml-6">
-                                {formData.isActive
-                                    ? 'Saha aktif — müşteriler rezervasyon yapabilir'
-                                    : 'Saha pasif — yeni rezervasyonlar alınmıyor'}
+                                {isReadOnly
+                                    ? 'Onay bekleyen sahalarda durum değiştirilemez.'
+                                    : formData.isActive
+                                        ? 'Saha aktif — müşteriler rezervasyon yapabilir'
+                                        : 'Saha pasif — yeni rezervasyonlar alınmıyor'}
                             </p>
                         </div>
                         <button
                             type="button"
-                            onClick={() => setStatusConfirm(true)}
-                            disabled={togglingStatus}
+                            onClick={() => !isReadOnly && setStatusConfirm(true)}
+                            disabled={togglingStatus || isReadOnly}
                             className={`relative w-14 h-7 rounded-full transition-colors flex-shrink-0 ${formData.isActive ? 'bg-emerald-500' : 'bg-slate-600'} disabled:opacity-50`}
                             style={{ WebkitTapHighlightColor: 'transparent' }}
                         >
@@ -219,8 +222,8 @@ export const BusinessPitchSettings: React.FC = () => {
                                     <button
                                         key={day.value}
                                         type="button"
-                                        onClick={() => setDayConfirm({ show: true, day: day.value })}
-                                        disabled={savingClosedDays}
+                                        onClick={() => !isReadOnly && setDayConfirm({ show: true, day: day.value })}
+                                        disabled={savingClosedDays || isReadOnly}
                                         className={`py-3 rounded-xl text-[clamp(9px,2.5vw,11px)] font-black transition-all border ${isClosed
                                             ? 'bg-red-500/15 border-red-500/50 text-red-400'
                                             : 'bg-slate-900/50 border-slate-700/50 text-slate-400'
@@ -240,31 +243,34 @@ export const BusinessPitchSettings: React.FC = () => {
                     </div>
                 </div>
 
-                {/* ── Genel Ayarlar, Slot ve İmkânlar ─────────────────────── */}
+                {/* ── Saat Slotları (form dışında — bu bölümün kaydet butonu sahayı onaya göndermez) ── */}
+                <PitchTimeSlotsSection
+                    timeSlots={timeSlots}
+                    newSlotStart={newSlotStart}
+                    newSlotEnd={newSlotEnd}
+                    savingSlots={savingSlots}
+                    slotsSuccess={slotsSuccess}
+                    slotError=""
+                    pitchOpenTime={formData.openTime || undefined}
+                    pitchCloseTime={formData.closeTime || undefined}
+                    isTimePickerOpen={isTimePickerOpen}
+                    setIsTimePickerOpen={(s) => setIsTimePickerOpen(s)}
+                    setNewSlotStart={setNewSlotStart}
+                    setNewSlotEnd={setNewSlotEnd}
+                    onAddSlot={handleAddSlot}
+                    onRemoveSlot={handleRemoveSlot}
+                    onSaveSlots={handleSaveSlots}
+                    disabled={isReadOnly}
+                />
+
+                {/* ── Genel Ayarlar ve İmkânlar ────────────────────────────── */}
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <PitchGeneralForm
                         formData={formData}
                         isTimePickerOpen={isTimePickerOpen}
                         setIsTimePickerOpen={setIsTimePickerOpen}
                         handleChange={handleChange}
-                    />
-
-                    <PitchTimeSlotsSection
-                        timeSlots={timeSlots}
-                        newSlotStart={newSlotStart}
-                        newSlotEnd={newSlotEnd}
-                        savingSlots={savingSlots}
-                        slotsSuccess={slotsSuccess}
-                        slotError=""
-                        pitchOpenTime={formData.openTime || undefined}
-                        pitchCloseTime={formData.closeTime || undefined}
-                        isTimePickerOpen={isTimePickerOpen}
-                        setIsTimePickerOpen={(s) => setIsTimePickerOpen(s)}
-                        setNewSlotStart={setNewSlotStart}
-                        setNewSlotEnd={setNewSlotEnd}
-                        onAddSlot={handleAddSlot}
-                        onRemoveSlot={handleRemoveSlot}
-                        onSaveSlots={handleSaveSlots}
+                        disabled={isReadOnly}
                     />
 
                     {/* ── Saha Fotoğrafı ───────────────────────────────────── */}
@@ -324,7 +330,7 @@ export const BusinessPitchSettings: React.FC = () => {
                                         <span className="text-[clamp(10px,2.8vw,12px)] text-slate-600 font-medium">Fotoğraf yok</span>
                                     </div>
                                 )}
-                                {!hasPendingPhoto && (
+                                {!hasPendingPhoto && !isReadOnly && (
                                     <div className="px-4 py-3.5 bg-slate-900/30">
                                         <button
                                             type="button"
@@ -357,22 +363,25 @@ export const BusinessPitchSettings: React.FC = () => {
                         onToggle={handleFacilityToggle}
                         onOpenModal={() => setShowFacilityModal(true)}
                         hasPendingFacility={hasPendingFacility}
+                        disabled={isReadOnly}
                     />
 
-                    <div className="pt-2">
-                        <button type="submit" disabled={saving}
-                            className="w-full text-white py-4 rounded-2xl font-black text-[clamp(14px,4vw,16px)] uppercase tracking-wider transition-all flex items-center justify-center gap-2.5 active:scale-[0.98] disabled:opacity-60"
-                            style={{
-                                WebkitTapHighlightColor: 'transparent',
-                                background: saving ? '#334155' : 'linear-gradient(135deg, #ea580c 0%, #c2410c 100%)',
-                                boxShadow: saving ? 'none' : '0 6px 24px rgba(234,88,12,0.3)',
-                            }}>
-                            <Save className="w-5 h-5" />
-                            {saving
-                                ? 'Kaydediliyor...'
-                                : approvalStatus === 'rejected' ? 'Düzenle ve Yeniden Gönder' : 'Değişiklikleri Kaydet'}
-                        </button>
-                    </div>
+                    {!isReadOnly && (
+                        <div className="pt-2">
+                            <button type="submit" disabled={saving}
+                                className="w-full text-white py-4 rounded-2xl font-black text-[clamp(14px,4vw,16px)] uppercase tracking-wider transition-all flex items-center justify-center gap-2.5 active:scale-[0.98] disabled:opacity-60"
+                                style={{
+                                    WebkitTapHighlightColor: 'transparent',
+                                    background: saving ? '#334155' : 'linear-gradient(135deg, #ea580c 0%, #c2410c 100%)',
+                                    boxShadow: saving ? 'none' : '0 6px 24px rgba(234,88,12,0.3)',
+                                }}>
+                                <Save className="w-5 h-5" />
+                                {saving
+                                    ? 'Kaydediliyor...'
+                                    : approvalStatus === 'rejected' ? 'Düzenle ve Yeniden Gönder' : 'Değişiklikleri Kaydet'}
+                            </button>
+                        </div>
+                    )}
                 </form>
             </div>
             </div>

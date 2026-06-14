@@ -36,6 +36,14 @@ export class MatchAnnouncementsService {
             throw new Error('User must be in a team to create match announcements');
         }
 
+        // Saha onaylı ve aktif olmalı
+        const pitchForCheck = await this.matchAnnouncementsRepository.manager.findOne(Pitch, {
+            where: { id: data.pitchId },
+        });
+        if (!pitchForCheck || pitchForCheck.approvalStatus !== 'approved' || !pitchForCheck.isActive) {
+            throw new HttpException('Bu saha şu anda ilana açık değil.', HttpStatus.FORBIDDEN);
+        }
+
         console.log('✅ Using teamId:', user.team.id);
 
         // Check for duplicate announcement (same team, pitch, time, date)
@@ -268,6 +276,8 @@ export class MatchAnnouncementsService {
                  JOIN pitches p      ON ma.pitch_id    = p.id
                  JOIN businesses b   ON p.business_id  = b.id
                  WHERE ma.status  = 'PENDING'
+                   AND p."approvalStatus" = 'approved'
+                   AND p."isActive" = true
                    AND b.latitude  IS NOT NULL
                    AND b.longitude IS NOT NULL
                    AND (
@@ -317,7 +327,9 @@ export class MatchAnnouncementsService {
             .leftJoinAndSelect('announcement.team', 'team')
             .leftJoinAndSelect('team.captain', 'captain')
             .leftJoinAndSelect('team.players', 'players')
-            .where('announcement.status = :status', { status: 'PENDING' });
+            .innerJoin('pitches', 'pitch', 'pitch.id = announcement.pitchId')
+            .where('announcement.status = :status', { status: 'PENDING' })
+            .andWhere('pitch."approvalStatus" = :pApproval AND pitch."isActive" = :pActive', { pApproval: 'approved', pActive: true });
 
         if (filters?.date) {
             query.andWhere('announcement.date = :date', { date: filters.date });

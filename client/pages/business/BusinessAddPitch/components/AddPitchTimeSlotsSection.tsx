@@ -1,14 +1,11 @@
 import React from 'react';
-import { Clock, Plus, Save, Trash2, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Clock, Plus, Trash2, ArrowRight } from 'lucide-react';
 import { BusinessTimePickerModal } from '../../../../components/Modals/BusinessTimePickerModal';
 
-interface PitchTimeSlotsSectionProps {
+interface AddPitchTimeSlotsSectionProps {
     timeSlots: { startTime: string; endTime: string }[];
     newSlotStart: string;
     newSlotEnd: string;
-    savingSlots: boolean;
-    slotsSuccess: boolean;
-    slotError: string;
     pitchOpenTime?: string;
     pitchCloseTime?: string;
     isTimePickerOpen: { open: boolean; type: 'OPEN' | 'CLOSE' | 'SLOT_START' | 'SLOT_END' };
@@ -17,18 +14,14 @@ interface PitchTimeSlotsSectionProps {
     setNewSlotEnd: (t: string) => void;
     onAddSlot: () => void;
     onRemoveSlot: (index: number) => void;
-    onSaveSlots: () => void;
-    disabled?: boolean;
 }
 
-export const PitchTimeSlotsSection: React.FC<PitchTimeSlotsSectionProps> = ({
+export const AddPitchTimeSlotsSection: React.FC<AddPitchTimeSlotsSectionProps> = ({
     timeSlots, newSlotStart, newSlotEnd,
-    savingSlots, slotsSuccess, slotError,
     pitchOpenTime, pitchCloseTime,
     isTimePickerOpen, setIsTimePickerOpen,
     setNewSlotStart, setNewSlotEnd,
-    onAddSlot, onRemoveSlot, onSaveSlots,
-    disabled = false
+    onAddSlot, onRemoveSlot,
 }) => {
     return (
         <div className="bg-slate-800/70 rounded-2xl border border-slate-700/60 overflow-hidden"
@@ -42,31 +35,17 @@ export const PitchTimeSlotsSection: React.FC<PitchTimeSlotsSectionProps> = ({
                         <Clock className="w-4 h-4 text-orange-400" />
                     </div>
                     <div>
-                        <h2 className="text-[clamp(13px,3.8vw,15px)] font-black text-white">Saat Slotları</h2>
+                        <h2 className="text-[clamp(13px,3.8vw,15px)] font-black text-white">Saat Slotları (Opsiyonel)</h2>
                         <p className="text-[clamp(9px,2.5vw,11px)] text-slate-400 mt-0.5">
                             {pitchOpenTime && pitchCloseTime
                                 ? `${pitchOpenTime} – ${pitchCloseTime} arası geçerli`
-                                : 'Maç oynanacak saat dilimlerini tanımlayın'}
+                                : 'Belirtmezseniz saatlik otomatik oluşturulur'}
                         </p>
                     </div>
                 </div>
             </div>
 
             <div className="p-4 space-y-4">
-
-                {slotsSuccess && (
-                    <div className="flex items-center gap-2.5 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl">
-                        <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                        <span className="text-emerald-400 font-bold text-sm">Saat slotları başarıyla kaydedildi</span>
-                    </div>
-                )}
-
-                {slotError && (
-                    <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm font-medium">
-                        {slotError}
-                    </div>
-                )}
-
                 {/* Slot List */}
                 {timeSlots.length > 0 ? (
                     <div className="space-y-2">
@@ -87,8 +66,7 @@ export const PitchTimeSlotsSection: React.FC<PitchTimeSlotsSectionProps> = ({
                                 <button
                                     type="button"
                                     onClick={() => onRemoveSlot(index)}
-                                    disabled={disabled}
-                                    className="p-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 rounded-lg transition-colors flex-shrink-0 min-w-[36px] min-h-[36px] flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="p-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 rounded-lg transition-colors flex-shrink-0 min-w-[36px] min-h-[36px] flex items-center justify-center"
                                     style={{ WebkitTapHighlightColor: 'transparent' }}
                                 >
                                     <Trash2 className="w-4 h-4" />
@@ -102,12 +80,12 @@ export const PitchTimeSlotsSection: React.FC<PitchTimeSlotsSectionProps> = ({
                             <Clock className="w-6 h-6 text-slate-500" />
                         </div>
                         <p className="text-slate-400 text-sm font-bold mb-1">Henüz slot tanımlanmamış</p>
-                        <p className="text-slate-600 text-[clamp(10px,2.8vw,12px)]">Aşağıdan yeni slotlar ekleyin</p>
+                        <p className="text-slate-600 text-[clamp(10px,2.8vw,12px)]">Belirtmezseniz saatlik otomatik oluşturulur</p>
                     </div>
                 )}
 
                 {/* Yeni slot ekleme */}
-                <div className={`bg-slate-900/40 rounded-xl border border-slate-700/40 p-3 ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
+                <div className="bg-slate-900/40 rounded-xl border border-slate-700/40 p-3">
                     <p className="text-[clamp(9px,2.5vw,11px)] text-slate-500 font-bold uppercase tracking-wider mb-2.5">Yeni Slot Ekle</p>
                     <div className="flex items-center gap-2">
                         <div className="flex-1">
@@ -158,30 +136,6 @@ export const PitchTimeSlotsSection: React.FC<PitchTimeSlotsSectionProps> = ({
                         else setNewSlotEnd(time);
                     }}
                 />
-
-                <button
-                    type="button"
-                    onClick={onSaveSlots}
-                    disabled={savingSlots || disabled}
-                    className="w-full py-3.5 rounded-xl font-black text-white transition-all flex items-center justify-center gap-2.5 disabled:opacity-50 active:scale-[0.98]"
-                    style={{
-                        WebkitTapHighlightColor: 'transparent',
-                        background: savingSlots ? '#334155' : 'linear-gradient(135deg, #ea580c 0%, #c2410c 100%)',
-                        boxShadow: savingSlots ? 'none' : '0 4px 16px rgba(234,88,12,0.25)',
-                    }}
-                >
-                    <Save className="w-4 h-4" />
-                    {savingSlots ? 'Kaydediliyor...' : (
-                        <span className="flex items-center gap-2">
-                            Slotları Kaydet
-                            {timeSlots.length > 0 && (
-                                <span className="bg-white/20 text-white text-xs font-black px-2 py-0.5 rounded-full">
-                                    {timeSlots.length}
-                                </span>
-                            )}
-                        </span>
-                    )}
-                </button>
             </div>
         </div>
     );

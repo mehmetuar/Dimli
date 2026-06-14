@@ -33,14 +33,21 @@ export class BusinessService {
     async findAll(geoFilter?: GeoFilter): Promise<any[]> {
         if (!geoFilter) {
             const businesses = await this.businessRepository.createQueryBuilder('business')
-                .leftJoinAndSelect('business.pitches', 'pitches')
+                .leftJoinAndSelect(
+                    'business.pitches',
+                    'pitches',
+                    'pitches."approvalStatus" = :pApproval AND pitches."isActive" = :pActive',
+                    { pApproval: 'approved', pActive: true },
+                )
                 .leftJoinAndSelect('pitches.timeSlots', 'timeSlots')
                 .leftJoinAndSelect('business.owner', 'owner')
                 .innerJoin('Subscription', 'subscription', 'subscription.ownerId = owner.id')
                 .where('business.status = :status', { status: 'active' })
                 .andWhere('subscription.status IN (:...subStatuses)', { subStatuses: ['active', 'trial'] })
                 .getMany();
-            return businesses.map(b => this.mapWithOwnerPhone(b));
+            return businesses
+                .filter(b => (b.pitches?.length ?? 0) > 0)
+                .map(b => this.mapWithOwnerPhone(b));
         }
 
         const { lat, lng, radius } = geoFilter;
@@ -77,7 +84,12 @@ export class BusinessService {
 
         const businesses = await this.businessRepository
             .createQueryBuilder('business')
-            .leftJoinAndSelect('business.pitches', 'pitches')
+            .leftJoinAndSelect(
+                'business.pitches',
+                'pitches',
+                'pitches."approvalStatus" = :pApproval AND pitches."isActive" = :pActive',
+                { pApproval: 'approved', pActive: true },
+            )
             .leftJoinAndSelect('pitches.timeSlots', 'timeSlots')
             .leftJoinAndSelect('business.owner', 'owner')
             .innerJoin('Subscription', 'subscription', 'subscription.ownerId = owner.id')
@@ -86,6 +98,7 @@ export class BusinessService {
             .getMany();
 
         const result = businesses
+            .filter(b => (b.pitches?.length ?? 0) > 0)
             .map(b => ({ ...this.mapWithOwnerPhone(b), distanceKm: distanceMap.get(b.id) ?? 0 }))
             .sort((a, b) => (a.distanceKm ?? 0) - (b.distanceKm ?? 0));
 
@@ -105,6 +118,7 @@ export class BusinessService {
         if (!subscription || !['active', 'trial'].includes(subscription.status)) {
             throw new ForbiddenException('Bu işletmenin aboneliği aktif değil.');
         }
+        business.pitches = (business.pitches ?? []).filter(p => p.approvalStatus === 'approved' && p.isActive);
         return this.mapWithOwnerPhone(business);
     }
 
