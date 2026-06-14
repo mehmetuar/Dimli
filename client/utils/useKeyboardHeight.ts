@@ -14,7 +14,7 @@ export function useKeyboardHeight(): number {
     const el = document.activeElement as HTMLElement | null;
     if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT')) {
       setTimeout(() => {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }, 100);
     }
   }, []);

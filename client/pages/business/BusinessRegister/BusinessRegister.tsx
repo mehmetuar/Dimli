@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { ChevronRight, ChevronLeft, Loader2 } from 'lucide-react';
 import { LocationSelectionModal } from '../../../components/Modals/LocationSelectionModal';
 import { BusinessTimePickerModal } from '../../../components/Modals/BusinessTimePickerModal';
@@ -18,6 +18,7 @@ import { PaymentStep } from './components/steps/PaymentStep';
 import { CongratulationsStep } from './components/steps/CongratulationsStep';
 
 export const BusinessRegister: React.FC = () => {
+    const navigate = useNavigate();
     const keyboardHeight = useKeyboardHeight();
     const {
         currentStep, totalSteps,
@@ -30,6 +31,7 @@ export const BusinessRegister: React.FC = () => {
         tempSlot, setTempSlot,
         formData,
         otpSent, otpSending, otpCode, setOtpCode,
+        ownerPasswordConfirm, setOwnerPasswordConfirm,
         updateOwner, updateBusiness, updatePitch,
         setPitchCount, toggleFacility, toggleClosedDay, addTimeSlot, removeTimeSlot,
         sendOtp, verifyOtp,
@@ -47,7 +49,15 @@ export const BusinessRegister: React.FC = () => {
             case 1:
                 return <WelcomeStep />;
             case 2:
-                return <OwnerInfoStep formData={formData} updateOwner={updateOwner} fieldErrors={fieldErrors} />;
+                return (
+                    <OwnerInfoStep
+                        formData={formData}
+                        updateOwner={updateOwner}
+                        passwordConfirm={ownerPasswordConfirm}
+                        setPasswordConfirm={setOwnerPasswordConfirm}
+                        fieldErrors={fieldErrors}
+                    />
+                );
             case 3:
                 return (
                     <OtpVerificationStep
@@ -105,9 +115,19 @@ export const BusinessRegister: React.FC = () => {
 
     return (
         <div
-            className="h-[100dvh] bg-slate-950 flex flex-col px-3 pt-3 md:px-4 md:pt-4 md:items-center md:justify-center"
-            style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight + 12 : 'max(12px, env(safe-area-inset-bottom, 12px))' }}
+            className="fixed left-0 right-0 w-full bg-slate-950 overflow-hidden flex flex-col"
+            style={{
+                top: 'calc(-1 * env(safe-area-inset-top))',
+                bottom: 'calc(-1 * env(safe-area-inset-bottom))',
+            }}
         >
+            <div
+                className="flex-1 min-h-0 overflow-y-auto scrollbar-hide flex flex-col px-3 md:px-4 md:items-center md:justify-center"
+                style={{
+                    paddingTop: 'calc(max(env(safe-area-inset-top, 0px), 20px) + 5.5rem)',
+                    paddingBottom: keyboardHeight > 0 ? keyboardHeight + 12 : 'max(16px, env(safe-area-inset-bottom, 16px))',
+                }}
+            >
             <div className="w-full max-w-4xl flex-1 min-h-0 md:flex-none md:min-h-[600px] bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-800 shadow-2xl overflow-hidden flex flex-col md:flex-row">
 
                 <RegisterSidebar currentStep={currentStep} />
@@ -137,15 +157,13 @@ export const BusinessRegister: React.FC = () => {
 
                     {/* Navigation — OTP, payment, congrats adımlarında farklı davranış */}
                     {!isCongratsStep && !isLastInputStep && !isOtpStep && (
-                        <div className="absolute bottom-0 left-0 right-0 flex justify-between items-center px-5 md:px-10 py-4 border-t border-slate-800 bg-slate-900 z-10">
+                        <div
+                            className="absolute bottom-0 left-0 right-0 flex justify-between items-center px-5 md:px-10 py-4 border-t border-slate-800 bg-slate-900 z-10"
+                            style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}
+                        >
                             <button
-                                onClick={prevStep}
-                                disabled={currentStep === 1}
-                                className={`flex items-center gap-2 px-5 py-3 rounded-xl font-bold transition-colors min-h-[44px] ${
-                                    currentStep === 1
-                                        ? 'text-slate-700 cursor-not-allowed'
-                                        : 'text-slate-400 hover:text-white hover:bg-slate-800'
-                                }`}
+                                onClick={() => currentStep === 1 ? navigate('/business/login') : prevStep()}
+                                className="flex items-center gap-2 px-5 py-3 rounded-xl font-bold transition-colors min-h-[44px] text-slate-400 hover:text-white hover:bg-slate-800"
                             >
                                 <ChevronLeft size={20} /> Geri
                             </button>
@@ -162,7 +180,25 @@ export const BusinessRegister: React.FC = () => {
 
                     {/* OTP adımında sadece geri butonu */}
                     {isOtpStep && (
-                        <div className="absolute bottom-0 left-0 right-0 px-5 md:px-10 py-4 border-t border-slate-800 bg-slate-900 z-10">
+                        <div
+                            className="absolute bottom-0 left-0 right-0 px-5 md:px-10 py-4 border-t border-slate-800 bg-slate-900 z-10"
+                            style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}
+                        >
+                            <button
+                                onClick={prevStep}
+                                className="flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-slate-400 hover:text-white hover:bg-slate-800 transition-colors min-h-[44px]"
+                            >
+                                <ChevronLeft size={20} /> Geri
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Ödeme adımında sadece geri butonu */}
+                    {isLastInputStep && (
+                        <div
+                            className="absolute bottom-0 left-0 right-0 px-5 md:px-10 py-4 border-t border-slate-800 bg-slate-900 z-10"
+                            style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}
+                        >
                             <button
                                 onClick={prevStep}
                                 className="flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-slate-400 hover:text-white hover:bg-slate-800 transition-colors min-h-[44px]"
@@ -173,17 +209,7 @@ export const BusinessRegister: React.FC = () => {
                     )}
                 </div>
             </div>
-
-            {!isCongratsStep && (
-                <div className="mt-3 shrink-0 text-center">
-                    <p className="text-slate-500 text-sm">
-                        Zaten hesabın var mı?{' '}
-                        <Link to="/business/login" className="text-orange-500 font-bold hover:underline">
-                            Giriş Yap
-                        </Link>
-                    </p>
-                </div>
-            )}
+            </div>
 
             <LocationSelectionModal
                 isOpen={isLocationModalOpen}

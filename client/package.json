@@ -21,6 +21,7 @@
     "@capacitor/splash-screen": "^6.0.4",
     "@capacitor/status-bar": "^6.0.3",
     "@fontsource/inter": "^5.2.8",
+    "@fontsource/outfit": "^5.2.8",
     "@google/genai": "^1.30.0",
     "@revenuecat/purchases-capacitor": "^9.2.2",
     "@vis.gl/react-google-maps": "^1.8.3",

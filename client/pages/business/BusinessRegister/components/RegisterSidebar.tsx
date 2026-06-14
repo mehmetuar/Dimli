@@ -68,17 +68,6 @@ export const RegisterSidebar: React.FC<RegisterSidebarProps> = ({ currentStep })
     );
 };
 
-/**
- * Input'a focus olduğunda, elemanı klavyenin üstüne scroll eder.
- * iOS ve Android Capacitor ortamında çalışır.
- */
-const scrollInputIntoView = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const el = e.target;
-    setTimeout(() => {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 350);
-};
-
 interface InputProps {
     label: string;
     type?: string;
@@ -111,7 +100,6 @@ export const Input: React.FC<InputProps> = ({ label, type = "text", value, onCha
                         value={value}
                         onChange={onChange}
                         required={required}
-                        onFocus={scrollInputIntoView}
                         placeholder={placeholder}
                     />
                 ) : (
@@ -123,7 +111,6 @@ export const Input: React.FC<InputProps> = ({ label, type = "text", value, onCha
                         value={value}
                         onChange={onChange}
                         required={required}
-                        onFocus={scrollInputIntoView}
                         placeholder={placeholder}
                         inputMode={inputMode as any}
                     />

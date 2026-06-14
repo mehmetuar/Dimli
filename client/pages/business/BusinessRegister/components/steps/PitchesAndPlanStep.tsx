@@ -39,11 +39,8 @@ const PriceInput: React.FC<{ value: number; onChange: (val: number) => void; err
     const isFocused = rawText !== null;
     const displayValue = isFocused ? rawText! : value === 0 ? '' : String(value);
 
-    const scrollInputIntoView = (e: React.FocusEvent<HTMLInputElement>) => {
+    const handleFocus = () => {
         setRawText(value === 0 ? '' : String(value));
-        setTimeout(() => {
-            e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }, 350);
     };
 
     return (
@@ -63,7 +60,7 @@ const PriceInput: React.FC<{ value: number; onChange: (val: number) => void; err
                         error ? 'border-red-500 focus:border-red-400' : 'border-slate-700 focus:border-orange-500'
                     }`}
                     value={displayValue}
-                    onFocus={scrollInputIntoView}
+                    onFocus={handleFocus}
                     onChange={(e) => {
                         const filtered = e.target.value.replace(/[^0-9.]/g, '');
                         setRawText(filtered);

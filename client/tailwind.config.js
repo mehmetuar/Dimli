@@ -29,6 +29,7 @@ export default {
             },
             fontFamily: {
                 sport: ['Inter', 'sans-serif'], // Fallback
+                display: ['Outfit', 'Inter', 'sans-serif'],
             },
             animation: {
                 'fade-in': 'fadeIn 0.5s ease-out',

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { APIProvider, Map, AdvancedMarker, useMap } from '@vis.gl/react-google-maps';
 import { Navigation, MapPin, Loader2, Lock, Settings } from 'lucide-react';
 import { Geolocation } from '@capacitor/geolocation';
@@ -36,7 +36,6 @@ export const LocationStep: React.FC<LocationStepProps> = ({
     const [locationNeedsSettings, setLocationNeedsSettings] = useState(false);
     const [flyTrigger, setFlyTrigger] = useState(false);
     const [hasAttemptedLocation, setHasAttemptedLocation] = useState(false);
-    const addressRef = useRef<HTMLTextAreaElement>(null);
 
     useEffect(() => {
         if (formData.business.latitude) return;
@@ -107,12 +106,6 @@ export const LocationStep: React.FC<LocationStepProps> = ({
         updateBusiness('latitude', lat);
         updateBusiness('longitude', lng);
         await doReverseGeocode(lat, lng);
-    };
-
-    const handleAddressFocus = () => {
-        setTimeout(() => {
-            addressRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-        }, 600);
     };
 
     const hasLocation = !!formData.business.latitude;
@@ -256,14 +249,12 @@ export const LocationStep: React.FC<LocationStepProps> = ({
                     Açık Adres <span className="text-red-500">*</span>
                 </label>
                 <textarea
-                    ref={addressRef}
                     className={`w-full bg-slate-800 border text-white text-sm p-3 rounded-xl focus:outline-none transition-all font-medium min-h-[80px] resize-none ${
                         addressError ? 'border-red-500 focus:border-red-400' : 'border-slate-700 focus:border-orange-500'
                     }`}
                     placeholder="Sokak, cadde, bina no gibi detaylı adres bilgisini girin..."
                     value={formData.business.address}
                     onChange={(e) => updateBusiness('address', e.target.value)}
-                    onFocus={handleAddressFocus}
                 />
                 {addressError && (
                     <p className="text-red-400 text-xs font-bold ml-1 mt-0.5 animate-fade-in">{addressError}</p>

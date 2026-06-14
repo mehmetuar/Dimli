@@ -9,6 +9,10 @@ Monorepo with three independent sub-projects:
 - `client-admin/` — React 18 + Vite admin dashboard, runs at port 5174
 - `server/` — NestJS 11 + TypeORM + PostgreSQL backend
 
+### `client/` is a native mobile app — never a website
+
+`client/` is exclusively a Capacitor iOS/Android app and will never be deployed as a website or need web-responsive support. All UI/UX work in `client/` must target native mobile design standards (safe areas via `env(safe-area-inset-*)`, edge-to-edge backgrounds with no seams in notch/home-indicator areas, touch-friendly hit targets) and must look correct on both iOS and Android devices. Do not propose web-only patterns, ask whether this is a web project, or hedge designs for desktop/browser use.
+
 ## Commands
 
 ### Server

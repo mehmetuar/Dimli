@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link, Navigate } from 'react-router-dom';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, User, Lock } from 'lucide-react';
 import api from '../../../services/api';
 import { initializePushNotifications } from '../../../services/pushNotificationService';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useKeyboardHeight } from '../../../utils/useKeyboardHeight';
 
 type Phase = 'entering' | 'idle' | 'exiting-left';
 
@@ -15,6 +16,8 @@ export const Login: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { token, loginAsCustomer } = useAuth();
+    const keyboardHeight = useKeyboardHeight();
+    const keyboardOpen = keyboardHeight > 0;
 
     const [phase, setPhase] = useState<Phase>(() =>
         location.state?.from === 'business' ? 'entering' : 'idle'
@@ -47,96 +50,192 @@ export const Login: React.FC = () => {
     const goToBusiness = () => {
         if (phase !== 'idle') return;
         setPhase('exiting-left');
-        setTimeout(() => navigate('/business/login', { state: { from: 'customer' } }), 280);
+        setTimeout(() => navigate('/business/login', { state: { from: 'customer' } }), 400);
     };
 
     const animClass =
-        phase === 'entering' ? 'animate-slide-enter-left' :
-        phase === 'exiting-left' ? 'animate-slide-exit-left' : '';
+        phase === 'entering' ? 'animate-flip-enter-from-business' :
+        phase === 'exiting-left' ? 'animate-flip-exit-to-business' : '';
 
     return (
-        <div className={`min-h-screen bg-pitch flex flex-col items-center justify-start px-4 pt-16 pb-16 ${animClass}`}>
-            <div className="w-full max-w-md bg-slate-800 p-8 rounded-3xl border border-slate-700 shadow-2xl">
-                <div className="text-center mb-8">
-                    <img src="/dimli.png" alt="DİMLİ" className="h-24 w-auto object-contain mx-auto mb-4 rounded-2xl" />
-                    <h1 className="font-sport font-black text-4xl text-white italic">GİRİŞ YAP</h1>
-                    <p className="text-slate-400 mt-2">Sahalara geri dön kaptan.</p>
+        <div
+            className="fixed left-0 right-0 w-full bg-gradient-to-b from-pitch-surface to-pitch overflow-hidden flex flex-col flip-perspective"
+            style={{
+                top: 'calc(-1 * env(safe-area-inset-top))',
+                bottom: 'calc(-1 * env(safe-area-inset-bottom))',
+            }}
+        >
+            <div
+                className={`flip-card-3d relative flex-1 w-full min-h-0 flex flex-col overflow-y-auto scrollbar-hide ${animClass}`}
+                style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
+            >
+                {/* Header: logo */}
+                <div
+                    className="relative flex flex-col items-center justify-start flex-shrink-0 transition-all duration-200"
+                    style={{
+                        paddingTop: keyboardOpen ? 'max(env(safe-area-inset-top), 50px)' : 'clamp(28px, 7dvh, 56px)',
+                        paddingBottom: '0px',
+                        maxHeight: keyboardOpen ? '17dvh' : '40dvh',
+                        overflow: 'hidden',
+                    }}
+                >
+                    {/* Logo üzerine sol-üst / sağ-üst hafif beyaz spot ışığı */}
+                    <div
+                        className="absolute inset-0 pointer-events-none"
+                        style={{
+                            background: 'radial-gradient(circle at top left, rgba(255,255,255,0.14), transparent 55%)',
+                            filter: 'blur(20px)',
+                        }}
+                    />
+                    <div
+                        className="absolute inset-0 pointer-events-none"
+                        style={{
+                            background: 'radial-gradient(circle at top right, rgba(255,255,255,0.14), transparent 55%)',
+                            filter: 'blur(20px)',
+                        }}
+                    />
+                    <img
+                        src="/dimliLogin.png"
+                        alt="DİMLİ"
+                        className="relative z-10 object-contain animate-enter-up transition-all duration-200"
+                        style={{
+                            width: keyboardOpen ? 'clamp(125px, 34vw, 190px)' : 'clamp(230px, 75vw, 440px)',
+                            height: 'auto',
+                            filter: 'drop-shadow(0 4px 18px rgba(34,197,94,0.22))',
+                        }}
+                    />
                 </div>
 
-                {error && (
-                    <div className="bg-red-500/10 border border-red-500/50 text-red-400 p-3 rounded-xl mb-6 text-sm font-bold text-center">
-                        {error}
-                    </div>
-                )}
-
-                <form onSubmit={handleLogin} className="space-y-4">
-                    <div>
-                        <label className="block text-turf-100 text-sm font-bold mb-2" htmlFor="username">
-                            Kullanıcı Adı
-                        </label>
-                        <input
-                            className="w-full px-4 py-3 rounded-xl bg-slate-800/50 border border-slate-700 text-white focus:outline-none focus:border-turf-500 focus:ring-1 focus:ring-turf-500 transition-colors"
-                            id="username"
-                            type="text"
-                            placeholder="Kullanıcı adınız"
-                            value={username}
-                            onChange={(e) => setUsername(e.target.value)}
-                            required
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Şifre</label>
-                        <div className="relative">
-                            <input
-                                type={showPassword ? 'text' : 'password'}
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="w-full bg-slate-900 text-white p-4 pr-12 rounded-xl border border-slate-700 focus:border-turf-500 focus:outline-none font-bold"
-                                placeholder="••••••••"
-                                required
-                            />
-                            <button
-                                type="button"
-                                onClick={() => setShowPassword(v => !v)}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 active:text-slate-300 p-1"
-                                tabIndex={-1}
-                            >
-                                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                            </button>
+                {/* Form */}
+                <div
+                    className="flex-1 flex flex-col justify-start min-h-0 animate-enter-up [animation-delay:240ms] transition-all duration-200"
+                    style={{
+                        padding: '0 clamp(16px, 5vw, 32px)',
+                        paddingTop: keyboardOpen ? '0px' : 'clamp(4px, 1.5dvh, 16px)',
+                        gap: keyboardOpen ? 'clamp(2px, 1dvh, 8px)' : 'clamp(4px, 1.8dvh, 18px)',
+                    }}
+                >
+                    {error && (
+                        <div
+                            className="bg-red-500/10 border border-red-500/50 text-red-400 rounded-xl text-center font-bold"
+                            style={{ padding: 'clamp(8px, 1.5dvh, 12px)', fontSize: 'clamp(0.75rem, 2dvh, 0.875rem)' }}
+                        >
+                            {error}
                         </div>
-                    </div>
+                    )}
 
-                    <button
-                        type="submit"
-                        className="w-full bg-turf-600 text-white py-4 rounded-xl font-black text-lg uppercase tracking-wider hover:bg-turf-500 transition-colors shadow-lg shadow-turf-600/20 mt-4"
+                    <form
+                        onSubmit={handleLogin}
+                        className="flex flex-col transition-all duration-200"
+                        style={{ gap: keyboardOpen ? 'clamp(2px, 1dvh, 8px)' : 'clamp(4px, 1.8dvh, 18px)' }}
                     >
-                        Giriş Yap
-                    </button>
+                        <div>
+                            <label
+                                htmlFor="username"
+                                className="block text-slate-400 font-bold"
+                                style={{ fontSize: 'clamp(0.6rem, 1.6dvh, 0.8rem)', marginBottom: 'clamp(2px, 0.6dvh, 6px)' }}
+                            >
+                                Kullanıcı Adı:
+                            </label>
+                            <div className="relative">
+                                <User
+                                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none"
+                                    style={{ width: 'clamp(16px, 4dvh, 20px)', height: 'clamp(16px, 4dvh, 20px)' }}
+                                />
+                                <input
+                                    className="w-full pl-11 pr-4 rounded-2xl bg-slate-800/40 border border-slate-700/80 text-white focus:outline-none focus:border-turf-500 focus:shadow-neon-sm transition-colors font-bold"
+                                    style={{ height: 'clamp(36px, 6.5dvh, 56px)', fontSize: 'clamp(0.85rem, 2.2dvh, 1rem)' }}
+                                    id="username"
+                                    type="text"
+                                    placeholder="Kullanıcı adınız"
+                                    value={username}
+                                    onChange={(e) => setUsername(e.target.value)}
+                                    required
+                                />
+                            </div>
+                        </div>
 
-                    <div className="text-center mt-3">
-                        <Link to="/forgot-password" className="text-slate-400 text-sm hover:text-turf-400 font-bold transition-colors">
-                            Şifremi Unuttum
-                        </Link>
-                    </div>
-                </form>
+                        <div>
+                            <label
+                                htmlFor="password"
+                                className="block text-slate-400 font-bold"
+                                style={{ fontSize: 'clamp(0.6rem, 1.6dvh, 0.8rem)', marginBottom: 'clamp(2px, 0.6dvh, 6px)' }}
+                            >
+                                Şifre:
+                            </label>
+                            <div className="relative">
+                                <Lock
+                                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none"
+                                    style={{ width: 'clamp(16px, 4dvh, 20px)', height: 'clamp(16px, 4dvh, 20px)' }}
+                                />
+                                <input
+                                    id="password"
+                                    type={showPassword ? 'text' : 'password'}
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    className="w-full pl-11 pr-12 rounded-2xl bg-slate-800/40 border border-slate-700/80 text-white focus:outline-none focus:border-turf-500 focus:shadow-neon-sm transition-colors font-bold"
+                                    style={{ height: 'clamp(36px, 6.5dvh, 56px)', fontSize: 'clamp(0.85rem, 2.2dvh, 1rem)' }}
+                                    placeholder="••••••••"
+                                    required
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(v => !v)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 active:text-slate-300 p-1"
+                                    tabIndex={-1}
+                                >
+                                    {showPassword
+                                        ? <EyeOff style={{ width: 'clamp(16px, 4dvh, 20px)', height: 'clamp(16px, 4dvh, 20px)' }} />
+                                        : <Eye style={{ width: 'clamp(16px, 4dvh, 20px)', height: 'clamp(16px, 4dvh, 20px)' }} />}
+                                </button>
+                            </div>
+                            <div className="flex justify-end" style={{ marginTop: 'clamp(2px, 0.6dvh, 6px)' }}>
+                                <Link
+                                    to="/forgot-password"
+                                    className="text-slate-400 font-bold hover:text-turf-400 transition-colors"
+                                    style={{ fontSize: 'clamp(0.7rem, 1.8dvh, 0.8rem)' }}
+                                >
+                                    Şifremi Unuttum
+                                </Link>
+                            </div>
+                        </div>
 
-                <div className="mt-6 text-center">
-                    <p className="text-slate-400 text-sm mb-4">
-                        Hesabın yok mu?{' '}
-                        <Link to="/register" className="text-turf-500 font-bold hover:underline">
-                            Kayıt Ol
-                        </Link>
-                    </p>
+                        <button
+                            type="submit"
+                            className="w-full bg-turf-600 text-white rounded-2xl font-display font-bold uppercase tracking-wider shadow-lg shadow-black/30 border border-turf-400/15 active:bg-turf-700 active:scale-[0.97] transition-all"
+                            style={{ height: 'clamp(40px, 7.5dvh, 58px)', fontSize: 'clamp(0.85rem, 2.4dvh, 1.125rem)' }}
+                        >
+                            Giriş Yap
+                        </button>
 
+                        <p className="text-slate-400 font-bold text-center" style={{ fontSize: 'clamp(0.8rem, 2.2dvh, 0.95rem)', marginTop: 'clamp(4px, 1dvh, 10px)' }}>
+                            Hesabın yok mu?{' '}
+                            <Link to="/register" className="text-turf-500 font-bold hover:underline">
+                                Kayıt Ol
+                            </Link>
+                        </p>
+                    </form>
+                </div>
+
+                {/* Footer: İşletme Hesabına Geçiş Yap butonu */}
+                <div
+                    className="relative flex-shrink-0 transition-all duration-200"
+                    style={{
+                        padding: keyboardOpen
+                            ? '0 clamp(16px, 5vw, 32px) clamp(10px, 1.5dvh, 16px)'
+                            : '0 clamp(16px, 5vw, 32px) clamp(20px, 3.5dvh, 32px)',
+                    }}
+                >
                     <button
                         type="button"
                         onClick={goToBusiness}
-                        className="block w-full py-3.5 rounded-xl text-center text-sm font-bold tracking-wide transition-all active:scale-[0.98]"
+                        className="block w-full rounded-2xl text-center font-bold tracking-wide text-white shadow-lg active:scale-[0.98] transition-all"
                         style={{
-                            background: 'rgba(249,115,22,0.07)',
-                            border: '1px solid rgba(249,115,22,0.25)',
-                            color: 'rgba(251,146,60,0.85)',
+                            background: 'linear-gradient(135deg, #c2410c, #9a3412)',
+                            boxShadow: '0 8px 20px -8px rgba(154,52,18,0.45)',
                             WebkitTapHighlightColor: 'transparent',
+                            height: keyboardOpen ? 'clamp(36px, 5.5dvh, 48px)' : 'clamp(44px, 7dvh, 58px)',
+                            fontSize: keyboardOpen ? 'clamp(0.7rem, 1.8dvh, 0.8rem)' : 'clamp(0.8rem, 2.2dvh, 0.95rem)',
                         }}
                     >
                         İşletme Hesabına Geçiş Yap

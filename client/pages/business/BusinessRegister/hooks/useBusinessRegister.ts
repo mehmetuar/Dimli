@@ -51,6 +51,9 @@ export const useBusinessRegister = () => {
     const [otpVerified, setOtpVerified] = useState(false);
     const [otpCode, setOtpCode] = useState('');
 
+    // Şifre doğrulama (backend'e gönderilmez)
+    const [ownerPasswordConfirm, setOwnerPasswordConfirm] = useState('');
+
     // Modal states
     const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
     const [locationModalStep, setLocationModalStep] = useState<'CITY' | 'DISTRICT'>('CITY');
@@ -170,6 +173,8 @@ export const useBusinessRegister = () => {
             if (formData.owner.password.trim() && formData.owner.password.trim().length < 6) {
                 errors['owner.password'] = 'Şifre en az 6 karakter olmalıdır';
             }
+            if (!ownerPasswordConfirm.trim()) errors['owner.passwordConfirm'] = 'Şifre tekrarı zorunludur';
+            else if (formData.owner.password !== ownerPasswordConfirm) errors['owner.passwordConfirm'] = 'Şifreler eşleşmiyor';
         }
 
         if (step === 4) {
@@ -339,6 +344,7 @@ export const useBusinessRegister = () => {
         formData, setFormData,
         otpSent, otpSending, otpVerified,
         otpCode, setOtpCode,
+        ownerPasswordConfirm, setOwnerPasswordConfirm,
         updateOwner, updateBusiness, updatePitch,
         setPitchCount, toggleFacility, toggleClosedDay, addTimeSlot, removeTimeSlot,
         sendOtp, verifyOtp,

@@ -1,6 +1,9 @@
 @import '@fontsource/inter/400.css';
 @import '@fontsource/inter/600.css';
 @import '@fontsource/inter/800.css';
+@import '@fontsource/outfit/700.css';
+@import '@fontsource/outfit/800.css';
+@import '@fontsource/outfit/900.css';
 
 @tailwind base;
 @tailwind components;
@@ -9,6 +12,7 @@
 @layer base {
   html {
     overscroll-behavior: none;
+    overflow: hidden;
     height: 100%;
     background: #0f172a;
   }
@@ -16,6 +20,7 @@
     background: #0f172a;
     color: #f1f5f9;
     overscroll-behavior: none;
+    overflow: hidden;
     height: 100%;
   }
   #root {
@@ -24,23 +29,9 @@
   }
 }
 
-/* Custom Scrollbar */
+/* Hide scrollbars everywhere — native mobile app, never a website */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: #0f172a;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #334155;
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  display: none;
 }
 
 @keyframes wiggle {
@@ -90,50 +81,97 @@
   transform: translateZ(0);
 }
 
-/* ── Kullanıcı ↔ İşletme Dünya Geçiş Animasyonları ─────────────────────── */
+/* ── Kullanıcı ↔ İşletme Dünya Geçiş Animasyonları: Kimlik Kartı Çevirme ── */
 
-@keyframes slideExitLeft {
-  from { transform: translateX(0) translateZ(0); opacity: 1; }
-  to   { transform: translateX(-30%) translateZ(0); opacity: 0; }
+.flip-perspective {
+  perspective: 1600px;
+  perspective-origin: 50% 50%;
 }
 
-@keyframes slideEnterRight {
-  from { transform: translateX(30%) translateZ(0); opacity: 0; }
-  to   { transform: translateX(0) translateZ(0); opacity: 1; }
-}
-
-@keyframes slideExitRight {
-  from { transform: translateX(0) translateZ(0); opacity: 1; }
-  to   { transform: translateX(30%) translateZ(0); opacity: 0; }
-}
-
-@keyframes slideEnterLeft {
-  from { transform: translateX(-30%) translateZ(0); opacity: 0; }
-  to   { transform: translateX(0) translateZ(0); opacity: 1; }
-}
-
-.animate-slide-exit-left {
-  animation: slideExitLeft 0.28s cubic-bezier(0.4, 0, 1, 1) forwards;
-  will-change: transform, opacity;
+.flip-card-3d {
+  transform-style: preserve-3d;
   backface-visibility: hidden;
+  will-change: transform;
 }
 
-.animate-slide-enter-right {
-  animation: slideEnterRight 0.28s cubic-bezier(0, 0, 0.2, 1) forwards;
-  will-change: transform, opacity;
-  backface-visibility: hidden;
+@keyframes flipExitToBusiness {
+  0%   { transform: rotateY(0deg) scale(1); opacity: 1; }
+  70%  { transform: rotateY(75deg) scale(0.96); opacity: 1; }
+  100% { transform: rotateY(90deg) scale(0.94); opacity: 0; }
 }
 
-.animate-slide-exit-right {
-  animation: slideExitRight 0.28s cubic-bezier(0.4, 0, 1, 1) forwards;
-  will-change: transform, opacity;
-  backface-visibility: hidden;
+@keyframes flipEnterFromCustomer {
+  0%   { transform: rotateY(-90deg) scale(0.94); opacity: 0; }
+  30%  { transform: rotateY(-75deg) scale(0.96); opacity: 1; }
+  100% { transform: rotateY(0deg) scale(1); opacity: 1; }
 }
 
-.animate-slide-enter-left {
-  animation: slideEnterLeft 0.28s cubic-bezier(0, 0, 0.2, 1) forwards;
-  will-change: transform, opacity;
-  backface-visibility: hidden;
+@keyframes flipExitToCustomer {
+  0%   { transform: rotateY(0deg) scale(1); opacity: 1; }
+  70%  { transform: rotateY(-75deg) scale(0.96); opacity: 1; }
+  100% { transform: rotateY(-90deg) scale(0.94); opacity: 0; }
+}
+
+@keyframes flipEnterFromBusiness {
+  0%   { transform: rotateY(90deg) scale(0.94); opacity: 0; }
+  30%  { transform: rotateY(75deg) scale(0.96); opacity: 1; }
+  100% { transform: rotateY(0deg) scale(1); opacity: 1; }
+}
+
+.animate-flip-exit-to-business {
+  animation: flipExitToBusiness 0.4s cubic-bezier(0.55, 0, 1, 0.45) forwards;
+}
+
+.animate-flip-enter-from-customer {
+  animation: flipEnterFromCustomer 0.4s cubic-bezier(0, 0.55, 0.45, 1) forwards;
+}
+
+.animate-flip-exit-to-customer {
+  animation: flipExitToCustomer 0.4s cubic-bezier(0.55, 0, 1, 0.45) forwards;
+}
+
+.animate-flip-enter-from-business {
+  animation: flipEnterFromBusiness 0.4s cubic-bezier(0, 0.55, 0.45, 1) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-flip-exit-to-business,
+  .animate-flip-exit-to-customer,
+  .animate-flip-enter-from-customer,
+  .animate-flip-enter-from-business {
+    animation: fadeIn 0.25s ease-out forwards;
+    transform: none !important;
+  }
+
+  .animate-enter-up {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  .animate-pulse-glow {
+    animation: none;
+  }
+}
+
+/* ── Login: giriş animasyonu ve glow halo ─────────────────────────────── */
+
+@keyframes enterUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-enter-up {
+  animation: enterUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes pulseGlow {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50%      { opacity: 1; transform: scale(1.08); }
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 4s ease-in-out infinite;
 }
 
 /* ── Android WebView Modal Düzeltmeleri ────────────────────────────────── */
