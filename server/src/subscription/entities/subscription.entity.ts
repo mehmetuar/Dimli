@@ -57,6 +57,12 @@ export class Subscription {
     @Column({ nullable: true, type: 'timestamp' })
     expiresAt: Date;
 
+    @Column({ nullable: true })
+    pendingPlanType: string | null;
+
+    @Column({ nullable: true, type: 'timestamp' })
+    pendingPlanEffectiveAt: Date | null;
+
     @CreateDateColumn({ name: 'created_at' })
     createdAt: Date;
 

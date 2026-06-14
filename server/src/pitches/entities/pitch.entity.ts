@@ -77,6 +77,9 @@ export class Pitch {
   @Column({ nullable: true, type: 'timestamp' })
   reviewedAt: Date | null;
 
+  @Column({ type: 'timestamp', nullable: true, default: null })
+  deletedAt: Date | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 }

@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     ArrowLeft, CreditCard, Trash2, Loader2, CheckCircle, XCircle,
     Star, ExternalLink, ChevronRight, Sparkles, Lock, X, Eye, EyeOff, PlusCircle,
+    AlertTriangle, Check, Clock, TrendingDown,
 } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import api from '../../../services/api';
@@ -280,6 +281,183 @@ const NewPitchPromptModal: React.FC<NewPitchPromptModalProps> = ({ visible, onCl
     );
 };
 
+interface PitchSelectionModalProps {
+    visible: boolean;
+    pitches: any[];
+    requiredCount: number;
+    loading: boolean;
+    conflict: { pitchId: string; conflicts: any[] } | null;
+    onClose: () => void;
+    onConfirm: (selectedIds: string[]) => void;
+}
+const PitchSelectionModal: React.FC<PitchSelectionModalProps> = ({
+    visible, pitches, requiredCount, loading, conflict, onClose, onConfirm,
+}) => {
+    const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+    useEffect(() => {
+        if (visible) setSelectedIds([]);
+    }, [visible]);
+
+    if (!visible) return null;
+
+    const toggle = (id: string) => {
+        setSelectedIds(prev => {
+            if (prev.includes(id)) return prev.filter(x => x !== id);
+            if (prev.length >= requiredCount) return prev;
+            return [...prev, id];
+        });
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/80 backdrop-blur-sm">
+            <div className="bg-slate-900 w-full max-w-sm rounded-3xl border border-red-500/20 shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
+                <div className="px-6 pt-6 pb-4 text-center shrink-0">
+                    <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
+                        <Trash2 className="w-8 h-8 text-red-500" />
+                    </div>
+                    <h3 className="text-xl font-bold text-white mb-2">Saha Seçimi Gerekli</h3>
+                    <p className="text-slate-400 text-sm leading-relaxed">
+                        Yeni planınız {requiredCount === 1 ? '1 saha' : `${requiredCount} saha`} daha az kapasiteye sahip. Yayından kaldırmak istediğiniz {requiredCount === 1 ? 'sahayı' : 'sahaları'} seçin.
+                    </p>
+                    <p className="text-orange-400 text-xs font-bold mt-2">
+                        {selectedIds.length} / {requiredCount} seçildi
+                    </p>
+                </div>
+
+                <div className="px-4 pb-2 space-y-2 overflow-y-auto flex-1">
+                    {pitches.map((pitch) => {
+                        const isSelected = selectedIds.includes(pitch.id);
+                        const isDisabled = !isSelected && selectedIds.length >= requiredCount;
+                        const hasConflict = conflict?.pitchId === pitch.id;
+                        return (
+                            <div key={pitch.id}>
+                                <button
+                                    onClick={() => !isDisabled && toggle(pitch.id)}
+                                    disabled={isDisabled}
+                                    className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border transition-all text-left
+                                        ${isSelected
+                                            ? 'bg-red-500/10 border-red-500/40'
+                                            : isDisabled
+                                                ? 'bg-slate-800/40 border-slate-700/40 opacity-50'
+                                                : 'bg-slate-800 border-slate-700/60 hover:border-slate-500'
+                                        }`}
+                                >
+                                    <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0
+                                        ${isSelected ? 'bg-red-500 border-red-500' : 'border-slate-500'}`}>
+                                        {isSelected && <Check className="w-3.5 h-3.5 text-white" />}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="font-bold text-sm text-white truncate">{pitch.name}</p>
+                                        <p className="text-slate-400 text-xs mt-0.5">
+                                            {pitch.type === 'INDOOR' ? 'Kapalı Saha' : 'Açık Saha'}
+                                        </p>
+                                    </div>
+                                    {pitch.approvalStatus === 'pending' && (
+                                        <span className="text-[10px] font-bold px-2 py-1 rounded-lg border bg-orange-500/10 text-orange-400 border-orange-500/25 shrink-0">
+                                            Onay Bekliyor
+                                        </span>
+                                    )}
+                                </button>
+
+                                {hasConflict && (
+                                    <div className="mt-2 bg-red-500/10 border border-red-500/30 rounded-xl p-3 space-y-2">
+                                        <div className="flex items-start gap-2">
+                                            <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                                            <p className="text-red-300 text-xs leading-relaxed">
+                                                Bu sahada kesinleşmiş maçlar var, kaldırılamıyor. Lütfen başka bir saha seçin.
+                                            </p>
+                                        </div>
+                                        <div className="space-y-1.5 max-h-32 overflow-y-auto">
+                                            {conflict!.conflicts.map((c: any, i: number) => (
+                                                <div key={i} className="bg-slate-900 px-3 py-2 rounded-lg border border-slate-700">
+                                                    <p className="text-xs font-bold text-white">
+                                                        {new Date(c.slotTime).toLocaleDateString('tr-TR', { weekday: 'short', day: 'numeric', month: 'short' })}
+                                                        {' — '}
+                                                        {new Date(c.slotTime).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+                                                    </p>
+                                                    <p className="text-[11px] text-slate-400 mt-0.5">{c.teamName}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+
+                <div className="flex gap-3 px-6 pt-4 pb-6 shrink-0">
+                    <button
+                        onClick={onClose}
+                        disabled={loading}
+                        className="flex-1 bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-xl transition-colors disabled:opacity-60"
+                    >
+                        Vazgeç
+                    </button>
+                    <button
+                        onClick={() => onConfirm(selectedIds)}
+                        disabled={selectedIds.length !== requiredCount || loading}
+                        className="flex-1 bg-red-600 hover:bg-red-500 disabled:opacity-40 text-white font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
+                    >
+                        {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                        {loading ? 'İşleniyor…' : 'Devam Et'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+interface DowngradeConfirmModalProps {
+    visible: boolean;
+    targetPlanLabel: string;
+    targetPlanPrice: number;
+    effectiveDateLabel: string;
+    loading: boolean;
+    onClose: () => void;
+    onConfirm: () => void;
+}
+const DowngradeConfirmModal: React.FC<DowngradeConfirmModalProps> = ({
+    visible, targetPlanLabel, targetPlanPrice, effectiveDateLabel, loading, onClose, onConfirm,
+}) => {
+    if (!visible) return null;
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/70 backdrop-blur-sm">
+            <div className="bg-slate-900 w-full max-w-sm rounded-3xl border border-orange-500/20 shadow-2xl overflow-hidden">
+                <div className="px-6 pt-6 pb-4 text-center">
+                    <div className="w-16 h-16 rounded-full bg-orange-500/10 flex items-center justify-center mx-auto mb-4">
+                        <TrendingDown className="w-8 h-8 text-orange-400" />
+                    </div>
+                    <h3 className="text-xl font-bold text-white mb-2">Plan Düşürme Onayı</h3>
+                    <p className="text-slate-400 text-sm leading-relaxed">
+                        Planınız <span className="text-white font-bold">{targetPlanLabel}</span> ({formatPrice(targetPlanPrice)}/ay) olarak değişecek.
+                        Bu değişiklik, mevcut faturalama döneminizin sonunda{effectiveDateLabel ? ` (${effectiveDateLabel})` : ''} geçerli olacaktır.
+                        O tarihe kadar mevcut planınızın tüm avantajlarından yararlanmaya devam edersiniz.
+                    </p>
+                </div>
+                <div className="flex gap-3 px-6 pt-2 pb-6">
+                    <button
+                        onClick={onClose}
+                        disabled={loading}
+                        className="flex-1 bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-xl transition-colors disabled:opacity-60"
+                    >
+                        Vazgeç
+                    </button>
+                    <button
+                        onClick={onConfirm}
+                        disabled={loading}
+                        className="flex-1 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
+                    >
+                        {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                        {loading ? 'İşleniyor…' : 'Onayla'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 /* ─── main component ─── */
 
 export const BusinessSubscriptionSettings: React.FC = () => {
@@ -288,15 +466,23 @@ export const BusinessSubscriptionSettings: React.FC = () => {
 
     const [loading, setLoading] = useState(true);
     const [subscription, setSubscription] = useState<any>(null);
+    const [pitches, setPitches] = useState<any[]>([]);
     const [purchaseLoading, setPurchaseLoading] = useState(false);
     const [restoreLoading, setRestoreLoading] = useState(false);
     const [deleteLoading, setDeleteLoading] = useState(false);
     const [showPlanPicker, setShowPlanPicker] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [showNewPitchPrompt, setShowNewPitchPrompt] = useState(false);
+    const [showPitchSelection, setShowPitchSelection] = useState(false);
+    const [showDowngradeConfirm, setShowDowngradeConfirm] = useState(false);
+    const [downgradeTarget, setDowngradeTarget] = useState<string | null>(null);
+    const [selectionLoading, setSelectionLoading] = useState(false);
+    const [selectionConflict, setSelectionConflict] = useState<{ pitchId: string; conflicts: any[] } | null>(null);
+    const [downgradeLoading, setDowngradeLoading] = useState(false);
     const [toast, setToast] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+    const removedPitchIdsRef = useRef<Set<string>>(new Set());
 
-    useEffect(() => { fetchSubscription(); }, []);
+    useEffect(() => { fetchSubscription(); fetchPitches(); }, []);
 
     const fetchSubscription = async () => {
         setLoading(true);
@@ -312,13 +498,45 @@ export const BusinessSubscriptionSettings: React.FC = () => {
         }
     };
 
+    const fetchPitches = async () => {
+        try {
+            const ownerId = getOwnerId();
+            if (!ownerId) return;
+            const ownerResponse = await api.get(`/business-owner/${ownerId}`);
+            const busId = ownerResponse.data.business?.id;
+            if (!busId) return;
+            const pitchesResponse = await api.get(`/pitches/business/${busId}`);
+            setPitches(pitchesResponse.data ?? []);
+        } catch (error) {
+            console.error('Error fetching pitches:', error);
+        }
+    };
+
     const showToast = (text: string, type: 'success' | 'error') => {
         setToast({ text, type });
         setTimeout(() => setToast(null), 3500);
     };
 
     const handleSelectPlan = async (planType: string) => {
+        const newPlanEntry = PLAN_ENTRIES.find(([, pl]) => pl.planType === planType);
+        const newPitchCount = newPlanEntry ? Number(newPlanEntry[0]) : 0;
+        const currentPitchCount = subscription?.pitchCount ?? 0;
+
         setShowPlanPicker(false);
+
+        // Plan düşürme: önce gerekirse saha seçimi, ardından düşürme onayı
+        if (newPitchCount < currentPitchCount) {
+            setDowngradeTarget(planType);
+            if (usedPitchCount > newPitchCount) {
+                removedPitchIdsRef.current = new Set();
+                setSelectionConflict(null);
+                setShowPitchSelection(true);
+            } else {
+                setShowDowngradeConfirm(true);
+            }
+            return;
+        }
+
         setPurchaseLoading(true);
         try {
             const previousPitchCount = subscription?.pitchCount ?? 0;
@@ -335,8 +553,6 @@ export const BusinessSubscriptionSettings: React.FC = () => {
             showToast('Aboneliğiniz başarıyla güncellendi.', 'success');
             await fetchSubscription();
 
-            const newPlanEntry = PLAN_ENTRIES.find(([, pl]) => pl.planType === planType);
-            const newPitchCount = newPlanEntry ? Number(newPlanEntry[0]) : 0;
             if (newPitchCount > previousPitchCount) {
                 setShowNewPitchPrompt(true);
             }
@@ -344,6 +560,59 @@ export const BusinessSubscriptionSettings: React.FC = () => {
             showToast(err?.message || 'Satın alma işlemi başarısız oldu.', 'error');
         } finally {
             setPurchaseLoading(false);
+        }
+    };
+
+    const handlePitchSelectionConfirm = async (selectedIds: string[]) => {
+        setSelectionLoading(true);
+        setSelectionConflict(null);
+        try {
+            for (const pitchId of selectedIds) {
+                if (removedPitchIdsRef.current.has(pitchId)) continue;
+                try {
+                    await api.delete(`/pitches/${pitchId}`);
+                    removedPitchIdsRef.current.add(pitchId);
+                } catch (err: any) {
+                    if (err?.response?.status === 409) {
+                        const data = err.response.data;
+                        setSelectionConflict({
+                            pitchId,
+                            conflicts: data?.message?.conflicts || data?.conflicts || [],
+                        });
+                        return;
+                    }
+                    throw err;
+                }
+            }
+            await fetchPitches();
+            setShowPitchSelection(false);
+            setShowDowngradeConfirm(true);
+        } catch {
+            showToast('Saha kaldırılırken bir hata oluştu.', 'error');
+        } finally {
+            setSelectionLoading(false);
+        }
+    };
+
+    const handleDowngradeConfirm = async () => {
+        if (!downgradeTarget) return;
+        setDowngradeLoading(true);
+        try {
+            const rcCustomerId = await purchasePlan(downgradeTarget);
+            const ownerId = getOwnerId() ?? '';
+
+            await api.post('/subscription/schedule-downgrade', { ownerId, planType: downgradeTarget, rcCustomerId });
+            await linkRevenueCatUser(ownerId);
+
+            showToast('Plan düşürme talebiniz alındı.', 'success');
+            await fetchSubscription();
+            await fetchPitches();
+            setShowDowngradeConfirm(false);
+            setDowngradeTarget(null);
+        } catch (err: any) {
+            showToast(err?.message || 'İşlem başarısız oldu.', 'error');
+        } finally {
+            setDowngradeLoading(false);
         }
     };
 
@@ -398,6 +667,30 @@ export const BusinessSubscriptionSettings: React.FC = () => {
         );
         return p?.label ?? subscription.planType;
     })();
+
+    // Abonelik kapsamında "kullanılan" saha sayısı: onaylı + onay bekleyen
+    const usedPitchCount = pitches.filter((p: any) => p.approvalStatus !== 'rejected').length;
+
+    const downgradeTargetPlan = downgradeTarget
+        ? Object.values(SUBSCRIPTION_PLANS).find(pl => pl.planType === downgradeTarget)
+        : null;
+
+    const requiredRemovalCount = (() => {
+        if (!downgradeTarget) return 0;
+        const entry = PLAN_ENTRIES.find(([, pl]) => pl.planType === downgradeTarget);
+        const newPitchCount = entry ? Number(entry[0]) : 0;
+        return Math.max(0, usedPitchCount - newPitchCount);
+    })();
+
+    const effectiveDateLabel = (() => {
+        const d = subscription?.expiresAt ?? subscription?.trialEndsAt ?? null;
+        if (!d) return '';
+        return new Date(d).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
+    })();
+
+    const pendingPlanInfo = subscription?.pendingPlanType
+        ? Object.values(SUBSCRIPTION_PLANS).find(pl => pl.planType === subscription.pendingPlanType)
+        : null;
 
     /* ── render ── */
     return (
@@ -520,6 +813,23 @@ export const BusinessSubscriptionSettings: React.FC = () => {
                                 </div>
                             </div>
 
+                            {/* pending downgrade banner */}
+                            {pendingPlanInfo && (
+                                <div className="bg-orange-500/5 border border-orange-500/20 rounded-2xl px-4 py-3.5">
+                                    <div className="flex items-start gap-3">
+                                        <div className="w-9 h-9 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center shrink-0">
+                                            <Clock className="w-4 h-4 text-orange-400" />
+                                        </div>
+                                        <p className="text-orange-300 text-sm leading-relaxed">
+                                            Planınız <span className="font-bold">{pendingPlanInfo.label}</span> planına düşürülecek
+                                            {subscription.pendingPlanEffectiveAt && (
+                                                <> — {new Date(subscription.pendingPlanEffectiveAt).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })} tarihinden itibaren</>
+                                            )} aylık <span className="font-bold">{formatPrice(pendingPlanInfo.price)}</span>.
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+
                             {/* warning for inactive */}
                             {isExpiredOrCancelled && (
                                 <div className="bg-red-500/5 border border-red-500/20 rounded-2xl px-4 py-3.5">
@@ -629,6 +939,33 @@ export const BusinessSubscriptionSettings: React.FC = () => {
                     setShowNewPitchPrompt(false);
                     navigate('/business/settings/pitches');
                 }}
+            />
+
+            <PitchSelectionModal
+                visible={showPitchSelection}
+                pitches={pitches.filter((p: any) => p.approvalStatus !== 'rejected')}
+                requiredCount={requiredRemovalCount}
+                loading={selectionLoading}
+                conflict={selectionConflict}
+                onClose={() => {
+                    setShowPitchSelection(false);
+                    setDowngradeTarget(null);
+                    setSelectionConflict(null);
+                }}
+                onConfirm={handlePitchSelectionConfirm}
+            />
+
+            <DowngradeConfirmModal
+                visible={showDowngradeConfirm}
+                targetPlanLabel={downgradeTargetPlan?.label ?? ''}
+                targetPlanPrice={downgradeTargetPlan?.price ?? 0}
+                effectiveDateLabel={effectiveDateLabel}
+                loading={downgradeLoading}
+                onClose={() => {
+                    setShowDowngradeConfirm(false);
+                    setDowngradeTarget(null);
+                }}
+                onConfirm={handleDowngradeConfirm}
             />
 
         </div>

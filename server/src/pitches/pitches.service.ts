@@ -4,7 +4,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, MoreThan } from 'typeorm';
+import { Repository, MoreThan, IsNull } from 'typeorm';
 import { Pitch } from './entities/pitch.entity';
 import { TimeSlot } from './entities/time-slot.entity';
 import {
@@ -80,8 +80,8 @@ export class PitchesService {
 
     const activeCount = await this.pitchesRepository.count({
       where: [
-        { businessId, approvalStatus: 'approved' },
-        { businessId, approvalStatus: 'pending' },
+        { businessId, approvalStatus: 'approved', deletedAt: IsNull() },
+        { businessId, approvalStatus: 'pending', deletedAt: IsNull() },
       ],
     });
 
@@ -131,13 +131,14 @@ export class PitchesService {
 
   async findAll() {
     return await this.pitchesRepository.find({
+      where: { deletedAt: IsNull() },
       relations: ['business', 'timeSlots'],
     });
   }
 
   async findOne(id: string) {
     const pitch = await this.pitchesRepository.findOne({
-      where: { id },
+      where: { id, deletedAt: IsNull() },
       relations: ['business', 'timeSlots'],
     });
     if (!pitch) {
@@ -154,7 +155,7 @@ export class PitchesService {
 
   async findByBusiness(businessId: string) {
     return await this.pitchesRepository.find({
-      where: { businessId },
+      where: { businessId, deletedAt: IsNull() },
       relations: ['timeSlots'],
       order: { name: 'ASC' },
     });
@@ -165,34 +166,47 @@ export class PitchesService {
   }
 
   async remove(id: string) {
-    return await this.pitchesRepository.delete(id);
+    await this.findOne(id); // yoksa veya zaten silinmişse NotFoundException
+
+    const conflicts = await this.getFutureApprovedConflicts(id);
+    if (conflicts.length > 0) {
+      throw new ConflictException({ message: 'Kesinleşmiş maçlar var', conflicts });
+    }
+
+    await this.pitchesRepository.update(id, { isActive: false, deletedAt: new Date() });
+    return { success: true };
   }
 
   // ===== STATUS TOGGLE =====
+
+  private async getFutureApprovedConflicts(pitchId: string) {
+    const conflicts = await this.reservationRepository.find({
+      where: {
+        pitchId,
+        status: ReservationStatus.APPROVED,
+        slotTime: MoreThan(new Date()),
+      },
+      relations: ['team'],
+      order: { slotTime: 'ASC' },
+    });
+    return conflicts.map((c) => ({
+      id: c.id,
+      slotTime: c.slotTime,
+      teamName: c.team?.name || 'Bilinmiyor',
+    }));
+  }
 
   async toggleStatus(pitchId: string) {
     const pitch = await this.findOne(pitchId);
 
     // Only check for conflicts when trying to deactivate
     if (pitch.isActive) {
-      const conflicts = await this.reservationRepository.find({
-        where: {
-          pitchId,
-          status: ReservationStatus.APPROVED,
-          slotTime: MoreThan(new Date()),
-        },
-        relations: ['team'],
-        order: { slotTime: 'ASC' },
-      });
+      const conflicts = await this.getFutureApprovedConflicts(pitchId);
 
       if (conflicts.length > 0) {
         throw new ConflictException({
           message: 'Kesinleşmiş maçlar var',
-          conflicts: conflicts.map((c) => ({
-            id: c.id,
-            slotTime: c.slotTime,
-            teamName: c.team?.name || 'Bilinmiyor',
-          })),
+          conflicts,
         });
       }
     }

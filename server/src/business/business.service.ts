@@ -36,8 +36,8 @@ export class BusinessService {
                 .leftJoinAndSelect(
                     'business.pitches',
                     'pitches',
-                    'pitches."approvalStatus" = :pApproval AND pitches."isActive" = :pActive',
-                    { pApproval: 'approved', pActive: true },
+                    'pitches."approvalStatus" = :pApproval AND pitches."deletedAt" IS NULL',
+                    { pApproval: 'approved' },
                 )
                 .leftJoinAndSelect('pitches.timeSlots', 'timeSlots')
                 .leftJoinAndSelect('business.owner', 'owner')
@@ -87,8 +87,8 @@ export class BusinessService {
             .leftJoinAndSelect(
                 'business.pitches',
                 'pitches',
-                'pitches."approvalStatus" = :pApproval AND pitches."isActive" = :pActive',
-                { pApproval: 'approved', pActive: true },
+                'pitches."approvalStatus" = :pApproval AND pitches."deletedAt" IS NULL',
+                { pApproval: 'approved' },
             )
             .leftJoinAndSelect('pitches.timeSlots', 'timeSlots')
             .leftJoinAndSelect('business.owner', 'owner')
@@ -118,7 +118,7 @@ export class BusinessService {
         if (!subscription || !['active', 'trial'].includes(subscription.status)) {
             throw new ForbiddenException('Bu işletmenin aboneliği aktif değil.');
         }
-        business.pitches = (business.pitches ?? []).filter(p => p.approvalStatus === 'approved' && p.isActive);
+        business.pitches = (business.pitches ?? []).filter(p => p.approvalStatus === 'approved' && !p.deletedAt);
         return this.mapWithOwnerPhone(business);
     }
 

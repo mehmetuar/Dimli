@@ -24,6 +24,15 @@ export class SubscriptionController {
         return this.subscriptionService.confirmPurchase(body.ownerId, body.planType, body.rcCustomerId ?? '');
     }
 
+    // Plan düşürme — saha seçimi tamamlandıktan sonra çağrılır, değişiklik bir sonraki yenilemede geçerli olur
+    @Post('schedule-downgrade')
+    async scheduleDowngrade(
+        @Body() body: { ownerId: string; planType: string; rcCustomerId: string },
+    ) {
+        if (!body.ownerId || !body.planType) throw new BadRequestException('ownerId ve planType zorunludur.');
+        return this.subscriptionService.scheduleDowngrade(body.ownerId, body.planType, body.rcCustomerId ?? '');
+    }
+
     // RevenueCat webhook — abonelik durumu değişikliklerini dinler
     @Post('webhook/revenuecat')
     async revenuecatWebhook(
