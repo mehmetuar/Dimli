@@ -99,13 +99,14 @@ export class SubscriptionService {
 
         subscription.revenuecatCustomerId = rcCustomerId;
 
-        // Deneme sürümü devam ediyorsa: ücret hemen güncellenir (deneme sonunda
-        // tahsil edilecek tutar), plan/saha limiti geçişi deneme bitiş tarihinde
-        // applyPendingPlanIfDue ile otomatik uygulanır.
+        // Deneme sürümünde yükseltme: plan/saha limiti/ücret anında uygulanır,
+        // deneme rozeti ve bitiş tarihi değişmeden kalır.
         if (subscription.status === SubscriptionStatus.TRIAL && subscription.trialEndsAt) {
+            subscription.planType = planType;
+            subscription.pitchCount = plan.pitchCount;
             subscription.pricePerMonth = plan.pricePerMonth;
-            subscription.pendingPlanType = planType;
-            subscription.pendingPlanEffectiveAt = subscription.trialEndsAt;
+            subscription.pendingPlanType = null;
+            subscription.pendingPlanEffectiveAt = null;
             return this.subscriptionRepository.save(subscription);
         }
 
@@ -143,7 +144,6 @@ export class SubscriptionService {
 
         subscription.pendingPlanType = planType;
         subscription.pendingPlanEffectiveAt = subscription.expiresAt ?? subscription.trialEndsAt ?? null;
-        subscription.pitchCount = plan.pitchCount; // saha limiti hemen düşer
         subscription.pricePerMonth = plan.pricePerMonth; // bir sonraki dönemde tahsil edilecek tutar hemen gösterilir
         subscription.revenuecatCustomerId = rcCustomerId;
 
