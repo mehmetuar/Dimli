@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Cron, CronExpression } from '@nestjs/schedule';
+import { LessThan, Repository } from 'typeorm';
 import { Subscription, SubscriptionStatus } from './entities/subscription.entity';
 
 export const SUBSCRIPTION_PLANS: Record<string, { pitchCount: number; pricePerMonth: number; label: string }> = {
@@ -136,6 +137,19 @@ export class SubscriptionService {
         subscription.revenuecatCustomerId = rcCustomerId;
 
         return this.subscriptionRepository.save(subscription);
+    }
+
+    // Süresi geçmiş ve hâlâ ödeme alınmamış deneme aboneliklerini sona erdirir
+    @Cron(CronExpression.EVERY_DAY_AT_3AM, { name: 'expire_trial_subscriptions' })
+    async expireOverdueTrials(): Promise<void> {
+        const now = new Date();
+        await this.subscriptionRepository.update(
+            {
+                status: SubscriptionStatus.TRIAL,
+                trialEndsAt: LessThan(now),
+            },
+            { status: SubscriptionStatus.EXPIRED },
+        );
     }
 
     async handleWebhook(event: any): Promise<void> {
