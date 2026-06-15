@@ -651,6 +651,7 @@ export class ChatService {
                     name: match.pitch.business.name,
                     ownerPhone: match.pitch.business.owner?.phone ?? null,
                     address: match.pitch.business.address,
+                    isDeleted: !!match.pitch.business.deletedAt,
                 } : null,
             } : null,
         };

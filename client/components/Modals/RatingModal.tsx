@@ -59,7 +59,7 @@ export const RatingModal: React.FC<RatingModalProps> = ({ pending, onSubmit, onS
     });
 
     const activeScore = step === 'business' ? businessScore : fairPlayScore;
-    const canProceed = activeScore > 0 && !submitting;
+    const canProceed = (activeScore > 0 || (step === 'business' && pending.businessDeleted)) && !submitting;
 
     const handlePrimaryAction = async () => {
         if (step === 'business' && hasBothSteps) {
@@ -100,15 +100,21 @@ export const RatingModal: React.FC<RatingModalProps> = ({ pending, onSubmit, onS
                     <div className="flex border-b border-slate-700">
                         <button
                             type="button"
-                            onClick={() => setStep('business')}
+                            onClick={() => {
+                                if (pending.businessDeleted) return;
+                                setStep('business');
+                            }}
+                            disabled={pending.businessDeleted}
                             className={`flex-1 py-2.5 text-center text-xs font-bold transition-colors ${
-                                step === 'business'
+                                pending.businessDeleted
+                                    ? 'text-slate-700 cursor-not-allowed'
+                                    : step === 'business'
                                     ? 'text-turf-400 border-b-2 border-turf-400'
                                     : 'text-slate-500 hover:text-slate-300'
                             }`}
                         >
                             <Building2 className="w-3.5 h-3.5 inline mr-1 mb-0.5" />
-                            İşletme
+                            İşletme{pending.businessDeleted ? ' (Kapandı)' : ''}
                         </button>
                         <button
                             type="button"
@@ -134,7 +140,17 @@ export const RatingModal: React.FC<RatingModalProps> = ({ pending, onSubmit, onS
 
                 {/* Body */}
                 <div className="p-6">
-                    {step === 'business' ? (
+                    {step === 'business' && pending.businessDeleted ? (
+                        <div className="text-center py-2">
+                            <div className="bg-slate-700/50 p-3 rounded-2xl inline-flex mb-3">
+                                <Building2 className="w-6 h-6 text-slate-500" />
+                            </div>
+                            <p className="text-white font-bold text-sm">{pending.businessName}</p>
+                            <p className="text-slate-400 text-xs mt-1">
+                                Bu işletme artık hizmet vermiyor, değerlendirme yapılamıyor.
+                            </p>
+                        </div>
+                    ) : step === 'business' ? (
                         <>
                             <div className="flex items-center gap-2 mb-5">
                                 <div className="bg-yellow-500/10 p-2 rounded-xl border border-yellow-500/20">

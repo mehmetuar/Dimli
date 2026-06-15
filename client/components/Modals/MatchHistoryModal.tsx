@@ -52,6 +52,7 @@ export const MatchHistoryModal: React.FC<MatchHistoryModalProps> = ({
             pitchName: match.pitchName,
             businessName: match.businessName,
             businessId: match.businessId,
+            businessDeleted: match.businessDeleted,
             needsBusinessRating: match.needsBusinessRating,
             needsFairPlayRating: match.needsFairPlayRating,
             opponentTeamId: match.opponentTeamId,

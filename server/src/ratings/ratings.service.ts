@@ -14,6 +14,7 @@ export interface PendingRating {
     pitchName: string;
     businessName: string;
     businessId: string;
+    businessDeleted: boolean;
     needsBusinessRating: boolean;
     needsFairPlayRating: boolean;
     opponentTeamId: string | null;
@@ -26,6 +27,7 @@ export interface MatchHistoryItem {
     pitchName: string;
     businessName: string;
     businessId: string;
+    businessDeleted: boolean;
     opponentTeamId: string | null;
     opponentTeamName: string | null;
     isBusinessRated: boolean;
@@ -123,6 +125,7 @@ export class RatingsService {
                 pitchName: reservation.pitch.name,
                 businessName: reservation.pitch.business.name,
                 businessId: reservation.pitch.business.id,
+                businessDeleted: !!reservation.pitch.business.deletedAt,
                 needsBusinessRating,
                 needsFairPlayRating,
                 opponentTeamId,
@@ -265,13 +268,14 @@ export class RatingsService {
                 pitchName: reservation.pitch.name,
                 businessName: reservation.pitch.business.name,
                 businessId: reservation.pitch.business.id,
+                businessDeleted: !!reservation.pitch.business.deletedAt,
                 opponentTeamId,
                 opponentTeamName,
                 isBusinessRated,
                 isFairPlayRated,
                 businessScore: businessRating?.score ?? null,
                 fairPlayScore: fairPlayRating?.score ?? null,
-                needsBusinessRating: !isBusinessRated,
+                needsBusinessRating: !reservation.pitch.business.deletedAt && !isBusinessRated,
                 needsFairPlayRating: hasOpponent && !isFairPlayRated,
             });
         }

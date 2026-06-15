@@ -61,7 +61,7 @@ export const Chat: React.FC = () => {
     isContextMenuOpen, contextMenuMsg, contextMenuPosition,
     openContextMenu, closeContextMenu, handleCopy, handleContextMenuReport,
     openActionModal, openReportModal, handleBlock, handleBlockAndReport, handleReport,
-    filterMessage, closeAll, blockedUserIds,
+    filterMessage, closeAll, blockedUserIds, showToast,
   } = useMessageActions();
 
   const keyboardHeight = useKeyboardHeight();
@@ -739,19 +739,45 @@ export const Chat: React.FC = () => {
             </div>
 
             <div className="flex flex-col p-3 gap-2">
-              <a
-                href={`tel:${matchDetailData?.pitch?.business?.ownerPhone || ''}`}
-                className="w-full text-left p-4 rounded-2xl text-md font-bold text-white hover:bg-slate-700 flex items-center justify-between transition-colors shadow-sm"
-                onClick={() => setIsChatMenuOpen(false)}
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-turf-500/10 flex items-center justify-center text-turf-500 border border-turf-500/20">
-                    <Phone className="w-6 h-6" />
-                  </div>
-                  <span>Sahayı Ara</span>
-                </div>
-                <ChevronRight className="w-5 h-5 text-slate-500" />
-              </a>
+              {(() => {
+                const ownerPhone = matchDetailData?.pitch?.business?.ownerPhone;
+                const businessClosed = !!matchDetailData?.pitch?.business?.isDeleted;
+                if (ownerPhone && !businessClosed) {
+                  return (
+                    <a
+                      href={`tel:${ownerPhone}`}
+                      className="w-full text-left p-4 rounded-2xl text-md font-bold text-white hover:bg-slate-700 flex items-center justify-between transition-colors shadow-sm"
+                      onClick={() => setIsChatMenuOpen(false)}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-full bg-turf-500/10 flex items-center justify-center text-turf-500 border border-turf-500/20">
+                          <Phone className="w-6 h-6" />
+                        </div>
+                        <span>Sahayı Ara</span>
+                      </div>
+                      <ChevronRight className="w-5 h-5 text-slate-500" />
+                    </a>
+                  );
+                }
+                return (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      showToast('Bu işletme artık hizmet vermiyor.', 'error');
+                      setIsChatMenuOpen(false);
+                    }}
+                    className="w-full text-left p-4 rounded-2xl text-md font-bold text-white hover:bg-slate-700 flex items-center justify-between transition-colors shadow-sm opacity-60"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-full bg-turf-500/10 flex items-center justify-center text-turf-500 border border-turf-500/20">
+                        <Phone className="w-6 h-6" />
+                      </div>
+                      <span>Sahayı Ara</span>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-slate-500" />
+                  </button>
+                );
+              })()}
 
               {(() => {
                 const statusInfo = getMatchStatusInfo(activeChannel?.reservation);

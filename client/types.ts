@@ -228,6 +228,7 @@ export interface MatchHistoryItem {
   pitchName: string;
   businessName: string;
   businessId: string;
+  businessDeleted: boolean;
   opponentTeamId: string | null;
   opponentTeamName: string | null;
   isBusinessRated: boolean;
@@ -251,6 +252,7 @@ export interface PendingRating {
   pitchName: string;
   businessName: string;
   businessId: string;
+  businessDeleted: boolean;
   needsBusinessRating: boolean;
   needsFairPlayRating: boolean;
   opponentTeamId: string | null;

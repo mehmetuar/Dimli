@@ -171,6 +171,6 @@ export const useMessageActions = () => {
         openActionModal, openReportModal, handleBlock,
         handleBlockAndReport, handleReport, closeAll,
         // shared
-        toast, filterMessage, blockedUserIds,
+        toast, showToast, filterMessage, blockedUserIds,
     };
 };
