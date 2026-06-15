@@ -2,6 +2,8 @@ import { useState } from 'react';
 import api from '../../../../services/api';
 import { purchasePlan, linkRevenueCatUser } from '../../../../services/revenuecatService';
 import { useAuth } from '../../../../contexts/AuthContext';
+import { isValidTurkishPhone, PHONE_INVALID_MESSAGE } from '../../../../utils/phone';
+import { getErrorMessage } from '../../../../utils/apiError';
 
 export const SUBSCRIPTION_PLANS: Record<number, { label: string; price: number; planType: string }> = {
     1: { label: 'Starter', price: 1709.99, planType: '1_pitch' },
@@ -168,6 +170,7 @@ export const useBusinessRegister = () => {
             // Yetkili Bilgileri
             if (!formData.owner.fullName.trim()) errors['owner.fullName'] = 'Ad Soyad zorunludur';
             if (!formData.owner.phone.trim()) errors['owner.phone'] = 'Telefon zorunludur';
+            else if (!isValidTurkishPhone(formData.owner.phone)) errors['owner.phone'] = PHONE_INVALID_MESSAGE;
             if (!formData.owner.email.trim()) errors['owner.email'] = 'E-Posta zorunludur';
             if (!formData.owner.password.trim()) errors['owner.password'] = 'Şifre zorunludur';
             if (formData.owner.password.trim() && formData.owner.password.trim().length < 6) {
@@ -211,6 +214,11 @@ export const useBusinessRegister = () => {
 
     const sendOtp = async (): Promise<boolean> => {
         if (!formData.owner.phone) { setError('Telefon numarası gerekli.'); return false; }
+        if (!isValidTurkishPhone(formData.owner.phone)) {
+            setError(PHONE_INVALID_MESSAGE);
+            setFieldErrors(prev => ({ ...prev, 'owner.phone': PHONE_INVALID_MESSAGE }));
+            return false;
+        }
         setOtpSending(true);
         setError('');
         try {
@@ -218,7 +226,7 @@ export const useBusinessRegister = () => {
             setOtpSent(true);
             return true;
         } catch (err: any) {
-            setError(err.response?.data?.message || err.message || 'OTP gönderilemedi.');
+            setError(getErrorMessage(err, 'Doğrulama kodu gönderilemedi. Lütfen tekrar deneyin.'));
             return false;
         } finally {
             setOtpSending(false);
@@ -233,7 +241,7 @@ export const useBusinessRegister = () => {
             setOtpVerified(true);
             setCurrentStep(4);
         } catch (err: any) {
-            setError(err.response?.data?.message || err.message || 'Kod hatalı veya süresi dolmuş.');
+            setError(getErrorMessage(err, 'Kod hatalı veya süresi dolmuş.'));
         } finally {
             setIsLoading(false);
         }
@@ -299,7 +307,7 @@ export const useBusinessRegister = () => {
             // Satın alma iptali veya doğrulama hatası
             const msg = err?.message?.includes('cancel') || err?.code === 'PURCHASE_CANCELLED'
                 ? 'Satın alma iptal edildi. Kaydı tamamlamak için ödeme gereklidir.'
-                : err.response?.data?.message || err?.message || 'Bir hata oluştu. Lütfen tekrar deneyin.';
+                : getErrorMessage(err, 'Bir hata oluştu. Lütfen tekrar deneyin.');
             setError(msg);
             // currentStep değişmez — kullanıcı PaymentStep'te kalır
         } finally {

@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import api from '../../../../services/api';
 import { initializePushNotifications } from '../../../../services/pushNotificationService';
 import { useAuth } from '../../../../contexts/AuthContext';
+import { isValidTurkishPhone, sanitizePhoneInput, PHONE_INVALID_MESSAGE } from '../../../../utils/phone';
+import { getErrorMessage } from '../../../../utils/apiError';
 
 export const useRegister = () => {
     const [step, setStep] = useState(1);
@@ -53,7 +55,8 @@ export const useRegister = () => {
     }, [otpDigits]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-        const { name, value } = e.target;
+        const { name } = e.target;
+        const value = name === 'phone' ? sanitizePhoneInput(e.target.value) : e.target.value;
         setFormData({ ...formData, [name]: value });
         
         // Alan doldurulduğunda hatayı temizle
@@ -72,6 +75,11 @@ export const useRegister = () => {
             setFieldErrors({ phone: 'Telefon numarası zorunludur' });
             return;
         }
+        if (!isValidTurkishPhone(formData.phone)) {
+            setError(PHONE_INVALID_MESSAGE);
+            setFieldErrors({ phone: PHONE_INVALID_MESSAGE });
+            return;
+        }
         setError('');
         setFieldErrors({});
         setOtpLoading(true);
@@ -81,7 +89,7 @@ export const useRegister = () => {
             setOtpDigits(['', '', '', '', '', '']);
             setResendCountdown(60);
         } catch (err: any) {
-            setError(err.response?.data?.message || err.message || 'SMS gönderilemedi. Lütfen tekrar deneyin.');
+            setError(getErrorMessage(err, 'SMS gönderilemedi. Lütfen tekrar deneyin.'));
         } finally {
             setOtpLoading(false);
         }
@@ -95,7 +103,7 @@ export const useRegister = () => {
             setOtpVerified(true);
             setTimeout(() => setStep(5), 600);
         } catch (err: any) {
-            setError(err.response?.data?.message || err.message || 'Geçersiz doğrulama kodu.');
+            setError(getErrorMessage(err, 'Geçersiz doğrulama kodu.'));
             setOtpDigits(['', '', '', '', '', '']);
         } finally {
             setOtpLoading(false);
@@ -265,7 +273,7 @@ export const useRegister = () => {
             navigate('/');
         } catch (err: any) {
             console.error(err);
-            setError(err.response?.data?.message || 'Kayıt başarısız. Lütfen tekrar deneyin.');
+            setError(getErrorMessage(err, 'Kayıt başarısız. Lütfen tekrar deneyin.'));
         } finally {
             setLoading(false);
         }

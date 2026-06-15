@@ -61,7 +61,7 @@ export const Chat: React.FC = () => {
     isContextMenuOpen, contextMenuMsg, contextMenuPosition,
     openContextMenu, closeContextMenu, handleCopy, handleContextMenuReport,
     openActionModal, openReportModal, handleBlock, handleBlockAndReport, handleReport,
-    filterMessage, closeAll, blockedUserIds, showToast,
+    filterMessage, closeAll, blockedUserIds,
   } = useMessageActions();
 
   const keyboardHeight = useKeyboardHeight();
@@ -762,11 +762,8 @@ export const Chat: React.FC = () => {
                 return (
                   <button
                     type="button"
-                    onClick={() => {
-                      showToast('Bu işletme artık hizmet vermiyor.', 'error');
-                      setIsChatMenuOpen(false);
-                    }}
-                    className="w-full text-left p-4 rounded-2xl text-md font-bold text-white hover:bg-slate-700 flex items-center justify-between transition-colors shadow-sm opacity-60"
+                    disabled
+                    className="w-full text-left p-4 rounded-2xl text-md font-bold text-white flex items-center justify-between transition-colors shadow-sm opacity-40 cursor-not-allowed"
                   >
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 rounded-full bg-turf-500/10 flex items-center justify-center text-turf-500 border border-turf-500/20">

@@ -263,6 +263,10 @@ export const MatchHistoryModal: React.FC<MatchHistoryModalProps> = ({
                                                 >
                                                     Değer<br/>lendir
                                                 </button>
+                                            ) : match.businessDeleted ? (
+                                                <span className="text-[9px] text-slate-600 font-bold uppercase text-center leading-tight">
+                                                    Kapandı
+                                                </span>
                                             ) : (
                                                 <span className="text-[9px] text-slate-600 font-bold uppercase text-center leading-tight">
                                                     Rakip<br/>Yok

@@ -41,6 +41,22 @@ export class AuthService {
         return cleaned;
     }
 
+    // Normalize edilmiş numaranın geçerli bir Türkiye cep telefonu numarası olup olmadığını kontrol eder (905XXXXXXXXX)
+    private validatePhoneFormat(phone: string): void {
+        const normalized = this.normalizePhone(phone);
+        if (!/^905\d{9}$/.test(normalized)) {
+            throw new BadRequestException('Lütfen geçerli bir telefon numarası giriniz.');
+        }
+    }
+
+    private async sendOtpSms(phone: string, message: string): Promise<void> {
+        try {
+            await this.smsService.sendSms(phone, message);
+        } catch {
+            throw new BadRequestException('Doğrulama kodu gönderilemedi. Lütfen telefon numaranızı kontrol edip tekrar deneyin.');
+        }
+    }
+
     private generateOtpCode(): string {
         return Math.floor(100000 + Math.random() * 900000).toString();
     }
@@ -59,6 +75,7 @@ export class AuthService {
     }
 
     async sendOtp(phone: string): Promise<void> {
+        this.validatePhoneFormat(phone);
         phone = this.normalizePhone(phone);
 
         // Telefon zaten kayıtlıysa OTP gönderme (sadece kullanıcı tablosu kontrol edilir)
@@ -86,7 +103,7 @@ export class AuthService {
         });
         await this.otpRepository.save(otp);
 
-        await this.smsService.sendSms(phone, `Dimli doğrulama kodunuz: ${code}. Kodu kimseyle paylaşmayın.`);
+        await this.sendOtpSms(phone, `Dimli doğrulama kodunuz: ${code}. Kodu kimseyle paylaşmayın.`);
     }
 
     async verifyOtp(phone: string, code: string): Promise<void> {
@@ -137,6 +154,7 @@ export class AuthService {
     // ─── İşletme Sahibi OTP ─────────────────────────────────────────────────────
 
     async sendBusinessOwnerOtp(phone: string): Promise<void> {
+        this.validatePhoneFormat(phone);
         phone = this.normalizePhone(phone);
 
         // Telefon başka bir işletme sahibine ait mi? (sadece işletme sahibi tablosu kontrol edilir)
@@ -164,7 +182,7 @@ export class AuthService {
         });
         await this.otpRepository.save(otp);
 
-        await this.smsService.sendSms(phone, `Dimli doğrulama kodunuz: ${code}. Kodu kimseyle paylaşmayın.`);
+        await this.sendOtpSms(phone, `Dimli doğrulama kodunuz: ${code}. Kodu kimseyle paylaşmayın.`);
     }
 
     async verifyBusinessOwnerOtp(phone: string, code: string): Promise<void> {
@@ -236,7 +254,7 @@ export class AuthService {
         });
         await this.otpRepository.save(otp);
 
-        await this.smsService.sendSms(phone, `Dimli şifre sıfırlama kodunuz: ${code}. Kodu kimseyle paylaşmayın.`);
+        await this.sendOtpSms(phone, `Dimli şifre sıfırlama kodunuz: ${code}. Kodu kimseyle paylaşmayın.`);
     }
 
     async verifyPasswordResetOtp(phone: string, code: string): Promise<void> {
@@ -333,7 +351,7 @@ export class AuthService {
         });
         await this.otpRepository.save(otp);
 
-        await this.smsService.sendSms(phone, `Dimli İşletme Paneli şifre sıfırlama kodunuz: ${code}. Kodu kimseyle paylaşmayın.`);
+        await this.sendOtpSms(phone, `Dimli İşletme Paneli şifre sıfırlama kodunuz: ${code}. Kodu kimseyle paylaşmayın.`);
 
         return { maskedPhone: this.maskPhone(phone) };
     }
