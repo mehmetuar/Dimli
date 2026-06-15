@@ -119,7 +119,14 @@ export class SubscriptionService {
         const subscription = await this.findByOwner(ownerId);
         if (!subscription) throw new NotFoundException('Abonelik bulunamadı.');
 
-        if (plan.pitchCount >= subscription.pitchCount) {
+        // Zaten aynı düşürme planlanmış — retry (örn. linkRevenueCatUser tekrar denemesi)
+        if (subscription.pendingPlanType === planType) {
+            subscription.revenuecatCustomerId = rcCustomerId;
+            return this.subscriptionRepository.save(subscription);
+        }
+
+        const currentPlan = SUBSCRIPTION_PLANS[subscription.planType];
+        if (plan.pitchCount >= currentPlan.pitchCount) {
             throw new BadRequestException('Bu işlem bir plan düşürme değil.');
         }
 

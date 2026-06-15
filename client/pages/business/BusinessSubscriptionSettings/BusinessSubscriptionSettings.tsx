@@ -481,6 +481,7 @@ export const BusinessSubscriptionSettings: React.FC = () => {
     const [downgradeLoading, setDowngradeLoading] = useState(false);
     const [toast, setToast] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
     const removedPitchIdsRef = useRef<Set<string>>(new Set());
+    const downgradePurchaseRef = useRef<string | null>(null);
 
     useEffect(() => { fetchSubscription(); fetchPitches(); }, []);
 
@@ -527,6 +528,7 @@ export const BusinessSubscriptionSettings: React.FC = () => {
         // Plan düşürme: önce gerekirse saha seçimi, ardından düşürme onayı
         if (newPitchCount < currentPitchCount) {
             setDowngradeTarget(planType);
+            downgradePurchaseRef.current = null;
             if (usedPitchCount > newPitchCount) {
                 removedPitchIdsRef.current = new Set();
                 setSelectionConflict(null);
@@ -598,19 +600,29 @@ export const BusinessSubscriptionSettings: React.FC = () => {
         if (!downgradeTarget) return;
         setDowngradeLoading(true);
         try {
-            const rcCustomerId = await purchasePlan(downgradeTarget);
             const ownerId = getOwnerId() ?? '';
+
+            let rcCustomerId = downgradePurchaseRef.current;
+            if (!rcCustomerId) {
+                rcCustomerId = await purchasePlan(downgradeTarget);
+                downgradePurchaseRef.current = rcCustomerId;
+            }
 
             await api.post('/subscription/schedule-downgrade', { ownerId, planType: downgradeTarget, rcCustomerId });
             await linkRevenueCatUser(ownerId);
 
+            downgradePurchaseRef.current = null;
             showToast('Plan düşürme talebiniz alındı.', 'success');
             await fetchSubscription();
             await fetchPitches();
             setShowDowngradeConfirm(false);
             setDowngradeTarget(null);
         } catch (err: any) {
-            showToast(err?.message || 'İşlem başarısız oldu.', 'error');
+            if (downgradePurchaseRef.current) {
+                showToast('Satın alma tamamlandı ancak abonelik güncellenemedi. Lütfen "Onayla" ile tekrar deneyin.', 'error');
+            } else {
+                showToast(err?.message || 'İşlem başarısız oldu.', 'error');
+            }
         } finally {
             setDowngradeLoading(false);
         }
@@ -964,6 +976,7 @@ export const BusinessSubscriptionSettings: React.FC = () => {
                 onClose={() => {
                     setShowDowngradeConfirm(false);
                     setDowngradeTarget(null);
+                    downgradePurchaseRef.current = null;
                 }}
                 onConfirm={handleDowngradeConfirm}
             />
