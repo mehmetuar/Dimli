@@ -18,6 +18,16 @@ export const OtpVerificationStep: React.FC<OtpVerificationStepProps> = ({
 
     const handleChange = (index: number, value: string) => {
         if (!/^\d*$/.test(value)) return;
+
+        // iOS SMS otomatik doldurma: tüm kodu tek inputa yapıştırır
+        if (value.length > 1) {
+            const code = value.slice(0, 6);
+            setOtpCode(code);
+            const nextIndex = Math.min(code.length, 5);
+            inputsRef.current[nextIndex]?.focus();
+            return;
+        }
+
         const digits = otpCode.split('');
         digits[index] = value.slice(-1);
         const newCode = digits.join('').padEnd(6, '').slice(0, 6);
@@ -55,7 +65,8 @@ export const OtpVerificationStep: React.FC<OtpVerificationStepProps> = ({
                         ref={el => { inputsRef.current[i] = el; }}
                         type="text"
                         inputMode="numeric"
-                        maxLength={1}
+                        autoComplete={i === 0 ? 'one-time-code' : 'off'}
+                        maxLength={i === 0 ? 6 : 1}
                         value={digit}
                         onChange={e => handleChange(i, e.target.value)}
                         onKeyDown={e => handleKeyDown(i, e)}

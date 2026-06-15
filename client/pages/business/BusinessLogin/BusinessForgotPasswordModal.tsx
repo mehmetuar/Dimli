@@ -164,9 +164,11 @@ export const BusinessForgotPasswordModal: React.FC<BusinessForgotPasswordModalPr
                                 </label>
                                 <input
                                     type="text"
+                                    inputMode="numeric"
+                                    autoComplete="one-time-code"
                                     maxLength={6}
                                     value={code}
-                                    onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+                                    onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                                     className="w-full px-4 py-4 text-center tracking-[0.5em] text-2xl font-black rounded-xl bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-orange-500 transition-colors"
                                     placeholder="000000"
                                     required

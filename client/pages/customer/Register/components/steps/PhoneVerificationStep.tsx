@@ -36,9 +36,19 @@ export const PhoneVerificationStep: React.FC<PhoneVerificationStepProps> = ({
     const error = fieldErrors.phone;
 
     const handleDigitChange = (index: number, value: string) => {
-        const digit = value.replace(/\D/g, '').slice(-1);
-        onOtpDigitChange(index, digit);
-        if (digit && index < 5) {
+        const digits = value.replace(/\D/g, '');
+
+        // iOS SMS otomatik doldurma: tüm kodu tek inputa yapıştırır
+        if (digits.length > 1) {
+            const code = digits.slice(0, 6);
+            code.split('').forEach((d, i) => onOtpDigitChange(i, d));
+            const nextIndex = Math.min(code.length, 5);
+            inputRefs.current[nextIndex]?.focus();
+            return;
+        }
+
+        onOtpDigitChange(index, digits);
+        if (digits && index < 5) {
             inputRefs.current[index + 1]?.focus();
         }
     };
@@ -126,7 +136,8 @@ export const PhoneVerificationStep: React.FC<PhoneVerificationStepProps> = ({
                                 ref={(el) => { inputRefs.current[i] = el; }}
                                 type="text"
                                 inputMode="numeric"
-                                maxLength={1}
+                                autoComplete={i === 0 ? 'one-time-code' : 'off'}
+                                maxLength={i === 0 ? 6 : 1}
                                 value={digit}
                                 onChange={(e) => handleDigitChange(i, e.target.value)}
                                 onKeyDown={(e) => handleKeyDown(i, e)}
