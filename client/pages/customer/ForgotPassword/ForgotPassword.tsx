@@ -1,7 +1,8 @@
-import React, { useRef } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { Phone, Lock, CheckCircle, ChevronLeft } from 'lucide-react';
 import { LoadingSpinner } from '../../../components/UI/LoadingSpinner';
+import { OtpInput } from '../../../components/UI/OtpInput';
 import { useForgotPassword } from './hooks/useForgotPassword';
 
 export const ForgotPassword: React.FC = () => {
@@ -9,7 +10,8 @@ export const ForgotPassword: React.FC = () => {
         step,
         phone,
         setPhone,
-        otpDigits,
+        otpCode,
+        setOtpCode,
         newPassword,
         setNewPassword,
         confirmPassword,
@@ -20,43 +22,8 @@ export const ForgotPassword: React.FC = () => {
         success,
         sendOtp,
         resendOtp,
-        onOtpDigitChange,
         resetPassword,
     } = useForgotPassword();
-
-    const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
-
-    const handleDigitChange = (index: number, value: string) => {
-        const digits = value.replace(/\D/g, '');
-
-        // iOS/Android SMS otomatik doldurma: tüm kodu tek inputa yapıştırır
-        if (digits.length > 1) {
-            const code = digits.slice(0, 6);
-            code.split('').forEach((d, i) => onOtpDigitChange(i, d));
-            const nextIndex = Math.min(code.length, 5);
-            inputRefs.current[nextIndex]?.focus();
-            return;
-        }
-
-        onOtpDigitChange(index, digits);
-        if (digits && index < 5) {
-            inputRefs.current[index + 1]?.focus();
-        }
-    };
-
-    const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === 'Backspace' && !otpDigits[index] && index > 0) {
-            inputRefs.current[index - 1]?.focus();
-        }
-    };
-
-    const handlePaste = (e: React.ClipboardEvent) => {
-        e.preventDefault();
-        const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
-        pasted.split('').forEach((digit, i) => onOtpDigitChange(i, digit));
-        const nextIndex = Math.min(pasted.length, 5);
-        inputRefs.current[nextIndex]?.focus();
-    };
 
     return (
         <div className="min-h-screen bg-pitch flex flex-col items-center justify-center px-4 pt-20 pb-28">
@@ -135,25 +102,7 @@ export const ForgotPassword: React.FC = () => {
                                     <label className="block text-xs font-bold text-slate-400 uppercase mb-3 text-center">
                                         Doğrulama Kodu
                                     </label>
-                                    <div className="flex justify-center gap-2" onPaste={handlePaste}>
-                                        {otpDigits.map((digit, i) => (
-                                            <input
-                                                key={i}
-                                                ref={(el) => { inputRefs.current[i] = el; }}
-                                                type="text"
-                                                inputMode="numeric"
-                                                autoComplete={i === 0 ? 'one-time-code' : 'off'}
-                                                maxLength={i === 0 ? 6 : 1}
-                                                value={digit}
-                                                onChange={(e) => handleDigitChange(i, e.target.value)}
-                                                onKeyDown={(e) => handleKeyDown(i, e)}
-                                                disabled={loading}
-                                                className={`w-11 h-14 text-center text-xl font-bold bg-slate-900 text-white rounded-xl border transition-colors focus:outline-none
-                                                    ${digit ? 'border-turf-500' : 'border-slate-700 focus:border-turf-500'}
-                                                    ${loading ? 'opacity-50' : ''}`}
-                                            />
-                                        ))}
-                                    </div>
+                                    <OtpInput value={otpCode} onChange={setOtpCode} accent="turf" autoFocus disabled={loading} />
                                 </div>
 
                                 {loading && (

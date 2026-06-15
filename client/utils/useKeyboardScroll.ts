@@ -2,36 +2,54 @@ import { useEffect } from 'react';
 import { Keyboard } from '@capacitor/keyboard';
 import { Capacitor } from '@capacitor/core';
 
+const isFocusable = (el: Element | null): el is HTMLElement => {
+  if (!el) return false;
+  const tag = el.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || (el as HTMLElement).isContentEditable;
+};
+
 /**
- * Klavye açıldığında aktif input görünür değilse minimum kadar scroll eder.
- * block: 'nearest' → sadece görünmüyorsa ve en az miktarda kaydırır.
- * Sadece native platformlarda çalışır.
+ * Klavye açıkken odaklanan input/textarea'yı her zaman ekranın ortasına kaydırır.
+ * App.tsx kökünde tek sefer mount edilir — tüm ekranlarda otomatik çalışır.
  */
 export function useKeyboardScroll() {
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
 
-    const scrollFocusedIntoView = () => {
-      const el = document.activeElement as HTMLElement | null;
-      if (!el) return;
+    const keyboardVisible = { current: false };
 
-      const tag = el.tagName.toLowerCase();
-      const isInput = tag === 'input' || tag === 'textarea' || el.isContentEditable;
-      if (!isInput) return;
+    const scrollFocusedIntoView = (delay: number) => {
+      const el = document.activeElement;
+      if (!isFocusable(el)) return;
 
       setTimeout(() => {
-        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }, 150);
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, delay);
     };
 
-    let handle: { remove: () => void } | null = null;
+    let showHandle: { remove: () => void } | null = null;
+    let hideHandle: { remove: () => void } | null = null;
 
-    Keyboard.addListener('keyboardWillShow', scrollFocusedIntoView)
-      .then(h => { handle = h; })
-      .catch(() => {});
+    Keyboard.addListener('keyboardWillShow', () => {
+      keyboardVisible.current = true;
+      scrollFocusedIntoView(300);
+    }).then(h => { showHandle = h; }).catch(() => {});
+
+    Keyboard.addListener('keyboardWillHide', () => {
+      keyboardVisible.current = false;
+    }).then(h => { hideHandle = h; }).catch(() => {});
+
+    const handleFocusIn = (e: FocusEvent) => {
+      if (!keyboardVisible.current) return;
+      if (!isFocusable(e.target as Element)) return;
+      scrollFocusedIntoView(150);
+    };
+    document.addEventListener('focusin', handleFocusIn);
 
     return () => {
-      handle?.remove();
+      showHandle?.remove();
+      hideHandle?.remove();
+      document.removeEventListener('focusin', handleFocusIn);
     };
   }, []);
 }

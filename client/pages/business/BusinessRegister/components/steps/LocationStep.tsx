@@ -4,6 +4,7 @@ import { Navigation, MapPin, Loader2, Lock, Settings } from 'lucide-react';
 import { Geolocation } from '@capacitor/geolocation';
 import { locationService } from '../../../../../services/locationService';
 import { openLocationSettings } from '../../../../../utils/openLocationSettings';
+import { useKeyboardHeight } from '../../../../../utils/useKeyboardHeight';
 
 interface LocationStepProps {
     formData: any;
@@ -31,6 +32,7 @@ export const LocationStep: React.FC<LocationStepProps> = ({
     setIsGeocoding,
     fieldErrors = {},
 }) => {
+    const keyboardHeight = useKeyboardHeight();
     const [isLocating, setIsLocating] = useState(false);
     const [locationError, setLocationError] = useState('');
     const [locationNeedsSettings, setLocationNeedsSettings] = useState(false);
@@ -216,31 +218,33 @@ export const LocationStep: React.FC<LocationStepProps> = ({
                 </div>
             )}
 
-            {/* Geocoding durumu */}
-            {isGeocoding ? (
-                <div className="flex items-center gap-2 text-orange-500 animate-pulse text-xs font-bold">
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    KONUM BİLGİSİ ALINIYOR...
-                </div>
-            ) : hasCity ? (
-                <div className="flex items-center gap-2 bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3">
-                    <Lock className="w-3.5 h-3.5 text-green-400 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                        <p className="text-[10px] text-slate-500 font-bold uppercase mb-0.5">Tespit Edilen Konum (değiştirilemez)</p>
-                        <p className="text-sm font-bold text-green-400 truncate">
-                            {formData.business.city}{formData.business.district ? ` / ${formData.business.district}` : ''}
-                        </p>
+            {/* Geocoding durumu — klavye açıkken adres alanına yer açmak için gizlenir */}
+            {keyboardHeight === 0 && (
+                isGeocoding ? (
+                    <div className="flex items-center gap-2 text-orange-500 animate-pulse text-xs font-bold">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        KONUM BİLGİSİ ALINIYOR...
                     </div>
-                    {hasLocation && (
-                        <span className="text-[10px] text-slate-600 font-mono shrink-0">
-                            {Number(formData.business.latitude).toFixed(4)}, {Number(formData.business.longitude).toFixed(4)}
-                        </span>
-                    )}
-                </div>
-            ) : hasLocation ? (
-                <div className="text-xs text-slate-500 text-center">Konum bilgisi alınıyor...</div>
-            ) : (
-                <div className="text-xs text-slate-600 text-center">Haritaya tıklayarak konumunuzu belirleyin.</div>
+                ) : hasCity ? (
+                    <div className="flex items-center gap-2 bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3">
+                        <Lock className="w-3.5 h-3.5 text-green-400 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                            <p className="text-[10px] text-slate-500 font-bold uppercase mb-0.5">Tespit Edilen Konum (değiştirilemez)</p>
+                            <p className="text-sm font-bold text-green-400 truncate">
+                                {formData.business.city}{formData.business.district ? ` / ${formData.business.district}` : ''}
+                            </p>
+                        </div>
+                        {hasLocation && (
+                            <span className="text-[10px] text-slate-600 font-mono shrink-0">
+                                {Number(formData.business.latitude).toFixed(4)}, {Number(formData.business.longitude).toFixed(4)}
+                            </span>
+                        )}
+                    </div>
+                ) : hasLocation ? (
+                    <div className="text-xs text-slate-500 text-center">Konum bilgisi alınıyor...</div>
+                ) : (
+                    <div className="text-xs text-slate-600 text-center">Haritaya tıklayarak konumunuzu belirleyin.</div>
+                )
             )}
 
             {/* Açık Adres */}

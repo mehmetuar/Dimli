@@ -1,5 +1,6 @@
-import React, { useRef } from 'react';
+import React from 'react';
 import { Phone, Shield } from 'lucide-react';
+import { OtpInput } from '../../../../../components/UI/OtpInput';
 
 const scrollInputIntoView = (e: React.FocusEvent<HTMLInputElement>) => {
     setTimeout(() => {
@@ -13,10 +14,10 @@ interface PhoneVerificationStepProps {
     otpSent: boolean;
     otpVerified: boolean;
     otpLoading: boolean;
-    otpDigits: string[];
+    otpCode: string;
+    setOtpCode: (value: string) => void;
     resendCountdown: number;
     sendOtp: () => void;
-    onOtpDigitChange: (index: number, value: string) => void;
     fieldErrors: Record<string, string>;
 }
 
@@ -26,46 +27,13 @@ export const PhoneVerificationStep: React.FC<PhoneVerificationStepProps> = ({
     otpSent,
     otpVerified,
     otpLoading,
-    otpDigits,
+    otpCode,
+    setOtpCode,
     resendCountdown,
     sendOtp,
-    onOtpDigitChange,
     fieldErrors,
 }) => {
-    const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
     const error = fieldErrors.phone;
-
-    const handleDigitChange = (index: number, value: string) => {
-        const digits = value.replace(/\D/g, '');
-
-        // iOS SMS otomatik doldurma: tüm kodu tek inputa yapıştırır
-        if (digits.length > 1) {
-            const code = digits.slice(0, 6);
-            code.split('').forEach((d, i) => onOtpDigitChange(i, d));
-            const nextIndex = Math.min(code.length, 5);
-            inputRefs.current[nextIndex]?.focus();
-            return;
-        }
-
-        onOtpDigitChange(index, digits);
-        if (digits && index < 5) {
-            inputRefs.current[index + 1]?.focus();
-        }
-    };
-
-    const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === 'Backspace' && !otpDigits[index] && index > 0) {
-            inputRefs.current[index - 1]?.focus();
-        }
-    };
-
-    const handlePaste = (e: React.ClipboardEvent) => {
-        e.preventDefault();
-        const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
-        pasted.split('').forEach((digit, i) => onOtpDigitChange(i, digit));
-        const nextIndex = Math.min(pasted.length, 5);
-        inputRefs.current[nextIndex]?.focus();
-    };
 
     return (
         <div className="space-y-4 animate-fade-in">
@@ -129,24 +97,7 @@ export const PhoneVerificationStep: React.FC<PhoneVerificationStepProps> = ({
                     <label className="block text-xs font-bold text-slate-400 uppercase mb-3 text-center">
                         Doğrulama Kodu
                     </label>
-                    <div className="flex justify-center gap-2" onPaste={handlePaste}>
-                        {otpDigits.map((digit, i) => (
-                            <input
-                                key={i}
-                                ref={(el) => { inputRefs.current[i] = el; }}
-                                type="text"
-                                inputMode="numeric"
-                                autoComplete={i === 0 ? 'one-time-code' : 'off'}
-                                maxLength={i === 0 ? 6 : 1}
-                                value={digit}
-                                onChange={(e) => handleDigitChange(i, e.target.value)}
-                                onKeyDown={(e) => handleKeyDown(i, e)}
-                                onFocus={scrollInputIntoView}
-                                className={`w-11 h-14 text-center text-xl font-bold bg-slate-900 text-white rounded-xl border transition-colors focus:outline-none
-                                    ${digit ? 'border-turf-500' : 'border-slate-700 focus:border-turf-500'}`}
-                            />
-                        ))}
-                    </div>
+                    <OtpInput value={otpCode} onChange={setOtpCode} accent="turf" autoFocus disabled={otpLoading} />
                 </div>
             )}
 

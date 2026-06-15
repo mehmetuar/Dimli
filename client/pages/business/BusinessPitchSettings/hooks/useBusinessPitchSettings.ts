@@ -33,6 +33,7 @@ export const useBusinessPitchSettings = () => {
     const [success, setSuccess] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [businessId, setBusinessId] = useState<string | null>(null);
+    const [businessStatus, setBusinessStatus] = useState<string | null>(null);
 
     const [timeSlots, setTimeSlots] = useState<{ startTime: string; endTime: string }[]>([]);
     const [newSlotStart, setNewSlotStart] = useState('19:00');
@@ -100,6 +101,7 @@ export const useBusinessPitchSettings = () => {
                 const ownerResp = await api.get(`/business-owner/${ownerId}`);
                 busId = ownerResp.data.business?.id || null;
                 setBusinessId(busId);
+                setBusinessStatus(ownerResp.data.business?.status ?? null);
             }
 
             const response = await api.get(`/pitches/${pitchId}`);
@@ -345,8 +347,8 @@ export const useBusinessPitchSettings = () => {
 
     const allFacilities = Array.from(new Set([...DEFAULT_FACILITIES, ...formData.facilities]));
 
-    // Onay bekleyen sahalar admin onayı gelene kadar salt okunur
-    const isReadOnly = approvalStatus === 'pending';
+    // Onay bekleyen sahalar veya onay bekleyen işletmeler admin onayı gelene kadar salt okunur
+    const isReadOnly = approvalStatus === 'pending' || businessStatus === 'pending';
 
     const hasPendingFacility = pendingChangeRequests.some(r => r.type === 'CUSTOM_FACILITY');
     const hasPendingPhoto = pendingChangeRequests.some(r => r.type === 'PHOTO_UPDATE');
@@ -378,6 +380,7 @@ export const useBusinessPitchSettings = () => {
         closedDaysSuccess,
         pendingChangeRequests,
         approvalStatus,
+        businessStatus,
         rejectionReason,
         isReadOnly,
         changeRequestSentModal, setChangeRequestSentModal,

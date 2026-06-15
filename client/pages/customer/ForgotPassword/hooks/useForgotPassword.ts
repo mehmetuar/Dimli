@@ -5,7 +5,7 @@ import api from '../../../../services/api';
 export const useForgotPassword = () => {
     const [step, setStep] = useState<1 | 2 | 3>(1);
     const [phone, setPhone] = useState('');
-    const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
+    const [otpCode, setOtpCode] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [error, setError] = useState('');
@@ -25,11 +25,10 @@ export const useForgotPassword = () => {
 
     // OTP tamamlandığında otomatik doğrula
     useEffect(() => {
-        const code = otpDigits.join('');
-        if (code.length === 6 && otpSent && step === 2) {
-            verifyOtp(code);
+        if (otpCode.length === 6 && otpSent && step === 2) {
+            verifyOtp(otpCode);
         }
-    }, [otpDigits]);
+    }, [otpCode]);
 
     const sendOtp = async () => {
         if (!phone.trim()) {
@@ -56,7 +55,7 @@ export const useForgotPassword = () => {
         setLoading(true);
         try {
             await api.post('/auth/forgot-password/send-otp', { phone });
-            setOtpDigits(['', '', '', '', '', '']);
+            setOtpCode('');
             setResendCountdown(60);
         } catch (err: any) {
             setError(err.response?.data?.message || err.message || 'SMS gönderilemedi. Lütfen tekrar deneyin.');
@@ -73,16 +72,10 @@ export const useForgotPassword = () => {
             setTimeout(() => setStep(3), 400);
         } catch (err: any) {
             setError(err.response?.data?.message || err.message || 'Geçersiz doğrulama kodu.');
-            setOtpDigits(['', '', '', '', '', '']);
+            setOtpCode('');
         } finally {
             setLoading(false);
         }
-    };
-
-    const onOtpDigitChange = (index: number, value: string) => {
-        const newDigits = [...otpDigits];
-        newDigits[index] = value;
-        setOtpDigits(newDigits);
     };
 
     const resetPassword = async () => {
@@ -117,7 +110,8 @@ export const useForgotPassword = () => {
         step,
         phone,
         setPhone,
-        otpDigits,
+        otpCode,
+        setOtpCode,
         newPassword,
         setNewPassword,
         confirmPassword,
@@ -129,7 +123,6 @@ export const useForgotPassword = () => {
         success,
         sendOtp,
         resendOtp,
-        onOtpDigitChange,
         resetPassword,
     };
 };

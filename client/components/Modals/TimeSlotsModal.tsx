@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom';
-import { X, Plus, Trash2, Clock, Check, ChevronLeft } from 'lucide-react';
+import { X, Plus, Trash2, Clock } from 'lucide-react';
 import { useModalBodyClass } from '../../utils/useModalBodyClass';
+import { BusinessTimePickerModal } from './BusinessTimePickerModal';
 import {
     toMinutes,
     isWithinBounds,
@@ -24,168 +25,7 @@ interface TimeSlotsModalProps {
     pitchCloseTime?: string; // e.g. "23:00" — slot bu saatten sonra olamaz
 }
 
-// ─── Yardımcı fonksiyonlar ────────────────────────────────────────────────────
-
-/** Yalnızca zaman seçici sınır kontrolü için: "00:00" = 1440, diğerleri ham dakika */
-function toMinutesEnd(t: string): number {
-    const m = toMinutes(t);
-    return m === 0 ? 24 * 60 : m;
-}
-
 const sortSlots = sortSlotsByNightRule;
-
-// ─── Saat seçici alt ekranı ───────────────────────────────────────────────────
-
-interface TimePickerViewProps {
-    title: string;
-    initialTime: string;
-    onConfirm: (time: string) => void;
-    onBack: () => void;
-    minTime?: string; // Seçilebilecek en erken saat
-    maxTime?: string; // Seçilebilecek en geç saat
-}
-
-const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
-const MINUTES = ['00', '15', '30', '45'];
-
-const TimePickerView: React.FC<TimePickerViewProps> = ({
-    title, initialTime, onConfirm, onBack, minTime, maxTime
-}) => {
-    const [hour, setHour] = useState(initialTime.split(':')[0] || '08');
-    const [minute, setMinute] = useState(initialTime.split(':')[1] || '00');
-
-    const isHourDisabled = (h: string): boolean => {
-        if (!minTime && !maxTime) return false;
-        const baseMin = toMinutes(`${h}:00`);
-        const baseMax = toMinutes(`${h}:45`);
-        if (minTime && baseMax < toMinutes(minTime)) return true;
-        if (maxTime && baseMin >= toMinutesEnd(maxTime)) return true;
-        return false;
-    };
-
-    const isMinuteDisabled = (m: string): boolean => {
-        const t = `${hour}:${m}`;
-        if (minTime && toMinutes(t) < toMinutes(minTime)) return true;
-        if (maxTime && toMinutes(t) > toMinutesEnd(maxTime)) return true;
-        return false;
-    };
-
-    const handleConfirm = () => onConfirm(`${hour}:${minute}`);
-
-    return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-            {/* Sub-header */}
-            <div style={{
-                display: 'flex', alignItems: 'center', gap: 12,
-                padding: '14px 16px', borderBottom: '1px solid #1e293b', flexShrink: 0,
-            }}>
-                <button
-                    onPointerDown={onBack}
-                    style={{
-                        width: 36, height: 36, borderRadius: 18, backgroundColor: '#1e293b',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        border: 'none', cursor: 'pointer', color: '#94a3b8',
-                        WebkitTapHighlightColor: 'transparent', flexShrink: 0,
-                    }}
-                >
-                    <ChevronLeft size={18} />
-                </button>
-                <div>
-                    <p style={{ fontSize: 11, color: '#f97316', fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1, margin: 0 }}>
-                        {title}
-                    </p>
-                    <p style={{ fontSize: 22, fontWeight: 900, color: '#fff', margin: '1px 0 0', fontVariantNumeric: 'tabular-nums' }}>
-                        {hour}:{minute}
-                    </p>
-                </div>
-            </div>
-
-            {/* Saat grid */}
-            <div style={{ flex: 1, overflowY: 'auto', overscrollBehavior: 'contain', padding: '16px' }}>
-                <p style={{ fontSize: 10, color: '#64748b', fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>
-                    Saat
-                </p>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 6, marginBottom: 20 }}>
-                    {HOURS.map(h => {
-                        const disabled = isHourDisabled(h);
-                        const selected = h === hour;
-                        return (
-                            <button
-                                key={h}
-                                type="button"
-                                onPointerDown={() => !disabled && setHour(h)}
-                                disabled={disabled}
-                                style={{
-                                    padding: '10px 0', borderRadius: 10,
-                                    border: `2px solid ${selected ? '#f97316' : '#334155'}`,
-                                    backgroundColor: selected ? '#f97316' : disabled ? '#0f172a' : '#1e293b',
-                                    color: selected ? '#fff' : disabled ? '#334155' : '#94a3b8',
-                                    fontWeight: 800, fontSize: 13, fontVariantNumeric: 'tabular-nums',
-                                    cursor: disabled ? 'not-allowed' : 'pointer',
-                                    WebkitTapHighlightColor: 'transparent',
-                                    transition: 'background-color 0.1s',
-                                }}
-                            >
-                                {h}
-                            </button>
-                        );
-                    })}
-                </div>
-
-                <p style={{ fontSize: 10, color: '#64748b', fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>
-                    Dakika
-                </p>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
-                    {MINUTES.map(m => {
-                        const disabled = isMinuteDisabled(m);
-                        const selected = m === minute;
-                        return (
-                            <button
-                                key={m}
-                                type="button"
-                                onPointerDown={() => !disabled && setMinute(m)}
-                                disabled={disabled}
-                                style={{
-                                    padding: '14px 0', borderRadius: 12,
-                                    border: `2px solid ${selected ? '#f97316' : '#334155'}`,
-                                    backgroundColor: selected ? '#f97316' : disabled ? '#0f172a' : '#1e293b',
-                                    color: selected ? '#fff' : disabled ? '#334155' : '#94a3b8',
-                                    fontWeight: 800, fontSize: 16, fontVariantNumeric: 'tabular-nums',
-                                    cursor: disabled ? 'not-allowed' : 'pointer',
-                                    WebkitTapHighlightColor: 'transparent',
-                                }}
-                            >
-                                :{m}
-                            </button>
-                        );
-                    })}
-                </div>
-            </div>
-
-            {/* Onayla */}
-            <div style={{
-                flexShrink: 0, padding: '12px 16px',
-                paddingBottom: 'max(20px, env(safe-area-inset-bottom))',
-                borderTop: '1px solid #1e293b',
-            }}>
-                <button
-                    onPointerDown={handleConfirm}
-                    style={{
-                        width: '100%', backgroundColor: '#ea580c',
-                        border: 'none', borderRadius: 16, color: '#fff',
-                        fontWeight: 900, fontSize: 16, padding: '16px',
-                        cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                        minHeight: 52,
-                    }}
-                >
-                    <Check size={18} />
-                    {hour}:{minute} — Onayla
-                </button>
-            </div>
-        </div>
-    );
-};
 
 // ─── Ana modal içeriği ────────────────────────────────────────────────────────
 
@@ -237,28 +77,20 @@ const TimeSlotsModalContent: React.FC<TimeSlotsModalProps> = ({
         onSlotsChange(selectedSlots.filter((_, i) => i !== idx));
     };
 
-    // Saat seçici açıkken sadece onu göster (sub-screen)
-    if (pickerTarget !== null) {
-        return (
-            <TimePickerView
-                title={pickerTarget === 'start' ? 'BAŞLANGIÇ SAATİ' : 'BİTİŞ SAATİ'}
-                initialTime={pickerTarget === 'start' ? newStart : newEnd}
-                onConfirm={(t) => {
-                    if (pickerTarget === 'start') setNewStart(t);
-                    else setNewEnd(t);
-                    setPickerTarget(null);
-                    setError('');
-                }}
-                onBack={() => setPickerTarget(null)}
-                minTime={pickerTarget === 'end' ? newStart : pitchOpenTime}
-                maxTime={pitchCloseTime}
-            />
-        );
-    }
-
     // Ana görünüm
     return (
         <>
+            <BusinessTimePickerModal
+                isOpen={pickerTarget !== null}
+                onClose={() => setPickerTarget(null)}
+                title={pickerTarget === 'start' ? 'BAŞLANGIÇ SAATİ' : 'BİTİŞ SAATİ'}
+                initialTime={pickerTarget === 'start' ? newStart : newEnd}
+                onSelect={(t) => {
+                    if (pickerTarget === 'start') setNewStart(t);
+                    else setNewEnd(t);
+                    setError('');
+                }}
+            />
             {/* Header */}
             <div style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',

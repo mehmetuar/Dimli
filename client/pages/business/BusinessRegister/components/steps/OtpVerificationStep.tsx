@@ -1,5 +1,6 @@
-import React, { useRef } from 'react';
+import React from 'react';
 import { Loader2 } from 'lucide-react';
+import { OtpInput } from '../../../../../components/UI/OtpInput';
 
 interface OtpVerificationStepProps {
     phone: string;
@@ -14,40 +15,11 @@ interface OtpVerificationStepProps {
 export const OtpVerificationStep: React.FC<OtpVerificationStepProps> = ({
     phone, otpCode, setOtpCode, otpSending, isLoading, onVerify, onResend
 }) => {
-    const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
-
-    const handleChange = (index: number, value: string) => {
-        if (!/^\d*$/.test(value)) return;
-
-        // iOS SMS otomatik doldurma: tüm kodu tek inputa yapıştırır
-        if (value.length > 1) {
-            const code = value.slice(0, 6);
-            setOtpCode(code);
-            const nextIndex = Math.min(code.length, 5);
-            inputsRef.current[nextIndex]?.focus();
-            return;
-        }
-
-        const digits = otpCode.split('');
-        digits[index] = value.slice(-1);
-        const newCode = digits.join('').padEnd(6, '').slice(0, 6);
-        setOtpCode(newCode.trimEnd());
-        if (value && index < 5) inputsRef.current[index + 1]?.focus();
-    };
-
-    const handleKeyDown = (index: number, e: React.KeyboardEvent) => {
-        if (e.key === 'Backspace' && !otpCode[index] && index > 0) {
-            inputsRef.current[index - 1]?.focus();
-        }
-    };
-
     const handleVerify = () => {
         const code = otpCode.padEnd(6, '');
         if (code.replace(/\s/g, '').length < 6) return;
         onVerify(code);
     };
-
-    const digits = Array.from({ length: 6 }, (_, i) => otpCode[i] || '');
 
     return (
         <div className="flex flex-col items-center justify-center h-full text-center space-y-8 py-4 animate-fade-in">
@@ -58,22 +30,7 @@ export const OtpVerificationStep: React.FC<OtpVerificationStepProps> = ({
                 </p>
             </div>
 
-            <div className="flex gap-3">
-                {digits.map((digit, i) => (
-                    <input
-                        key={i}
-                        ref={el => { inputsRef.current[i] = el; }}
-                        type="text"
-                        inputMode="numeric"
-                        autoComplete={i === 0 ? 'one-time-code' : 'off'}
-                        maxLength={i === 0 ? 6 : 1}
-                        value={digit}
-                        onChange={e => handleChange(i, e.target.value)}
-                        onKeyDown={e => handleKeyDown(i, e)}
-                        className="w-11 h-14 text-center text-2xl font-black text-white bg-slate-800 border-2 border-slate-700 rounded-xl focus:outline-none focus:border-orange-500 transition-all"
-                    />
-                ))}
-            </div>
+            <OtpInput value={otpCode} onChange={setOtpCode} accent="orange" autoFocus disabled={isLoading} />
 
             <button
                 onClick={handleVerify}

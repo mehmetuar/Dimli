@@ -29,12 +29,12 @@ export const Register: React.FC = () => {
         otpSent,
         otpVerified,
         otpLoading,
-        otpDigits,
+        otpCode,
+        setOtpCode,
         resendCountdown,
         uploadLoading,
         handleChange,
         sendOtp,
-        onOtpDigitChange,
         uploadAvatar,
         nextStep,
         prevStep,
@@ -77,10 +77,10 @@ export const Register: React.FC = () => {
                             otpSent={otpSent}
                             otpVerified={otpVerified}
                             otpLoading={otpLoading}
-                            otpDigits={otpDigits}
+                            otpCode={otpCode}
+                            setOtpCode={setOtpCode}
                             resendCountdown={resendCountdown}
                             sendOtp={sendOtp}
-                            onOtpDigitChange={onOtpDigitChange}
                             fieldErrors={fieldErrors}
                         />
                     )}

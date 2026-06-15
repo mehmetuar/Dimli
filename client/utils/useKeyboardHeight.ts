@@ -1,23 +1,14 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { Keyboard } from '@capacitor/keyboard';
 import { Capacitor } from '@capacitor/core';
 
 /**
  * Klavye yüksekliğini px olarak döner.
  * fixed inset-0 layout'larda paddingBottom olarak kullanılır.
- * Ayrıca focus olan input'u klavyenin üstüne scroll eder (iOS & Android uyumlu).
+ * Odaklanan input'u görünür alana kaydırma işi app-wide olarak useKeyboardScroll'da yapılır.
  */
 export function useKeyboardHeight(): number {
   const [keyboardHeight, setKeyboardHeight] = useState(0);
-
-  const scrollFocusedIntoView = useCallback(() => {
-    const el = document.activeElement as HTMLElement | null;
-    if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT')) {
-      setTimeout(() => {
-        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }, 100);
-    }
-  }, []);
 
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
@@ -27,8 +18,6 @@ export function useKeyboardHeight(): number {
 
     Keyboard.addListener('keyboardWillShow', (info) => {
       setKeyboardHeight(info.keyboardHeight);
-      // Klavye açıldığında fokuslanmış elemanı görünür yap
-      scrollFocusedIntoView();
     }).then(h => { showHandle = h; }).catch(() => {});
 
     Keyboard.addListener('keyboardWillHide', () => {
@@ -39,7 +28,7 @@ export function useKeyboardHeight(): number {
       showHandle?.remove();
       hideHandle?.remove();
     };
-  }, [scrollFocusedIntoView]);
+  }, []);
 
   return keyboardHeight;
 }

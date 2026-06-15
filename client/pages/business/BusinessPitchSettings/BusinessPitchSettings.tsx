@@ -48,6 +48,7 @@ export const BusinessPitchSettings: React.FC = () => {
         savingClosedDays,
         closedDaysSuccess,
         approvalStatus,
+        businessStatus,
         rejectionReason,
         isReadOnly,
         changeRequestSentModal, setChangeRequestSentModal,
@@ -128,7 +129,7 @@ export const BusinessPitchSettings: React.FC = () => {
             <div className="p-4 space-y-4 pb-nav">
 
                 {/* ── Onay Durumu Banner'ları ──────────────────────────────── */}
-                {approvalStatus === 'pending' && (
+                {(approvalStatus === 'pending' || businessStatus === 'pending') && (
                     <div className="flex items-start gap-3 bg-orange-500/10 border border-orange-500/30 px-4 py-3.5 rounded-2xl">
                         <Clock className="text-orange-400 shrink-0 mt-0.5" size={18} />
                         <div className="space-y-0.5">

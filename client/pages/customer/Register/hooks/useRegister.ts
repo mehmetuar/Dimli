@@ -30,7 +30,7 @@ export const useRegister = () => {
     const [otpSent, setOtpSent] = useState(false);
     const [otpVerified, setOtpVerified] = useState(false);
     const [otpLoading, setOtpLoading] = useState(false);
-    const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
+    const [otpCode, setOtpCode] = useState('');
     const [resendCountdown, setResendCountdown] = useState(0);
 
     // Photo upload state (used during post-registration upload phase)
@@ -48,11 +48,10 @@ export const useRegister = () => {
 
     // OTP tamamlandığında otomatik doğrula
     useEffect(() => {
-        const code = otpDigits.join('');
-        if (code.length === 6 && otpSent && !otpVerified) {
-            verifyOtp(code);
+        if (otpCode.length === 6 && otpSent && !otpVerified) {
+            verifyOtp(otpCode);
         }
-    }, [otpDigits]);
+    }, [otpCode]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name } = e.target;
@@ -86,7 +85,7 @@ export const useRegister = () => {
         try {
             await api.post('/auth/send-otp', { phone: formData.phone });
             setOtpSent(true);
-            setOtpDigits(['', '', '', '', '', '']);
+            setOtpCode('');
             setResendCountdown(60);
         } catch (err: any) {
             setError(getErrorMessage(err, 'SMS gönderilemedi. Lütfen tekrar deneyin.'));
@@ -104,16 +103,10 @@ export const useRegister = () => {
             setTimeout(() => setStep(5), 600);
         } catch (err: any) {
             setError(getErrorMessage(err, 'Geçersiz doğrulama kodu.'));
-            setOtpDigits(['', '', '', '', '', '']);
+            setOtpCode('');
         } finally {
             setOtpLoading(false);
         }
-    };
-
-    const onOtpDigitChange = (index: number, value: string) => {
-        const newDigits = [...otpDigits];
-        newDigits[index] = value;
-        setOtpDigits(newDigits);
     };
 
     // Fotoğraf seçildiğinde anında local önizleme — yükleme kayıt sonrasına ertelendi
@@ -288,12 +281,12 @@ export const useRegister = () => {
         otpSent,
         otpVerified,
         otpLoading,
-        otpDigits,
+        otpCode,
+        setOtpCode,
         resendCountdown,
         uploadLoading,
         handleChange,
         sendOtp,
-        onOtpDigitChange,
         uploadAvatar,
         nextStep,
         prevStep,

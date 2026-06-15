@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Mail, KeyRound, Lock, CheckCircle2, ArrowRight } from 'lucide-react';
 import api from '../../../services/api';
+import { OtpInput } from '../../../components/UI/OtpInput';
 
 interface BusinessForgotPasswordModalProps {
     isOpen: boolean;
@@ -159,20 +160,10 @@ export const BusinessForgotPasswordModal: React.FC<BusinessForgotPasswordModalPr
                             </div>
 
                             <div>
-                                <label className="block text-slate-400 text-xs font-bold uppercase mb-2">
+                                <label className="block text-slate-400 text-xs font-bold uppercase mb-3 text-center">
                                     Doğrulama Kodu
                                 </label>
-                                <input
-                                    type="text"
-                                    inputMode="numeric"
-                                    autoComplete="one-time-code"
-                                    maxLength={6}
-                                    value={code}
-                                    onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                                    className="w-full px-4 py-4 text-center tracking-[0.5em] text-2xl font-black rounded-xl bg-slate-800 border border-slate-700 text-white focus:outline-none focus:border-orange-500 transition-colors"
-                                    placeholder="000000"
-                                    required
-                                />
+                                <OtpInput value={code} onChange={setCode} accent="orange" autoFocus disabled={loading} />
                             </div>
 
                             <button

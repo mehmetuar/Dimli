@@ -76,3 +76,14 @@ NestJS feature modules under `server/src/`. Each module follows entity → servi
 - Auth persisted via `authStorage.ts` (Capacitor Preferences, not localStorage)
 - Provider order in `App.tsx`: `AuthProvider → SocketProvider → LocationProvider → FilterProvider`
 - Long-press on chat messages uses **native non-passive** `touchstart` listeners attached via `useEffect` — React's synthetic `onTouchStart` cannot call `e.preventDefault()` in React 17+ (passive by default)
+
+### Keyboard-avoidance (mandatory, app-wide)
+- `useKeyboardScroll()` (`client/utils/useKeyboardScroll.ts`) is mounted **once** at the app root in `App.tsx`. It listens for `keyboardWillShow`/`keyboardWillHide` and `focusin`, and scrolls the currently focused input/textarea to `block: 'center'` whenever the keyboard opens or focus moves to another field while the keyboard is already visible.
+- This is the **single source of truth** for keyboard-avoidance — do not add per-screen `onFocus` + `scrollIntoView` handlers, they would duplicate/conflict with this global behavior.
+- `useKeyboardHeight()` (`client/utils/useKeyboardHeight.ts`) only reports the live keyboard height (px) for adjusting `paddingBottom` on scroll containers/footers so fixed bottom bars aren't covered when the keyboard is open. Use it on any full-screen form with a fixed footer.
+- Every focusable input/textarea must sit inside a scrollable ancestor (`overflow-y-auto`) — `scrollIntoView` has no effect otherwise.
+
+### Safe-area conventions for full-screen modals/views
+- Any fixed header inside a full-screen modal or wizard step (e.g. time pickers, multi-step registration sub-views) must include `paddingTop: 'max(16px, env(safe-area-inset-top))'` so it doesn't sit under the iOS status bar/notch.
+- Any fixed footer must include `paddingBottom: 'max(16px, env(safe-area-inset-bottom))'` so it doesn't sit under the iOS home-indicator.
+- This applies to **every** fixed header/footer added inside `client/`, including sub-views/sub-headers of multi-step modals (not just the outermost one) — each gets its own safe-area padding since it can become the topmost/bottommost element on screen.
