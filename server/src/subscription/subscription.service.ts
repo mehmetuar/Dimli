@@ -1,7 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Cron, CronExpression } from '@nestjs/schedule';
-import { LessThan, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { Subscription, SubscriptionStatus } from './entities/subscription.entity';
 
 export const SUBSCRIPTION_PLANS: Record<string, { pitchCount: number; pricePerMonth: number; label: string }> = {
@@ -98,13 +97,24 @@ export class SubscriptionService {
             subscription = this.subscriptionRepository.create({ ownerId });
         }
 
+        subscription.revenuecatCustomerId = rcCustomerId;
+
+        // Deneme sürümü devam ediyorsa: ücret hemen güncellenir (deneme sonunda
+        // tahsil edilecek tutar), plan/saha limiti geçişi deneme bitiş tarihinde
+        // applyPendingPlanIfDue ile otomatik uygulanır.
+        if (subscription.status === SubscriptionStatus.TRIAL && subscription.trialEndsAt) {
+            subscription.pricePerMonth = plan.pricePerMonth;
+            subscription.pendingPlanType = planType;
+            subscription.pendingPlanEffectiveAt = subscription.trialEndsAt;
+            return this.subscriptionRepository.save(subscription);
+        }
+
         const trialEndsAt = new Date();
         trialEndsAt.setDate(trialEndsAt.getDate() + 90);
 
         subscription.planType = planType;
         subscription.pitchCount = plan.pitchCount;
         subscription.pricePerMonth = plan.pricePerMonth;
-        subscription.revenuecatCustomerId = rcCustomerId;
         subscription.status = SubscriptionStatus.ACTIVE;
         subscription.pendingPlanType = null;
         subscription.pendingPlanEffectiveAt = null;
@@ -134,22 +144,10 @@ export class SubscriptionService {
         subscription.pendingPlanType = planType;
         subscription.pendingPlanEffectiveAt = subscription.expiresAt ?? subscription.trialEndsAt ?? null;
         subscription.pitchCount = plan.pitchCount; // saha limiti hemen düşer
+        subscription.pricePerMonth = plan.pricePerMonth; // bir sonraki dönemde tahsil edilecek tutar hemen gösterilir
         subscription.revenuecatCustomerId = rcCustomerId;
 
         return this.subscriptionRepository.save(subscription);
-    }
-
-    // Süresi geçmiş ve hâlâ ödeme alınmamış deneme aboneliklerini sona erdirir
-    @Cron(CronExpression.EVERY_DAY_AT_3AM, { name: 'expire_trial_subscriptions' })
-    async expireOverdueTrials(): Promise<void> {
-        const now = new Date();
-        await this.subscriptionRepository.update(
-            {
-                status: SubscriptionStatus.TRIAL,
-                trialEndsAt: LessThan(now),
-            },
-            { status: SubscriptionStatus.EXPIRED },
-        );
     }
 
     async handleWebhook(event: any): Promise<void> {

@@ -833,10 +833,10 @@ export const BusinessSubscriptionSettings: React.FC = () => {
                                             <Clock className="w-4 h-4 text-orange-400" />
                                         </div>
                                         <p className="text-orange-300 text-sm leading-relaxed">
-                                            Planınız <span className="font-bold">{pendingPlanInfo.label}</span> planına düşürülecek
                                             {subscription.pendingPlanEffectiveAt && (
-                                                <> — {new Date(subscription.pendingPlanEffectiveAt).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })} tarihinden itibaren</>
-                                            )} aylık <span className="font-bold">{formatPrice(pendingPlanInfo.price)}</span>.
+                                                <>{new Date(subscription.pendingPlanEffectiveAt).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })} tarihine kadar mevcut planınızı kullanabilirsiniz. </>
+                                            )}
+                                            Bu tarihten itibaren <span className="font-bold">{pendingPlanInfo.label}</span> planına geçeceksiniz.
                                         </p>
                                     </div>
                                 </div>
