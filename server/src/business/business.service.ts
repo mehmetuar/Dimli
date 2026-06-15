@@ -43,6 +43,7 @@ export class BusinessService {
                 .leftJoinAndSelect('business.owner', 'owner')
                 .innerJoin('Subscription', 'subscription', 'subscription.ownerId = owner.id')
                 .where('business.status = :status', { status: 'active' })
+                .andWhere('business.deletedAt IS NULL')
                 .andWhere('subscription.status IN (:...subStatuses)', { subStatuses: ['active', 'trial'] })
                 .getMany();
             return businesses
@@ -66,6 +67,7 @@ export class BusinessService {
             .where('business.latitude IS NOT NULL')
             .andWhere('business.longitude IS NOT NULL')
             .andWhere('business.status = :status', { status: 'active' })
+            .andWhere('business.deletedAt IS NULL')
             .andWhere('subscription.status IN (:...subStatuses)', { subStatuses: ['active', 'trial'] })
             .andWhere(`${distanceExpr} <= :radius`)
             .setParameters({ lat, lng, radius })
@@ -111,7 +113,7 @@ export class BusinessService {
             where: { id },
             relations: ['pitches', 'pitches.timeSlots', 'owner'],
         });
-        if (!business) {
+        if (!business || business.deletedAt) {
             throw new NotFoundException(`Business with ID ${id} not found`);
         }
         const subscription = await this.subscriptionService.findByOwner(business.owner.id);

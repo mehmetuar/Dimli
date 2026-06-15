@@ -9,8 +9,7 @@ import { Reservation, ReservationStatus } from '../reservations/entities/reserva
 import { Business } from '../business/entities/business.entity';
 import { RatingsService } from '../ratings/ratings.service';
 import { Subscription } from '../subscription/entities/subscription.entity';
-import { TimeSlot } from '../pitches/entities/time-slot.entity';
-import { MatchAnnouncement } from '../match-announcements/match-announcement.entity';
+import { PitchChangeRequest } from '../pitches/entities/pitch-change-request.entity';
 
 @Injectable()
 export class BusinessOwnerService {
@@ -412,15 +411,36 @@ export class BusinessOwnerService {
 
                 if (owner.business.pitches && owner.business.pitches.length > 0) {
                     const pitchIds = owner.business.pitches.map(p => p.id);
-                    await queryRunner.manager.delete(MatchAnnouncement, { pitch: { id: In(pitchIds) } });
-                    await queryRunner.manager.delete(Reservation, { pitch: { id: In(pitchIds) } });
-                    await queryRunner.manager.delete(TimeSlot, { pitchId: In(pitchIds) });
-                    await queryRunner.manager.delete(Pitch, { business: { id: owner.business.id } });
+
+                    // Bekleyen saha değişiklik talepleri artık anlamsız — temizle
+                    await queryRunner.manager.delete(PitchChangeRequest, { pitchId: In(pitchIds) });
+
+                    // Sahaları soft-delete et: müşteri tarafındaki geçmiş rezervasyon/
+                    // değerlendirme/sohbet kayıtları (Reservation, Rating, MatchAnnouncement,
+                    // ChatChannel) bozulmadan kalır, ama saha artık hiçbir listede görünmez.
+                    await queryRunner.manager.update(Pitch, { business: { id: owner.business.id } }, {
+                        deletedAt: now,
+                        isActive: false,
+                    });
+
+                    // Bu sahaları "ev sahası" olarak işaretlemiş takımların referansını temizle
+                    await queryRunner.query('UPDATE team SET home_pitch_id = NULL WHERE home_pitch_id = ANY($1)', [pitchIds]);
                 }
+
+                // İşletmeyi soft-delete et — Business satırı geçmiş rezervasyon/rating/chat
+                // join'leri için kalır, ama müşteri sorgularından (deletedAt IS NULL) kalkar.
+                await queryRunner.manager.update(Business, { id: owner.business.id }, { deletedAt: now });
+
+                // Bu işletmeyi "ev işletmesi" veya favori olarak tutan takım/kullanıcı referanslarını temizle
+                await queryRunner.query('UPDATE team SET home_business_id = NULL WHERE home_business_id = $1', [owner.business.id]);
+                await queryRunner.query(
+                    `UPDATE "user" SET "favoriteBusinessIds" = array_to_string(array_remove(string_to_array("favoriteBusinessIds", ','), $1), ',')
+                     WHERE "favoriteBusinessIds" LIKE '%' || $1 || '%'`,
+                    [owner.business.id],
+                );
 
                 // Raw SQL: business_owner.businessId → businesses.id FK kısıtını kaldır
                 await queryRunner.query('UPDATE business_owner SET "businessId" = NULL WHERE id = $1', [owner.id]);
-                await queryRunner.manager.delete(Business, { id: owner.business.id });
             }
 
             await queryRunner.manager.delete(BusinessOwner, { id: owner.id });

@@ -63,6 +63,9 @@ export class Business {
     @Column({ nullable: true, type: 'timestamp' })
     reviewedAt: Date | null;
 
+    @Column({ type: 'timestamp', nullable: true, default: null })
+    deletedAt: Date | null;
+
     @OneToOne(() => BusinessOwner, (owner) => owner.business)
     owner: BusinessOwner;
 

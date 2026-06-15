@@ -95,7 +95,8 @@ export class RatingsService {
 
             // opponentTeamId being null means "kendi aramizda" — no fair play rating needed
             const hasOpponent = !!reservation.opponentTeamId;
-            const needsBusinessRating = !doneSet.has(`${reservation.id}_BUSINESS`);
+            // İşletme hesabı silinmişse artık yeni bir işletme değerlendirmesi teklif edilmez
+            const needsBusinessRating = !reservation.pitch.business.deletedAt && !doneSet.has(`${reservation.id}_BUSINESS`);
             const needsFairPlayRating = hasOpponent && !doneSet.has(`${reservation.id}_FAIRPLAY`);
 
             if (!needsBusinessRating && !needsFairPlayRating) continue;
