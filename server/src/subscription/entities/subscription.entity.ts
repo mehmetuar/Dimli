@@ -57,7 +57,7 @@ export class Subscription {
     @Column({ nullable: true, type: 'timestamp' })
     expiresAt: Date;
 
-    @Column({ nullable: true })
+    @Column({ nullable: true, type: 'varchar' })
     pendingPlanType: string | null;
 
     @Column({ nullable: true, type: 'timestamp' })
