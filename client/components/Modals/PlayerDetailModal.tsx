@@ -1,7 +1,6 @@
 import React from 'react';
-import { X, MapPin, Handshake, Star, MessageCircle, UserPlus, Edit } from 'lucide-react';
+import { X, MapPin, Star, MessageCircle, UserPlus, Edit } from 'lucide-react';
 import { Player } from '../../types';
-import { MOCK_PITCHES } from '../../constants';
 import { getBusinesses } from '../../services/api';
 import { calculateAge } from '../../utils/calculateAge';
 import { useModalBodyClass } from '../../utils/useModalBodyClass';

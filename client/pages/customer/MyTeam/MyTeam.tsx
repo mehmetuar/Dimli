@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import { useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { LoadingSpinner } from '../../../components/UI/LoadingSpinner';
-import { MOCK_JOKERS } from '../../../constants';
 import { Check, X, Shield, Crown, Trash2, ShieldX, ChevronRight, MoreVertical } from 'lucide-react';
 
 import { useTeamModals } from './hooks/useTeamModals';
@@ -62,12 +61,6 @@ export const MyTeam: React.FC = () => {
     const isViceCaptain = myTeam?.viceCaptainIds?.includes(currentUser?.id) || false;
 
     const guestPlayers: any[] = [];
-    if (myTeam?.guestPlayerIds) {
-        myTeam.guestPlayerIds.forEach(id => {
-            const joker = MOCK_JOKERS.find(j => j.id === id);
-            if (joker) guestPlayers.push(joker);
-        });
-    }
 
     return (
         <div className="min-h-full bg-pitch pt-3 pb-6">

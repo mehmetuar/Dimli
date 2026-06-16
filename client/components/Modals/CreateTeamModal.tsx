@@ -1,7 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { X, Shield, Trophy, Palette, AlertCircle, Camera, Loader2, Check } from 'lucide-react';
 import { Team, SkillLevel } from '../../types';
-import { CURRENT_USER, MOCK_TEAMS } from '../../constants';
 import { ColorPickerModal, TEAM_COLORS } from './ColorPickerModal';
 import { ImageCropModal } from './ImageCropModal';
 import api from '../../services/api';
@@ -73,12 +72,6 @@ const CreateTeamModalContent: React.FC<Props> = ({ isOpen, onClose, onCreate }) 
         setError('');
         if (!name) return;
 
-        const nameExists = MOCK_TEAMS.some(t => t.name.toLowerCase() === name.trim().toLowerCase());
-        if (nameExists) {
-            setError('Bu takım ismi zaten alınmış. Lütfen başka bir isim seçin.');
-            return;
-        }
-
         setIsSubmitting(true);
         try {
             let logoUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random&color=fff&size=200`;
@@ -100,7 +93,6 @@ const CreateTeamModalContent: React.FC<Props> = ({ isOpen, onClose, onCreate }) 
                 primaryColor: color,
                 secondaryColor,
                 description: description || 'Sahaların yeni yıldızı.',
-                captainId: CURRENT_USER.id,
                 fairPlayScore: 5.0,
                 logoUrl,
             };
