@@ -8,8 +8,8 @@ import * as crypto from 'crypto';
 if (!global.crypto) {
   Object.defineProperty(global, 'crypto', {
     value: {
-      randomUUID: () => crypto.randomUUID()
-    }
+      randomUUID: () => crypto.randomUUID(),
+    },
   });
 }
 import { ValidationPipe } from '@nestjs/common';

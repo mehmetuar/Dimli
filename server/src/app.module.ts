@@ -73,4 +73,4 @@ import { FacilitiesModule } from './facilities/facilities.module';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule { }
+export class AppModule {}
