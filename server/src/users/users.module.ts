@@ -9,9 +9,17 @@ import { Notification } from '../notifications/notification.entity';
 import { Team } from '../teams/team.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, AccountDeletion, JoinRequest, Notification, Team])],
+  imports: [
+    TypeOrmModule.forFeature([
+      User,
+      AccountDeletion,
+      JoinRequest,
+      Notification,
+      Team,
+    ]),
+  ],
   providers: [UsersService],
   controllers: [UsersController],
   exports: [UsersService],
 })
-export class UsersModule { }
+export class UsersModule {}

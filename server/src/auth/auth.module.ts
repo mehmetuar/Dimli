@@ -28,4 +28,4 @@ import { SubscriptionModule } from '../subscription/subscription.module';
   providers: [AuthService, LocalStrategy, JwtStrategy],
   controllers: [AuthController],
 })
-export class AuthModule { }
+export class AuthModule {}

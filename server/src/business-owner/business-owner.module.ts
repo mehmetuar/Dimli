@@ -11,14 +11,14 @@ import { Reservation } from '../reservations/entities/reservation.entity';
 import { Business } from '../business/entities/business.entity';
 
 @Module({
-    imports: [
-        TypeOrmModule.forFeature([BusinessOwner, Pitch, Reservation, Business]),
-        ReservationsModule,
-        NotificationsModule,
-        RatingsModule,
-    ],
-    controllers: [BusinessOwnerController],
-    providers: [BusinessOwnerService],
-    exports: [BusinessOwnerService],
+  imports: [
+    TypeOrmModule.forFeature([BusinessOwner, Pitch, Reservation, Business]),
+    ReservationsModule,
+    NotificationsModule,
+    RatingsModule,
+  ],
+  controllers: [BusinessOwnerController],
+  providers: [BusinessOwnerService],
+  exports: [BusinessOwnerService],
 })
-export class BusinessOwnerModule { }
+export class BusinessOwnerModule {}

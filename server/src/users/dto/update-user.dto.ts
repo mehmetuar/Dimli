@@ -1,59 +1,64 @@
-
-import { IsString, IsOptional, IsDateString, IsBoolean, IsNumber } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsDateString,
+  IsBoolean,
+  IsNumber,
+} from 'class-validator';
 
 export class UpdateUserDto {
-    @IsOptional()
-    @IsString()
-    full_name?: string;
+  @IsOptional()
+  @IsString()
+  full_name?: string;
 
-    @IsOptional()
-    @IsString()
-    username?: string;
+  @IsOptional()
+  @IsString()
+  username?: string;
 
-    @IsOptional()
-    @IsString()
-    location?: string;
+  @IsOptional()
+  @IsString()
+  location?: string;
 
-    @IsOptional()
-    @IsString()
-    phone?: string;
+  @IsOptional()
+  @IsString()
+  phone?: string;
 
-    @IsOptional()
-    @IsDateString()
-    birthDate?: Date;
+  @IsOptional()
+  @IsDateString()
+  birthDate?: Date;
 
-    @IsOptional()
-    @IsString()
-    position?: string;
+  @IsOptional()
+  @IsString()
+  position?: string;
 
-    @IsOptional()
-    @IsString()
-    secondaryPosition?: string;
+  @IsOptional()
+  @IsString()
+  secondaryPosition?: string;
 
-    @IsOptional()
-    @IsString()
-    foot?: string;
+  @IsOptional()
+  @IsString()
+  foot?: string;
 
-    @IsOptional()
-    favoriteBusinessIds?: string[];
+  @IsOptional()
+  favoriteBusinessIds?: string[];
 
-    @IsOptional()
-    @IsBoolean()
-    isJoker?: boolean;
+  @IsOptional()
+  @IsBoolean()
+  isJoker?: boolean;
 
-    @IsOptional()
-    @IsBoolean()
-    sharesFee?: boolean;
+  @IsOptional()
+  @IsBoolean()
+  sharesFee?: boolean;
 
-    @IsOptional()
-    @IsString()
-    avatarUrl?: string | null;
+  @IsOptional()
+  @IsString()
+  avatarUrl?: string | null;
 
-    @IsOptional()
-    @IsNumber()
-    latitude?: number;
+  @IsOptional()
+  @IsNumber()
+  latitude?: number;
 
-    @IsOptional()
-    @IsNumber()
-    longitude?: number;
+  @IsOptional()
+  @IsNumber()
+  longitude?: number;
 }

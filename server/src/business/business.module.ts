@@ -7,13 +7,13 @@ import { PitchesModule } from '../pitches/pitches.module';
 import { SubscriptionModule } from '../subscription/subscription.module';
 
 @Module({
-    imports: [
-        TypeOrmModule.forFeature([Business]),
-        PitchesModule,
-        SubscriptionModule,
-    ],
-    controllers: [BusinessController],
-    providers: [BusinessService],
-    exports: [BusinessService],
+  imports: [
+    TypeOrmModule.forFeature([Business]),
+    PitchesModule,
+    SubscriptionModule,
+  ],
+  controllers: [BusinessController],
+  providers: [BusinessService],
+  exports: [BusinessService],
 })
-export class BusinessModule { }
+export class BusinessModule {}

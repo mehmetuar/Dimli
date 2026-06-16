@@ -19,17 +19,29 @@ import { UserReport } from '../user-reports/user-report.entity';
 import { FacilitiesModule } from '../facilities/facilities.module';
 
 @Module({
-    imports: [
-        PassportModule,
-        TypeOrmModule.forFeature([AdminUser, Business, BusinessOwner, Subscription, Pitch, TimeSlot, PitchChangeRequest, Notification, AccountDeletion, User, UserReport]),
-        FacilitiesModule,
-        JwtModule.register({
-            secret: process.env.ADMIN_JWT_SECRET || 'ADMIN_SECRET_KEY',
-            signOptions: { expiresIn: '8h' },
-        }),
-    ],
-    controllers: [AdminController],
-    providers: [AdminService, AdminJwtStrategy],
-    exports: [AdminService],
+  imports: [
+    PassportModule,
+    TypeOrmModule.forFeature([
+      AdminUser,
+      Business,
+      BusinessOwner,
+      Subscription,
+      Pitch,
+      TimeSlot,
+      PitchChangeRequest,
+      Notification,
+      AccountDeletion,
+      User,
+      UserReport,
+    ]),
+    FacilitiesModule,
+    JwtModule.register({
+      secret: process.env.ADMIN_JWT_SECRET || 'ADMIN_SECRET_KEY',
+      signOptions: { expiresIn: '8h' },
+    }),
+  ],
+  controllers: [AdminController],
+  providers: [AdminService, AdminJwtStrategy],
+  exports: [AdminService],
 })
-export class AdminModule { }
+export class AdminModule {}

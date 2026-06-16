@@ -1,28 +1,33 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn } from 'typeorm';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  CreateDateColumn,
+} from 'typeorm';
 
 @Entity('otp_codes')
 export class OtpCode {
-    @PrimaryGeneratedColumn('uuid')
-    id: string;
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
 
-    @Column()
-    phone: string;
+  @Column()
+  phone: string;
 
-    @Column()
-    code: string;
+  @Column()
+  code: string;
 
-    @Column({ default: false })
-    verified: boolean;
+  @Column({ default: false })
+  verified: boolean;
 
-    @Column({ type: 'timestamp' })
-    expiresAt: Date;
+  @Column({ type: 'timestamp' })
+  expiresAt: Date;
 
-    @Column({ default: 'registration' })
-    purpose: string; // 'registration' | 'password_reset' | 'business_registration'
+  @Column({ default: 'registration' })
+  purpose: string; // 'registration' | 'password_reset' | 'business_registration'
 
-    @Column({ default: 0 })
-    attempts: number;
+  @Column({ default: 0 })
+  attempts: number;
 
-    @CreateDateColumn()
-    createdAt: Date;
+  @CreateDateColumn()
+  createdAt: Date;
 }

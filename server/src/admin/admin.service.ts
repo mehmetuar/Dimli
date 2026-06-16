@@ -409,7 +409,9 @@ export class AdminService {
         await this.pitchRepository.update(request.pitchId, {
           facilities: [...currentFacilities, request.requestedData.facility],
         });
-        await this.facilitiesService.upsertApproved(request.requestedData.facility);
+        await this.facilitiesService.upsertApproved(
+          request.requestedData.facility,
+        );
       }
     } else if (request.type === 'PHOTO_UPDATE') {
       const oldImageUrl = request.pitch?.imageUrl;
