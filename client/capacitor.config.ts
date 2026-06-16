@@ -32,7 +32,7 @@ const config: CapacitorConfig = {
     },
     Keyboard: {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      resize: 'body' as any,
+      resize: 'none' as any,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       style: 'dark' as any,
       resizeOnFullScreen: true,

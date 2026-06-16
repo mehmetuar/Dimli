@@ -6,7 +6,7 @@ export const CongratulationsStep: React.FC<{ ownerPhone: string }> = ({ ownerPho
     const navigate = useNavigate();
 
     return (
-        <div className="flex flex-col items-center justify-center h-full text-center space-y-8 py-4 animate-fade-in">
+        <div className="flex flex-col items-center justify-center min-h-full text-center space-y-6 py-4 animate-fade-in">
             <div className="w-24 h-24 rounded-full bg-green-500/10 border-2 border-green-500/30 flex items-center justify-center">
                 <CheckCircle className="text-green-400" size={48} />
             </div>

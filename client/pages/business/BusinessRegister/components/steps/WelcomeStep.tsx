@@ -10,7 +10,7 @@ const features = [
 
 export const WelcomeStep: React.FC = () => {
     return (
-        <div className="flex flex-col items-center justify-center h-full text-center space-y-6 py-2 animate-fade-in">
+        <div className="flex flex-col items-center justify-center min-h-full text-center space-y-6 py-6 animate-fade-in">
 
             {/* Logo & marka */}
             <div className="flex flex-col items-center gap-3">

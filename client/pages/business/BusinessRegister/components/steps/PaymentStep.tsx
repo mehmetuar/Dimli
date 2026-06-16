@@ -31,7 +31,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ formData, isLoading, e
                         </p>
                     </div>
                     <div className="text-right">
-                        <p className="font-black text-orange-400 text-xl">
+                        <p className="font-black text-orange-400 whitespace-nowrap" style={{ fontSize: 'clamp(1rem, 4.5vw, 1.25rem)' }}>
                             {plan.price.toLocaleString('tr-TR')} TL<span className="text-sm text-slate-400">/ay</span>
                         </p>
                     </div>

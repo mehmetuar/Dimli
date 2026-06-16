@@ -210,7 +210,7 @@ const TimeSlotsModalContent: React.FC<TimeSlotsModalProps> = ({
                     <div style={{ flex: 1 }}>
                         <p style={{ fontSize: 10, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', marginBottom: 4 }}>Başlangıç</p>
                         <button
-                            onPointerDown={() => setPickerTarget('start')}
+                            onClick={() => setPickerTarget('start')}
                             style={{
                                 width: '100%', backgroundColor: '#1e293b',
                                 border: '2px solid #334155', borderRadius: 12,
@@ -230,7 +230,7 @@ const TimeSlotsModalContent: React.FC<TimeSlotsModalProps> = ({
                     <div style={{ flex: 1 }}>
                         <p style={{ fontSize: 10, color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', marginBottom: 4 }}>Bitiş</p>
                         <button
-                            onPointerDown={() => setPickerTarget('end')}
+                            onClick={() => setPickerTarget('end')}
                             style={{
                                 width: '100%', backgroundColor: '#1e293b',
                                 border: '2px solid #334155', borderRadius: 12,

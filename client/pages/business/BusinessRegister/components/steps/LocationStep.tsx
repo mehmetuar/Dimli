@@ -17,6 +17,12 @@ interface LocationStepProps {
 const MapEffect: React.FC<{ lat: number; lng: number; triggerFly: boolean }> = ({ lat, lng, triggerFly }) => {
     const map = useMap();
     useEffect(() => {
+        if (map) {
+            // Android WebView'de Google Maps container boyutunu ilk render'da yanlış hesaplıyor
+            window.google?.maps?.event?.trigger(map, 'resize');
+        }
+    }, [map]);
+    useEffect(() => {
         if (map && triggerFly && lat && lng && lat !== 0 && lng !== 0) {
             map.panTo({ lat, lng });
             map.setZoom(15);
@@ -169,7 +175,7 @@ export const LocationStep: React.FC<LocationStepProps> = ({
             {isLocating || (!formData.business.latitude && !hasAttemptedLocation) ? (
                 <div
                     className="rounded-xl border-2 border-slate-700 bg-slate-900/50 flex flex-col items-center justify-center gap-4"
-                    style={{ height: 'clamp(180px, 38vw, 260px)' }}
+                    style={{ height: 'min(40vh, 280px)' }}
                 >
                     <div className="relative flex items-center justify-center">
                         <span className="absolute inline-flex h-14 w-14 rounded-full bg-orange-500/25 animate-ping" />
@@ -184,7 +190,7 @@ export const LocationStep: React.FC<LocationStepProps> = ({
                     </div>
                 </div>
             ) : (
-                <div className={`rounded-xl overflow-hidden border-2 relative z-[1] ${cityError ? 'border-red-500' : 'border-slate-700'}`} style={{ height: 'clamp(180px, 38vw, 260px)' }}>
+                <div className={`rounded-xl overflow-hidden border-2 relative z-[1] ${cityError ? 'border-red-500' : 'border-slate-700'}`} style={{ height: 'min(40vh, 280px)' }}>
                     <APIProvider apiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY}>
                         <Map
                             defaultCenter={

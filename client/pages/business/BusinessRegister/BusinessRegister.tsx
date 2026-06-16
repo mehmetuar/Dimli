@@ -122,13 +122,15 @@ export const BusinessRegister: React.FC = () => {
             }}
         >
             <div
-                className="flex-1 min-h-0 overflow-y-auto scrollbar-hide flex flex-col px-3 md:px-4 md:items-center md:justify-center"
+                className="flex-1 min-h-0 overflow-y-auto scrollbar-hide flex flex-col px-3 md:px-4 md:items-center md:justify-center bg-slate-900 md:bg-transparent"
                 style={{
                     paddingTop: 'calc(max(env(safe-area-inset-top, 0px), 20px) + 5.5rem)',
-                    paddingBottom: keyboardHeight > 0 ? keyboardHeight + 12 : 'max(16px, env(safe-area-inset-bottom, 16px))',
+                    paddingBottom: keyboardHeight > 0
+                        ? `calc(${keyboardHeight}px + env(safe-area-inset-bottom, 0px))`
+                        : 'max(16px, env(safe-area-inset-bottom, 16px))',
                 }}
             >
-            <div className="w-full max-w-4xl flex-1 min-h-0 md:flex-none md:min-h-[600px] bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-800 shadow-2xl overflow-hidden flex flex-col md:flex-row">
+            <div className="w-full max-w-4xl flex-1 md:flex-none md:min-h-[600px] bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-800 shadow-2xl overflow-hidden flex flex-col md:flex-row">
 
                 <RegisterSidebar currentStep={currentStep} />
 
