@@ -22,8 +22,7 @@
     "strictBindCallApply": false,
     "noFallthroughCasesInSwitch": false,
     "strictPropertyInitialization": false,
-    "useUnknownInCatchVariables": false,
-    "ignoreDeprecations": "6.0"
+    "useUnknownInCatchVariables": false
   },
   "exclude": ["node_modules", "dist", "scripts", "test"]
 }
