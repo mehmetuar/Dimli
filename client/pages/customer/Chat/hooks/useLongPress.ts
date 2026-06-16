@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 
 export const useLongPress = (callback: () => void, ms = 500) => {
     const [startLongPress, setStartLongPress] = useState(false);
-    const timerRef = useRef<NodeJS.Timeout>();
+    const timerRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
     useEffect(() => {
         if (startLongPress) {

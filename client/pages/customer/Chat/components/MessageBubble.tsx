@@ -32,7 +32,7 @@ export const MessageBubble: React.FC<Props> = ({
     const isNextSameSender = !!nextMsg && !nextMsg.isSystem && !msg.isSystem && nextMsg.senderId === msg.senderId;
     const isNextSameTime = nextMsg?.timestamp === msg.timestamp;
 
-    const timerRef = useRef<ReturnType<typeof setTimeout>>();
+    const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     const startPos = useRef({ x: 0, y: 0 });
     // containerRef: native non-passive touchstart listener için (iOS metin seçimini önler)
     const containerRef = useRef<HTMLDivElement>(null);

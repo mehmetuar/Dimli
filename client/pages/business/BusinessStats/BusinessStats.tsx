@@ -116,7 +116,7 @@ export const BusinessStats: React.FC = () => {
                     <p className="text-slate-400 font-bold text-sm text-center">{error || 'Veri bulunamadı.'}</p>
                 </div>
                 <button
-                    onClick={refetch}
+                    onClick={() => refetch()}
                     className="flex items-center gap-2 px-6 py-3 bg-orange-500 rounded-xl font-black uppercase italic text-sm shadow-lg shadow-orange-500/20 active:scale-95 transition-transform"
                     style={{ WebkitTapHighlightColor: 'transparent' }}
                 >

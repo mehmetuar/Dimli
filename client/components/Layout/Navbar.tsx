@@ -91,7 +91,7 @@ export const Navbar: React.FC = () => {
           className="fixed top-bell-safe right-4 z-50"
           style={
             (location.pathname === '/' || location.pathname === '/pitches')
-              ? { opacity: 'var(--header-opacity, 1)', pointerEvents: 'var(--header-pointer-events, auto)' } as React.CSSProperties
+              ? { opacity: 'var(--header-opacity, 1)', pointerEvents: 'var(--header-pointer-events, auto)' } as unknown as React.CSSProperties
               : undefined
           }
         >

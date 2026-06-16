@@ -31,8 +31,10 @@ const config: CapacitorConfig = {
       showSpinner: false,
     },
     Keyboard: {
-      resize: 'body',
-      style: 'dark',
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      resize: 'body' as any,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      style: 'dark' as any,
       resizeOnFullScreen: true,
     }
   },

@@ -1,5 +1,5 @@
 {
-  "typescript.tsdk": "server/node_modules/typescript/lib",
+  "typescript.tsdk": "client/node_modules/typescript/lib",
   "css.lint.unknownAtRules": "ignore",
   "tailwindCSS.emmetCompletions": true,
   "editor.quickSuggestions": {

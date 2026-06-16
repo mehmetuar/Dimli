@@ -24,7 +24,7 @@ export const ChannelItem: React.FC<ChannelItemProps> = ({
 }) => {
     const [startLongPress, setStartLongPress] = useState(false);
     const [isLongPressTriggered, setIsLongPressTriggered] = useState(false);
-    const timerRef = useRef<any>();
+    const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
     useEffect(() => {
         if (startLongPress) {

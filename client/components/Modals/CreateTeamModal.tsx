@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { X, Shield, Trophy, Palette, AlertCircle, Camera, Loader2, Check } from 'lucide-react';
-import { Team } from '../../types';
+import { Team, SkillLevel } from '../../types';
 import { CURRENT_USER, MOCK_TEAMS } from '../../constants';
 import { ColorPickerModal, TEAM_COLORS } from './ColorPickerModal';
 import { ImageCropModal } from './ImageCropModal';
@@ -24,7 +24,7 @@ const CreateTeamModalContent: React.FC<Props> = ({ isOpen, onClose, onCreate }) 
     const keyboardHeight = useKeyboardHeight();
 
     const [name, setName] = useState('');
-    const [level, setLevel] = useState('BEGINNER');
+    const [level, setLevel] = useState<string>('BEGINNER');
     const [color, setColor] = useState('#ef4444');
     const [secondaryColor, setSecondaryColor] = useState('#3b82f6');
     const [description, setDescription] = useState('');
@@ -96,7 +96,7 @@ const CreateTeamModalContent: React.FC<Props> = ({ isOpen, onClose, onCreate }) 
 
             const newTeam: Partial<Team> = {
                 name: name.trim(),
-                level,
+                level: level as SkillLevel,
                 primaryColor: color,
                 secondaryColor,
                 description: description || 'Sahaların yeni yıldızı.',
