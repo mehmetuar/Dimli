@@ -24,7 +24,10 @@ export class BusinessOwnerController {
 
   @UseGuards(JwtAuthGuard)
   @Patch('push-token')
-  async updatePushToken(@Request() req: any, @Body('token') token: string) {
+  async updatePushToken(
+    @Request() req: { user: Express.User },
+    @Body('token') token: string,
+  ) {
     if (!token) return { success: false };
     await this.businessOwnerService.updatePushToken(req.user.id, token);
     return { success: true };
@@ -65,7 +68,10 @@ export class BusinessOwnerController {
   }
 
   @Post('approve-reservation/:id')
-  approveReservation(@Param('id') reservationId: string, @Body() body: any) {
+  approveReservation(
+    @Param('id') reservationId: string,
+    @Body() body: { ownerId: string },
+  ) {
     return this.businessOwnerService.approveReservation(
       reservationId,
       body.ownerId,
@@ -80,7 +86,7 @@ export class BusinessOwnerController {
   @UseGuards(JwtAuthGuard)
   @Patch('change-password')
   async changePassword(
-    @Request() req: any,
+    @Request() req: { user: Express.User },
     @Body() body: { currentPassword: string; newPassword: string },
   ) {
     if (!body.newPassword || body.newPassword.length < 6) {
@@ -96,7 +102,10 @@ export class BusinessOwnerController {
 
   @UseGuards(JwtAuthGuard)
   @Delete('account')
-  async deleteAccount(@Request() req: any, @Body('password') password: string) {
+  async deleteAccount(
+    @Request() req: { user: Express.User },
+    @Body('password') password: string,
+  ) {
     if (!password)
       throw new BadRequestException('Şifre doğrulaması gereklidir.');
     return this.businessOwnerService.deleteAccount(req.user.id, password);

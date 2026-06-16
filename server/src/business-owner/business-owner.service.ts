@@ -6,7 +6,15 @@ import {
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, Not, IsNull, In, MoreThanOrEqual } from 'typeorm';
+import {
+  Repository,
+  Between,
+  Not,
+  IsNull,
+  In,
+  MoreThanOrEqual,
+  DeepPartial,
+} from 'typeorm';
 import { BusinessOwner } from './entities/business-owner.entity';
 import { ReservationsService } from '../reservations/reservations.service';
 import { Pitch } from '../pitches/entities/pitch.entity';
@@ -35,7 +43,9 @@ export class BusinessOwnerService {
   ) {}
 
   async create(createBusinessOwnerDto: any): Promise<BusinessOwner> {
-    const owner = this.businessOwnerRepository.create(createBusinessOwnerDto);
+    const owner = this.businessOwnerRepository.create(
+      createBusinessOwnerDto as DeepPartial<BusinessOwner>,
+    );
     const saved = await this.businessOwnerRepository.save(owner);
     return Array.isArray(saved) ? saved[0] : saved;
   }
@@ -158,7 +168,7 @@ export class BusinessOwnerService {
               slotTime,
             );
           const slotReservations = reservations.filter((r: any) => {
-            const rTime = new Date(r.slotTime);
+            const rTime = new Date(r.slotTime as string);
             return Math.abs(rTime.getTime() - slotTime.getTime()) < 60000;
           });
 
@@ -229,7 +239,7 @@ export class BusinessOwnerService {
               slotTime,
             );
           const slotReservations = reservations.filter((r: any) => {
-            const rTime = new Date(r.slotTime);
+            const rTime = new Date(r.slotTime as string);
             return Math.abs(rTime.getTime() - slotTime.getTime()) < 60000;
           });
 
@@ -294,7 +304,7 @@ export class BusinessOwnerService {
     };
   }
 
-  async approveReservation(reservationId: string, ownerId: string) {
+  async approveReservation(reservationId: string, _ownerId: string) {
     return this.reservationsService.approve(reservationId);
   }
 
@@ -544,7 +554,7 @@ export class BusinessOwnerService {
 
       await queryRunner.commitTransaction();
       return { success: true, message: 'Hesap başarıyla silindi.' };
-    } catch (error) {
+    } catch {
       await queryRunner.rollbackTransaction();
       throw new InternalServerErrorException(
         'Hesap silinirken bir hata oluştu.',

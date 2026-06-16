@@ -55,7 +55,7 @@ export class AuthController {
       const user = await this.usersService.create(createUserDto);
       await this.authService.cleanupOtp(createUserDto.phone);
 
-      const { password, ...result } = user;
+      const { password: _password, ...result } = user;
       return result;
     } catch (error: any) {
       console.error('Registration error:', error.message);
@@ -129,7 +129,7 @@ export class AuthController {
   }
 
   @Post('business/login')
-  async loginBusiness(@Body() body) {
+  async loginBusiness(@Body() body: { email: string; password: string }) {
     const owner = await this.authService.validateBusinessOwner(
       body.email,
       body.password,

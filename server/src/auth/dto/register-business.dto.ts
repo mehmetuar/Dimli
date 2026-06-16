@@ -6,7 +6,6 @@ import {
   IsNumber,
   IsArray,
   ValidateNested,
-  IsPhoneNumber,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 

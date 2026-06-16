@@ -37,20 +37,19 @@ export class UsersController {
 
   @UseGuards(JwtAuthGuard)
   @Get('me')
-  async getProfile(@Request() req) {
+  async getProfile(@Request() req: { user: Express.User }) {
     // req.user is populated by JwtStrategy (contains { id, username })
     const user = await this.usersService.findById(req.user.id);
     if (!user) {
       return null;
     }
-    const { password, ...result } = user;
+    const { password: _password, ...result } = user;
     return result;
   }
 
   @UseGuards(JwtAuthGuard)
   @Get('search')
-  async search(@Request() req) {
-    const query = req.query.q;
+  async search(@Query('q') query?: string) {
     if (!query) return [];
     return this.usersService.search(query);
   }
@@ -80,18 +79,24 @@ export class UsersController {
 
   @UseGuards(JwtAuthGuard)
   @Patch('me')
-  async updateProfile(@Request() req, @Body() updateUserDto: UpdateUserDto) {
+  async updateProfile(
+    @Request() req: { user: Express.User },
+    @Body() updateUserDto: UpdateUserDto,
+  ) {
     const user = await this.usersService.update(req.user.id, updateUserDto);
     if (!user) {
       return null;
     }
-    const { password, ...result } = user;
+    const { password: _password, ...result } = user;
     return result;
   }
 
   @UseGuards(JwtAuthGuard)
   @Patch('push-token')
-  async updatePushToken(@Request() req, @Body('token') token: string) {
+  async updatePushToken(
+    @Request() req: { user: Express.User },
+    @Body('token') token: string,
+  ) {
     if (!token) return { success: false, message: 'Token is required' };
     await this.usersService.updatePushToken(req.user.id, token);
     return { success: true };
@@ -101,7 +106,7 @@ export class UsersController {
   @Post('change-password')
   @HttpCode(HttpStatus.OK)
   async changePassword(
-    @Request() req,
+    @Request() req: { user: Express.User },
     @Body() changePasswordDto: ChangePasswordDto,
   ) {
     return this.usersService.changePassword(req.user.id, changePasswordDto);
@@ -111,7 +116,7 @@ export class UsersController {
   @Delete('me')
   @HttpCode(HttpStatus.OK)
   async deleteAccount(
-    @Request() req,
+    @Request() req: { user: Express.User },
     @Body() body: { reason: string; note?: string; password: string },
   ) {
     await this.usersService.deleteAccount(req.user.id, body);

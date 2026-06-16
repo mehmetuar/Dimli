@@ -496,7 +496,7 @@ export class AuthService {
   async validateUser(username: string, pass: string): Promise<any> {
     const user = await this.usersService.findOne(username);
     if (user && (await bcrypt.compare(pass, user.password))) {
-      const { password, ...result } = user;
+      const { password: _password, ...result } = user;
       return result;
     }
     return null;
@@ -505,7 +505,7 @@ export class AuthService {
   async validateBusinessOwner(email: string, pass: string): Promise<any> {
     const owner = await this.businessOwnerService.findByEmail(email);
     if (owner && (await bcrypt.compare(pass, owner.password))) {
-      const { password, ...result } = owner;
+      const { password: _password, ...result } = owner;
       return result;
     }
     return null;
@@ -536,14 +536,14 @@ export class AuthService {
 
   async registerBusinessOwner(data: any) {
     const salt = await bcrypt.genSalt();
-    const hashedPassword = await bcrypt.hash(data.password, salt);
+    const hashedPassword = await bcrypt.hash(data.password as string, salt);
 
     const newOwner = await this.businessOwnerService.create({
       ...data,
       password: hashedPassword,
     });
 
-    const { password, ...result } = newOwner;
+    const { password: _password, ...result } = newOwner;
     return result;
   }
 
@@ -677,7 +677,7 @@ export class AuthService {
         });
       }
 
-      const { password, ...result } = savedOwner;
+      const { password: _password, ...result } = savedOwner;
       const payload = {
         email: savedOwner.email,
         sub: savedOwner.id,

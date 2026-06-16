@@ -405,12 +405,17 @@ export class AdminService {
         where: { id: request.pitchId },
       });
       const currentFacilities = pitch?.facilities || [];
-      if (!currentFacilities.includes(request.requestedData.facility)) {
+      if (
+        !currentFacilities.includes(request.requestedData.facility as string)
+      ) {
         await this.pitchRepository.update(request.pitchId, {
-          facilities: [...currentFacilities, request.requestedData.facility],
+          facilities: [
+            ...currentFacilities,
+            request.requestedData.facility as string,
+          ],
         });
         await this.facilitiesService.upsertApproved(
-          request.requestedData.facility,
+          request.requestedData.facility as string,
         );
       }
     } else if (request.type === 'PHOTO_UPDATE') {

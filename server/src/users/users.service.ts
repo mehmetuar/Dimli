@@ -153,10 +153,12 @@ export class UsersService {
       const results = await qb.getMany();
       const hasMore = results.length > PAGE;
       const page = results.slice(0, PAGE);
-      const mapped = page.map(({ password, pushToken, ...safe }: any) => ({
-        ...safe,
-        distanceKm: null,
-      }));
+      const mapped = page.map(
+        ({ password: _password, pushToken: _pushToken, ...safe }: any) => ({
+          ...safe,
+          distanceKm: null,
+        }),
+      );
       return { jokers: mapped, hasMore };
     }
 
@@ -218,7 +220,7 @@ export class UsersService {
       .getMany();
 
     const mapped = jokers
-      .map(({ password, pushToken, ...safe }) => ({
+      .map(({ password: _password, pushToken: _pushToken, ...safe }) => ({
         ...safe,
         distanceKm: distanceMap.get(safe.id) ?? 0,
       }))

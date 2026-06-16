@@ -12,7 +12,9 @@ export class FirebaseService {
           process.env.FIREBASE_SERVICE_ACCOUNT_JSON || '{}',
         );
         admin.initializeApp({
-          credential: admin.credential.cert(serviceAccount),
+          credential: admin.credential.cert(
+            serviceAccount as admin.ServiceAccount,
+          ),
         });
       } catch (e) {
         this.logger.error('Firebase init failed', e);

@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { AdminJwtAuthGuard } from './admin-jwt-auth.guard';
+import { ReportStatus } from '../user-reports/user-report.entity';
 
 @Controller('admin')
 export class AdminController {
@@ -42,7 +43,7 @@ export class AdminController {
   @Post('applications/:businessId/approve')
   async approveApplication(
     @Param('businessId') businessId: string,
-    @Request() req,
+    @Request() req: { user: Express.User },
   ) {
     return this.adminService.approveApplication(businessId, req.user.id);
   }
@@ -52,7 +53,7 @@ export class AdminController {
   async rejectApplication(
     @Param('businessId') businessId: string,
     @Body() body: { reason: string },
-    @Request() req,
+    @Request() req: { user: Express.User },
   ) {
     return this.adminService.rejectApplication(
       businessId,
@@ -65,7 +66,7 @@ export class AdminController {
   @Patch('applications/:businessId')
   async updateApplication(
     @Param('businessId') businessId: string,
-    @Body() body: any,
+    @Body() body: Parameters<AdminService['updateApplication']>[1],
   ) {
     return this.adminService.updateApplication(businessId, body);
   }
@@ -155,7 +156,7 @@ export class AdminController {
   @UseGuards(AdminJwtAuthGuard)
   @Get('reports')
   async getReports(@Query('status') status?: string) {
-    return this.adminService.getReports(status as any);
+    return this.adminService.getReports(status as ReportStatus | undefined);
   }
 
   @UseGuards(AdminJwtAuthGuard)
@@ -164,7 +165,7 @@ export class AdminController {
     @Param('id') id: string,
     @Body('status') status: string,
   ) {
-    return this.adminService.updateReportStatus(id, status as any);
+    return this.adminService.updateReportStatus(id, status as ReportStatus);
   }
 
   @UseGuards(AdminJwtAuthGuard)
