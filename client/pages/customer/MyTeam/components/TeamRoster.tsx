@@ -53,7 +53,7 @@ export const TeamRoster: React.FC<TeamRosterProps> = ({
                         <div key={player.id} className="flex items-center gap-3 p-2 rounded-lg bg-slate-900/50 hover:bg-slate-700/50 transition-colors group">
                             <div className="w-10 h-10 rounded-full bg-slate-600 overflow-hidden relative border border-slate-700">
                                 <img src={player.avatarUrl} alt="Player" className="w-full h-full object-cover" />
-                                {myTeam.captain?.id === player.id && (
+                                {myTeam.captainId === player.id && (
                                     <div className="absolute bottom-0 right-0 bg-yellow-500 rounded-full p-0.5 border border-slate-900" title="Kaptan">
                                         <Crown className="w-2.5 h-2.5 text-black fill-black" />
                                     </div>

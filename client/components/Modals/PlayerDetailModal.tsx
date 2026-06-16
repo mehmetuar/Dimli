@@ -45,7 +45,7 @@ const PlayerDetailModalContent: React.FC<PlayerDetailModalProps> = ({
     }, [isOpen]);
 
     // Resolve favorite pitches/businesses (Check both keys to be safe with Player type vs User entity)
-    const activeFavorites = (player.favoriteBusinessIds || player.favoritePitchIds || []);
+    const activeFavorites = (player.favoritePitchIds || []);
     const favoriteItems = activeFavorites.map(id =>
         businesses.find(b => b.id === id)
     ).filter(Boolean);

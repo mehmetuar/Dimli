@@ -320,9 +320,9 @@ export const KendiAramizdaMatchModal: React.FC<MatchDetailModalProps> = ({ isOpe
                         </div>
 
                         {/* ── CALL BUSINESS BUTTON ── */}
-                        {data.pitch?.business?.ownerPhone && (
+                        {data.pitch?.business?.phone && (
                             <a
-                                href={`tel:${data.pitch.business.ownerPhone}`}
+                                href={`tel:${data.pitch.business.phone}`}
                                 className="w-full bg-gradient-to-r from-turf-600 to-green-500 text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-turf-600/20 active:scale-95 transition-transform"
                             >
                                 <Phone className="w-5 h-5" />

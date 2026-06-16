@@ -62,6 +62,7 @@ export interface Team {
   homeBusinessId?: string; // The ID of their favorite business
   fairPlayScore: number; // 1-5
   fairPlayRatingCount?: number;
+  location?: string;
   description: string;
   guestPlayerIds?: string[]; // IDs of jokers playing temporarily
   players?: any[]; // Team roster from API

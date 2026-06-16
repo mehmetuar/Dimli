@@ -114,8 +114,8 @@ export const Notifications: React.FC = () => {
             player={selectedJoinRequest ? {
                id: selectedJoinRequest.user.id,
                name: selectedJoinRequest.user.full_name || selectedJoinRequest.user.username,
-               username: selectedJoinRequest.user.username,
-               position: selectedJoinRequest.user.position,
+               isJoker: false,
+               position: selectedJoinRequest.user.position as any,
                foot: selectedJoinRequest.user.foot,
                birthDate: selectedJoinRequest.user.birthDate,
                secondaryPosition: selectedJoinRequest.user.secondaryPosition,
