@@ -18,13 +18,13 @@ export class NotificationsController {
 
   @UseGuards(JwtAuthGuard)
   @Get()
-  async getAll(@Request() req) {
+  async getAll(@Request() req: { user: Express.User }) {
     return this.notificationsService.findByUser(req.user.id);
   }
 
   @UseGuards(JwtAuthGuard)
   @Get('unread-count')
-  async getUnreadCount(@Request() req) {
+  async getUnreadCount(@Request() req: { user: Express.User }) {
     const count = await this.notificationsService.getUnreadCount(req.user.id);
     return { count };
   }
@@ -45,7 +45,7 @@ export class NotificationsController {
   @UseGuards(JwtAuthGuard)
   @Post('joker-invite')
   async sendJokerInvite(
-    @Request() req,
+    @Request() req: { user: Express.User },
     @Body() body: { jokerId: string; matchId: string; note?: string },
   ) {
     return this.notificationsService.sendJokerInvite(
@@ -58,14 +58,17 @@ export class NotificationsController {
 
   @UseGuards(JwtAuthGuard)
   @Get('sent-joker-invites/:jokerId')
-  async getSentJokerInvites(@Request() req, @Param('jokerId') jokerId: string) {
+  async getSentJokerInvites(
+    @Request() req: { user: Express.User },
+    @Param('jokerId') jokerId: string,
+  ) {
     return this.notificationsService.getSentJokerInvites(req.user.id, jokerId);
   }
 
   @UseGuards(JwtAuthGuard)
   @Delete('joker-invite/:jokerId/:matchId')
   async cancelJokerInvite(
-    @Request() req,
+    @Request() req: { user: Express.User },
     @Param('jokerId') jokerId: string,
     @Param('matchId') matchId: string,
   ) {

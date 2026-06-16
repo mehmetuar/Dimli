@@ -16,19 +16,19 @@ export class RatingsController {
 
   @UseGuards(JwtAuthGuard)
   @Get('pending')
-  getPending(@Request() req: any) {
+  getPending(@Request() req: { user: Express.User }) {
     return this.ratingsService.getPendingRatings(req.user.id);
   }
 
   @UseGuards(JwtAuthGuard)
   @Get('history')
-  getHistory(@Request() req: any) {
+  getHistory(@Request() req: { user: Express.User }) {
     return this.ratingsService.getMatchHistory(req.user.id);
   }
 
   @UseGuards(JwtAuthGuard)
   @Post()
-  submit(@Request() req: any, @Body() dto: CreateRatingDto) {
+  submit(@Request() req: { user: Express.User }, @Body() dto: CreateRatingDto) {
     return this.ratingsService.submitRating(req.user.id, dto);
   }
 }

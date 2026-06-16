@@ -20,13 +20,11 @@ export class MatchAnnouncementsController {
 
   @UseGuards(JwtAuthGuard)
   @Post()
-  create(@Body() createDto: any, @Request() req) {
-    console.log('🎯 Controller - req.user:', req.user);
-    console.log('🎯 Controller - userId:', req.user?.userId || req.user?.id);
-    return this.matchAnnouncementsService.create(
-      createDto,
-      req.user.userId || req.user.id,
-    );
+  create(
+    @Body() createDto: Parameters<MatchAnnouncementsService['create']>[0],
+    @Request() req: { user: Express.User },
+  ) {
+    return this.matchAnnouncementsService.create(createDto, req.user.id);
   }
 
   @Get()
@@ -64,10 +62,7 @@ export class MatchAnnouncementsController {
 
   @UseGuards(JwtAuthGuard)
   @Delete(':id')
-  delete(@Param('id') id: string, @Request() req) {
-    return this.matchAnnouncementsService.delete(
-      id,
-      req.user.userId || req.user.id,
-    );
+  delete(@Param('id') id: string, @Request() req: { user: Express.User }) {
+    return this.matchAnnouncementsService.delete(id, req.user.id);
   }
 }

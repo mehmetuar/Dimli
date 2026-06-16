@@ -198,8 +198,8 @@ export class RatingsService {
         .andWhere('r.targetBusinessId = :id', { id: dto.targetBusinessId })
         .getRawOne();
       await this.businessRepo.update(dto.targetBusinessId, {
-        rating: Math.round(parseFloat(avg) * 10) / 10,
-        ratingCount: parseInt(count, 10),
+        rating: Math.round(parseFloat(avg as string) * 10) / 10,
+        ratingCount: parseInt(count as string, 10),
       });
     }
 
@@ -212,8 +212,8 @@ export class RatingsService {
         .andWhere('r.targetTeamId = :id', { id: dto.targetTeamId })
         .getRawOne();
       await this.teamRepo.update(dto.targetTeamId, {
-        fairPlayScore: Math.round(parseFloat(avg) * 10) / 10,
-        fairPlayRatingCount: parseInt(count, 10),
+        fairPlayScore: Math.round(parseFloat(avg as string) * 10) / 10,
+        fairPlayRatingCount: parseInt(count as string, 10),
       });
     }
   }

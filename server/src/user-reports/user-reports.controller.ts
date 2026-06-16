@@ -16,7 +16,7 @@ export class UserReportsController {
       channelId?: string;
       note?: string;
     },
-    @Request() req,
+    @Request() req: { user: Express.User },
   ) {
     await this.userReportsService.createReport(
       req.user.id,

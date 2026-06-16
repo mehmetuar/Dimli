@@ -35,7 +35,7 @@ export class AppGateway implements OnGatewayConnection, OnGatewayDisconnect {
         return;
       }
 
-      const payload = this.jwtService.verify(token, {
+      const payload = this.jwtService.verify(token as string, {
         secret: process.env.JWT_SECRET || 'SECRET_KEY',
       });
 
@@ -43,7 +43,7 @@ export class AppGateway implements OnGatewayConnection, OnGatewayDisconnect {
       socket.data.userId = userId;
       socket.data.username = payload.username;
 
-      await socket.join(userId);
+      await socket.join(userId as string);
       this.logger.log(`Client connected: ${userId}`);
     } catch {
       socket.disconnect();

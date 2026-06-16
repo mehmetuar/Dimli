@@ -57,7 +57,7 @@ export class NotificationsService {
       .findOne({ where: { id: saved.userId } })
       .then((user) => {
         if (user?.pushToken) {
-          this.firebaseService.sendToDevice(
+          void this.firebaseService.sendToDevice(
             user.pushToken,
             'Katılım İsteği',
             'Takımına yeni bir katılım isteği var',
@@ -85,7 +85,7 @@ export class NotificationsService {
       read: false,
     });
 
-    const saved = await this.notificationsRepository.save(notification);
+    await this.notificationsRepository.save(notification);
     this.gateway?.server
       ?.to(playerId)
       .emit('notification', { type: 'TEAM_KICKED' });
@@ -93,7 +93,7 @@ export class NotificationsService {
       .findOne({ where: { id: playerId } })
       .then((user) => {
         if (user?.pushToken) {
-          this.firebaseService.sendToDevice(
+          void this.firebaseService.sendToDevice(
             user.pushToken,
             'Takımdan Çıkarıldınız',
             `${team.name} takımından çıkarıldınız.`,
@@ -122,7 +122,7 @@ export class NotificationsService {
       read: false,
     });
 
-    const saved = await this.notificationsRepository.save(notification);
+    await this.notificationsRepository.save(notification);
     this.gateway?.server
       ?.to(userId)
       .emit('notification', { type: 'JOIN_REQUEST_ACCEPTED' });
@@ -130,7 +130,7 @@ export class NotificationsService {
       .findOne({ where: { id: userId } })
       .then((user) => {
         if (user?.pushToken) {
-          this.firebaseService.sendToDevice(
+          void this.firebaseService.sendToDevice(
             user.pushToken,
             'Katılma İsteği Onaylandı',
             `${team.name} takımına katılma isteğiniz onaylandı!`,
@@ -168,13 +168,13 @@ export class NotificationsService {
       saved.userId &&
       (userPushTypes.has(saved.type) ||
         (saved.type === 'SYSTEM' &&
-          userSystemPushTypes.has(saved.metadata?.type)));
+          userSystemPushTypes.has(saved.metadata?.type as string)));
     if (isUserPush) {
       this.usersRepository
         .findOne({ where: { id: saved.userId } })
         .then((user) => {
           if (user?.pushToken) {
-            this.firebaseService.sendToDevice(
+            void this.firebaseService.sendToDevice(
               user.pushToken,
               saved.title || 'Yeni Bildirim',
               saved.message || '',
@@ -196,7 +196,7 @@ export class NotificationsService {
         .findOne({ where: { id: saved.userId } })
         .then((owner) => {
           if (owner?.pushToken) {
-            this.firebaseService.sendToDevice(
+            void this.firebaseService.sendToDevice(
               owner.pushToken,
               saved.title || 'Yeni Bildirim',
               saved.message || '',
@@ -261,7 +261,7 @@ export class NotificationsService {
       .findOne({ where: { id: jokerId } })
       .then((user) => {
         if (user?.pushToken) {
-          this.firebaseService.sendToDevice(
+          void this.firebaseService.sendToDevice(
             user.pushToken,
             'Joker Daveti ⚡',
             saved.message || 'Seni maça joker olarak davet ediyorlar!',

@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import { TeamsService } from './teams.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { User } from '../users/user.entity';
 import { ChatService } from '../chat/chat.service';
 import { NotificationsService } from '../notifications/notifications.service';
 
@@ -26,9 +27,15 @@ export class TeamsController {
 
   @UseGuards(JwtAuthGuard)
   @Post()
-  async create(@Body() createTeamDto: any, @Request() req) {
+  async create(
+    @Body() createTeamDto: any,
+    @Request() req: { user: Express.User },
+  ) {
     try {
-      return await this.teamsService.create(createTeamDto, req.user);
+      return await this.teamsService.create(
+        createTeamDto,
+        req.user as unknown as User,
+      );
     } catch (error: any) {
       console.error('🔥 TEAM CREATION ERROR 🔥', error);
       throw new HttpException(
@@ -66,7 +73,10 @@ export class TeamsController {
 
   @UseGuards(JwtAuthGuard)
   @Post(':id/join-via-invite')
-  joinViaInvite(@Param('id') id: string, @Request() req) {
+  joinViaInvite(
+    @Param('id') id: string,
+    @Request() req: { user: Express.User },
+  ) {
     return this.teamsService.joinTeamViaInvite(id, req.user.id);
   }
 
@@ -75,7 +85,7 @@ export class TeamsController {
   async removePlayer(
     @Param('id') id: string,
     @Param('playerId') playerId: string,
-    @Request() req,
+    @Request() req: { user: Express.User },
   ) {
     const result = await this.teamsService.removePlayer(
       id,
@@ -154,7 +164,10 @@ export class TeamsController {
 
   @UseGuards(JwtAuthGuard)
   @Delete(':id/leave')
-  async leaveTeam(@Param('id') id: string, @Request() req: any) {
+  async leaveTeam(
+    @Param('id') id: string,
+    @Request() req: { user: Express.User },
+  ) {
     const result = await this.teamsService.leaveTeam(id, req.user.id);
     await this.chatService.removeUserFromTeamActiveMatchChannels(
       req.user.id,
@@ -165,7 +178,7 @@ export class TeamsController {
 
   @UseGuards(JwtAuthGuard)
   @Delete(':id')
-  deleteTeam(@Param('id') id: string, @Request() req) {
+  deleteTeam(@Param('id') id: string, @Request() req: { user: Express.User }) {
     return this.teamsService.deleteTeam(id, req.user.id);
   }
 }

@@ -10,7 +10,7 @@ import {
   forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, IsNull, In, MoreThan, LessThan } from 'typeorm';
+import { Repository, IsNull, In, LessThan } from 'typeorm';
 import { ChatChannel } from './chat-channel.entity';
 import { ChatMessage } from './chat-message.entity';
 import { ChatParticipant } from './chat-participant.entity';
@@ -167,7 +167,10 @@ export class ChatService {
     );
 
     const unreadMap = new Map<string, number>(
-      unreadRows.map((r) => [r.channelId, parseInt(r.unread_count, 10)]),
+      unreadRows.map((r) => [
+        r.channelId as string,
+        parseInt(r.unread_count as string, 10),
+      ]),
     );
 
     const channels = await Promise.all(
@@ -223,7 +226,7 @@ export class ChatService {
                     teamId: match.teamId,
                   } as any;
                 }
-              } catch (e) {
+              } catch {
                 // ignore date parse errors
               }
             }
@@ -388,7 +391,7 @@ export class ChatService {
             }
             return match.status === 'CONFIRMED' ? 'confirmed' : 'pending';
           }
-        } catch (e) {
+        } catch {
           return null;
         }
       } else {
@@ -593,7 +596,7 @@ export class ChatService {
         `,
       [userId],
     );
-    return parseInt(result[0]?.total ?? '0', 10);
+    return parseInt((result[0]?.total ?? '0') as string, 10);
   }
 
   async deleteChannel(channelId: string, userId: string): Promise<void> {
@@ -670,8 +673,6 @@ export class ChatService {
   }
 
   async getChannelMatchDetails(channelId: string): Promise<any> {
-    const logger = new Logger('ChatService');
-
     // 1. Find the channel
     const channel = await this.chatChannelRepository.findOne({
       where: { id: channelId },
@@ -713,7 +714,7 @@ export class ChatService {
             type: 'MATCH',
           },
         });
-      } catch (e) {
+      } catch {
         // ignore date parse errors
       }
     }
@@ -748,7 +749,7 @@ export class ChatService {
 
     const [homeMatchCount, awayMatchCount] = await Promise.all([
       countMatchesForTeam(homeTeam?.id ?? null),
-      countMatchesForTeam(awayTeam?.id ?? null),
+      countMatchesForTeam((awayTeam?.id ?? null) as string | null),
     ]);
 
     const buildTeamData = (team: any, matchCount: number) => {
@@ -1195,11 +1196,10 @@ export class ChatService {
 
     // 14. Delete the original rematch proposal notifications
     try {
-      const proposalNotifications =
-        await this.chatChannelRepository.manager.query(
-          `DELETE FROM notifications WHERE type = 'REMATCH_PROPOSAL' AND "relatedId" = $1`,
-          [challenge.id],
-        );
+      await this.chatChannelRepository.manager.query(
+        `DELETE FROM notifications WHERE type = 'REMATCH_PROPOSAL' AND "relatedId" = $1`,
+        [challenge.id],
+      );
       logger.log(
         `Cleaned up rematch proposal notifications for challenge ${challenge.id}`,
       );
@@ -1296,8 +1296,6 @@ export class ChatService {
     negotiationChannelId: string,
     inviterId: string,
   ): Promise<any> {
-    const logger = new Logger('ChatService');
-
     // 1. Find the negotiation channel
     const negotiationChannel = await this.chatChannelRepository.findOne({
       where: { id: negotiationChannelId },
@@ -1441,7 +1439,7 @@ export class ChatService {
     for (const msg of joinMessages) {
       if (msg.metadata?.type === 'JOKER_JOINED' && msg.metadata?.jokerId) {
         if (msg.sender?.team?.id === requesterTeamId) {
-          allowedJokerIds.add(msg.metadata.jokerId);
+          allowedJokerIds.add(msg.metadata.jokerId as string);
         }
       }
     }

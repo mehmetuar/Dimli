@@ -153,7 +153,7 @@ export class MatchAnnouncementsService {
     // Kesinleşmiş maç saati çakışma kontrolü
     const conflictingMatch =
       await this.reservationsService.hasConflictingApprovedMatch(
-        user.team.id,
+        user.team.id as string,
         slotDateTime,
       );
     if (conflictingMatch) {

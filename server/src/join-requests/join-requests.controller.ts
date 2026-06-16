@@ -29,7 +29,7 @@ export class JoinRequestsController {
   @Post()
   async create(
     @Body() dto: { teamId: string; message?: string },
-    @Request() req,
+    @Request() req: { user: Express.User },
   ) {
     return this.joinRequestsService.create(
       req.user.id,
@@ -40,7 +40,7 @@ export class JoinRequestsController {
 
   @UseGuards(JwtAuthGuard)
   @Get('my-pending')
-  async getMyPending(@Request() req) {
+  async getMyPending(@Request() req: { user: Express.User }) {
     return this.joinRequestsService.findPendingByUser(req.user.id);
   }
 
@@ -52,7 +52,7 @@ export class JoinRequestsController {
 
   @UseGuards(JwtAuthGuard)
   @Patch(':id/accept')
-  async accept(@Param('id') id: string, @Request() req) {
+  async accept(@Param('id') id: string, @Request() _req) {
     const joinRequest = await this.joinRequestsService.findById(id);
     await this.teamsService.addPlayer(joinRequest.teamId, joinRequest.userId);
     await this.chatService.addUserToTeamActiveMatchChannels(
@@ -80,7 +80,10 @@ export class JoinRequestsController {
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
   @Patch(':id/cancel')
-  async cancel(@Param('id') id: string, @Request() req) {
+  async cancel(
+    @Param('id') id: string,
+    @Request() req: { user: Express.User },
+  ) {
     return this.joinRequestsService.cancelRequest(id, req.user.id);
   }
 }

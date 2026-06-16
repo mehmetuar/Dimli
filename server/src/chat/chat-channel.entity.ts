@@ -3,11 +3,8 @@ import {
   Column,
   PrimaryGeneratedColumn,
   CreateDateColumn,
-  ManyToMany,
-  JoinTable,
   OneToMany,
 } from 'typeorm';
-import { User } from '../users/user.entity';
 import { ChatMessage } from './chat-message.entity';
 import { ChatParticipant } from './chat-participant.entity';
 
