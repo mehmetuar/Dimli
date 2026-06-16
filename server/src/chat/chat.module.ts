@@ -19,27 +19,27 @@ import { GatewayModule } from '../gateway/gateway.module';
 import { UserBlocksModule } from '../user-blocks/user-blocks.module';
 
 @Module({
-    imports: [
-        TypeOrmModule.forFeature([
-            ChatChannel,
-            ChatMessage,
-            ChatParticipant,
-            User,
-            Reservation,
-            MatchAnnouncement,
-            Team,
-            Pitch,
-            Challenge,
-        ]),
-        forwardRef(() => NotificationsModule),
-        forwardRef(() => ReservationsModule),
-        forwardRef(() => TeamsModule),
-        RatingsModule,
-        GatewayModule,
-        UserBlocksModule,
-    ],
-    controllers: [ChatController],
-    providers: [ChatService],
-    exports: [ChatService]
+  imports: [
+    TypeOrmModule.forFeature([
+      ChatChannel,
+      ChatMessage,
+      ChatParticipant,
+      User,
+      Reservation,
+      MatchAnnouncement,
+      Team,
+      Pitch,
+      Challenge,
+    ]),
+    forwardRef(() => NotificationsModule),
+    forwardRef(() => ReservationsModule),
+    forwardRef(() => TeamsModule),
+    RatingsModule,
+    GatewayModule,
+    UserBlocksModule,
+  ],
+  controllers: [ChatController],
+  providers: [ChatService],
+  exports: [ChatService],
 })
-export class ChatModule { }
+export class ChatModule {}

@@ -13,17 +13,17 @@ import { JoinRequestsModule } from '../join-requests/join-requests.module';
 import { TeamBansModule } from '../team-bans/team-bans.module';
 
 @Module({
-    imports: [
-        TypeOrmModule.forFeature([Team, MatchAnnouncement, Reservation]),
-        UsersModule,
-        RatingsModule,
-        forwardRef(() => ChatModule),
-        forwardRef(() => NotificationsModule),
-        forwardRef(() => JoinRequestsModule),
-        TeamBansModule,
-    ],
-    providers: [TeamsService],
-    controllers: [TeamsController],
-    exports: [TeamsService],
+  imports: [
+    TypeOrmModule.forFeature([Team, MatchAnnouncement, Reservation]),
+    UsersModule,
+    RatingsModule,
+    forwardRef(() => ChatModule),
+    forwardRef(() => NotificationsModule),
+    forwardRef(() => JoinRequestsModule),
+    TeamBansModule,
+  ],
+  providers: [TeamsService],
+  controllers: [TeamsController],
+  exports: [TeamsService],
 })
-export class TeamsModule { }
+export class TeamsModule {}

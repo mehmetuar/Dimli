@@ -8,14 +8,14 @@ import { TeamsModule } from '../teams/teams.module';
 import { ChatModule } from '../chat/chat.module';
 
 @Module({
-    imports: [
-        TypeOrmModule.forFeature([JoinRequest]),
-        forwardRef(() => NotificationsModule),
-        forwardRef(() => TeamsModule),
-        forwardRef(() => ChatModule),
-    ],
-    controllers: [JoinRequestsController],
-    providers: [JoinRequestsService],
-    exports: [JoinRequestsService],
+  imports: [
+    TypeOrmModule.forFeature([JoinRequest]),
+    forwardRef(() => NotificationsModule),
+    forwardRef(() => TeamsModule),
+    forwardRef(() => ChatModule),
+  ],
+  controllers: [JoinRequestsController],
+  providers: [JoinRequestsService],
+  exports: [JoinRequestsService],
 })
-export class JoinRequestsModule { }
+export class JoinRequestsModule {}

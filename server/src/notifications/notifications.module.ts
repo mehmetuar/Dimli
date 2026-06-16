@@ -13,20 +13,20 @@ import { GatewayModule } from '../gateway/gateway.module';
 import { FirebaseService } from '../firebase/firebase.service';
 
 @Module({
-    imports: [
-        TypeOrmModule.forFeature([
-            Notification,
-            Challenge,
-            ChatChannel,
-            MatchAnnouncement,
-            BusinessOwner,
-            User,
-        ]),
-        forwardRef(() => TeamsModule),
-        GatewayModule,
-    ],
-    controllers: [NotificationsController],
-    providers: [NotificationsService, FirebaseService],
-    exports: [NotificationsService],
+  imports: [
+    TypeOrmModule.forFeature([
+      Notification,
+      Challenge,
+      ChatChannel,
+      MatchAnnouncement,
+      BusinessOwner,
+      User,
+    ]),
+    forwardRef(() => TeamsModule),
+    GatewayModule,
+  ],
+  controllers: [NotificationsController],
+  providers: [NotificationsService, FirebaseService],
+  exports: [NotificationsService],
 })
-export class NotificationsModule { }
+export class NotificationsModule {}

@@ -1,4 +1,12 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, ManyToOne, JoinColumn, Index } from 'typeorm';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  CreateDateColumn,
+  ManyToOne,
+  JoinColumn,
+  Index,
+} from 'typeorm';
 import { User } from '../users/user.entity';
 import { ChatMessage } from '../chat/chat-message.entity';
 
@@ -9,39 +17,39 @@ export type ReportStatus = 'pending' | 'reviewed' | 'dismissed';
 @Index(['reporterId'])
 @Index(['status'])
 export class UserReport {
-    @PrimaryGeneratedColumn('uuid')
-    id: string;
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
 
-    @Column()
-    reporterId: string;
+  @Column()
+  reporterId: string;
 
-    @ManyToOne(() => User, { onDelete: 'CASCADE' })
-    @JoinColumn({ name: 'reporterId' })
-    reporter: User;
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'reporterId' })
+  reporter: User;
 
-    @Column()
-    reportedUserId: string;
+  @Column()
+  reportedUserId: string;
 
-    @ManyToOne(() => User, { onDelete: 'CASCADE' })
-    @JoinColumn({ name: 'reportedUserId' })
-    reportedUser: User;
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'reportedUserId' })
+  reportedUser: User;
 
-    @Column({ nullable: true, type: 'varchar' })
-    messageId: string | null;
+  @Column({ nullable: true, type: 'varchar' })
+  messageId: string | null;
 
-    @ManyToOne(() => ChatMessage, { nullable: true, onDelete: 'SET NULL' })
-    @JoinColumn({ name: 'messageId' })
-    message: ChatMessage | null;
+  @ManyToOne(() => ChatMessage, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'messageId' })
+  message: ChatMessage | null;
 
-    @Column({ nullable: true, type: 'varchar' })
-    channelId: string | null;
+  @Column({ nullable: true, type: 'varchar' })
+  channelId: string | null;
 
-    @Column({ nullable: true, type: 'text' })
-    note: string | null;
+  @Column({ nullable: true, type: 'text' })
+  note: string | null;
 
-    @Column({ default: 'pending' })
-    status: ReportStatus;
+  @Column({ default: 'pending' })
+  status: ReportStatus;
 
-    @CreateDateColumn()
-    createdAt: Date;
+  @CreateDateColumn()
+  createdAt: Date;
 }
