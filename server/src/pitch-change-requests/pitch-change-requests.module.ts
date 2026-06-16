@@ -8,11 +8,16 @@ import { BusinessOwner } from '../business-owner/entities/business-owner.entity'
 import { Notification } from '../notifications/notification.entity';
 
 @Module({
-    imports: [
-        TypeOrmModule.forFeature([PitchChangeRequest, Pitch, BusinessOwner, Notification]),
-    ],
-    controllers: [PitchChangeRequestsController],
-    providers: [PitchChangeRequestsService],
-    exports: [PitchChangeRequestsService],
+  imports: [
+    TypeOrmModule.forFeature([
+      PitchChangeRequest,
+      Pitch,
+      BusinessOwner,
+      Notification,
+    ]),
+  ],
+  controllers: [PitchChangeRequestsController],
+  providers: [PitchChangeRequestsService],
+  exports: [PitchChangeRequestsService],
 })
-export class PitchChangeRequestsModule { }
+export class PitchChangeRequestsModule {}

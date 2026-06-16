@@ -11,16 +11,16 @@ import { ChatModule } from '../chat/chat.module';
 import { ReservationsModule } from '../reservations/reservations.module';
 
 @Module({
-    imports: [
-        TypeOrmModule.forFeature([Challenge, MatchAnnouncement]),
-        NotificationsModule,
-        MatchAnnouncementsModule,
-        TeamsModule,
-        ChatModule,
-        ReservationsModule
-    ],
-    controllers: [ChallengesController],
-    providers: [ChallengesService],
-    exports: [ChallengesService],
+  imports: [
+    TypeOrmModule.forFeature([Challenge, MatchAnnouncement]),
+    NotificationsModule,
+    MatchAnnouncementsModule,
+    TeamsModule,
+    ChatModule,
+    ReservationsModule,
+  ],
+  controllers: [ChallengesController],
+  providers: [ChallengesService],
+  exports: [ChallengesService],
 })
-export class ChallengesModule { }
+export class ChallengesModule {}

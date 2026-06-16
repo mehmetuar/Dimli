@@ -14,14 +14,22 @@ import { MatchAnnouncement } from '../match-announcements/match-announcement.ent
 import { User } from '../users/user.entity';
 
 @Module({
-    imports: [
-        TypeOrmModule.forFeature([Reservation, ChatChannel, ChatParticipant, Pitch, BusinessOwner, MatchAnnouncement, User]),
-        ChatModule,
-        NotificationsModule,
-        SubscriptionModule,
-    ],
-    controllers: [ReservationsController],
-    providers: [ReservationsService],
-    exports: [ReservationsService],
+  imports: [
+    TypeOrmModule.forFeature([
+      Reservation,
+      ChatChannel,
+      ChatParticipant,
+      Pitch,
+      BusinessOwner,
+      MatchAnnouncement,
+      User,
+    ]),
+    ChatModule,
+    NotificationsModule,
+    SubscriptionModule,
+  ],
+  controllers: [ReservationsController],
+  providers: [ReservationsService],
+  exports: [ReservationsService],
 })
-export class ReservationsModule { }
+export class ReservationsModule {}

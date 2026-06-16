@@ -1,11 +1,11 @@
 import {
-    Entity,
-    Column,
-    PrimaryGeneratedColumn,
-    CreateDateColumn,
-    UpdateDateColumn,
-    ManyToOne,
-    JoinColumn,
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
 import { Pitch } from './pitch.entity';
 
@@ -14,40 +14,40 @@ export type ChangeRequestStatus = 'pending' | 'approved' | 'rejected';
 
 @Entity('pitch_change_requests')
 export class PitchChangeRequest {
-    @PrimaryGeneratedColumn('uuid')
-    id: string;
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
 
-    @Column({ name: 'pitch_id' })
-    pitchId: string;
+  @Column({ name: 'pitch_id' })
+  pitchId: string;
 
-    @ManyToOne(() => Pitch)
-    @JoinColumn({ name: 'pitch_id' })
-    pitch: Pitch;
+  @ManyToOne(() => Pitch)
+  @JoinColumn({ name: 'pitch_id' })
+  pitch: Pitch;
 
-    @Column({ name: 'business_id' })
-    businessId: string;
+  @Column({ name: 'business_id' })
+  businessId: string;
 
-    @Column()
-    type: ChangeRequestType;
+  @Column()
+  type: ChangeRequestType;
 
-    @Column({ default: 'pending' })
-    status: ChangeRequestStatus;
+  @Column({ default: 'pending' })
+  status: ChangeRequestStatus;
 
-    @Column({ type: 'json' })
-    requestedData: any; // { facility: string } or { imageUrl: string }
+  @Column({ type: 'json' })
+  requestedData: any; // { facility: string } or { imageUrl: string }
 
-    @Column({ type: 'json', nullable: true })
-    currentData: any; // existing value before change
+  @Column({ type: 'json', nullable: true })
+  currentData: any; // existing value before change
 
-    @Column({ nullable: true })
-    rejectionReason: string;
+  @Column({ nullable: true })
+  rejectionReason: string;
 
-    @Column({ nullable: true })
-    reviewedAt: Date;
+  @Column({ nullable: true })
+  reviewedAt: Date;
 
-    @CreateDateColumn()
-    createdAt: Date;
+  @CreateDateColumn()
+  createdAt: Date;
 
-    @UpdateDateColumn()
-    updatedAt: Date;
+  @UpdateDateColumn()
+  updatedAt: Date;
 }

@@ -10,9 +10,14 @@ import { ReservationsModule } from '../reservations/reservations.module';
 import { ChatModule } from '../chat/chat.module';
 
 @Module({
-    imports: [TypeOrmModule.forFeature([MatchAnnouncement, User]), NotificationsModule, ReservationsModule, ChatModule],
-    controllers: [MatchAnnouncementsController],
-    providers: [MatchAnnouncementsService],
-    exports: [MatchAnnouncementsService],
+  imports: [
+    TypeOrmModule.forFeature([MatchAnnouncement, User]),
+    NotificationsModule,
+    ReservationsModule,
+    ChatModule,
+  ],
+  controllers: [MatchAnnouncementsController],
+  providers: [MatchAnnouncementsService],
+  exports: [MatchAnnouncementsService],
 })
-export class MatchAnnouncementsModule { }
+export class MatchAnnouncementsModule {}

@@ -1,24 +1,30 @@
-import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, JoinColumn } from 'typeorm';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  ManyToOne,
+  JoinColumn,
+} from 'typeorm';
 import { Pitch } from './pitch.entity';
 
 @Entity('time_slots')
 export class TimeSlot {
-    @PrimaryGeneratedColumn('uuid')
-    id: string;
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
 
-    @Column()
-    pitchId: string;
+  @Column()
+  pitchId: string;
 
-    @ManyToOne(() => Pitch, (pitch) => pitch.timeSlots, { onDelete: 'CASCADE' })
-    @JoinColumn({ name: 'pitchId' })
-    pitch: Pitch;
+  @ManyToOne(() => Pitch, (pitch) => pitch.timeSlots, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'pitchId' })
+  pitch: Pitch;
 
-    @Column()
-    startTime: string; // "09:00" format
+  @Column()
+  startTime: string; // "09:00" format
 
-    @Column()
-    endTime: string; // "10:00" format
+  @Column()
+  endTime: string; // "10:00" format
 
-    @Column({ default: true })
-    isActive: boolean;
+  @Column({ default: true })
+  isActive: boolean;
 }

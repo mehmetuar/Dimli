@@ -9,11 +9,11 @@ import { Team } from '../teams/team.entity';
 import { User } from '../users/user.entity';
 
 @Module({
-    imports: [
-        TypeOrmModule.forFeature([Rating, Reservation, Business, Team, User]),
-    ],
-    controllers: [RatingsController],
-    providers: [RatingsService],
-    exports: [RatingsService],
+  imports: [
+    TypeOrmModule.forFeature([Rating, Reservation, Business, Team, User]),
+  ],
+  controllers: [RatingsController],
+  providers: [RatingsService],
+  exports: [RatingsService],
 })
 export class RatingsModule {}

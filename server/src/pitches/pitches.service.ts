@@ -170,10 +170,16 @@ export class PitchesService {
 
     const conflicts = await this.getFutureApprovedConflicts(id);
     if (conflicts.length > 0) {
-      throw new ConflictException({ message: 'Kesinleşmiş maçlar var', conflicts });
+      throw new ConflictException({
+        message: 'Kesinleşmiş maçlar var',
+        conflicts,
+      });
     }
 
-    await this.pitchesRepository.update(id, { isActive: false, deletedAt: new Date() });
+    await this.pitchesRepository.update(id, {
+      isActive: false,
+      deletedAt: new Date(),
+    });
     return { success: true };
   }
 
