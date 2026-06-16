@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { X, Check, Plus } from 'lucide-react';
-import { DEFAULT_FACILITIES } from '../../constants';
+import { getFacilities } from '../../services/api';
 import { useModalBodyClass } from '../../utils/useModalBodyClass';
 
 interface FacilitiesModalProps {
@@ -21,10 +21,12 @@ const FacilitiesModalContent: React.FC<FacilitiesModalProps> = ({
     pitchName,
 }) => {
     const [customText, setCustomText] = useState('');
+    const [facilities, setFacilities] = useState<string[]>([]);
     const inputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         document.body.style.overflow = 'hidden';
+        getFacilities().then(setFacilities).catch(console.error);
         return () => { document.body.style.overflow = ''; };
     }, []);
 
@@ -37,10 +39,10 @@ const FacilitiesModalContent: React.FC<FacilitiesModalProps> = ({
 
     const selectedCount = selectedFacilities.length;
 
-    // Varsayılan + kullanıcı ekledikleri (DEFAULT_FACILITIES'te olmayanlar)
-    const defaultSet = new Set(DEFAULT_FACILITIES as string[]);
-    const customFacilities = selectedFacilities.filter(f => !defaultSet.has(f));
-    const allFacilities = [...(DEFAULT_FACILITIES as string[]), ...customFacilities];
+    // DB'deki imkanlar + henüz onaylanmamış özel eklemeler
+    const knownSet = new Set(facilities);
+    const customFacilities = selectedFacilities.filter(f => !knownSet.has(f));
+    const allFacilities = [...facilities, ...customFacilities];
 
     return (
         <div
@@ -96,7 +98,7 @@ const FacilitiesModalContent: React.FC<FacilitiesModalProps> = ({
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                     {allFacilities.map((facility) => {
                         const isSelected = selectedFacilities.includes(facility);
-                        const isCustom = !defaultSet.has(facility);
+                        const isCustom = !knownSet.has(facility);
                         return (
                             <button
                                 key={facility}

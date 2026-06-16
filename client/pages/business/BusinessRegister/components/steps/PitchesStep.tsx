@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Plus, Trash2, X, TurkishLira } from 'lucide-react';
 import { Input } from '../RegisterSidebar';
-import { DEFAULT_FACILITIES } from '../../../../../constants';
+import { getFacilities } from '../../../../../services/api';
 
 interface PitchesStepProps {
     formData: any;
@@ -26,6 +26,11 @@ export const PitchesStep: React.FC<PitchesStepProps> = ({
     addTimeSlot,
     toggleFacility
 }) => {
+    const [facilities, setFacilities] = useState<string[]>([]);
+    useEffect(() => {
+        getFacilities().then(setFacilities).catch(console.error);
+    }, []);
+
     return (
         <div className="space-y-6 animate-fade-in">
             <div className="flex justify-between items-center mb-4">
@@ -129,7 +134,7 @@ export const PitchesStep: React.FC<PitchesStepProps> = ({
                         <div className="mt-4 border-t border-slate-800 pt-4">
                             <label className="text-xs text-slate-400 font-bold uppercase mb-2 block">İmkanlar</label>
                             <div className="flex flex-wrap gap-2">
-                                {DEFAULT_FACILITIES.map(facility => (
+                                {facilities.map(facility => (
                                     <button
                                         key={facility}
                                         type="button"

@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import api from '../../../../services/api';
+import api, { getFacilities } from '../../../../services/api';
 import { getOwnerId } from '../../../../services/authStorage';
-import { DEFAULT_FACILITIES } from '../../../../constants';
 import {
     toMinutes as toMin,
     crossesMidnight,
@@ -27,6 +26,7 @@ export interface PendingChangeRequest {
 export const useBusinessPitchSettings = () => {
     const { pitchId } = useParams();
     const navigate = useNavigate();
+    const [defaultFacilities, setDefaultFacilities] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [deleting, setDeleting] = useState(false);
@@ -88,6 +88,10 @@ export const useBusinessPitchSettings = () => {
     // Onay durumu (yeni saha / yeniden gönderim akışı)
     const [approvalStatus, setApprovalStatus] = useState<'approved' | 'pending' | 'rejected'>('approved');
     const [rejectionReason, setRejectionReason] = useState<string | null>(null);
+
+    useEffect(() => {
+        getFacilities().then(setDefaultFacilities).catch(console.error);
+    }, []);
 
     useEffect(() => {
         fetchPitchData();
@@ -345,7 +349,7 @@ export const useBusinessPitchSettings = () => {
         }
     };
 
-    const allFacilities = Array.from(new Set([...DEFAULT_FACILITIES, ...formData.facilities]));
+    const allFacilities = Array.from(new Set([...defaultFacilities, ...formData.facilities]));
 
     // Onay bekleyen sahalar veya onay bekleyen işletmeler admin onayı gelene kadar salt okunur
     const isReadOnly = approvalStatus === 'pending' || businessStatus === 'pending';

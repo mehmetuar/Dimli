@@ -98,4 +98,7 @@ export const getBusinesses = async (coords?: { lat: number; lng: number; radius?
     return response.data;
 };
 
+export const getFacilities = (): Promise<string[]> =>
+    api.get('/facilities').then(r => r.data);
+
 export default api;

@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../../../../services/api';
+import api, { getFacilities } from '../../../../services/api';
 import { getOwnerId } from '../../../../services/authStorage';
-import { DEFAULT_FACILITIES } from '../../../../constants';
 
 const EMPTY_FORM_DATA = {
     name: '',
@@ -18,6 +17,7 @@ const EMPTY_FORM_DATA = {
 
 export const useBusinessAddPitch = () => {
     const navigate = useNavigate();
+    const [defaultFacilities, setDefaultFacilities] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
     const [businessId, setBusinessId] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
@@ -67,7 +67,11 @@ export const useBusinessAddPitch = () => {
         init();
     }, [navigate]);
 
-    const allFacilities = Array.from(new Set([...DEFAULT_FACILITIES, ...formData.facilities]));
+    useEffect(() => {
+        getFacilities().then(setDefaultFacilities).catch(console.error);
+    }, []);
+
+    const allFacilities = Array.from(new Set([...defaultFacilities, ...formData.facilities]));
 
     const handleChange = (field: string, value: any) => {
         setFormData(prev => ({ ...prev, [field]: value }));
