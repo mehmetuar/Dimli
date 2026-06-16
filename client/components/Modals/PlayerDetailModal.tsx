@@ -36,6 +36,8 @@ const PlayerDetailModalContent: React.FC<PlayerDetailModalProps> = ({
     onAccept,
     onReject
 }) => {
+    if (!player) return null;
+
     const [businesses, setBusinesses] = React.useState<any[]>([]);
 
     React.useEffect(() => {

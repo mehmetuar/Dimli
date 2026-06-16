@@ -73,7 +73,7 @@ const JokerProfileModalContent: React.FC<Props> = ({ isOpen, onClose, onSave, cu
 
                     {/* Fee Sharing */}
                     <div>
-                        <label className="text-xs font-bold text-slate-500 uppercase mb-3 block flex items-center gap-2">
+                        <label className="text-xs font-bold text-slate-500 uppercase mb-3 flex items-center gap-2">
                             <Handshake className="w-4 h-4" /> Ücret Tercihi
                         </label>
                         <div className="bg-slate-900 p-4 rounded-xl border border-slate-700 flex items-center justify-between">

@@ -119,8 +119,8 @@ export const Notifications: React.FC = () => {
                foot: selectedJoinRequest.user.foot,
                birthDate: selectedJoinRequest.user.birthDate,
                secondaryPosition: selectedJoinRequest.user.secondaryPosition,
-               location: selectedJoinRequest.user.location,
-               avatarUrl: selectedJoinRequest.user.avatarUrl
+               location: selectedJoinRequest.user.location ?? '',
+               avatarUrl: selectedJoinRequest.user.avatarUrl ?? ''
             } : null}
          />
 

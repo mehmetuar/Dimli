@@ -116,7 +116,7 @@ const TimeSelectionModalContent: React.FC<TimeSelectionModalProps> = ({
                             <p>Uygun saat bulunamadı.</p>
                         </div>
                     ) : (
-                        timeSlots.map((slot) => (
+                        timeSlots.map((slot: { value: string; label: string; isPast: boolean; isBooked: boolean }) => (
                             <button
                                 key={slot.value}
                                 onClick={() => {
