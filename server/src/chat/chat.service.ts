@@ -612,8 +612,6 @@ export class ChatService {
                 level: team.level,
                 fairPlayScore: team.fairPlayScore,
                 fairPlayRatingCount: team.fairPlayRatingCount ?? 0,
-                wins: team.wins,
-                losses: team.losses,
                 playerCount: team.players?.length || 0,
                 playedMatchCount: matchCount,
                 captain: team.captain ? {

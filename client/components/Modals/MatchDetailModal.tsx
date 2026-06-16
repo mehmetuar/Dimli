@@ -12,8 +12,6 @@ interface TeamData {
     fairPlayScore: number;
     fairPlayRatingCount?: number;
     playedMatchCount?: number;
-    wins: number;
-    losses: number;
     playerCount: number;
     captain?: {
         id: string;

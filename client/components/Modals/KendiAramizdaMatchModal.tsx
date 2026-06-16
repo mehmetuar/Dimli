@@ -10,8 +10,6 @@ interface TeamData {
     secondaryColor?: string;
     level?: string;
     fairPlayScore: number;
-    wins: number;
-    losses: number;
     playerCount: number;
     captain?: {
         id: string;
