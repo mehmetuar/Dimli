@@ -9,11 +9,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import {
   DataSource,
   Repository,
-  In,
-  LessThan,
-  MoreThan,
+  DeepPartial,
   Between,
-  MoreThanOrEqual,
   Not,
   Equal,
   IsNull,
@@ -257,11 +254,11 @@ export class ReservationsService {
 
           const captainId =
             (ann.team?.captain as any)?.id || ann.team?.captainId;
-          if (captainId) await notifyUser(captainId);
+          if (captainId) await notifyUser(captainId as string);
 
           if (ann.team?.players) {
             for (const player of ann.team.players) {
-              await notifyUser((player as any).id);
+              await notifyUser((player as any).id as string);
             }
           }
         }
@@ -314,7 +311,9 @@ export class ReservationsService {
       );
     }
 
-    const reservation = this.reservationRepository.create(createReservationDto);
+    const reservation = this.reservationRepository.create(
+      createReservationDto as DeepPartial<Reservation>,
+    );
     const savedReservation = (await this.reservationRepository.save(
       reservation,
     )) as unknown as Reservation;
@@ -327,7 +326,9 @@ export class ReservationsService {
         });
 
         if (owner) {
-          const slotTime = new Date((savedReservation as any).slotTime);
+          const slotTime = new Date(
+            (savedReservation as any).slotTime as string,
+          );
           const dateStr = slotTime.toLocaleDateString('tr-TR', {
             day: 'numeric',
             month: 'long',
@@ -681,7 +682,7 @@ export class ReservationsService {
           const conflictingPlayerIds = new Set<string>();
           if (conflictingTeam?.players)
             conflictingTeam.players.forEach((p) =>
-              conflictingPlayerIds.add((p as any).id),
+              conflictingPlayerIds.add((p as any).id as string),
             );
           for (const playerId of conflictingPlayerIds) {
             await this.notificationsService.create({
@@ -702,7 +703,7 @@ export class ReservationsService {
           const innocentPlayerIds = new Set<string>();
           if (innocentTeam?.players)
             innocentTeam.players.forEach((p) =>
-              innocentPlayerIds.add((p as any).id),
+              innocentPlayerIds.add((p as any).id as string),
             );
           for (const playerId of innocentPlayerIds) {
             await this.notificationsService.create({
@@ -758,9 +759,9 @@ export class ReservationsService {
           const captainId =
             (ann.team?.captain as any)?.id || (ann.team as any)?.captainId;
           if (captainId) {
-            annNotifiedIds.add(captainId);
+            annNotifiedIds.add(captainId as string);
             await this.notificationsService.create({
-              userId: captainId,
+              userId: captainId as string,
               type: 'SYSTEM',
               title: '⚠️ İlan Kaldırıldı - Saat Çakışması',
               message: `Aynı saatte başka bir sahadaki maçınız onaylandığı için ${ann.date} - ${ann.time} saatindeki ilanınız kaldırıldı.`,
@@ -775,8 +776,8 @@ export class ReservationsService {
           if (ann.team?.players) {
             for (const player of ann.team.players) {
               const pId = (player as any).id;
-              if (!pId || annNotifiedIds.has(pId)) continue;
-              annNotifiedIds.add(pId);
+              if (!pId || annNotifiedIds.has(pId as string)) continue;
+              annNotifiedIds.add(pId as string);
               await this.notificationsService.create({
                 userId: pId,
                 type: 'SYSTEM',
@@ -898,9 +899,9 @@ export class ReservationsService {
             const captainId =
               (ann.team?.captain as any)?.id || ann.team?.captainId;
             if (captainId) {
-              notifiedPlayerIds.add(captainId);
+              notifiedPlayerIds.add(captainId as string);
               await this.notificationsService.create({
-                userId: captainId,
+                userId: captainId as string,
                 type: 'SYSTEM',
                 title: notifTitle,
                 message: notifMessage,
@@ -918,8 +919,9 @@ export class ReservationsService {
             if (ann.team?.players) {
               for (const player of ann.team.players) {
                 const playerId = (player as any).id;
-                if (!playerId || notifiedPlayerIds.has(playerId)) continue;
-                notifiedPlayerIds.add(playerId);
+                if (!playerId || notifiedPlayerIds.has(playerId as string))
+                  continue;
+                notifiedPlayerIds.add(playerId as string);
                 await this.notificationsService.create({
                   userId: playerId,
                   type: 'SYSTEM',
@@ -1266,8 +1268,8 @@ export class ReservationsService {
 
         if (senderId) {
           await this.chatService.sendMessage(
-            channel.id,
-            senderId,
+            channel.id as string,
+            senderId as string,
             content,
             true, // isSystemMessage
             metadata, // Pass metadata

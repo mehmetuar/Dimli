@@ -4,7 +4,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, MoreThan, IsNull } from 'typeorm';
+import { Repository, MoreThan, IsNull, DeepPartial } from 'typeorm';
 import { Pitch } from './entities/pitch.entity';
 import { TimeSlot } from './entities/time-slot.entity';
 import {
@@ -36,7 +36,7 @@ export class PitchesService {
     const { timeSlots, ...pitchData } = createPitchDto;
 
     if (pitchData.businessId) {
-      await this.assertPitchLimitAvailable(pitchData.businessId);
+      await this.assertPitchLimitAvailable(pitchData.businessId as string);
     }
 
     const pitch = this.pitchesRepository.create({
@@ -44,7 +44,7 @@ export class PitchesService {
       approvalStatus: 'pending',
       rejectionReason: null,
       reviewedAt: null,
-    });
+    } as DeepPartial<Pitch>);
     const result = await this.pitchesRepository.save(pitch);
     const savedPitch = Array.isArray(result) ? result[0] : result;
 
@@ -61,7 +61,7 @@ export class PitchesService {
       await this.timeSlotRepository.save(slotEntities);
     }
 
-    return this.findOne(savedPitch.id);
+    return this.findOne(savedPitch.id as string);
   }
 
   // ===== SUBSCRIPTION LIMIT CHECK =====
@@ -109,7 +109,7 @@ export class PitchesService {
       approvalStatus: 'pending',
       rejectionReason: null,
       reviewedAt: null,
-    });
+    } as Partial<Pitch>);
 
     if (timeSlots && Array.isArray(timeSlots)) {
       await this.timeSlotRepository.delete({ pitchId });
@@ -162,7 +162,10 @@ export class PitchesService {
   }
 
   async update(id: string, updateData: any) {
-    return await this.pitchesRepository.update(id, updateData);
+    return await this.pitchesRepository.update(
+      id,
+      updateData as Partial<Pitch>,
+    );
   }
 
   async remove(id: string) {

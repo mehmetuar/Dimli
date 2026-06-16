@@ -199,7 +199,7 @@ export class SubscriptionService {
         subscription.revenuecatCustomerId = app_user_id;
         subscription.status = SubscriptionStatus.ACTIVE;
         if (event.expiration_at_ms) {
-          subscription.expiresAt = new Date(event.expiration_at_ms);
+          subscription.expiresAt = new Date(event.expiration_at_ms as string);
         }
         this.applyPendingPlanIfDue(subscription);
         break;
