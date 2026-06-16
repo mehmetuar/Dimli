@@ -16,11 +16,13 @@ import { Notification } from '../notifications/notification.entity';
 import { AccountDeletion } from '../account-deletions/account-deletion.entity';
 import { User } from '../users/user.entity';
 import { UserReport } from '../user-reports/user-report.entity';
+import { FacilitiesModule } from '../facilities/facilities.module';
 
 @Module({
     imports: [
         PassportModule,
         TypeOrmModule.forFeature([AdminUser, Business, BusinessOwner, Subscription, Pitch, TimeSlot, PitchChangeRequest, Notification, AccountDeletion, User, UserReport]),
+        FacilitiesModule,
         JwtModule.register({
             secret: process.env.ADMIN_JWT_SECRET || 'ADMIN_SECRET_KEY',
             signOptions: { expiresIn: '8h' },

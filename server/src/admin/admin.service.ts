@@ -21,6 +21,7 @@ import { Notification } from '../notifications/notification.entity';
 import { AccountDeletion } from '../account-deletions/account-deletion.entity';
 import { User } from '../users/user.entity';
 import { UserReport, ReportStatus } from '../user-reports/user-report.entity';
+import { FacilitiesService } from '../facilities/facilities.service';
 
 const PLAN_LABELS: Record<string, string> = {
   '1_pitch': 'Starter',
@@ -68,6 +69,7 @@ export class AdminService {
     @InjectRepository(UserReport)
     private userReportRepository: Repository<UserReport>,
     private jwtService: JwtService,
+    private readonly facilitiesService: FacilitiesService,
   ) {}
 
   // ─── Auth ─────────────────────────────────────────────────────────────────
@@ -407,6 +409,7 @@ export class AdminService {
         await this.pitchRepository.update(request.pitchId, {
           facilities: [...currentFacilities, request.requestedData.facility],
         });
+        await this.facilitiesService.upsertApproved(request.requestedData.facility);
       }
     } else if (request.type === 'PHOTO_UPDATE') {
       const oldImageUrl = request.pitch?.imageUrl;

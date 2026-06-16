@@ -23,6 +23,7 @@ import { PitchChangeRequestsModule } from './pitch-change-requests/pitch-change-
 import { GatewayModule } from './gateway/gateway.module';
 import { UserBlocksModule } from './user-blocks/user-blocks.module';
 import { UserReportsModule } from './user-reports/user-reports.module';
+import { FacilitiesModule } from './facilities/facilities.module';
 
 @Module({
   imports: [
@@ -67,6 +68,7 @@ import { UserReportsModule } from './user-reports/user-reports.module';
     GatewayModule,
     UserBlocksModule,
     UserReportsModule,
+    FacilitiesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
