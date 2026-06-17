@@ -106,10 +106,19 @@ export class BusinessOwnerService {
   }
 
   async findOne(id: string): Promise<BusinessOwner | null> {
-    return this.businessOwnerRepository.findOne({
+    const owner = await this.businessOwnerRepository.findOne({
       where: { id },
       relations: ['business', 'business.pitches', 'business.pitches.timeSlots'],
     });
+
+    if (owner?.business?.pitches) {
+      owner.business.pitches.sort(
+        (a, b) =>
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      );
+    }
+
+    return owner;
   }
 
   async getDashboardSlots(ownerId: string, dateStr: string) {

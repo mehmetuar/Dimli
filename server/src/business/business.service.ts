@@ -61,7 +61,16 @@ export class BusinessService {
         .getMany();
       return businesses
         .filter((b) => (b.pitches?.length ?? 0) > 0)
-        .map((b) => this.mapWithOwnerPhone(b));
+        .map((b) => {
+          if (b.pitches) {
+            b.pitches.sort(
+              (p1, p2) =>
+                new Date(p1.createdAt).getTime() -
+                new Date(p2.createdAt).getTime(),
+            );
+          }
+          return this.mapWithOwnerPhone(b);
+        });
     }
 
     const { lat, lng, radius } = geoFilter;
@@ -129,10 +138,19 @@ export class BusinessService {
 
     const result = businesses
       .filter((b) => (b.pitches?.length ?? 0) > 0)
-      .map((b) => ({
-        ...this.mapWithOwnerPhone(b),
-        distanceKm: distanceMap.get(b.id) ?? 0,
-      }))
+      .map((b) => {
+        if (b.pitches) {
+          b.pitches.sort(
+            (p1, p2) =>
+              new Date(p1.createdAt).getTime() -
+              new Date(p2.createdAt).getTime(),
+          );
+        }
+        return {
+          ...this.mapWithOwnerPhone(b),
+          distanceKm: distanceMap.get(b.id) ?? 0,
+        };
+      })
       .sort((a, b) => (a.distanceKm ?? 0) - (b.distanceKm ?? 0));
 
     console.log(`🏟️ Found ${result.length} businesses within ${radius}km`);
@@ -155,6 +173,10 @@ export class BusinessService {
     }
     business.pitches = (business.pitches ?? []).filter(
       (p) => p.approvalStatus === 'approved' && !p.deletedAt,
+    );
+    business.pitches.sort(
+      (a, b) =>
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
     );
     return this.mapWithOwnerPhone(business);
   }
