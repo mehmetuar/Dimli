@@ -9,6 +9,8 @@ import {
     IconPending,
     IconCheck,
     IconX,
+    IconPause,
+    IconTrash,
     IconTrendingUp,
     IconBarChart,
 } from '../../components/Icons';
@@ -87,13 +89,13 @@ export default function Dashboard() {
             <div>
                 <h2 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-3">Başvuru Durumu</h2>
                 {loading ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        {[1, 2, 3].map(i => (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {[1, 2, 3, 4, 5].map(i => (
                             <div key={i} className="bg-white/5 border border-slate-700/40 rounded-2xl p-5 h-28 animate-pulse" />
                         ))}
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         <StatCard
                             label="Bekleyen Başvurular"
                             value={stats?.counts.pending ?? 0}
@@ -123,6 +125,26 @@ export default function Dashboard() {
                             borderClass="border-red-500/20 hover:border-red-500/40"
                             onClick={() => navigate('/rejected')}
                             subtitle="Onaylanmadı"
+                        />
+                        <StatCard
+                            label="Askıdaki İşletmeler"
+                            value={stats?.counts.suspended ?? 0}
+                            icon={<IconPause size={20} />}
+                            colorClass="text-slate-300"
+                            bgClass="bg-slate-500/8"
+                            borderClass="border-slate-500/20 hover:border-slate-500/40"
+                            onClick={() => navigate('/suspended')}
+                            subtitle="Geçici devre dışı"
+                        />
+                        <StatCard
+                            label="Silinen İşletmeler"
+                            value={stats?.counts.deleted ?? 0}
+                            icon={<IconTrash size={20} />}
+                            colorClass="text-rose-300"
+                            bgClass="bg-rose-500/8"
+                            borderClass="border-rose-500/20 hover:border-rose-500/40"
+                            onClick={() => navigate('/deleted')}
+                            subtitle="Hesabını sildi"
                         />
                     </div>
                 )}

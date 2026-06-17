@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { v2 as cloudinary } from 'cloudinary';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Not, Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { AdminUser } from './entities/admin-user.entity';
@@ -115,7 +115,7 @@ export class AdminService {
   // ─── Applications ─────────────────────────────────────────────────────────
 
   async getApplications(status?: string) {
-    const where: any = {};
+    const where: any = { deletedAt: IsNull() };
     if (status) where.status = status;
     else where.status = 'pending';
 
@@ -206,7 +206,7 @@ export class AdminService {
   }
 
   async getAllBusinesses(status?: string) {
-    const where: any = {};
+    const where: any = { deletedAt: IsNull() };
     if (status) where.status = status;
 
     const businesses = await this.businessRepository.find({
@@ -602,12 +602,13 @@ export class AdminService {
   // ─── Statistics ───────────────────────────────────────────────────────────
 
   async getStatistics() {
-    // Status sayımları
-    const [pending, active, rejected, suspended] = await Promise.all([
-      this.businessRepository.count({ where: { status: 'pending' } }),
-      this.businessRepository.count({ where: { status: 'active' } }),
-      this.businessRepository.count({ where: { status: 'rejected' } }),
-      this.businessRepository.count({ where: { status: 'suspended' } }),
+    // Status sayımları (silinmiş işletmeler hariç)
+    const [pending, active, rejected, suspended, deleted] = await Promise.all([
+      this.businessRepository.count({ where: { status: 'pending',   deletedAt: IsNull() } }),
+      this.businessRepository.count({ where: { status: 'active',    deletedAt: IsNull() } }),
+      this.businessRepository.count({ where: { status: 'rejected',  deletedAt: IsNull() } }),
+      this.businessRepository.count({ where: { status: 'suspended', deletedAt: IsNull() } }),
+      this.businessRepository.count({ where: { deletedAt: Not(IsNull()) } }),
     ]);
 
     // Abonelik istatistikleri
@@ -685,7 +686,7 @@ export class AdminService {
     }
 
     return {
-      counts: { pending, active, rejected, suspended },
+      counts: { pending, active, rejected, suspended, deleted },
       revenue: {
         activeSubscriptions: activeSubscriptions.length,
         trialSubscriptions: trialSubscriptions.length,
@@ -694,6 +695,36 @@ export class AdminService {
       },
       monthlyGrowth,
     };
+  }
+
+  // ─── Deleted Businesses ───────────────────────────────────────────────────
+
+  async getDeletedBusinesses() {
+    const businesses = await this.businessRepository
+      .createQueryBuilder('b')
+      .leftJoinAndSelect('b.pitches', 'p')
+      .where('b.deletedAt IS NOT NULL')
+      .orderBy('b.deletedAt', 'DESC')
+      .getMany();
+
+    return Promise.all(
+      businesses.map(async (business) => {
+        const owner = await this.businessOwnerRepository.findOne({
+          where: { business: { id: business.id } },
+        });
+        return {
+          ...business,
+          owner: owner
+            ? {
+                id: owner.id,
+                fullName: owner.fullName,
+                email: owner.email,
+                phone: owner.phone,
+              }
+            : null,
+        };
+      }),
+    );
   }
 
   // ─── Deletion Report ──────────────────────────────────────────────────────

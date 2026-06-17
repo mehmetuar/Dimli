@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import adminApi from '../../../services/adminApi';
 
 interface Stats {
-    counts: { pending: number; active: number; rejected: number; suspended: number };
+    counts: { pending: number; active: number; rejected: number; suspended: number; deleted: number };
     revenue: {
         activeSubscriptions: number;
         trialSubscriptions: number;

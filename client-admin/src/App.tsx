@@ -11,6 +11,7 @@ import ChangeRequestsPage from './pages/ChangeRequestsPage/ChangeRequestsPage';
 import PitchApprovalsPage from './pages/PitchApprovalsPage/PitchApprovalsPage';
 import ReportsPage from './pages/ReportsPage/ReportsPage';
 import BannedUsersPage from './pages/BannedUsersPage/BannedUsersPage';
+import DeletedBusinessesPage from './pages/DeletedBusinessesPage/DeletedBusinessesPage';
 import Layout from './components/Layout';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -39,6 +40,7 @@ export default function App() {
             <Route path="/pitch-approvals" element={<WithLayout><PitchApprovalsPage /></WithLayout>} />
             <Route path="/reports" element={<WithLayout><ReportsPage /></WithLayout>} />
             <Route path="/banned-users" element={<WithLayout><BannedUsersPage /></WithLayout>} />
+            <Route path="/deleted" element={<WithLayout><DeletedBusinessesPage /></WithLayout>} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
     );

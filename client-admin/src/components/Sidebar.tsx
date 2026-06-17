@@ -14,6 +14,7 @@ import {
     IconFlag,
     IconBan,
     IconPitch,
+    IconTrash,
 } from './Icons';
 import LogoutModal from './LogoutModal';
 import adminApi from '../services/adminApi';
@@ -156,6 +157,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed = false, onToggle }) => {
                     <NavItem to="/pitch-approvals" icon={<IconPitch     size={18} />} label={collapsed ? '' : 'Saha Onayları'}          collapsed={collapsed} />
                     <NavItem to="/reports"         icon={<IconFlag      size={18} />} label={collapsed ? '' : 'Şikayetler'}             collapsed={collapsed} badge={pendingReports} />
                     <NavItem to="/banned-users"    icon={<IconBan       size={18} />} label={collapsed ? '' : 'Chat Yasakları'}          collapsed={collapsed} />
+                    <NavItem to="/deleted"         icon={<IconTrash     size={18} />} label={collapsed ? '' : 'Silinen İşletmeler'}      collapsed={collapsed} />
                 </nav>
 
                 {/* Alt — Çıkış */}

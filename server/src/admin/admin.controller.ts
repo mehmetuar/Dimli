@@ -94,6 +94,12 @@ export class AdminController {
   }
 
   @UseGuards(AdminJwtAuthGuard)
+  @Get('businesses/deleted')
+  async getDeletedBusinesses() {
+    return this.adminService.getDeletedBusinesses();
+  }
+
+  @UseGuards(AdminJwtAuthGuard)
   @Post('businesses/:businessId/suspend')
   async suspendBusiness(@Param('businessId') businessId: string) {
     return this.adminService.suspendBusiness(businessId);
