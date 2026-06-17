@@ -186,6 +186,7 @@ export class ChallengesService {
         relations: [
           'team',
           'team.captain',
+          'team.players',
           'pitch',
           'pitch.business',
           'pitch.timeSlots',
@@ -201,8 +202,10 @@ export class ChallengesService {
 
       const hostTeam = match.team;
 
-      // Participants: Both Captains
-      const participants = [hostTeam.captain, challengerTeam.captain];
+      // Participants: All players from both teams
+      const hostPlayers = hostTeam.players?.length ? hostTeam.players : [hostTeam.captain];
+      const challengerPlayers = challengerTeam.players?.length ? challengerTeam.players : [challengerTeam.captain];
+      const participants = [...hostPlayers, ...challengerPlayers];
 
       // Create Group Chat
       const channel = await this.chatService.createChannel(
