@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Users } from 'lucide-react';
 import { LevelBadge } from '../../../../components/UI/LevelBadge';
 import { FairPlayScore } from '../../../../components/UI/FairPlayScore';
 import { Team } from '../../../../types';
 import api from '../../../../services/api';
+import { useModalBodyClass } from '../../../../utils/useModalBodyClass';
 
 interface TeamDetailModalProps {
     viewingTeam: Team | null;
@@ -12,6 +14,7 @@ interface TeamDetailModalProps {
 
 export const TeamDetailModal: React.FC<TeamDetailModalProps> = ({ viewingTeam, onClose }) => {
     const [fullTeam, setFullTeam] = useState<any>(null);
+    useModalBodyClass(!!viewingTeam);
 
     useEffect(() => {
         if (!viewingTeam?.id) { setFullTeam(null); return; }
@@ -22,8 +25,8 @@ export const TeamDetailModal: React.FC<TeamDetailModalProps> = ({ viewingTeam, o
 
     if (!viewingTeam) return null;
     const team = fullTeam ?? viewingTeam;
-    return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center px-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+    return createPortal(
+        <div className="fixed inset-0 z-[90] flex items-center justify-center px-4 bg-black/80 animate-fade-in">
             <div className="bg-slate-800 w-full max-w-md rounded-3xl border border-slate-700 overflow-hidden relative shadow-2xl shadow-turf-500/20 max-h-[90vh] overflow-y-auto">
                 <button
                     onClick={onClose}
@@ -91,6 +94,7 @@ export const TeamDetailModal: React.FC<TeamDetailModalProps> = ({ viewingTeam, o
                     </button>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };

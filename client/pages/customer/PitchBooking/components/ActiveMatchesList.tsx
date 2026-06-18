@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Calendar, Shield, X, Trophy, Clock, Users, ChevronRight } from 'lucide-react';
 import { Team } from '../../../../types';
 import { LevelBadge } from '../../../../components/UI/LevelBadge';
 import { FairPlayScore } from '../../../../components/UI/FairPlayScore';
 import { getRelativeDateLabel } from '../utils/pitchUtils';
+import { useModalBodyClass } from '../../../../utils/useModalBodyClass';
 
 interface ActiveMatchesListProps {
     activeMatches: any[];
@@ -101,7 +103,7 @@ const MatchCard: React.FC<MatchCardProps> = ({
             {isOwnTeam && (
                 <div className="bg-turf-600/20 border border-turf-500/50 rounded-xl px-3 py-2 flex items-center gap-2 relative z-10">
                     <Shield className="w-4 h-4 text-turf-400" />
-                    <span className="text-turf-300 text-xs font-bold uppercase">Sizin İlanınız</span>
+                    <span className="text-white text-xs font-bold uppercase">Sizin İlanınız</span>
                 </div>
             )}
 
@@ -121,11 +123,11 @@ const MatchCard: React.FC<MatchCardProps> = ({
                                     <Users className="w-3 h-3" /> {vsLabel}
                                 </span>
                             )}
-                            <span className="text-xs text-white font-bold bg-slate-700 px-2 py-0.5 rounded flex items-center gap-1">
+                            <span className="text-xs text-white font-bold bg-slate-700/90 border border-slate-600 px-2 py-0.5 rounded flex items-center gap-1">
                                 <Clock className="w-3 h-3" /> {timeLabel}
                             </span>
                             {dateBadge && (
-                                <span className="text-xs text-turf-300 font-bold bg-turf-900/30 border border-turf-700/40 px-2 py-0.5 rounded flex items-center gap-1">
+                                <span className="text-xs text-white font-bold bg-turf-700/60 border border-turf-600/50 px-2 py-0.5 rounded flex items-center gap-1">
                                     <Calendar className="w-3 h-3" /> {dateBadge}
                                 </span>
                             )}
@@ -195,10 +197,29 @@ const AllMatchesModal: React.FC<AllMatchesModalProps> = ({
     activeMatches, currentUser, myChallenges, isAuthorized, selectedPitch,
     setViewingTeam, setOfferMode, handleDeleteAdClick, handleCancelClick, onClose
 }) => {
-    useEffect(() => {
-        document.body.classList.add('modal-open');
-        return () => document.body.classList.remove('modal-open');
-    }, []);
+    useModalBodyClass(true);
+
+    // Deferred handlers: close modal first (350ms for slide-down animation),
+    // then open the next modal so it renders on top without z-index conflict.
+    const handleViewTeam = (team: Team) => {
+        onClose();
+        setTimeout(() => setViewingTeam(team), 350);
+    };
+
+    const handleOffer = (mode: { matchId: string; teamName: string }) => {
+        onClose();
+        setTimeout(() => setOfferMode(mode), 350);
+    };
+
+    const handleDeleteAd = (adId: string) => {
+        onClose();
+        setTimeout(() => handleDeleteAdClick(adId), 350);
+    };
+
+    const handleCancel = (challengeId: string) => {
+        onClose();
+        setTimeout(() => handleCancelClick(challengeId), 350);
+    };
 
     const currentTeamId = currentUser?.team?.id;
 
@@ -227,15 +248,15 @@ const AllMatchesModal: React.FC<AllMatchesModalProps> = ({
                 isAuthorized={isAuthorized}
                 selectedPitch={selectedPitch}
                 showDateBadge
-                setViewingTeam={setViewingTeam}
-                setOfferMode={setOfferMode}
-                handleDeleteAdClick={handleDeleteAdClick}
-                handleCancelClick={handleCancelClick}
+                setViewingTeam={handleViewTeam}
+                setOfferMode={handleOffer}
+                handleDeleteAdClick={handleDeleteAd}
+                handleCancelClick={handleCancel}
             />
         );
     };
 
-    return (
+    return createPortal(
         <div
             className="fixed inset-0 z-[70] flex flex-col justify-end modal-overlay animate-fade-in"
             onClick={onClose}
@@ -318,7 +339,8 @@ const AllMatchesModal: React.FC<AllMatchesModalProps> = ({
                     )}
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 
