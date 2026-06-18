@@ -80,5 +80,5 @@ export const generateSlots = (pitch: any, business: any) => {
         }
     }
 
-    return slots;
+    return sortSlotsForDisplay(slots);
 };

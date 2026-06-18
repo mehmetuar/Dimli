@@ -53,7 +53,7 @@ export const BusinessLogin: React.FC = () => {
 
     const animClass =
         phase === 'entering' ? 'animate-flip-enter-from-customer' :
-        phase === 'exiting-right' ? 'animate-flip-exit-to-customer' : '';
+            phase === 'exiting-right' ? 'animate-flip-exit-to-customer' : '';
 
     return (
         <div

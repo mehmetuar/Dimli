@@ -4,6 +4,7 @@ import { ChevronRight, ChevronLeft, Loader2 } from 'lucide-react';
 import { LocationSelectionModal } from '../../../components/Modals/LocationSelectionModal';
 import { BusinessTimePickerModal } from '../../../components/Modals/BusinessTimePickerModal';
 
+
 import { useBusinessRegister } from './hooks/useBusinessRegister';
 import { RegisterSidebar, steps } from './components/RegisterSidebar';
 import { useKeyboardHeight } from '../../../utils/useKeyboardHeight';
@@ -20,6 +21,7 @@ import { CongratulationsStep } from './components/steps/CongratulationsStep';
 export const BusinessRegister: React.FC = () => {
     const navigate = useNavigate();
     const keyboardHeight = useKeyboardHeight();
+    const effectiveKeyboardHeight = keyboardHeight;
     const {
         currentStep, totalSteps,
         error, isLoading,
@@ -115,18 +117,20 @@ export const BusinessRegister: React.FC = () => {
 
     return (
         <div
-            className="fixed left-0 right-0 w-full bg-slate-950 overflow-hidden flex flex-col"
+            className="fixed inset-0 w-full bg-slate-950 overflow-hidden flex flex-col z-50 touch-none overscroll-none"
             style={{
-                top: 'calc(-1 * env(safe-area-inset-top))',
-                bottom: 'calc(-1 * env(safe-area-inset-bottom))',
+                top: 'calc(-1 * env(safe-area-inset-top, 0px))',
+                bottom: 'calc(-1 * env(safe-area-inset-bottom, 0px))',
             }}
         >
             <div
-                className="flex-1 min-h-0 overflow-y-auto scrollbar-hide flex flex-col px-3 md:px-4 md:items-center md:justify-center bg-slate-900 md:bg-transparent"
+                className="flex-1 min-h-0 flex flex-col px-3 md:px-4 md:items-center md:justify-center bg-slate-900 md:bg-transparent transition-all duration-300 md:overflow-y-auto md:scrollbar-hide"
                 style={{
-                    paddingTop: 'calc(max(env(safe-area-inset-top, 0px), 20px) + 5.5rem)',
-                    paddingBottom: keyboardHeight > 0
-                        ? `calc(${keyboardHeight}px + env(safe-area-inset-bottom, 0px))`
+                    paddingTop: keyboardHeight > 0
+                        ? 'calc(max(env(safe-area-inset-top, 0px), 10px) + 1rem)'
+                        : 'calc(max(env(safe-area-inset-top, 0px), 20px) + 5.5rem)',
+                    paddingBottom: effectiveKeyboardHeight > 0
+                        ? `calc(${effectiveKeyboardHeight}px + env(safe-area-inset-bottom, 0px))`
                         : 'max(16px, env(safe-area-inset-bottom, 16px))',
                 }}
             >
@@ -153,7 +157,7 @@ export const BusinessRegister: React.FC = () => {
                         </div>
                     )}
 
-                    <div className="flex-1 overflow-y-auto overscroll-contain pr-1 scrollbar-hide pb-24">
+                    <div className="flex-1 overflow-y-auto overscroll-contain pr-1 scrollbar-hide pb-24 touch-pan-y">
                         {renderStepContent()}
                     </div>
 
