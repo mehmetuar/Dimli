@@ -1,4 +1,10 @@
-import { Injectable, Optional, Inject, forwardRef } from '@nestjs/common';
+import {
+  Injectable,
+  Optional,
+  Inject,
+  forwardRef,
+  Logger,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Notification } from './notification.entity';
@@ -13,6 +19,8 @@ import { FirebaseService } from '../firebase/firebase.service';
 
 @Injectable()
 export class NotificationsService {
+  private readonly logger = new Logger(NotificationsService.name);
+
   constructor(
     @InjectRepository(Notification)
     private notificationsRepository: Repository<Notification>,
@@ -448,6 +456,23 @@ export class NotificationsService {
     const users = await this.usersRepository.find({
       where: { id: In(recipients) },
     });
+
+    // Teşhis: her alıcı için push token var mı ve hesaplanan badge sayısı ne —
+    // production'da "push gitmiyor" şikayetlerinde ilk bakılacak yer.
+    for (const u of users) {
+      this.logger.log(
+        `Sohbet push hedefi → userId=${u.id} pushToken=${u.pushToken ? 'var' : 'YOK'} badge=${badgeCounts?.get(u.id) ?? 1}`,
+      );
+    }
+    const missingTokenIds = recipients.filter(
+      (uid) => !users.find((u) => u.id === uid)?.pushToken,
+    );
+    if (missingTokenIds.length) {
+      this.logger.warn(
+        `Push token eksik olan alıcı(lar): ${missingTokenIds.join(', ')} — bu kullanıcılara FCM bildirimi gönderilemeyecek.`,
+      );
+    }
+
     await Promise.allSettled(
       users
         .filter((u) => u.pushToken)

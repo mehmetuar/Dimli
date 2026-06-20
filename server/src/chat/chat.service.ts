@@ -349,6 +349,16 @@ export class ChatService {
 
     // DB'den gelen lastActivityAt DESC sırası korunur — en son mesajı olan
     // kanal her zaman en üstte görünür.
+
+    // Teşhis: client'a dönen unreadCount değerleri — okunmadı rozeti
+    // şikayetlerinde DB'deki gerçek durumla client'a giden veriyi
+    // karşılaştırmak için.
+    new Logger('ChatService').log(
+      `getUserChannels(${userId}) → unreadCount'lar: ${channels
+        .map((c) => `${c.id}=${c.unreadCount}`)
+        .join(', ')}`,
+    );
+
     return channels;
   }
 
@@ -522,13 +532,22 @@ export class ChatService {
         const recipientIds = participants
           .map((p) => p.userId)
           .filter((uid) => uid !== senderId);
+        const pushLogger = new Logger('ChatService');
         Promise.all(
           recipientIds.map(
             async (uid) => [uid, await this.getUnreadCount(uid)] as const,
           ),
         )
-          .then((entries) =>
-            this.notificationsService.sendChatPushToParticipants(
+          .then((entries) => {
+            // Teşhis: hangi kanala, kaç alıcıya push tetiklendi ve her birinin
+            // o anki okunmamış sayısı (badge) ne — production'da push/badge
+            // şikayetlerinde ilk bakılacak log satırı.
+            pushLogger.log(
+              `sendMessage push tetiklendi → channelId=${channelId} senderId=${senderId} alıcılar=${entries
+                .map(([uid, count]) => `${uid}(unread=${count})`)
+                .join(', ')}`,
+            );
+            return this.notificationsService.sendChatPushToParticipants(
               senderId,
               sender.full_name,
               channelId,
@@ -537,9 +556,11 @@ export class ChatService {
               content,
               participants.map((p) => p.userId),
               new Map(entries),
-            ),
-          )
-          .catch(() => {});
+            );
+          })
+          .catch((e) =>
+            pushLogger.error(`sendMessage push zinciri hata verdi: ${e}`),
+          );
       }
     }
 
