@@ -604,10 +604,18 @@ export class AdminService {
   async getStatistics() {
     // Status sayımları (silinmiş işletmeler hariç)
     const [pending, active, rejected, suspended, deleted] = await Promise.all([
-      this.businessRepository.count({ where: { status: 'pending',   deletedAt: IsNull() } }),
-      this.businessRepository.count({ where: { status: 'active',    deletedAt: IsNull() } }),
-      this.businessRepository.count({ where: { status: 'rejected',  deletedAt: IsNull() } }),
-      this.businessRepository.count({ where: { status: 'suspended', deletedAt: IsNull() } }),
+      this.businessRepository.count({
+        where: { status: 'pending', deletedAt: IsNull() },
+      }),
+      this.businessRepository.count({
+        where: { status: 'active', deletedAt: IsNull() },
+      }),
+      this.businessRepository.count({
+        where: { status: 'rejected', deletedAt: IsNull() },
+      }),
+      this.businessRepository.count({
+        where: { status: 'suspended', deletedAt: IsNull() },
+      }),
       this.businessRepository.count({ where: { deletedAt: Not(IsNull()) } }),
     ]);
 

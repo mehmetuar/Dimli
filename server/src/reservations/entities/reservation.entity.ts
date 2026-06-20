@@ -16,6 +16,7 @@ export enum ReservationStatus {
   APPROVED = 'APPROVED',
   REJECTED = 'REJECTED',
   CANCELLED = 'CANCELLED',
+  EXPIRED = 'EXPIRED',
 }
 
 @Index(['pitchId', 'slotTime'])

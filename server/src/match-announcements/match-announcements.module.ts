@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { MatchAnnouncement } from './match-announcement.entity';
 import { User } from '../users/user.entity';
+import { Reservation } from '../reservations/entities/reservation.entity';
 import { MatchAnnouncementsService } from './match-announcements.service';
 import { MatchAnnouncementsController } from './match-announcements.controller';
 
@@ -11,7 +12,7 @@ import { ChatModule } from '../chat/chat.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([MatchAnnouncement, User]),
+    TypeOrmModule.forFeature([MatchAnnouncement, User, Reservation]),
     NotificationsModule,
     ReservationsModule,
     ChatModule,

@@ -1,12 +1,13 @@
 import 'dotenv/config';
 
-// Sunucu süreci bazı ortamlarda (örn. Render) yerel saat dilimiyle (Europe/Istanbul,
-// UTC+3) çalışıyor. TypeORM'un Repository.update() ile yazılan "timestamp without
-// time zone" alanları (örn. lastReadAt, lastActivityAt) bu yerel saatle yazılırken,
-// @CreateDateColumn() ile yazılan alanlar (örn. createdAt) doğru şekilde UTC kalıyor —
-// bu da iki zaman damgası arasında sabit +3 saatlik bir kaymaya yol açıyordu. Süreci
-// her ortamda UTC'ye sabitleyerek bu sınıf hatayı kökünden gideriyoruz.
-process.env.TZ = 'UTC';
+// lastReadAt/lastActivityAt için chat.service.ts artık DB-taraflı CURRENT_TIMESTAMP
+// kullanıyor (Postgres oturum saat dilimi = UTC), bu yüzden process.env.TZ'den
+// bağımsız olarak doğru çalışıyor. Ancak match-announcements ve reservations
+// modüllerindeki tüm new Date()/.getHours()/.setHours() çağrıları, kullanıcının
+// uygulamada seçtiği saatin İstanbul yerel saati olduğunu varsayarak yazılmış.
+// Süreci açıkça İstanbul'a sabitleyerek bu modüllerin doğru çalışmasını garanti
+// ediyoruz (Render container varsayımına güvenmek yerine).
+process.env.TZ = 'Europe/Istanbul';
 
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';

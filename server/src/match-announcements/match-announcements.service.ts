@@ -6,6 +6,10 @@ import { MatchAnnouncement } from './match-announcement.entity';
 import { User } from '../users/user.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ReservationsService } from '../reservations/reservations.service';
+import {
+  Reservation,
+  ReservationStatus,
+} from '../reservations/entities/reservation.entity';
 import { ChatService } from '../chat/chat.service';
 import { Pitch } from '../pitches/entities/pitch.entity';
 
@@ -16,6 +20,8 @@ export class MatchAnnouncementsService {
     private matchAnnouncementsRepository: Repository<MatchAnnouncement>,
     @InjectRepository(User)
     private usersRepository: Repository<User>,
+    @InjectRepository(Reservation)
+    private reservationRepository: Repository<Reservation>,
     private notificationsService: NotificationsService,
     private reservationsService: ReservationsService,
     private chatService: ChatService,
@@ -471,6 +477,16 @@ export class MatchAnnouncementsService {
         announcement.status = 'EXPIRED';
         await this.matchAnnouncementsRepository.save(announcement);
         console.log('✅ Announcement marked as EXPIRED.');
+
+        // Bağlı reservation hâlâ PENDING'de kalmasın — saha takvimi sonsuza
+        // kadar "Onay Bekliyor" göstermesin diye onu da süresi geçmiş yap.
+        await this.reservationRepository.update(
+          {
+            matchAnnouncementId: announcement.id,
+            status: ReservationStatus.PENDING,
+          },
+          { status: ReservationStatus.EXPIRED },
+        );
       }
     }
   }
