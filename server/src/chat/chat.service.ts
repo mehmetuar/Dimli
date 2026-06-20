@@ -549,14 +549,14 @@ export class ChatService {
     if (before) {
       messages = await this.chatMessageRepository.find({
         where: { channelId, createdAt: LessThan(new Date(before)) },
-        relations: ['sender'],
+        relations: ['sender', 'sender.team'],
         order: { createdAt: 'DESC' },
         take: PAGE,
       });
     } else {
       messages = await this.chatMessageRepository.find({
         where: { channelId },
-        relations: ['sender'],
+        relations: ['sender', 'sender.team'],
         order: { createdAt: 'DESC' },
         take: PAGE,
       });
@@ -571,6 +571,20 @@ export class ChatService {
               !blockedUserIds.includes(m.senderId),
           )
         : messages;
+
+    // Rakipli maç chatlerinde gönderenin takımını client'a iletmek için
+    // Team'i gerekli alanlara indirgiyoruz (description, fairPlayScore vb. taşınmaz).
+    for (const m of filtered) {
+      if (m.sender?.team) {
+        m.sender.team = {
+          id: m.sender.team.id,
+          name: m.sender.team.name,
+          logoUrl: m.sender.team.logoUrl,
+          primaryColor: m.sender.team.primaryColor,
+          secondaryColor: m.sender.team.secondaryColor,
+        } as Team;
+      }
+    }
 
     return filtered.reverse();
   }

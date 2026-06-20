@@ -217,6 +217,7 @@ export interface ChatMessage {
   id: string;
   senderId: string;
   senderName: string;
+  senderTeamId?: string | null;
   text: string;
   timestamp: string;
   isSystem?: boolean;
