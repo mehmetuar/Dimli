@@ -483,9 +483,13 @@ export class ChatService {
 
     await this.chatMessageRepository.save(message);
 
-    // Update last activity
+    // Update last activity — DB tarafında CURRENT_TIMESTAMP kullanılıyor (UTC,
+    // doğrulandı) çünkü TypeORM'un .update() metodu JS Date nesnelerini
+    // "timestamp without time zone" kolonlara sunucu sürecinin yerel saat
+    // dilimiyle yazıyor; bu da createdAt (UTC, @CreateDateColumn ile yazılır)
+    // ile karşılaştırıldığında saatler süren bir kaymaya yol açabiliyordu.
     await this.chatChannelRepository.update(channelId, {
-      lastActivityAt: new Date(),
+      lastActivityAt: () => 'CURRENT_TIMESTAMP',
     });
 
     // Gönderenin lastReadAt'ını şimdi olarak güncelle (zaten okumuş sayılır).
@@ -494,7 +498,7 @@ export class ChatService {
     if (senderId) {
       await this.chatParticipantRepository.update(
         { channelId, userId: senderId },
-        { lastReadAt: new Date() },
+        { lastReadAt: () => 'CURRENT_TIMESTAMP' },
       );
     }
 
@@ -633,7 +637,7 @@ export class ChatService {
   async markAsRead(channelId: string, userId: string): Promise<void> {
     await this.chatParticipantRepository.update(
       { channelId, userId },
-      { lastReadAt: new Date() },
+      { lastReadAt: () => 'CURRENT_TIMESTAMP' },
     );
   }
 
