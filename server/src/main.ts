@@ -1,13 +1,14 @@
 import 'dotenv/config';
 
-// lastReadAt/lastActivityAt için chat.service.ts artık DB-taraflı CURRENT_TIMESTAMP
-// kullanıyor (Postgres oturum saat dilimi = UTC), bu yüzden process.env.TZ'den
-// bağımsız olarak doğru çalışıyor. Ancak match-announcements ve reservations
-// modüllerindeki tüm new Date()/.getHours()/.setHours() çağrıları, kullanıcının
-// uygulamada seçtiği saatin İstanbul yerel saati olduğunu varsayarak yazılmış.
-// Süreci açıkça İstanbul'a sabitleyerek bu modüllerin doğru çalışmasını garanti
-// ediyoruz (Render container varsayımına güvenmek yerine).
-process.env.TZ = 'Europe/Istanbul';
+// `pg` sürücüsü "timestamp without time zone" kolonlarını YAZARKEN açık UTC
+// ofseti ekliyor (her zaman doğru), ama OKURKEN ofsetsiz ham string'i process'in
+// yerel saatiyle (bu TZ değişkeni) yorumluyor — bu yüzden TZ, Postgres oturum
+// saat dilimiyle (doğrulandı: UTC) AYNI olmak ZORUNDA, aksi halde @CreateDateColumn()/
+// CURRENT_TIMESTAMP ile yazılan her şey (chat createdAt, lastActivityAt, lastReadAt
+// dahil) okunurken saatlerce kayar. İstanbul yerel saatine ihtiyaç duyan kod
+// (match-announcements, chat'teki maç durumu hesaplamaları) bu değişkene
+// bakmıyor — sabit +3 saatlik epoch aritmetiği kullanıyor (Türkiye'de DST yok).
+process.env.TZ = 'UTC';
 
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';

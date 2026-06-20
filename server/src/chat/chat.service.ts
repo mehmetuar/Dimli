@@ -26,6 +26,7 @@ import { TeamsService } from '../teams/teams.service';
 import { RatingsService } from '../ratings/ratings.service';
 import { AppGateway } from '../gateway/app.gateway';
 import { UserBlocksService } from '../user-blocks/user-blocks.service';
+import { istanbulDateTimeToUtc } from '../common/turkey-time.util';
 
 @Injectable()
 export class ChatService {
@@ -205,9 +206,10 @@ export class ChatService {
 
             if (match) {
               try {
-                const [hours, minutes] = match.time.split(':').map(Number);
-                const slotDateTime = new Date(match.date);
-                slotDateTime.setHours(hours, minutes || 0, 0, 0);
+                const slotDateTime = istanbulDateTimeToUtc(
+                  match.date,
+                  match.time,
+                );
 
                 reservation = await this.reservationRepository.findOne({
                   where: {
@@ -385,9 +387,7 @@ export class ChatService {
       });
       if (match) {
         try {
-          const [hours, minutes] = match.time.split(':').map(Number);
-          const slotDateTime = new Date(match.date);
-          slotDateTime.setHours(hours, minutes || 0, 0, 0);
+          const slotDateTime = istanbulDateTimeToUtc(match.date, match.time);
           reservation = await this.reservationRepository.findOne({
             where: {
               teamId: match.teamId,
@@ -762,9 +762,7 @@ export class ChatService {
     // FALLBACK FOR OLD MATCHES: Find by relation through match
     if (!reservation) {
       try {
-        const [hours, minutes] = match.time.split(':').map(Number);
-        const slotDateTime = new Date(match.date);
-        slotDateTime.setHours(hours, minutes || 0, 0, 0);
+        const slotDateTime = istanbulDateTimeToUtc(match.date, match.time);
 
         reservation = await this.reservationRepository.findOne({
           where: {
@@ -952,9 +950,7 @@ export class ChatService {
     if (!pitch) throw new BadRequestException('Saha bulunamadı.');
 
     // 7. Validate date/time
-    const [hours, minutes] = data.time.split(':').map(Number);
-    const proposalDate = new Date(data.date);
-    proposalDate.setHours(hours, minutes, 0, 0);
+    const proposalDate = istanbulDateTimeToUtc(data.date, data.time);
 
     if (proposalDate < new Date()) {
       throw new BadRequestException(
@@ -987,14 +983,17 @@ export class ChatService {
     const savedChallenge = await this.challengeRepository.save(challenge);
     logger.log(`Challenge created: ${savedChallenge.id}`);
 
-    // 10. Format date info for messages
+    // 10. Format date info for messages — proposalDate doğru mutlak an
+    // tutuyor, görüntülemede açıkça İstanbul saatine çevrilmeli.
     const dayName = proposalDate.toLocaleDateString('tr-TR', {
       weekday: 'long',
+      timeZone: 'Europe/Istanbul',
     });
     const formattedDate = proposalDate.toLocaleDateString('tr-TR', {
       day: 'numeric',
       month: 'long',
       year: 'numeric',
+      timeZone: 'Europe/Istanbul',
     });
     const businessName = pitch.business?.name || 'İşletme';
     const pitchName = pitch.name || 'Saha';
@@ -1012,6 +1011,7 @@ export class ChatService {
       endTimeStr = endTime.toLocaleTimeString('tr-TR', {
         hour: '2-digit',
         minute: '2-digit',
+        timeZone: 'Europe/Istanbul',
       });
     }
 
@@ -1160,17 +1160,18 @@ export class ChatService {
     );
     logger.log(`New chat channel created: ${newChannel.id}`);
 
-    // 9. Format date info for system message
-    const [matchHours, matchMinutes] = match.time.split(':').map(Number);
-    const matchDateTime = new Date(match.date);
-    matchDateTime.setHours(matchHours, matchMinutes, 0, 0);
+    // 9. Format date info for system message — matchDateTime doğru mutlak
+    // an tutuyor, görüntülemede açıkça İstanbul saatine çevrilmeli.
+    const matchDateTime = istanbulDateTimeToUtc(match.date, match.time);
     const dayName = matchDateTime.toLocaleDateString('tr-TR', {
       weekday: 'long',
+      timeZone: 'Europe/Istanbul',
     });
     const formattedDate = matchDateTime.toLocaleDateString('tr-TR', {
       day: 'numeric',
       month: 'long',
       year: 'numeric',
+      timeZone: 'Europe/Istanbul',
     });
     const businessName = match.pitch?.business?.name || 'İşletme';
     const pitchName = match.pitch?.name || 'Saha';
@@ -1187,6 +1188,7 @@ export class ChatService {
       endTimeStr = endTime.toLocaleTimeString('tr-TR', {
         hour: '2-digit',
         minute: '2-digit',
+        timeZone: 'Europe/Istanbul',
       });
     }
 
@@ -1206,14 +1208,11 @@ export class ChatService {
 
     // 11. Create auto PENDING reservation
     try {
-      const slotDateTime = new Date(match.date);
-      slotDateTime.setHours(matchHours, matchMinutes, 0, 0);
-
       await this.reservationsService.create({
         pitchId: match.pitchId,
         teamId: match.teamId,
         opponentTeamId: user.team.id,
-        slotTime: slotDateTime,
+        slotTime: matchDateTime,
         type: 'MATCH',
         matchAnnouncementId: match.id,
       });

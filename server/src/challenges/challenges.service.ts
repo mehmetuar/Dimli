@@ -8,6 +8,7 @@ import { MatchAnnouncementsService } from '../match-announcements/match-announce
 import { TeamsService } from '../teams/teams.service';
 import { ChatService } from '../chat/chat.service';
 import { ReservationsService } from '../reservations/reservations.service';
+import { istanbulDateTimeToUtc } from '../common/turkey-time.util';
 
 @Injectable()
 export class ChallengesService {
@@ -238,25 +239,18 @@ export class ChallengesService {
       const businessName = match.pitch?.business?.name || 'İşletme';
       const pitchName = match.pitch?.name || 'Saha';
 
-      // Parse date and format with day name
-      const [matchYear, matchMonth, matchDay] = match.date
-        .split('-')
-        .map(Number);
-      const [matchHours, matchMinutes] = match.time.split(':').map(Number);
-      const matchDateTime = new Date(
-        matchYear,
-        matchMonth - 1,
-        matchDay,
-        matchHours,
-        matchMinutes,
-      );
+      // Parse date and format with day name — matchDateTime doğru mutlak an
+      // tutuyor, görüntülemede açıkça İstanbul saatine çevrilmeli.
+      const matchDateTime = istanbulDateTimeToUtc(match.date, match.time);
       const dayName = matchDateTime.toLocaleDateString('tr-TR', {
         weekday: 'long',
+        timeZone: 'Europe/Istanbul',
       });
       const formattedDate = matchDateTime.toLocaleDateString('tr-TR', {
         day: 'numeric',
         month: 'long',
         year: 'numeric',
+        timeZone: 'Europe/Istanbul',
       });
 
       // Calculate end time from pitch time slots or default +1 hour
@@ -275,6 +269,7 @@ export class ChallengesService {
         endTimeStr = endTime.toLocaleTimeString('tr-TR', {
           hour: '2-digit',
           minute: '2-digit',
+          timeZone: 'Europe/Istanbul',
         });
       }
 
@@ -297,17 +292,13 @@ export class ChallengesService {
         time: match.time,
       });
       try {
-        // Parse date and time
-        const [hours, minutes] = match.time.split(':').map(Number);
-        const slotDateTime = new Date(match.date);
-        slotDateTime.setHours(hours, minutes, 0, 0);
-        console.log('📅 Slot DateTime:', slotDateTime.toISOString());
+        console.log('📅 Slot DateTime:', matchDateTime.toISOString());
 
         const reservationData = {
           pitchId: match.pitchId,
           teamId: match.teamId, // Host team
           opponentTeamId: challenge.fromTeamId, // Challenger team
-          slotTime: slotDateTime,
+          slotTime: matchDateTime,
           type: 'MATCH',
           matchAnnouncementId: match.id,
         };

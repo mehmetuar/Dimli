@@ -12,6 +12,7 @@ import {
 } from '../reservations/entities/reservation.entity';
 import { ChatService } from '../chat/chat.service';
 import { Pitch } from '../pitches/entities/pitch.entity';
+import { istanbulDateTimeToUtc, nowInIstanbul } from '../common/turkey-time.util';
 
 @Injectable()
 export class MatchAnnouncementsService {
@@ -129,13 +130,11 @@ export class MatchAnnouncementsService {
     }
 
     const now = new Date();
-    const [hours, minutes] = data.time.split(':').map(Number);
 
-    // Tarih+saat: date 00:00 + time, kayma yok. DB'deki date/time
-    // kolonları, slotTime, geçmiş/30 gün kontrolleri ve çakışma kontrolü
-    // hepsi bu literal değeri kullanır.
-    const slotDateTime = new Date(data.date);
-    slotDateTime.setHours(hours, minutes, 0, 0);
+    // data.date/data.time, kullanıcının uygulamada seçtiği İstanbul yerel
+    // saatini taşır — process.env.TZ'den bağımsız, sabit +3 ofsetle doğru
+    // mutlak ana çevriliyor (bkz. common/turkey-time.util.ts).
+    const slotDateTime = istanbulDateTimeToUtc(data.date, data.time);
 
     // 🆕 Strictly check if the slot time is in the past
     if (slotDateTime < now) {
@@ -225,14 +224,18 @@ export class MatchAnnouncementsService {
         const businessName = pitchData?.business?.name || 'İşletme';
         const pitchName = pitchData?.name || 'Saha';
 
-        // Format date with day name
+        // Format date with day name — slotDateTime artık doğru mutlak an
+        // tutuyor, görüntülemede de açıkça İstanbul saatine çevrilmeli
+        // (process saat dilimi UTC, örtük yerel saat artık İstanbul değil).
         const dayName = slotDateTime.toLocaleDateString('tr-TR', {
           weekday: 'long',
+          timeZone: 'Europe/Istanbul',
         });
         const formattedDate = slotDateTime.toLocaleDateString('tr-TR', {
           day: 'numeric',
           month: 'long',
           year: 'numeric',
+          timeZone: 'Europe/Istanbul',
         });
 
         // Calculate end time from pitch time slots or default +1 hour
@@ -251,6 +254,7 @@ export class MatchAnnouncementsService {
           endTimeStr = endTime.toLocaleTimeString('tr-TR', {
             hour: '2-digit',
             minute: '2-digit',
+            timeZone: 'Europe/Istanbul',
           });
         }
 
@@ -409,12 +413,10 @@ export class MatchAnnouncementsService {
   async handleCron() {
     console.log('⏰ Running cleanup cron job...');
 
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const todayStr = `${year}-${month}-${day}`;
-    const currentHour = now.getHours();
+    // İstanbul yerel takvim günü/saati — process.env.TZ'den bağımsız, sabit
+    // +3 ofsetle hesaplanır (bkz. common/turkey-time.util.ts).
+    const { dateStr: todayStr, hours: currentHour, minutes: currentMinute } =
+      nowInIstanbul();
 
     // 1. Find all PENDING announcements
     const announcements = await this.matchAnnouncementsRepository.find({
@@ -437,7 +439,7 @@ export class MatchAnnouncementsService {
           .split(':')
           .map(Number);
         const announcementTotalMin = announcementHour * 60 + announcementMin;
-        const currentTotalMin = currentHour * 60 + now.getMinutes();
+        const currentTotalMin = currentHour * 60 + currentMinute;
         if (announcementTotalMin < currentTotalMin) {
           isExpired = true;
         }
@@ -492,12 +494,8 @@ export class MatchAnnouncementsService {
   }
 
   private async deleteExpired(): Promise<void> {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const day = String(today.getDate()).padStart(2, '0');
-    const todayStr = `${year}-${month}-${day}`;
-    const currentTimeStr = `${String(today.getHours()).padStart(2, '0')}:${String(today.getMinutes()).padStart(2, '0')}`;
+    const { dateStr: todayStr, hours, minutes } = nowInIstanbul();
+    const currentTimeStr = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 
     // Geçmiş günlerin ilanlarını expire et
     await this.matchAnnouncementsRepository
