@@ -27,6 +27,7 @@ export class FirebaseService {
     title: string,
     body: string,
     data?: Record<string, string>,
+    badge = 1,
   ): Promise<void> {
     if (!admin.apps.length) return;
     try {
@@ -34,7 +35,7 @@ export class FirebaseService {
         token,
         notification: { title, body },
         data,
-        apns: { payload: { aps: { sound: 'default', badge: 1 } } },
+        apns: { payload: { aps: { sound: 'default', badge } } },
         android: { priority: 'high', notification: { sound: 'default' } },
       });
     } catch (e) {

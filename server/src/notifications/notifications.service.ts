@@ -436,6 +436,7 @@ export class NotificationsService {
     channelName: string | null,
     content: string,
     participantUserIds: string[],
+    badgeCounts?: Map<string, number>,
   ): Promise<void> {
     const recipients = participantUserIds.filter((uid) => uid !== senderId);
     if (!recipients.length) return;
@@ -451,10 +452,13 @@ export class NotificationsService {
       users
         .filter((u) => u.pushToken)
         .map((u) =>
-          this.firebaseService.sendToDevice(u.pushToken, title, body, {
-            type: 'CHAT',
-            channelId,
-          }),
+          this.firebaseService.sendToDevice(
+            u.pushToken,
+            title,
+            body,
+            { type: 'CHAT', channelId },
+            badgeCounts?.get(u.id) ?? 1,
+          ),
         ),
     );
   }
