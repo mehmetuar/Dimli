@@ -347,7 +347,50 @@ export class ChatService {
       }),
     );
 
-    return channels;
+    // Yaklaşan maçı olan kanallar (PENDING/APPROVED, henüz bitmemiş) en yakın
+    // tarihliden başlayarak en üste alınır; diğerleri DB'den gelen
+    // lastActivityAt DESC sırasını (idx) korur. channel.type'a bakmaz —
+    // reservation dolu olan her kanal (MATCH_GROUP, JOKER_NEGOTIATION) için çalışır.
+    const ranked = channels
+      .map((c, idx) => {
+        const reservation = c.reservation as
+          | { status?: string; slotTime?: Date | string }
+          | undefined;
+        return {
+          c,
+          idx,
+          upcoming: this.isUpcomingReservation(reservation),
+          slotTimeMs: reservation?.slotTime
+            ? new Date(reservation.slotTime).getTime()
+            : 0,
+        };
+      })
+      .sort((a, b) => {
+        if (a.upcoming !== b.upcoming) return a.upcoming ? -1 : 1;
+        if (a.upcoming) return a.slotTimeMs - b.slotTimeMs;
+        return a.idx - b.idx;
+      });
+
+    return ranked.map((r) => r.c);
+  }
+
+  // Sıralama amaçlı: bir rezervasyonun "yaklaşan maç" sayılıp sayılmayacağını
+  // belirler. Client'taki getMatchStatusInfo()'nun pending/confirmed
+  // dallarıyla aynı eşiği kullanır. getChannelMatchStatusType()'tan kasıtlı
+  // olarak ayrı tutulur — o metod maç bitince mesaj engellemek için kullanılıyor.
+  private isUpcomingReservation(
+    reservation:
+      | { status?: string; slotTime?: Date | string }
+      | null
+      | undefined,
+  ): boolean {
+    if (!reservation?.slotTime) return false;
+    const now = Date.now();
+    const slotTime = new Date(reservation.slotTime).getTime();
+    const matchEndTime = slotTime + 60 * 60 * 1000;
+    if (reservation.status === 'PENDING') return now <= slotTime;
+    if (reservation.status === 'APPROVED') return now <= matchEndTime;
+    return false; // REJECTED, CANCELLED, null/diğer → yaklaşan sayılmaz
   }
 
   /**
