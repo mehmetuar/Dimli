@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useMemo } from 'react';
 import { Send, Bot, ChevronLeft, Users, Shield, Star, Phone, ArrowDown, Swords, MoreVertical, X, ChevronRight, Trash2, XCircle, AlertTriangle, Undo2, UserMinus, UserPlus, RefreshCw, CheckCircle } from 'lucide-react';
 import { useChat } from './hooks/useChat';
 import { useMessageActions } from './hooks/useMessageActions';
@@ -9,6 +9,7 @@ import { MessageContextMenu } from './components/MessageContextMenu';
 import { MessageActionModal } from './components/MessageActionModal';
 import { ReportNoteModal } from './components/ReportNoteModal';
 import { getMatchStatusInfo, formatMessageDate, teamAvatarFallback, userAvatarFallback } from './utils/chatUtils';
+import { resolveTeamChatColors } from '../../../utils/colorUtils';
 import { SystemMessageRenderer } from '../../../components/UI/SystemMessageRenderer';
 import api from '../../../services/api';
 
@@ -107,6 +108,29 @@ export const Chat: React.FC = () => {
 
   const opponentTeam = null; // Simplification as in original
   const opponentJoker = null; // Simplification as in original
+
+  // Rakipli MATCH_GROUP chatlerinde ev/misafir takım renkleri — "kendi aramızda"
+  // (opponentTeamId yok), TEAM_INTERNAL, DM, JOKER_NEGOTIATION kanallarında null kalır.
+  const teamChatColors = useMemo(() => {
+    const res = activeChannel?.reservation as any;
+    const ad = activeChannel?.avatarData as any;
+    if (activeChannel?.type !== 'MATCH_GROUP' || !res?.teamId || !res?.opponentTeamId) {
+      return null;
+    }
+    const { home, away } = resolveTeamChatColors(
+      ad?.homeTeamColor, ad?.awayTeamColor, res.teamId, res.opponentTeamId,
+    );
+    return {
+      homeTeamId: res.teamId,
+      awayTeamId: res.opponentTeamId,
+      homeColor: home,
+      awayColor: away,
+      homeLogo: ad?.homeTeamLogo,
+      awayLogo: ad?.awayTeamLogo,
+      homeName: ad?.homeTeamName,
+      awayName: ad?.awayTeamName,
+    };
+  }, [activeChannel]);
 
   const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
     endRef.current?.scrollIntoView({ behavior });
@@ -483,6 +507,19 @@ export const Chat: React.FC = () => {
           </div>
         </div>
 
+        {teamChatColors && (
+          <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
+            <div className="flex items-center gap-1.5 bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-700 min-w-fit">
+              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: teamChatColors.homeColor }} />
+              <span className="text-[11px] text-slate-300 font-medium truncate max-w-[110px]">{teamChatColors.homeName}</span>
+            </div>
+            <div className="flex items-center gap-1.5 bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-700 min-w-fit">
+              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: teamChatColors.awayColor }} />
+              <span className="text-[11px] text-slate-300 font-medium truncate max-w-[110px]">{teamChatColors.awayName}</span>
+            </div>
+          </div>
+        )}
+
         {activeChannel?.type === 'DM' && opponentTeam && (
           <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
             <div className="flex items-center gap-2 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700 min-w-fit">
@@ -590,6 +627,7 @@ export const Chat: React.FC = () => {
             onAvatarClick={openActionModal as any}
             onAcceptProposal={handleAcceptProposal}
             onAcceptRematch={handleAcceptRematch}
+            teamColors={teamChatColors}
           />
         ))}
 

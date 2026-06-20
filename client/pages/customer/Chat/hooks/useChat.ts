@@ -6,6 +6,19 @@ import { SkillLevel } from '../../../../types';
 import { formatMessageDate } from '../utils/chatUtils';
 import { useSocket } from '../../../../contexts/SocketContext';
 
+const mapMsg = (msg: any, currentUserId?: string) => ({
+    id: msg.id,
+    senderId: msg.senderId,
+    senderName: msg.sender?.full_name || msg.sender?.username || 'Unknown',
+    senderTeamId: msg.sender?.team?.id ?? null,
+    text: msg.content,
+    timestamp: formatMessageDate(msg.createdAt),
+    rawCreatedAt: msg.createdAt,
+    isMe: msg.senderId === currentUserId,
+    isSystem: msg.isSystemMessage,
+    metadata: msg.metadata,
+});
+
 export const useChat = () => {
     const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
     const [channels, setChannels] = useState<any[]>([]);
@@ -128,24 +141,12 @@ export const useChat = () => {
 
         const PAGE_SIZE = 50;
 
-        const mapMsg = (msg: any) => ({
-            id: msg.id,
-            senderId: msg.senderId,
-            senderName: msg.sender?.full_name || msg.sender?.username || 'Unknown',
-            text: msg.content,
-            timestamp: formatMessageDate(msg.createdAt),
-            rawCreatedAt: msg.createdAt,
-            isMe: msg.senderId === currentUser?.id,
-            isSystem: msg.isSystemMessage,
-            metadata: msg.metadata,
-        });
-
         const fetchMessages = async () => {
             try {
                 const response = await api.get(`/chat/channels/${selectedChannelId}/messages`, {
                     params: { limit: PAGE_SIZE },
                 });
-                const mapped = response.data.map(mapMsg);
+                const mapped = response.data.map((msg: any) => mapMsg(msg, currentUser?.id));
                 setMessages(mapped);
                 setHasMore(response.data.length === PAGE_SIZE);
             } catch (error) {
@@ -204,18 +205,7 @@ export const useChat = () => {
                 setHasMore(false);
                 return;
             }
-            const mapMsg = (msg: any) => ({
-                id: msg.id,
-                senderId: msg.senderId,
-                senderName: msg.sender?.full_name || msg.sender?.username || 'Unknown',
-                text: msg.content,
-                timestamp: formatMessageDate(msg.createdAt),
-                rawCreatedAt: msg.createdAt,
-                isMe: msg.senderId === currentUser?.id,
-                isSystem: msg.isSystemMessage,
-                metadata: msg.metadata,
-            });
-            const older = response.data.map(mapMsg);
+            const older = response.data.map((msg: any) => mapMsg(msg, currentUser?.id));
             setMessages(prev => [...older, ...prev]);
             setHasMore(response.data.length === 50);
         } catch (error) {
@@ -231,15 +221,7 @@ export const useChat = () => {
             await api.post(`/chat/channels/${selectedChannelId}/messages`, { content: input });
             setInput('');
             const response = await api.get(`/chat/channels/${selectedChannelId}/messages`);
-            const mappedMessages = response.data.map((msg: any) => ({
-                id: msg.id,
-                senderId: msg.senderId,
-                senderName: msg.sender?.full_name || msg.sender?.username || 'Unknown',
-                text: msg.content,
-                timestamp: formatMessageDate(msg.createdAt),
-                isMe: msg.senderId === currentUser?.id,
-                isSystem: msg.isSystemMessage
-            }));
+            const mappedMessages = response.data.map((msg: any) => mapMsg(msg, currentUser?.id));
             setMessages(mappedMessages);
             await api.post(`/chat/channels/${selectedChannelId}/read`);
         } catch (error: any) {

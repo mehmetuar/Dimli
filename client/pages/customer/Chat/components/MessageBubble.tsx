@@ -8,6 +8,16 @@ interface MsgLike extends ActionMessage {
     isSystem?: boolean;
     isMe?: boolean;
     metadata?: any;
+    senderTeamId?: string | null;
+}
+
+interface TeamChatColors {
+    homeTeamId: string;
+    awayTeamId: string;
+    homeColor: string;
+    awayColor: string;
+    homeLogo?: string | null;
+    awayLogo?: string | null;
 }
 
 interface Props {
@@ -19,6 +29,9 @@ interface Props {
     onAvatarClick: (msg: MsgLike) => void;
     onAcceptProposal: (reservationId: string) => void;
     onAcceptRematch: (matchAnnouncementId: string) => void;
+    // Rakipli MATCH_GROUP chatlerinde takım bazlı renklendirme için — diğer kanal
+    // tiplerinde (kendi aramızda, DM, TEAM_INTERNAL) null gelir, görünüm değişmez.
+    teamColors?: TeamChatColors | null;
 }
 
 const LONG_PRESS_MS = 450;
@@ -27,10 +40,23 @@ const MOVE_THRESHOLD = 8;
 export const MessageBubble: React.FC<Props> = ({
     msg, prevMsg, nextMsg, currentUser,
     onLongPress, onAvatarClick, onAcceptProposal, onAcceptRematch,
+    teamColors,
 }) => {
     const isPrevSameSender = !!prevMsg && !prevMsg.isSystem && !msg.isSystem && prevMsg.senderId === msg.senderId;
     const isNextSameSender = !!nextMsg && !nextMsg.isSystem && !msg.isSystem && nextMsg.senderId === msg.senderId;
     const isNextSameTime = nextMsg?.timestamp === msg.timestamp;
+
+    // Gönderenin maçtaki iki takımdan hangisine ait olduğuna göre vurgu rengi/logosu —
+    // takımsız (joker) ya da maçtaki iki takımdan biri olmayan göndericiler için null
+    // (nötr stile düşer). Gönderenin GÜNCEL takımı kullanılır, maç anındaki tarihsel
+    // takımı değil — bu kabul edilen bir sınırlamadır.
+    const accent = !msg.isMe && teamColors && msg.senderTeamId
+        ? msg.senderTeamId === teamColors.homeTeamId
+            ? { color: teamColors.homeColor, logo: teamColors.homeLogo }
+            : msg.senderTeamId === teamColors.awayTeamId
+                ? { color: teamColors.awayColor, logo: teamColors.awayLogo }
+                : null
+        : null;
 
     const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     const startPos = useRef({ x: 0, y: 0 });
@@ -172,10 +198,15 @@ export const MessageBubble: React.FC<Props> = ({
                         <button
                             data-avatar="true"
                             className="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-bold text-white overflow-hidden active:opacity-70 transition-opacity"
+                            style={accent ? { backgroundColor: accent.color } : undefined}
                             onClick={() => onAvatarClick(msg)}
                             onMouseDown={e => e.stopPropagation()}
                         >
-                            {msg.senderName.charAt(0).toUpperCase()}
+                            {accent?.logo ? (
+                                <img src={accent.logo} className="w-full h-full object-cover" />
+                            ) : (
+                                msg.senderName.charAt(0).toUpperCase()
+                            )}
                         </button>
                     ) : (
                         <div style={{ width: 28 }} />
@@ -185,13 +216,21 @@ export const MessageBubble: React.FC<Props> = ({
 
             {/* Bubble */}
             <div ref={bubbleWrapperRef} className="max-w-[75%]">
-                <div className={`px-3 py-2 rounded-2xl text-sm leading-relaxed shadow-sm ${
-                    msg.isMe
-                        ? `bg-turf-600 text-white ${!isNextSameSender ? 'rounded-br-sm' : ''}`
-                        : `bg-slate-800 text-slate-200 border border-slate-700 ${!isNextSameSender ? 'rounded-bl-sm' : ''}`
-                }`}>
+                <div
+                    className={`px-3 py-2 rounded-2xl text-sm leading-relaxed shadow-sm ${
+                        msg.isMe
+                            ? `bg-turf-600 text-white ${!isNextSameSender ? 'rounded-br-sm' : ''}`
+                            : `bg-slate-800 text-slate-200 border border-slate-700 ${!isNextSameSender ? 'rounded-bl-sm' : ''}`
+                    }`}
+                    style={accent ? { borderLeftWidth: 3, borderLeftColor: accent.color } : undefined}
+                >
                     {!msg.isMe && !isPrevSameSender && (
-                        <span className="text-[11px] font-semibold text-turf-400 block mb-0.5 whitespace-nowrap">{msg.senderName}</span>
+                        <span
+                            className="text-[11px] font-semibold text-turf-400 block mb-0.5 whitespace-nowrap"
+                            style={accent ? { color: accent.color } : undefined}
+                        >
+                            {msg.senderName}
+                        </span>
                     )}
                     {msg.text}
                 </div>
