@@ -2,6 +2,7 @@
 import React from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { Search, Zap, MessageSquare, User, Bell, Trophy } from 'lucide-react';
+import { App as CapApp } from '@capacitor/app';
 import api from '../../services/api';
 import { useSocket } from '../../contexts/SocketContext';
 import { useFilterContext } from '../../contexts/FilterContext';
@@ -41,21 +42,31 @@ export const Navbar: React.FC = () => {
     window.addEventListener('notificationsCleared', onCleared);
     window.addEventListener('chatRead', onChatRead);
 
+    // Uygulama arka plandayken soket kopup mesaj kaçırabilir — öne gelince tazele
+    const appStateListenerPromise = CapApp.addListener('appStateChange', (state) => {
+      if (state.isActive) fetchCounts();
+    });
+
     if (!socket) {
       return () => {
         window.removeEventListener('notificationsCleared', onCleared);
         window.removeEventListener('chatRead', onChatRead);
+        appStateListenerPromise.then(h => h.remove()).catch(() => {});
       };
     }
     const onNotification = () => fetchCounts();
     const onNewMessage = () => fetchCounts();
+    // Soket arka plan sonrası yeniden bağlanınca da tazele (kaçırılan event'leri yakalar)
+    socket.on('connect', fetchCounts);
     socket.on('notification', onNotification);
     socket.on('newMessage', onNewMessage);
     return () => {
+      socket.off('connect', fetchCounts);
       socket.off('notification', onNotification);
       socket.off('newMessage', onNewMessage);
       window.removeEventListener('notificationsCleared', onCleared);
       window.removeEventListener('chatRead', onChatRead);
+      appStateListenerPromise.then(h => h.remove()).catch(() => {});
     };
   }, [isLoggedIn, socket]);
 

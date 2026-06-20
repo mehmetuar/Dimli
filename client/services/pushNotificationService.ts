@@ -12,7 +12,9 @@ export const sendPushTokenToServer = async (tokenValue: string, retries = 1): Pr
             ? '/business-owner/push-token'
             : '/users/push-token';
         await api.patch(endpoint, { token: tokenValue });
-    } catch {
+        console.log('[PushDebug] token sunucuya kaydedildi:', endpoint, tokenValue.slice(0, 20) + '...');
+    } catch (e) {
+        console.error('[PushDebug] token sunucuya kaydedilemedi:', e);
         if (retries > 0) {
             await new Promise(r => setTimeout(r, 3000));
             return sendPushTokenToServer(tokenValue, retries - 1);
@@ -32,6 +34,7 @@ export const initializePushNotifications = async () => {
 
     try {
         const result = await FirebaseMessaging.requestPermissions();
+        console.log('[PushDebug] permission result:', result.receive);
         if (result.receive !== 'granted') {
             console.warn('Push notification permission denied');
             return;
@@ -39,6 +42,7 @@ export const initializePushNotifications = async () => {
 
         // FCM token geldiğinde kaydet
         FirebaseMessaging.addListener('tokenReceived', async (event) => {
+            console.log('[PushDebug] tokenReceived event:', event.token.slice(0, 20) + '...');
             localStorage.setItem('pushToken', event.token);
             await sendPushTokenToServer(event.token);
         });
@@ -66,13 +70,14 @@ export const initializePushNotifications = async () => {
 
         // FCM token'ı tetikle
         const { token } = await FirebaseMessaging.getToken();
+        console.log('[PushDebug] FCM getToken sonucu:', token ? token.slice(0, 20) + '...' : '(token yok)');
         if (token) {
             localStorage.setItem('pushToken', token);
             await sendPushTokenToServer(token);
         }
 
     } catch (e) {
-        console.error('Push notification setup failed:', e);
+        console.error('[PushDebug] Push notification setup failed:', e);
     }
 };
 
