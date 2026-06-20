@@ -437,7 +437,7 @@ export class NotificationsService {
   }
 
   async sendChatPushToParticipants(
-    senderId: string,
+    senderId: string | null,
     senderName: string,
     channelId: string,
     channelType: 'DM' | 'MATCH_GROUP' | 'TEAM_INTERNAL' | 'JOKER_NEGOTIATION',

@@ -276,7 +276,7 @@ export class ChallengesService {
 
       await this.chatService.sendMessage(
         channel.id,
-        hostTeam.captain.id,
+        null,
         `Sohbet Oluşturuldu\n\n` +
           `{{STADIUM}} ${businessName}\n` +
           `{{PIN}} ${pitchName}\n` +

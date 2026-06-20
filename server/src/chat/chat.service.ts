@@ -435,13 +435,13 @@ export class ChatService {
 
   async sendMessage(
     channelId: string,
-    senderId: string,
+    senderId: string | null,
     content: string,
     isSystemMessage = false,
     metadata?: any,
   ): Promise<ChatMessage> {
     // System messages can always be sent
-    if (!isSystemMessage) {
+    if (!isSystemMessage && senderId) {
       const sender = await this.userRepository.findOne({
         where: { id: senderId },
       });
@@ -488,11 +488,15 @@ export class ChatService {
       lastActivityAt: new Date(),
     });
 
-    // Update sender's lastReadAt to now (since they sent it)
-    await this.chatParticipantRepository.update(
-      { channelId, userId: senderId },
-      { lastReadAt: new Date() },
-    );
+    // Gönderenin lastReadAt'ını şimdi olarak güncelle (zaten okumuş sayılır).
+    // Sistem mesajlarında gerçek bir gönderen yok (senderId: null) — bu yüzden
+    // hiçbir katılımcının okunmadı durumu burada sıfırlanmaz.
+    if (senderId) {
+      await this.chatParticipantRepository.update(
+        { channelId, userId: senderId },
+        { lastReadAt: new Date() },
+      );
+    }
 
     const savedMessage = await this.chatMessageRepository.findOne({
       where: { id: message.id },
@@ -521,14 +525,18 @@ export class ChatService {
       );
     }
 
-    if (!isSystemMessage) {
+    {
+      // Sistem mesajları dahil HER mesaj türü için push + okunmadı sayacı
+      // tetiklenir — gönderenin kendisi (varsa) zaten yukarıda okumuş sayıldı,
+      // diğer tüm katılımcılar bildirim alır.
       const channel = await this.chatChannelRepository.findOne({
         where: { id: channelId },
       });
-      const sender = await this.userRepository.findOne({
-        where: { id: senderId },
-      });
-      if (channel && sender) {
+      const sender = senderId
+        ? await this.userRepository.findOne({ where: { id: senderId } })
+        : null;
+      const senderName = sender?.full_name ?? 'Dimli';
+      if (channel) {
         const recipientIds = participants
           .map((p) => p.userId)
           .filter((uid) => uid !== senderId);
@@ -543,13 +551,13 @@ export class ChatService {
             // o anki okunmamış sayısı (badge) ne — production'da push/badge
             // şikayetlerinde ilk bakılacak log satırı.
             pushLogger.log(
-              `sendMessage push tetiklendi → channelId=${channelId} senderId=${senderId} alıcılar=${entries
+              `sendMessage push tetiklendi → channelId=${channelId} senderId=${senderId ?? 'SISTEM'} alıcılar=${entries
                 .map(([uid, count]) => `${uid}(unread=${count})`)
                 .join(', ')}`,
             );
             return this.notificationsService.sendChatPushToParticipants(
               senderId,
-              sender.full_name,
+              senderName,
               channelId,
               channel.type,
               channel.name ?? null,

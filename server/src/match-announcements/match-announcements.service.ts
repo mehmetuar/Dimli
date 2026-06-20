@@ -250,7 +250,7 @@ export class MatchAnnouncementsService {
 
         await this.chatService.sendMessage(
           channel.id,
-          user.id,
+          null,
           `Saha isteği gönderildi! {{CLIPBOARD}}\n\n` +
             `{{STADIUM}} ${businessName}\n` +
             `{{PIN}} ${pitchName}\n` +

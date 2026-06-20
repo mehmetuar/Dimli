@@ -1240,7 +1240,7 @@ export class ReservationsService {
   private async sendSystemMessage(
     manager: any,
     matchId: string,
-    team: any,
+    _team: any,
     content: string,
     metadata?: any,
   ) {
@@ -1251,35 +1251,19 @@ export class ReservationsService {
       });
 
       if (channel) {
-        // FALLBACK SENDER LOGIC:
-        // 1. Try Team Captain
-        let senderId = team?.captain?.id || team?.captainId;
-
-        // 2. If no captain, find ANY participant in this channel
-        if (!senderId) {
-          const participants = await manager.query(
-            `SELECT "userId" FROM chat_participants_v2 WHERE "channelId" = $1 LIMIT 1`,
-            [channel.id],
-          );
-          if (participants && participants.length > 0) {
-            senderId = participants[0].userId;
-          }
-        }
-
-        if (senderId) {
-          await this.chatService.sendMessage(
-            channel.id as string,
-            senderId as string,
-            content,
-            true, // isSystemMessage
-            metadata, // Pass metadata
-          );
-          this.logger.log(`System message sent to channel ${channel.id}`);
-        } else {
-          this.logger.warn(
-            `⚠️ Cannot send system message: No valid sender found for channel ${channel.id}`,
-          );
-        }
+        // Sistem mesajının gerçek bir göndereni yok (senderId: null) — bu
+        // sayede chatService.sendMessage() hiçbir katılımcının okunmadı
+        // durumunu (lastReadAt) sıfırlamaz; eskiden burada "sahte gönderen"
+        // olarak takım kaptanı kullanılıyordu, bu da kaptanın o kanaldaki
+        // okunmadı sayacının her sistem mesajında silinmesine yol açıyordu.
+        await this.chatService.sendMessage(
+          channel.id as string,
+          null,
+          content,
+          true, // isSystemMessage
+          metadata, // Pass metadata
+        );
+        this.logger.log(`System message sent to channel ${channel.id}`);
       } else {
         this.logger.warn(
           `⚠️ Cannot send system message: Channel not found for matchId ${matchId}`,
