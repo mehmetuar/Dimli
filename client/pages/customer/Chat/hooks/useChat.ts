@@ -134,6 +134,7 @@ export const useChat = () => {
         if (!selectedChannelId) return;
         setMessages([]);
         setIsLoadingMessages(true);
+        setMatchDetailData(null);
     }, [selectedChannelId]);
 
     useEffect(() => {
@@ -260,16 +261,9 @@ export const useChat = () => {
         }
     };
 
-    const handleOpenMatchDetail = async () => {
-        if (!selectedChannelId || !activeChannel?.relatedMatchId) return;
-        if (activeChannel.type === 'JOKER_NEGOTIATION') {
-            setIsJokerDMInfoOpen(true);
-        } else {
-            setIsMatchDetailOpen(true);
-        }
-        setIsMatchDetailLoading(true);
+    const fetchMatchDetailData = useCallback(async (channelId: string) => {
         try {
-            const response = await api.get(`/chat/channels/${selectedChannelId}/match-details`);
+            const response = await api.get(`/chat/channels/${channelId}/match-details`);
             if (response.data?.error) {
                 setMatchDetailData(null);
             } else {
@@ -278,9 +272,27 @@ export const useChat = () => {
         } catch (error) {
             console.error('Failed to fetch match details:', error);
             setMatchDetailData(null);
-        } finally {
-            setIsMatchDetailLoading(false);
         }
+    }, []);
+
+    // Kanal seçilince maç/işletme verisini arka planda yükle — "Seçenekler"
+    // menüsündeki "Sahayı Ara" butonu, maç detay paneli hiç açılmasa da
+    // güncel ownerPhone/isDeleted durumunu yansıtabilsin diye.
+    useEffect(() => {
+        if (!selectedChannelId || !activeChannel?.relatedMatchId) return;
+        fetchMatchDetailData(selectedChannelId);
+    }, [selectedChannelId, activeChannel?.relatedMatchId, fetchMatchDetailData]);
+
+    const handleOpenMatchDetail = async () => {
+        if (!selectedChannelId || !activeChannel?.relatedMatchId) return;
+        if (activeChannel.type === 'JOKER_NEGOTIATION') {
+            setIsJokerDMInfoOpen(true);
+        } else {
+            setIsMatchDetailOpen(true);
+        }
+        setIsMatchDetailLoading(true);
+        await fetchMatchDetailData(selectedChannelId);
+        setIsMatchDetailLoading(false);
     };
 
     const handleCancelMatch = async (reservationId: string) => {
