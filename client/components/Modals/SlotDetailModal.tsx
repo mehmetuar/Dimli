@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Users, MessageCircle, Shield, Clock } from 'lucide-react';
+import { X, Users, MessageCircle, Shield, Clock, Repeat } from 'lucide-react';
 import { Team } from '../../types';
 import { useModalBodyClass } from '../../utils/useModalBodyClass';
 
@@ -39,6 +39,7 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
 
     const isFull = !!approvedReservation;
     const isClosed = approvedReservation?.type === 'DIRECT' && !approvedReservation?.team;
+    const isRecurringClosed = isClosed && !!approvedReservation?.recurringClosureId;
 
     return (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in" onClick={onClose}>
@@ -81,10 +82,16 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                                     {approvedReservation.type === 'DIRECT' && !approvedReservation.team ? (
                                         <div className="flex flex-col items-center justify-center gap-2 w-full pt-4 pb-2">
                                             <div className="w-20 h-20 bg-slate-800/80 rounded-full mx-auto mb-3 border-2 border-slate-600/50 flex items-center justify-center shadow-[0_0_15px_rgba(255,255,255,0.05)] relative overflow-hidden">
-                                                <Shield className="w-8 h-8 text-slate-400" />
+                                                {isRecurringClosed ? (
+                                                    <Repeat className="w-8 h-8 text-slate-400" />
+                                                ) : (
+                                                    <Shield className="w-8 h-8 text-slate-400" />
+                                                )}
                                             </div>
                                             <div className="font-bold text-white text-lg uppercase tracking-wider text-center">İşletme Tarafından Kapalı</div>
-                                            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-700/50 px-3 py-1 rounded-full mt-1 border border-slate-600/50">Farklı saha veya saat seçin</div>
+                                            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-700/50 px-3 py-1 rounded-full mt-1 border border-slate-600/50">
+                                                {isRecurringClosed ? 'SABİT REZERVASYON' : 'Farklı saha veya saat seçin'}
+                                            </div>
                                         </div>
                                     ) : !approvedReservation.opponentTeam ? (
                                         <div className="flex flex-col items-center justify-center gap-2">

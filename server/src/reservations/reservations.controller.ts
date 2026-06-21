@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Delete,
+  Body,
+  Param,
+  Query,
+} from '@nestjs/common';
 import { ReservationsService } from './reservations.service';
 import { CreateReservationDto } from './dto/create-reservation.dto';
 
@@ -12,6 +20,34 @@ export class ReservationsController {
       body.pitchId,
       new Date(body.slotTime),
     );
+  }
+
+  @Post('recurring-closures')
+  createRecurringClosure(
+    @Body()
+    body: {
+      pitchId: string;
+      slotTime: string;
+      startTime: string;
+      endTime: string;
+    },
+  ) {
+    return this.reservationsService.createRecurringClosure(
+      body.pitchId,
+      new Date(body.slotTime),
+      body.startTime,
+      body.endTime,
+    );
+  }
+
+  @Get('recurring-closures/pitch/:pitchId')
+  findRecurringClosuresByPitch(@Param('pitchId') pitchId: string) {
+    return this.reservationsService.findRecurringClosuresByPitch(pitchId);
+  }
+
+  @Delete('recurring-closures/:id')
+  removeRecurringClosure(@Param('id') id: string) {
+    return this.reservationsService.removeRecurringClosure(id);
   }
 
   @Post()

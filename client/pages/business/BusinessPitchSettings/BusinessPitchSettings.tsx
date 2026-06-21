@@ -12,6 +12,7 @@ import { PitchSettingsHeader } from './components/PitchSettingsHeader';
 import { PitchGeneralForm } from './components/PitchGeneralForm';
 import { PitchTimeSlotsSection } from './components/PitchTimeSlotsSection';
 import { PitchFacilitiesSection } from './components/PitchFacilitiesSection';
+import { RecurringClosuresSection } from './components/RecurringClosuresSection';
 
 const DAYS = [
     { label: 'Pzt', fullLabel: 'Pazartesi', value: 'Monday' },
@@ -64,6 +65,9 @@ export const BusinessPitchSettings: React.FC = () => {
         handleSaveSlots,
         toggleActive,
         handleClosedDayToggle,
+        recurringClosures,
+        removingClosureId,
+        handleRemoveRecurringClosure,
     } = useBusinessPitchSettings();
 
     // ── Onay modalleri için yerel state ──────────────────────────────────────
@@ -261,6 +265,14 @@ export const BusinessPitchSettings: React.FC = () => {
                     onAddSlot={handleAddSlot}
                     onRemoveSlot={handleRemoveSlot}
                     onSaveSlots={handleSaveSlots}
+                    disabled={isReadOnly}
+                />
+
+                {/* ── Sürekli Kapatılan Saatler ───────────────────────────── */}
+                <RecurringClosuresSection
+                    closures={recurringClosures}
+                    removingClosureId={removingClosureId}
+                    onRemove={handleRemoveRecurringClosure}
                     disabled={isReadOnly}
                 />
 

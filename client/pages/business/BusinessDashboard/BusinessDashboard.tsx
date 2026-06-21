@@ -50,6 +50,8 @@ export const BusinessDashboard: React.FC = () => {
         handleRejectMatchRequest,
         handleTransaction,
         handleManualFillSlot,
+        handleRecurringCloseSlot,
+        handleRemoveRecurringClosure,
         processing,
         silentRefetch,
     } = useBusinessDashboard();
@@ -199,6 +201,8 @@ export const BusinessDashboard: React.FC = () => {
                 handleCancelClick={handleCancelClick}
                 handleRejectMatchRequest={handleRejectMatchRequest}
                 handleManualFillSlot={handleManualFillSlot}
+                handleRecurringCloseSlot={handleRecurringCloseSlot}
+                handleRemoveRecurringClosure={handleRemoveRecurringClosure}
             />
 
             {/* General Action Modal (Approve or Note) */}

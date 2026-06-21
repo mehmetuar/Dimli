@@ -10,6 +10,7 @@ import {
 import { Pitch } from '../../pitches/entities/pitch.entity';
 import { Team } from '../../teams/team.entity';
 import { MatchAnnouncement } from '../../match-announcements/match-announcement.entity';
+import { RecurringClosure } from './recurring-closure.entity';
 
 export enum ReservationStatus {
   PENDING = 'PENDING',
@@ -88,6 +89,15 @@ export class Reservation {
 
   @Column({ default: false })
   reminderSent: boolean;
+
+  // Bu rezervasyon bir RecurringClosure kuralından materialize edildiyse, kuralın id'si.
+  // null ise tekil manuel kapatma (manualFill) ya da gerçek bir takım rezervasyonudur.
+  @Column({ nullable: true })
+  recurringClosureId: string;
+
+  @ManyToOne(() => RecurringClosure, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'recurringClosureId' })
+  recurringClosure: RecurringClosure;
 
   @CreateDateColumn()
   createdAt: Date;

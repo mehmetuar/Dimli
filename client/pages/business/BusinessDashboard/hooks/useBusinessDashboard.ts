@@ -217,6 +217,59 @@ export const useBusinessDashboard = () => {
         });
     };
 
+    const handleRecurringCloseSlot = (pitchId: string, slotTime: string, startTime: string, endTime: string) => {
+        const dayName = new Date(selectedDate).toLocaleDateString('tr-TR', { weekday: 'long' });
+        setConfirmModal({
+            isOpen: true,
+            title: 'Saati Sürekli Kapat',
+            message: `Her ${dayName} günü ${startTime} - ${endTime} saatini sürekli olarak doluya çevirmek istediğinize emin misiniz? Bu saat artık her hafta otomatik olarak kapalı görünecektir.`,
+            isDangerous: true,
+            confirmText: 'Sürekli Kapat',
+            onConfirm: async () => {
+                setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                try {
+                    await api.post(`/reservations/recurring-closures`, { pitchId, slotTime, startTime, endTime });
+                    setSuccessModal({
+                        isOpen: true,
+                        message: 'Saat sürekli kapatıldı. Her hafta otomatik olarak kapalı görünecek.',
+                        type: 'DEFAULT'
+                    });
+                    setSelectedSlot(null);
+                    fetchDashboard();
+                } catch (error: any) {
+                    console.error('Recurring close error:', error);
+                    alert(error.response?.data?.message || 'İşlem başarısız.');
+                }
+            }
+        });
+    };
+
+    const handleRemoveRecurringClosure = (recurringClosureId: string) => {
+        setConfirmModal({
+            isOpen: true,
+            title: 'Sürekli Kapatmayı Kaldır',
+            message: 'Bu saatin sürekli kapatma kuralını tamamen kaldırmak istediğinize emin misiniz? Önümüzdeki tüm haftalarda bu saat tekrar boşa çıkacaktır.',
+            isDangerous: true,
+            confirmText: 'Kuralı Kaldır',
+            onConfirm: async () => {
+                setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                try {
+                    await api.delete(`/reservations/recurring-closures/${recurringClosureId}`);
+                    setSuccessModal({
+                        isOpen: true,
+                        message: 'Sürekli kapatma kuralı kaldırıldı.',
+                        type: 'DEFAULT'
+                    });
+                    setSelectedSlot(null);
+                    fetchDashboard();
+                } catch (error: any) {
+                    console.error('Remove recurring closure error:', error);
+                    alert(error.response?.data?.message || 'İşlem başarısız.');
+                }
+            }
+        });
+    };
+
     const handleTransaction = async () => {
         if (!targetReservationId || !actionType || processing) return;
 
@@ -288,6 +341,8 @@ export const useBusinessDashboard = () => {
         handleRejectMatchRequest,
         handleTransaction,
         handleManualFillSlot,
+        handleRecurringCloseSlot,
+        handleRemoveRecurringClosure,
         processing,
         silentRefetch,
     };

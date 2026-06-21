@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ReservationsService } from './reservations.service';
 import { ReservationsController } from './reservations.controller';
 import { Reservation } from './entities/reservation.entity';
+import { RecurringClosure } from './entities/recurring-closure.entity';
 import { ChatModule } from '../chat/chat.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { SubscriptionModule } from '../subscription/subscription.module';
@@ -17,6 +18,7 @@ import { User } from '../users/user.entity';
   imports: [
     TypeOrmModule.forFeature([
       Reservation,
+      RecurringClosure,
       ChatChannel,
       ChatParticipant,
       Pitch,

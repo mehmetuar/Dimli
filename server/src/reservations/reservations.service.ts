@@ -8,14 +8,17 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   DataSource,
+  EntityManager,
   Repository,
   DeepPartial,
   Between,
+  MoreThanOrEqual,
   Not,
   Equal,
   IsNull,
 } from 'typeorm';
 import { Reservation, ReservationStatus } from './entities/reservation.entity';
+import { RecurringClosure } from './entities/recurring-closure.entity';
 import { ChatService } from '../chat/chat.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { Notification } from '../notifications/notification.entity';
@@ -35,6 +38,8 @@ export class ReservationsService {
   constructor(
     @InjectRepository(Reservation)
     private reservationRepository: Repository<Reservation>,
+    @InjectRepository(RecurringClosure)
+    private recurringClosureRepository: Repository<RecurringClosure>,
     @InjectRepository(Pitch)
     private pitchRepository: Repository<Pitch>,
     @InjectRepository(BusinessOwner)
@@ -136,6 +141,21 @@ export class ReservationsService {
       });
       if (!pitch) throw new Error('Saha bulunamadı');
 
+      return this.blockSlot(manager, pitchId, slotTime);
+    });
+  }
+
+  // Bir saat dilimini doluya çevirir: bekleyen talepleri reddeder, "rakip arıyor"
+  // ilanlarını iptal eder ve teamsiz bir DIRECT reservation oluşturur. manualFill()
+  // (tek seferlik kapatma) ve recurring-closure materialization (haftalık tekrar)
+  // tarafından paylaşılır — recurringClosureId verilirse oluşan satır o kurala bağlanır.
+  private async blockSlot(
+    manager: EntityManager,
+    pitchId: string,
+    slotTime: Date,
+    recurringClosureId?: string,
+  ) {
+    {
       const approvalTime = new Date(slotTime);
       const windowStart = new Date(approvalTime.getTime() - 15 * 60000);
       const windowEnd = new Date(approvalTime.getTime() + 15 * 60000);
@@ -271,6 +291,7 @@ export class ReservationsService {
         status: ReservationStatus.APPROVED,
         type: 'DIRECT',
         teamId: null as unknown as string,
+        recurringClosureId: recurringClosureId || (null as unknown as string),
       });
 
       await manager.save(manualRes);
@@ -279,7 +300,219 @@ export class ReservationsService {
       );
 
       return { success: true, reservation: manualRes };
+    }
+  }
+
+  // Bugünden itibaren `windowDays` gün ileriye kadar, `firstOccurrence` ile aynı
+  // saat/dakikada haftalık tekrar eden tarihleri döner (firstOccurrence dahil).
+  private computeWeeklyOccurrences(
+    firstOccurrence: Date,
+    windowDays: number,
+  ): Date[] {
+    const dates: Date[] = [];
+    const horizon = new Date();
+    horizon.setDate(horizon.getDate() + windowDays);
+
+    let current = new Date(firstOccurrence);
+    while (current <= horizon) {
+      dates.push(new Date(current));
+      current = new Date(current.getTime() + 7 * 24 * 60 * 60 * 1000);
+    }
+    return dates;
+  }
+
+  // Bugünden `horizon`'a kadar, verilen haftanın gününe (`dayOfWeek`, İngilizce
+  // 'Monday'..'Sunday') ve saate denk gelen, henüz geçmemiş tüm tarihleri döner.
+  private computeUpcomingWeekdayOccurrences(
+    dayOfWeek: string,
+    hour: number,
+    minute: number,
+    horizon: Date,
+  ): Date[] {
+    const dayNames = [
+      'Sunday',
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+    ];
+    const targetDay = dayNames.indexOf(dayOfWeek);
+    if (targetDay === -1) return [];
+
+    const dates: Date[] = [];
+    const now = new Date();
+    const cursor = new Date();
+    cursor.setHours(0, 0, 0, 0);
+
+    while (cursor <= horizon) {
+      if (cursor.getDay() === targetDay) {
+        const occurrence = new Date(cursor);
+        occurrence.setHours(hour, minute, 0, 0);
+        if (occurrence >= now) {
+          dates.push(occurrence);
+        }
+      }
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    return dates;
+  }
+
+  // İşletmenin haftanın belirli bir gün+saatini sürekli (her hafta tekrar eden)
+  // doluya çevirmesini sağlar. `slotTime`, işletmenin tıkladığı slotun tam tarih+
+  // saatidir; dayOfWeek buradan hesaplanır ve ilk materialize edilen hafta da budur.
+  async createRecurringClosure(
+    pitchId: string,
+    slotTime: Date,
+    startTime: string,
+    endTime: string,
+  ) {
+    const pitch = await this.pitchRepository.findOne({
+      where: { id: pitchId },
     });
+    if (!pitch) throw new NotFoundException('Saha bulunamadı');
+
+    const firstOccurrence = new Date(slotTime);
+    const dayOfWeek = firstOccurrence.toLocaleDateString('en-US', {
+      weekday: 'long',
+    });
+
+    const closure = this.recurringClosureRepository.create({
+      pitchId,
+      dayOfWeek,
+      startTime,
+      endTime,
+      isActive: true,
+    });
+    const saved = await this.recurringClosureRepository.save(closure);
+
+    const occurrences = this.computeWeeklyOccurrences(firstOccurrence, 60);
+
+    let blockedCount = 0;
+    let skippedCount = 0;
+    for (const occurrenceDate of occurrences) {
+      try {
+        await this.dataSource.transaction(async (manager) => {
+          await this.blockSlot(manager, pitchId, occurrenceDate, saved.id);
+        });
+        blockedCount++;
+      } catch (e) {
+        skippedCount++;
+        this.logger.warn(
+          `Recurring closure occurrence skipped for pitch ${pitchId} at ${occurrenceDate}: ${(e as Error).message}`,
+        );
+      }
+    }
+
+    this.logger.log(
+      `Recurring closure ${saved.id} created for pitch ${pitchId} (${dayOfWeek} ${startTime}-${endTime}). Blocked ${blockedCount}, skipped ${skippedCount}.`,
+    );
+
+    return {
+      success: true,
+      recurringClosure: saved,
+      blockedCount,
+      skippedCount,
+    };
+  }
+
+  async findRecurringClosuresByPitch(pitchId: string) {
+    return this.recurringClosureRepository.find({
+      where: { pitchId, isActive: true },
+      order: { createdAt: 'ASC' },
+    });
+  }
+
+  // Sürekli kapatma kuralını tamamen kaldırır: kuralı siler ve bu kurala bağlı,
+  // henüz geçmemiş tüm haftaların bloklarını revokeConfirmation ile açar
+  // (bekleyen REJECTED talepleri de PENDING'e geri döndürür).
+  async removeRecurringClosure(id: string) {
+    const closure = await this.recurringClosureRepository.findOne({
+      where: { id },
+    });
+    if (!closure) {
+      throw new NotFoundException('Sürekli kapatma kuralı bulunamadı');
+    }
+
+    closure.isActive = false;
+    await this.recurringClosureRepository.save(closure);
+
+    const futureReservations = await this.reservationRepository.find({
+      where: {
+        recurringClosureId: id,
+        status: ReservationStatus.APPROVED,
+        slotTime: MoreThanOrEqual(new Date()),
+      },
+    });
+
+    for (const reservation of futureReservations) {
+      try {
+        await this.revokeConfirmation(reservation.id);
+      } catch (e) {
+        this.logger.error(
+          `Failed to revoke recurring occurrence ${reservation.id} while removing closure ${id}`,
+          e,
+        );
+      }
+    }
+
+    await this.recurringClosureRepository.delete(id);
+
+    return { success: true, removedOccurrences: futureReservations.length };
+  }
+
+  // Her gece, aktif tüm sürekli kapatma kurallarının 60 günlük materialize
+  // penceresini öne doğru taze tutar — henüz oluşturulmamış gelecek haftaları doldurur.
+  @Cron(CronExpression.EVERY_DAY_AT_3AM)
+  async topUpRecurringClosures() {
+    const activeClosures = await this.recurringClosureRepository.find({
+      where: { isActive: true },
+    });
+    if (activeClosures.length === 0) return;
+
+    const windowDays = 60;
+    const horizon = new Date();
+    horizon.setDate(horizon.getDate() + windowDays);
+
+    for (const closure of activeClosures) {
+      try {
+        const [hour, minute] = closure.startTime.split(':').map(Number);
+        const occurrences = this.computeUpcomingWeekdayOccurrences(
+          closure.dayOfWeek,
+          hour,
+          minute,
+          horizon,
+        );
+
+        for (const occurrenceDate of occurrences) {
+          const existing = await this.reservationRepository.findOne({
+            where: { recurringClosureId: closure.id, slotTime: occurrenceDate },
+          });
+          if (existing) continue;
+
+          try {
+            await this.dataSource.transaction(async (manager) => {
+              await this.blockSlot(
+                manager,
+                closure.pitchId,
+                occurrenceDate,
+                closure.id,
+              );
+            });
+          } catch (e) {
+            this.logger.warn(
+              `Top-up skipped for recurring closure ${closure.id} at ${occurrenceDate}: ${(e as Error).message}`,
+            );
+          }
+        }
+      } catch (e) {
+        this.logger.error(
+          `Failed to top up recurring closure ${closure.id}`,
+          e,
+        );
+      }
+    }
   }
 
   async create(createReservationDto: any) {

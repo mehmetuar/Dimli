@@ -89,6 +89,10 @@ export const useBusinessPitchSettings = () => {
     const [approvalStatus, setApprovalStatus] = useState<'approved' | 'pending' | 'rejected'>('approved');
     const [rejectionReason, setRejectionReason] = useState<string | null>(null);
 
+    // Sürekli (haftalık tekrarlı) kapatma kuralları
+    const [recurringClosures, setRecurringClosures] = useState<any[]>([]);
+    const [removingClosureId, setRemovingClosureId] = useState<string | null>(null);
+
     useEffect(() => {
         getFacilities().then(setDefaultFacilities).catch(console.error);
     }, []);
@@ -129,9 +133,27 @@ export const useBusinessPitchSettings = () => {
             setApprovalStatus(pitch.approvalStatus || 'approved');
             setRejectionReason(pitch.rejectionReason || null);
             setLoading(false);
+
+            const closuresResp = await api.get(`/reservations/recurring-closures/pitch/${pitchId}`);
+            setRecurringClosures(closuresResp.data || []);
         } catch (error) {
             console.error('Error fetching pitch data:', error);
             setLoading(false);
+        }
+    };
+
+    // ─── Sürekli kapatma kuralları ──────────────────────────────────────────
+
+    const handleRemoveRecurringClosure = async (id: string) => {
+        setRemovingClosureId(id);
+        try {
+            await api.delete(`/reservations/recurring-closures/${id}`);
+            setRecurringClosures(prev => prev.filter(c => c.id !== id));
+        } catch (error) {
+            console.error('Error removing recurring closure:', error);
+            alert('Sürekli kapatma kuralı kaldırılırken hata oluştu.');
+        } finally {
+            setRemovingClosureId(null);
         }
     };
 
@@ -390,6 +412,8 @@ export const useBusinessPitchSettings = () => {
         changeRequestSentModal, setChangeRequestSentModal,
         hasPendingFacility,
         hasPendingPhoto,
+        recurringClosures,
+        removingClosureId,
         handleSubmit,
         handleDeletePitch,
         handleFacilityToggle,
@@ -401,5 +425,6 @@ export const useBusinessPitchSettings = () => {
         handleSaveSlots,
         toggleActive,
         handleClosedDayToggle,
+        handleRemoveRecurringClosure,
     };
 };
