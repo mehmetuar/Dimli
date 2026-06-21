@@ -32,6 +32,7 @@ import { User } from '../users/user.entity';
 import { SubscriptionService } from '../subscription/subscription.service';
 import {
   addIstanbulDays,
+  isPitchClosedOnDate,
   istanbulDateTimeToUtc,
   nowInIstanbul,
   toIstanbulParts,
@@ -540,6 +541,18 @@ export class ReservationsService {
 
     if (pitch.approvalStatus !== 'approved' || !pitch.isActive) {
       throw new ForbiddenException('Bu saha şu anda rezervasyona açık değil.');
+    }
+
+    // Saha o tarihte (haftalık sürekli kapatma veya genel pasiflik nedeniyle)
+    // kapalıysa rezervasyon oluşturulamaz — PitchSchedule.tsx'teki müşteri
+    // tarafı kontrolün sunucu tarafı eşdeğeri (savunma katmanı).
+    const { dateStr: slotDateStr } = toIstanbulParts(
+      new Date(createReservationDto.slotTime),
+    );
+    if (isPitchClosedOnDate(pitch, slotDateStr)) {
+      throw new ForbiddenException(
+        `Bu saha ${slotDateStr} tarihinde kapalı, rezervasyon oluşturamazsınız.`,
+      );
     }
 
     if (!pitch.business?.owner?.id) {

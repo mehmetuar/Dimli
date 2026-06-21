@@ -12,7 +12,11 @@ import {
 } from '../reservations/entities/reservation.entity';
 import { ChatService } from '../chat/chat.service';
 import { Pitch } from '../pitches/entities/pitch.entity';
-import { istanbulDateTimeToUtc, nowInIstanbul } from '../common/turkey-time.util';
+import {
+  istanbulDateTimeToUtc,
+  isPitchClosedOnDate,
+  nowInIstanbul,
+} from '../common/turkey-time.util';
 
 @Injectable()
 export class MatchAnnouncementsService {
@@ -126,6 +130,16 @@ export class MatchAnnouncementsService {
       throw new HttpException(
         'Tarih ve saat gereklidir',
         HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    // Saha o tarihte (haftalık sürekli kapatma veya genel pasiflik nedeniyle)
+    // kapalıysa ilan oluşturulamaz — PitchSchedule.tsx'teki müşteri tarafı
+    // kontrolün sunucu tarafı eşdeğeri.
+    if (isPitchClosedOnDate(pitchForCheck, data.date)) {
+      throw new HttpException(
+        `Bu saha ${data.date} tarihinde kapalı, ilan oluşturamazsınız.`,
+        HttpStatus.FORBIDDEN,
       );
     }
 

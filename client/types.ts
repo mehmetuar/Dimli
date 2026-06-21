@@ -187,6 +187,8 @@ export interface Pitch {
   openTime?: string;
   closeTime?: string;
   timeSlots?: TimeSlot[];
+  isActive?: boolean;
+  closedDays?: string[]; // e.g. ['Sunday', 'Monday']
 }
 
 export interface PitchOwner {

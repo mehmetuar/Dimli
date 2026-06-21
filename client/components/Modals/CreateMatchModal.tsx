@@ -228,15 +228,33 @@ const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelected
     };
     const endTime = time ? getEndTime(time) : null;
 
-    // Filter by search query only — server already handled geo + ordering
+    // Seçili tarihte (haftalık sürekli kapatma veya genel pasiflik nedeniyle)
+    // kapalı olan sahalar — PitchSchedule.tsx'teki müşteri tarafı kontrolün
+    // burada da uygulanması: kapalı bir sahaya ilan açılamaz, bu yüzden
+    // formda hiç gösterilmez.
+    const isPitchClosedOnSelectedDate = (pitch: { isActive?: boolean; closedDays?: string[] }): boolean => {
+        if (pitch.isActive === false) return true;
+        if (!pitch.closedDays?.length) return false;
+        const dayName = new Date(date).toLocaleDateString('en-US', { weekday: 'long' });
+        return pitch.closedDays.includes(dayName);
+    };
+
+    // Seçili tarihte açık sahası olmayan işletmeler listede hiç görünmez;
+    // arama da sadece o tarihte açık sahalar üzerinden eşleşir.
     const filteredBusinesses = useMemo(() => {
-        if (!searchQuery.trim()) return businesses;
         const q = searchQuery.trim().toLocaleLowerCase('tr');
-        return businesses.filter(b =>
-            b.name.toLocaleLowerCase('tr').includes(q) ||
-            b.pitches?.some(p => p.name.toLocaleLowerCase('tr').includes(q))
-        );
-    }, [businesses, searchQuery]);
+        return businesses
+            .map(b => ({
+                ...b,
+                pitches: b.pitches?.filter(p => !isPitchClosedOnSelectedDate(p)),
+            }))
+            .filter(b =>
+                (b.pitches?.length ?? 0) > 0 &&
+                (!q ||
+                    b.name.toLocaleLowerCase('tr').includes(q) ||
+                    b.pitches!.some(p => p.name.toLocaleLowerCase('tr').includes(q)))
+            );
+    }, [businesses, searchQuery, date]);
 
     return (
         <>

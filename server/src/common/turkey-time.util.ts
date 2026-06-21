@@ -64,3 +64,39 @@ export function istanbulNaiveStringToUtc(naive: string): Date {
   const [datePart, timePart] = naive.split('T');
   return istanbulDateTimeToUtc(datePart, (timePart || '00:00').slice(0, 5));
 }
+
+const WEEKDAY_NAMES = [
+  'Sunday',
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+];
+
+/**
+ * "YYYY-MM-DD" tarihinin haftanın hangi gününe denk geldiğini döner
+ * ('Monday'..'Sunday', Pitch.closedDays ile aynı konvansiyon). Tarih-sadece
+ * string'ler zon-nötr olduğundan Date.UTC ile güvenle hesaplanır.
+ */
+export function weekdayNameFromDateStr(dateStr: string): string {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return WEEKDAY_NAMES[new Date(Date.UTC(year, month - 1, day)).getUTCDay()];
+}
+
+/**
+ * Bir sahanın verilen tarihte kapalı olup olmadığını belirler — genel pasiflik
+ * (isActive) veya o güne denk gelen sürekli kapatma (closedDays) durumunda true.
+ * client/pages/customer/PitchBooking/components/PitchSchedule.tsx'teki
+ * isPitchClosed mantığının sunucu tarafı eşdeğeridir; her iki uçta da aynı
+ * sonucu üretmesi için değişirse orada da güncellenmelidir.
+ */
+export function isPitchClosedOnDate(
+  pitch: { isActive: boolean; closedDays?: string[] | null },
+  dateStr: string,
+): boolean {
+  if (pitch.isActive === false) return true;
+  if (!pitch.closedDays?.length) return false;
+  return pitch.closedDays.includes(weekdayNameFromDateStr(dateStr));
+}
