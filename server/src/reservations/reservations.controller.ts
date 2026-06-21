@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { ReservationsService } from './reservations.service';
 import { CreateReservationDto } from './dto/create-reservation.dto';
+import { istanbulNaiveStringToUtc } from '../common/turkey-time.util';
 
 @Controller('reservations')
 export class ReservationsController {
@@ -18,7 +19,7 @@ export class ReservationsController {
   manualFill(@Body() body: { pitchId: string; slotTime: string }) {
     return this.reservationsService.manualFill(
       body.pitchId,
-      new Date(body.slotTime),
+      istanbulNaiveStringToUtc(body.slotTime),
     );
   }
 
@@ -34,7 +35,7 @@ export class ReservationsController {
   ) {
     return this.reservationsService.createRecurringClosure(
       body.pitchId,
-      new Date(body.slotTime),
+      istanbulNaiveStringToUtc(body.slotTime),
       body.startTime,
       body.endTime,
     );

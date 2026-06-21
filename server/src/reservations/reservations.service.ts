@@ -30,6 +30,12 @@ import { BusinessOwner } from '../business-owner/entities/business-owner.entity'
 import { MatchAnnouncement } from '../match-announcements/match-announcement.entity';
 import { User } from '../users/user.entity';
 import { SubscriptionService } from '../subscription/subscription.service';
+import {
+  addIstanbulDays,
+  istanbulDateTimeToUtc,
+  nowInIstanbul,
+  toIstanbulParts,
+} from '../common/turkey-time.util';
 
 @Injectable()
 export class ReservationsService {
@@ -235,8 +241,12 @@ export class ReservationsService {
 
       // 3. Cancel all pending rakip araniyor announcements
       const pad = (n: number) => String(n).padStart(2, '0');
-      const approvedDateStr = `${approvalTime.getFullYear()}-${pad(approvalTime.getMonth() + 1)}-${pad(approvalTime.getDate())}`;
-      const approvedTimeStr = `${pad(approvalTime.getHours())}:${pad(approvalTime.getMinutes())}`;
+      const {
+        dateStr: approvedDateStr,
+        hours: approvedHour,
+        minutes: approvedMinute,
+      } = toIstanbulParts(approvalTime);
+      const approvedTimeStr = `${pad(approvedHour)}:${pad(approvedMinute)}`;
 
       const pendingAnnouncements = await manager.find(MatchAnnouncement, {
         where: {
@@ -343,18 +353,20 @@ export class ReservationsService {
 
     const dates: Date[] = [];
     const now = new Date();
-    const cursor = new Date();
-    cursor.setHours(0, 0, 0, 0);
+    const timeStr = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+    let cursorDateStr = nowInIstanbul().dateStr;
 
-    while (cursor <= horizon) {
-      if (cursor.getDay() === targetDay) {
-        const occurrence = new Date(cursor);
-        occurrence.setHours(hour, minute, 0, 0);
+    while (istanbulDateTimeToUtc(cursorDateStr, '00:00') <= horizon) {
+      const [y, m, d] = cursorDateStr.split('-').map(Number);
+      // Haftanın günü saf takvim olgusudur (saatten bağımsız) — Date.UTC ile
+      // zon-nötr hesaplanır, İstanbul'a çevirmeye gerek yok.
+      if (new Date(Date.UTC(y, m - 1, d)).getUTCDay() === targetDay) {
+        const occurrence = istanbulDateTimeToUtc(cursorDateStr, timeStr);
         if (occurrence >= now) {
           dates.push(occurrence);
         }
       }
-      cursor.setDate(cursor.getDate() + 1);
+      cursorDateStr = addIstanbulDays(cursorDateStr, 1);
     }
     return dates;
   }
@@ -376,6 +388,7 @@ export class ReservationsService {
     const firstOccurrence = new Date(slotTime);
     const dayOfWeek = firstOccurrence.toLocaleDateString('en-US', {
       weekday: 'long',
+      timeZone: 'Europe/Istanbul',
     });
 
     const closure = this.recurringClosureRepository.create({
@@ -962,8 +975,7 @@ export class ReservationsService {
 
       // 4.7. Aynı takımın aynı gün çakışan PENDING rakip_araniyor ilanlarını iptal et (rezervasyonsuz olanlar)
       try {
-        const pad = (n: number) => String(n).padStart(2, '0');
-        const approvedDateStr = `${approvalTime.getFullYear()}-${pad(approvalTime.getMonth() + 1)}-${pad(approvalTime.getDate())}`;
+        const { dateStr: approvedDateStr } = toIstanbulParts(approvalTime);
 
         const teamAnnouncements = await manager.find(MatchAnnouncement, {
           where: {
@@ -978,9 +990,7 @@ export class ReservationsService {
         for (const ann of teamAnnouncements) {
           if (ann.id === reservation.matchAnnouncementId) continue;
 
-          const [h, m] = ann.time.split(':').map(Number);
-          const annStart = new Date(approvedDateStr);
-          annStart.setHours(h, m, 0, 0);
+          const annStart = istanbulDateTimeToUtc(approvedDateStr, ann.time);
 
           const diffMs = Math.abs(annStart.getTime() - approvalTime.getTime());
           if (diffMs >= 60 * 60000) continue; // tam bitişik veya daha uzak → çakışma yok
@@ -1096,8 +1106,12 @@ export class ReservationsService {
       try {
         // Build date/time strings matching MatchAnnouncement.date (YYYY-MM-DD) and .time (HH:MM)
         const pad = (n: number) => String(n).padStart(2, '0');
-        const approvedDateStr = `${approvalTime.getFullYear()}-${pad(approvalTime.getMonth() + 1)}-${pad(approvalTime.getDate())}`;
-        const approvedTimeStr = `${pad(approvalTime.getHours())}:${pad(approvalTime.getMinutes())}`;
+        const {
+          dateStr: approvedDateStr,
+          hours: approvedHour,
+          minutes: approvedMinute,
+        } = toIstanbulParts(approvalTime);
+        const approvedTimeStr = `${pad(approvedHour)}:${pad(approvedMinute)}`;
 
         const conflictingAnnouncements = await manager.find(MatchAnnouncement, {
           where: {
@@ -2049,12 +2063,9 @@ export class ReservationsService {
   }
 
   async findByPitchAndDateRange(pitchId: string, date: string) {
-    // date format: YYYY-MM-DD
-    const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
-
-    const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
+    // date format: YYYY-MM-DD (İstanbul takvim günü)
+    const startOfDay = istanbulDateTimeToUtc(date, '00:00');
+    const endOfDay = istanbulDateTimeToUtc(addIstanbulDays(date, 1), '00:00');
 
     return this.reservationRepository
       .createQueryBuilder('reservation')
@@ -2063,7 +2074,7 @@ export class ReservationsService {
       .leftJoinAndSelect('reservation.opponentTeam', 'opponentTeam')
       .where('reservation.pitchId = :pitchId', { pitchId })
       .andWhere('reservation.slotTime >= :start', { start: startOfDay })
-      .andWhere('reservation.slotTime <= :end', { end: endOfDay })
+      .andWhere('reservation.slotTime < :end', { end: endOfDay })
       .orderBy('reservation.slotTime', 'ASC')
       .getMany();
   }

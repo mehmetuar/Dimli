@@ -26,6 +26,11 @@ import { Business } from '../business/entities/business.entity';
 import { RatingsService } from '../ratings/ratings.service';
 import { Subscription } from '../subscription/entities/subscription.entity';
 import { PitchChangeRequest } from '../pitches/entities/pitch-change-request.entity';
+import {
+  addIstanbulDays,
+  istanbulDateTimeToUtc,
+  nowInIstanbul,
+} from '../common/turkey-time.util';
 
 @Injectable()
 export class BusinessOwnerService {
@@ -132,8 +137,6 @@ export class BusinessOwnerService {
     const slotsResponse: any[] = [];
 
     const selectedDate = new Date(dateStr);
-    const startOfDay = new Date(selectedDate);
-    startOfDay.setHours(0, 0, 0, 0);
 
     // Day name for closed-day check (en-US locale gives English names)
     const dayName = selectedDate.toLocaleDateString('en-US', {
@@ -166,9 +169,7 @@ export class BusinessOwnerService {
         for (const ts of pitch.timeSlots) {
           if (!ts.isActive) continue;
 
-          const [startH, startM] = ts.startTime.split(':').map(Number);
-          const slotTime = new Date(startOfDay);
-          slotTime.setHours(startH, startM, 0, 0);
+          const slotTime = istanbulDateTimeToUtc(dateStr, ts.startTime);
 
           const reservations =
             await this.reservationsService.findByPitchAndDate(
@@ -238,8 +239,7 @@ export class BusinessOwnerService {
         }
 
         for (const hour of hours) {
-          const slotTime = new Date(startOfDay);
-          slotTime.setHours(hour);
+          const slotTime = istanbulDateTimeToUtc(dateStr, `${hour}:00`);
 
           const reservations =
             await this.reservationsService.findByPitchAndDate(
@@ -330,36 +330,27 @@ export class BusinessOwnerService {
 
     if (!business) throw new Error('Business not found');
 
-    // Tarih aralıkları — literal takvim günü.
-    // Bir slot, slotTime'ının ait olduğu takvim gününün cirosuna sayılır
-    // (00:00 ve sonrası başlayan maçlar zaten o günün tarihiyle kayıtlıdır).
-    const now = new Date();
+    // Tarih aralıkları — İstanbul takvim günü (process saat dilimi UTC,
+    // bu yüzden process-yerel .setHours()/.getMonth() yerine sabit +3 ofsetli
+    // yardımcılar kullanılır — bkz. common/turkey-time.util.ts).
+    const { dateStr: todayStr } = nowInIstanbul();
+    const [todayYear, todayMonth] = todayStr.split('-').map(Number);
 
-    const startOfToday = new Date(now);
-    startOfToday.setHours(0, 0, 0, 0);
-
-    const endOfToday = new Date(now);
-    endOfToday.setHours(23, 59, 59, 999);
-
-    // Ay başı: ayın 1. günü saat 00:00
-    const startOfMonth = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      1,
-      0,
-      0,
-      0,
-      0,
+    const startOfToday = istanbulDateTimeToUtc(todayStr, '00:00');
+    const endOfToday = new Date(
+      istanbulDateTimeToUtc(addIstanbulDays(todayStr, 1), '00:00').getTime() -
+        1,
     );
-    // Ay sonu: ayın son günü saat 23:59:59.999
+
+    // Ay başı: ayın 1. günü 00:00 (İstanbul)
+    const startOfMonthStr = `${todayYear}-${String(todayMonth).padStart(2, '0')}-01`;
+    const startOfMonth = istanbulDateTimeToUtc(startOfMonthStr, '00:00');
+    // Ay sonu: bir sonraki ayın 1. gününden 1ms önce (İstanbul)
+    const nextMonthStr = new Date(Date.UTC(todayYear, todayMonth, 1))
+      .toISOString()
+      .slice(0, 10);
     const endOfMonth = new Date(
-      now.getFullYear(),
-      now.getMonth() + 1,
-      0,
-      23,
-      59,
-      59,
-      999,
+      istanbulDateTimeToUtc(nextMonthStr, '00:00').getTime() - 1,
     );
 
     const pitchStats: any[] = [];

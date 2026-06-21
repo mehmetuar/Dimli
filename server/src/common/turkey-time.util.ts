@@ -19,6 +19,22 @@ export function istanbulDateTimeToUtc(dateStr: string, time: string): Date {
 }
 
 /**
+ * Verilen mutlak anı İstanbul yerel takvim günü/saat/dakika olarak döner.
+ */
+export function toIstanbulParts(date: Date): {
+  dateStr: string;
+  hours: number;
+  minutes: number;
+} {
+  const iso = new Date(date.getTime() + ISTANBUL_OFFSET_MS).toISOString();
+  return {
+    dateStr: iso.slice(0, 10),
+    hours: Number(iso.slice(11, 13)),
+    minutes: Number(iso.slice(14, 16)),
+  };
+}
+
+/**
  * Şu anki anı İstanbul yerel takvim günü/saat/dakika olarak döner.
  */
 export function nowInIstanbul(): {
@@ -26,10 +42,25 @@ export function nowInIstanbul(): {
   hours: number;
   minutes: number;
 } {
-  const iso = new Date(Date.now() + ISTANBUL_OFFSET_MS).toISOString();
-  return {
-    dateStr: iso.slice(0, 10),
-    hours: Number(iso.slice(11, 13)),
-    minutes: Number(iso.slice(14, 16)),
-  };
+  return toIstanbulParts(new Date());
+}
+
+/**
+ * "YYYY-MM-DD" tarihine `days` takvim günü ekler/çıkarır — saf takvim
+ * aritmetiği, Date.UTC ile zon-nötr hesaplanır (DST yok, kayma riski yok).
+ */
+export function addIstanbulDays(dateStr: string, days: number): string {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(Date.UTC(year, month - 1, day + days))
+    .toISOString()
+    .slice(0, 10);
+}
+
+/**
+ * Client'tan gelen, zon işareti taşımayan "YYYY-MM-DDTHH:mm[:ss]" string'ini
+ * (İstanbul yerel saati niyetiyle) doğru mutlak Date'e çevirir.
+ */
+export function istanbulNaiveStringToUtc(naive: string): Date {
+  const [datePart, timePart] = naive.split('T');
+  return istanbulDateTimeToUtc(datePart, (timePart || '00:00').slice(0, 5));
 }
