@@ -7,7 +7,7 @@ const PAGE_SIZE = 50;
 const POSITION_KEYS = ['kaleci', 'orta_saha', 'forvet', 'defans'];
 
 export const useJokerPool = () => {
-    const { coords, radius, filterMode, isLocating, setRadius, requestLocation } = useLocationContext();
+    const { coords, radius, setRadius, requestLocation } = useLocationContext();
 
     const [jokers, setJokers] = useState<any[]>([]);
     const [currentUser, setCurrentUser] = useState<any>(null);
@@ -22,9 +22,7 @@ export const useJokerPool = () => {
     const [sortBy, setSortBy] = useState<string>('distance');
     const [isSortOpen, setIsSortOpen] = useState(false);
 
-    const locationFilter: LocationFilter = filterMode === 'ALL'
-        ? { type: 'ALL' }
-        : { type: 'NEARBY', radius, coords: coords ?? undefined };
+    const locationFilter: LocationFilter = { type: 'NEARBY', radius, coords: coords ?? undefined };
 
     const lastPatchedKey = useRef<string | null>(null);
 
@@ -65,18 +63,18 @@ export const useJokerPool = () => {
         }
     };
 
-    // coords, radius veya filterMode değişince sıfırla ve yeniden yükle
+    // coords veya radius değişince sıfırla ve yeniden yükle
     useEffect(() => {
-        if (filterMode === 'NEARBY' && !coords) { setJokers([]); return; }
+        if (!coords) { setJokers([]); return; }
         setOffset(0);
-        fetchJokers(sortBy, 0, false, coords?.lat, coords?.lng, radius);
-    }, [coords, radius, filterMode]); // eslint-disable-line react-hooks/exhaustive-deps
+        fetchJokers(sortBy, 0, false, coords.lat, coords.lng, radius);
+    }, [coords, radius]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // sortBy değişince sıfırla ve yeniden yükle
     useEffect(() => {
-        if (filterMode === 'NEARBY' && !coords) return;
+        if (!coords) return;
         setOffset(0);
-        fetchJokers(sortBy, 0, false, coords?.lat, coords?.lng, radius);
+        fetchJokers(sortBy, 0, false, coords.lat, coords.lng, radius);
     }, [sortBy]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Konum güncellemesi
@@ -89,7 +87,7 @@ export const useJokerPool = () => {
     }, [coords]);
 
     const loadMore = () => {
-        if (filterMode === 'NEARBY' && !coords) return;
+        if (!coords) return;
         if (loadingMore || !hasMore) return;
         const newOffset = offset + PAGE_SIZE;
         setOffset(newOffset);
@@ -110,9 +108,9 @@ export const useJokerPool = () => {
             const res = await api.patch('/users/me', data);
             setCurrentUser(res.data);
             setIsProfileModalOpen(false);
-            if (filterMode === 'ALL' || coords) {
+            if (coords) {
                 setOffset(0);
-                fetchJokers(sortBy, 0, false, coords?.lat, coords?.lng, radius);
+                fetchJokers(sortBy, 0, false, coords.lat, coords.lng, radius);
             }
         } catch (err) {
             console.error('Failed to update profile:', err);
@@ -124,7 +122,6 @@ export const useJokerPool = () => {
         jokers,
         currentUser,
         isLoading,
-        isLoadingLocation: isLocating && !coords,
         loadingMore,
         hasMore,
         loadMore,

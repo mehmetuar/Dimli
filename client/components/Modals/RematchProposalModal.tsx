@@ -8,6 +8,7 @@ import { DateSelectionModal } from './DateSelectionModal';
 import { TimeSelectionModal } from './TimeSelectionModal';
 import { useLocationContext } from '../../contexts/LocationContext';
 import { useModalBodyClass } from '../../utils/useModalBodyClass';
+import { LocationAccessGate } from '../LocationAccessGate';
 
 interface RematchProposalModalProps {
     isOpen: boolean;
@@ -64,10 +65,10 @@ const RematchProposalModalContent: React.FC<RematchProposalModalProps> = ({
     // Fetch businesses
     useEffect(() => {
         const fetchData = async () => {
+            if (!coords) return;
             setIsFetchingData(true);
             try {
-                const params = coords ? { lat: coords.lat, lng: coords.lng, radius } : undefined;
-                const res = await api.get('/businesses', { params });
+                const res = await api.get('/businesses', { params: { lat: coords.lat, lng: coords.lng, radius } });
                 const fetched: Business[] = res.data;
                 setBusinesses(fetched);
 
@@ -101,7 +102,7 @@ const RematchProposalModalContent: React.FC<RematchProposalModalProps> = ({
                 setErrorMessage('');
             }
         }
-    }, [isOpen]);
+    }, [isOpen, coords]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Fetch booked slots when pitch/date changes
     useEffect(() => {
@@ -255,41 +256,43 @@ const RematchProposalModalContent: React.FC<RematchProposalModalProps> = ({
                             <>
                                 {/* STEP 1: İşletme Seç */}
                                 {step === 1 && (
-                                    <div className="animate-fade-in">
-                                        {/* Region Filter */}
-                                        <div className="flex gap-2 mb-4 overflow-x-auto scrollbar-hide pb-2">
-                                            {regions.map(region => (
-                                                <button
-                                                    key={region}
-                                                    onClick={() => setSelectedRegion(region)}
-                                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-colors ${selectedRegion === region
-                                                        ? 'bg-turf-600 text-white'
-                                                        : 'bg-slate-900 text-slate-400 border border-slate-700 hover:border-turf-500'
-                                                        }`}
-                                                >
-                                                    {region}
-                                                </button>
-                                            ))}
-                                        </div>
+                                    <LocationAccessGate contentLabel="işletmeleri" compact>
+                                        <div className="animate-fade-in">
+                                            {/* Region Filter */}
+                                            <div className="flex gap-2 mb-4 overflow-x-auto scrollbar-hide pb-2">
+                                                {regions.map(region => (
+                                                    <button
+                                                        key={region}
+                                                        onClick={() => setSelectedRegion(region)}
+                                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-colors ${selectedRegion === region
+                                                            ? 'bg-turf-600 text-white'
+                                                            : 'bg-slate-900 text-slate-400 border border-slate-700 hover:border-turf-500'
+                                                            }`}
+                                                    >
+                                                        {region}
+                                                    </button>
+                                                ))}
+                                            </div>
 
-                                        <div className="grid grid-cols-1 gap-2 max-h-96 overflow-y-auto">
-                                            {filteredBusinesses.map(business => (
-                                                <div
-                                                    key={business.id}
-                                                    onClick={() => handleBusinessSelect(business.id)}
-                                                    className={`rounded-xl border p-3 cursor-pointer flex items-center gap-3 hover:bg-slate-800 transition-all ${selectedBusinessId === business.id ? 'border-turf-500 bg-slate-900' : 'border-slate-700 bg-slate-900/50'}`}
-                                                >
-                                                    <Store className={`w-5 h-5 ${selectedBusinessId === business.id ? 'text-turf-500' : 'text-slate-500'}`} />
-                                                    <div className="flex-1">
-                                                        <div className="font-bold text-white text-sm">{business.name}</div>
-                                                        <div className="text-xs text-slate-500">{business.district}, {business.city}</div>
+                                            <div className="grid grid-cols-1 gap-2 max-h-96 overflow-y-auto">
+                                                {filteredBusinesses.map(business => (
+                                                    <div
+                                                        key={business.id}
+                                                        onClick={() => handleBusinessSelect(business.id)}
+                                                        className={`rounded-xl border p-3 cursor-pointer flex items-center gap-3 hover:bg-slate-800 transition-all ${selectedBusinessId === business.id ? 'border-turf-500 bg-slate-900' : 'border-slate-700 bg-slate-900/50'}`}
+                                                    >
+                                                        <Store className={`w-5 h-5 ${selectedBusinessId === business.id ? 'text-turf-500' : 'text-slate-500'}`} />
+                                                        <div className="flex-1">
+                                                            <div className="font-bold text-white text-sm">{business.name}</div>
+                                                            <div className="text-xs text-slate-500">{business.district}, {business.city}</div>
+                                                        </div>
+                                                        <div className="text-xs text-slate-500">{business.pitches?.length || 0} saha</div>
+                                                        <ChevronRight className="w-4 h-4 text-slate-600" />
                                                     </div>
-                                                    <div className="text-xs text-slate-500">{business.pitches?.length || 0} saha</div>
-                                                    <ChevronRight className="w-4 h-4 text-slate-600" />
-                                                </div>
-                                            ))}
+                                                ))}
+                                            </div>
                                         </div>
-                                    </div>
+                                    </LocationAccessGate>
                                 )}
 
                                 {/* STEP 2: Saha Seç */}

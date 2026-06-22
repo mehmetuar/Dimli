@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { X, MapPin, Trophy, Users, Shield, Star, Store } from 'lucide-react';
 import { Team, Player, Business } from '../../types';
-import api from '../../services/api';
+import api, { getBusinesses } from '../../services/api';
 import { LoadingSpinner } from '../UI/LoadingSpinner';
 import { LevelBadge } from '../UI/LevelBadge';
 import { FairPlayScore } from '../UI/FairPlayScore';
@@ -39,9 +39,8 @@ export const TeamDetailModal: React.FC<TeamDetailModalProps> = ({ isOpen, onClos
                 // Fetch Home Business if exists
                 if (teamRes.data.homeBusinessId) {
                     try {
-                        const businessRes = await api.get('/businesses');
-                        const business = businessRes.data.find((b: Business) => b.id === teamRes.data.homeBusinessId);
-                        setHomeBusiness(business || null);
+                        const businesses = await getBusinesses({ ids: [teamRes.data.homeBusinessId] });
+                        setHomeBusiness(businesses[0] || null);
                     } catch (err) {
                         console.error('Failed to fetch business details', err);
                     }

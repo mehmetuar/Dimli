@@ -8,7 +8,7 @@ import { useFilterContext } from '../../../../contexts/FilterContext';
 const PAGE_SIZE = 50;
 
 export const useMarketplace = () => {
-  const { coords, radius, filterMode, permissionStatus, setRadius, requestLocation } = useLocationContext();
+  const { coords, radius, setRadius, requestLocation } = useLocationContext();
   const { selectedDate, setSelectedDate, marketplaceSortBy, setMarketplaceSortBy, isDateFilterModalOpen: isDateFilterOpen, setIsDateFilterModalOpen: setIsDateFilterOpen } = useFilterContext();
 
   const [matches, setMatches] = useState<any[]>([]);
@@ -44,22 +44,14 @@ export const useMarketplace = () => {
 
   const [isLocationFilterOpen, setIsLocationFilterOpen] = useState(false);
 
-  const locationFilter: LocationFilter = filterMode === 'ALL'
-    ? { type: 'ALL' }
-    : coords
-      ? { type: 'NEARBY', radius, coords }
-      : { type: 'ALL' };
+  const locationFilter: LocationFilter = { type: 'NEARBY', radius, coords: coords ?? undefined };
 
   const fetchAnnouncements = async (off = 0, append = false) => {
+    if (!coords) return;
     if (!append) setIsLoading(true);
     else setLoadingMore(true);
     try {
-      const params: Record<string, any> = { offset: off, limit: PAGE_SIZE };
-      if (filterMode === 'NEARBY' && coords) {
-        params.lat = coords.lat;
-        params.lng = coords.lng;
-        params.radius = radius;
-      }
+      const params = { offset: off, limit: PAGE_SIZE, lat: coords.lat, lng: coords.lng, radius };
       const res = await api.get('/match-announcements', { params });
       const data = (res.data as any[]).filter((m: any) => m.matchType !== 'kendi_aramizda');
       if (append) setMatches(prev => [...prev, ...data]);
@@ -78,12 +70,8 @@ export const useMarketplace = () => {
   useEffect(() => {
     const fetchStaticData = async () => {
       try {
-        const [userResponse, businessResponse] = await Promise.all([
-          api.get('/users/me'),
-          api.get('/businesses'),
-        ]);
+        const userResponse = await api.get('/users/me');
         setCurrentUser(userResponse.data);
-        setBusinesses(businessResponse.data);
 
         if (userResponse.data?.team) {
           api.get(`/challenges/team/${userResponse.data.team.id}`)
@@ -97,6 +85,17 @@ export const useMarketplace = () => {
     fetchStaticData();
   }, []);
 
+  // Maç ilanlarına bağlı işletme/saha bilgisi — ilanlar zaten konuma göre
+  // filtrelendiğinden, aynı konum/yarıçapla sınırlı tutmak yeterli.
+  useEffect(() => {
+    if (!coords) return;
+    let cancelled = false;
+    api.get('/businesses', { params: { lat: coords.lat, lng: coords.lng, radius } })
+      .then(res => { if (!cancelled) setBusinesses(res.data); })
+      .catch(error => console.error('Failed to fetch businesses:', error));
+    return () => { cancelled = true; };
+  }, [coords, radius]);
+
   // ── coords/radius değişince sıfırla ve yeniden yükle ────────────────────
   useEffect(() => {
     let cancelled = false;
@@ -107,16 +106,11 @@ export const useMarketplace = () => {
       setHasMore(false);
       setIsLoading(true);
       try {
-        if (filterMode === 'NEARBY' && !coords) {
+        if (!coords) {
           setMatches([]);
           return;
         }
-        const params: Record<string, any> = { offset: 0, limit: PAGE_SIZE };
-        if (filterMode === 'NEARBY' && coords) {
-          params.lat = coords.lat;
-          params.lng = coords.lng;
-          params.radius = radius;
-        }
+        const params = { offset: 0, limit: PAGE_SIZE, lat: coords.lat, lng: coords.lng, radius };
         const res = await api.get('/match-announcements', { params });
         if (cancelled) return;
         const data = (res.data as any[]).filter((m: any) => m.matchType !== 'kendi_aramizda');
@@ -140,10 +134,10 @@ export const useMarketplace = () => {
       cancelled = true;
       clearTimeout(safetyTimer);
     };
-  }, [coords, radius, filterMode]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [coords, radius]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadMore = () => {
-    if (filterMode === 'NEARBY' && !coords) return;
+    if (!coords) return;
     if (loadingMore || !hasMore) return;
     const newOff = offsetRef.current + PAGE_SIZE;
     offsetRef.current = newOff;
@@ -233,7 +227,6 @@ export const useMarketplace = () => {
     locationFilter,
     setLocationFilter: applyLocationFilter,
     userCoords: coords,
-    locationPermissionDenied: permissionStatus === 'denied',
     isAuthorized,
     getPitchDetails,
     filteredMatches,

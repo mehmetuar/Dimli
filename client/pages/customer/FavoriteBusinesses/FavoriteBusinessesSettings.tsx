@@ -5,10 +5,11 @@ import { getProfile, updateProfile, getBusinesses } from '../../../services/api'
 import { LoadingSpinner } from '../../../components/UI/LoadingSpinner';
 import { useLocationContext } from '../../../contexts/LocationContext';
 import { LocationFilterModal, LocationFilter } from '../../../components/Modals/LocationFilterModal';
+import { LocationAccessGate } from '../../../components/LocationAccessGate';
 
 export const FavoriteBusinessesSettings: React.FC = () => {
     const navigate = useNavigate();
-    const { coords, radius, filterMode, isLocating, setRadius } = useLocationContext();
+    const { coords, radius, setRadius } = useLocationContext();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [businesses, setBusinesses] = useState<any[]>([]);
@@ -17,10 +18,7 @@ export const FavoriteBusinessesSettings: React.FC = () => {
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const [isLocationFilterOpen, setIsLocationFilterOpen] = useState(false);
 
-    const isLoadingLocation = filterMode === 'NEARBY' && isLocating && !coords;
-    const locationFilter: LocationFilter = filterMode === 'ALL'
-        ? { type: 'ALL' }
-        : { type: 'NEARBY', radius, coords: coords ?? undefined };
+    const locationFilter: LocationFilter = { type: 'NEARBY', radius, coords: coords ?? undefined };
     const applyLocationFilter = (filter: LocationFilter) => { if (filter.radius) setRadius(filter.radius); };
 
     useEffect(() => {
@@ -38,16 +36,14 @@ export const FavoriteBusinessesSettings: React.FC = () => {
     }, []);
 
     useEffect(() => {
-        if (filterMode === 'NEARBY' && !coords) {
+        if (!coords) {
             setBusinesses([]);
             return;
         }
         let cancelled = false;
         const fetchBusinessesWithCoords = async () => {
             try {
-                const data = filterMode === 'ALL'
-                    ? await getBusinesses()
-                    : await getBusinesses({ lat: coords!.lat, lng: coords!.lng, radius });
+                const data = await getBusinesses({ lat: coords.lat, lng: coords.lng, radius });
                 if (!cancelled) setBusinesses(data);
             } catch (error) {
                 console.error('Failed to fetch businesses:', error);
@@ -55,7 +51,7 @@ export const FavoriteBusinessesSettings: React.FC = () => {
         };
         fetchBusinessesWithCoords();
         return () => { cancelled = true; };
-    }, [coords, radius, filterMode]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [coords, radius]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const handleToggle = (id: string) => {
         setFavoriteIds(prev => {
@@ -155,54 +151,50 @@ export const FavoriteBusinessesSettings: React.FC = () => {
                 </div>
 
                 {/* Business list */}
-                {isLoadingLocation ? (
-                    <div className="flex flex-col items-center justify-center py-12 text-slate-400">
-                        <LoadingSpinner size="lg" text="" />
-                        <p className="mt-4 text-sm font-medium">Konumunuz alınıyor...</p>
-                        <p className="text-xs text-slate-500 mt-1">Yakınındaki işletmeler yükleniyor</p>
-                    </div>
-                ) : businesses.length === 0 ? (
-                    <div className="text-center py-12 text-slate-400 bg-slate-800/50 rounded-3xl border border-dashed border-slate-700">
-                        <MapPin className="w-8 h-8 mx-auto mb-3 text-slate-600" />
-                        <p className="text-sm">İşletme bulunamadı.</p>
-                        <p className="text-xs text-slate-500 mt-1">Henüz kayıtlı işletme yok.</p>
-                    </div>
-                ) : filtered.length > 0 ? (
-                    <div className="space-y-2">
-                        {filtered.map(business => {
-                            const isSelected = favoriteIds.includes(business.id);
-                            return (
-                                <div
-                                    key={business.id}
-                                    onClick={() => handleToggle(business.id)}
-                                    className={`p-4 rounded-xl border cursor-pointer flex items-center gap-3 transition-all active:scale-[0.98] ${isSelected
-                                        ? 'bg-turf-900/20 border-turf-500/50'
-                                        : 'bg-slate-800/50 border-slate-700 hover:border-slate-500'
-                                        }`}
-                                >
-                                    <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-colors shrink-0 ${isSelected ? 'bg-turf-500 border-turf-500' : 'border-slate-600 bg-slate-800'}`}>
-                                        {isSelected && <CheckCircle className="w-4 h-4 text-slate-900" />}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className={`font-bold truncate ${isSelected ? 'text-white' : 'text-slate-300'}`}>
-                                            {business.name}
+                <LocationAccessGate contentLabel="işletmeleri">
+                    {businesses.length === 0 ? (
+                        <div className="text-center py-12 text-slate-400 bg-slate-800/50 rounded-3xl border border-dashed border-slate-700">
+                            <MapPin className="w-8 h-8 mx-auto mb-3 text-slate-600" />
+                            <p className="text-sm">İşletme bulunamadı.</p>
+                            <p className="text-xs text-slate-500 mt-1">Henüz kayıtlı işletme yok.</p>
+                        </div>
+                    ) : filtered.length > 0 ? (
+                        <div className="space-y-2">
+                            {filtered.map(business => {
+                                const isSelected = favoriteIds.includes(business.id);
+                                return (
+                                    <div
+                                        key={business.id}
+                                        onClick={() => handleToggle(business.id)}
+                                        className={`p-4 rounded-xl border cursor-pointer flex items-center gap-3 transition-all active:scale-[0.98] ${isSelected
+                                            ? 'bg-turf-900/20 border-turf-500/50'
+                                            : 'bg-slate-800/50 border-slate-700 hover:border-slate-500'
+                                            }`}
+                                    >
+                                        <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-colors shrink-0 ${isSelected ? 'bg-turf-500 border-turf-500' : 'border-slate-600 bg-slate-800'}`}>
+                                            {isSelected && <CheckCircle className="w-4 h-4 text-slate-900" />}
                                         </div>
-                                        <div className="text-xs text-slate-500 truncate mt-0.5">
-                                            {business.location || business.district || business.city || ''}
+                                        <div className="flex-1 min-w-0">
+                                            <div className={`font-bold truncate ${isSelected ? 'text-white' : 'text-slate-300'}`}>
+                                                {business.name}
+                                            </div>
+                                            <div className="text-xs text-slate-500 truncate mt-0.5">
+                                                {business.location || business.district || business.city || ''}
+                                            </div>
                                         </div>
+                                        {isSelected && (
+                                            <span className="text-xs text-turf-400 font-bold shrink-0">Seçili</span>
+                                        )}
                                     </div>
-                                    {isSelected && (
-                                        <span className="text-xs text-turf-400 font-bold shrink-0">Seçili</span>
-                                    )}
-                                </div>
-                            );
-                        })}
-                    </div>
-                ) : (
-                    <div className="text-sm text-slate-500 text-center py-8 bg-slate-800/50 rounded-xl border border-slate-800">
-                        Arama sonucu bulunamadı.
-                    </div>
-                )}
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        <div className="text-sm text-slate-500 text-center py-8 bg-slate-800/50 rounded-xl border border-slate-800">
+                            Arama sonucu bulunamadı.
+                        </div>
+                    )}
+                </LocationAccessGate>
             </div>
             </div>
 

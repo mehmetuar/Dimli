@@ -7,7 +7,7 @@ import { useLocationContext } from '../../../../contexts/LocationContext';
 import { useFilterContext } from '../../../../contexts/FilterContext';
 
 export const usePitchBooking = () => {
-    const { coords, radius, filterMode, isLocating, setRadius, setFilterMode, requestLocation } = useLocationContext();
+    const { coords, radius, setRadius, requestLocation } = useLocationContext();
     const { selectedDate, setSelectedDate, pitchSortBy, setPitchSortBy, isDateFilterModalOpen: isDateFilterOpen, setIsDateFilterModalOpen: setIsDateFilterOpen } = useFilterContext();
 
     const [businesses, setBusinesses] = useState<Business[]>(() => {
@@ -68,9 +68,7 @@ export const usePitchBooking = () => {
     const [pitchAnnouncements, setPitchAnnouncements] = useState<any[]>([]);
 
     // Computed location filter (for UI components that expect LocationFilter shape)
-    const locationFilter: LocationFilter = filterMode === 'ALL'
-        ? { type: 'ALL' }
-        : { type: 'NEARBY', radius, coords: coords ?? undefined };
+    const locationFilter: LocationFilter = { type: 'NEARBY', radius, coords: coords ?? undefined };
 
     const isAuthorized = () => {
         if (!currentUser?.team) return false;
@@ -95,18 +93,14 @@ export const usePitchBooking = () => {
         fetchUserData();
     }, []);
 
-    // Re-fetch businesses whenever coords, radius, or filterMode changes
+    // Re-fetch businesses whenever coords or radius changes
     useEffect(() => {
-        if (filterMode === 'NEARBY' && !coords) {
-            return;
-        }
+        if (!coords) return;
         let cancelled = false;
         const fetchBusinessesWithCoords = async () => {
             setIsLoadingBusinesses(true);
             try {
-                const bList: Business[] = filterMode === 'ALL'
-                    ? await getBusinesses()
-                    : await getBusinesses({ lat: coords!.lat, lng: coords!.lng, radius });
+                const bList: Business[] = await getBusinesses({ lat: coords.lat, lng: coords.lng, radius });
                 if (!cancelled) {
                     setBusinesses(bList);
                     localStorage.setItem('cached_businesses', JSON.stringify(bList));
@@ -119,7 +113,7 @@ export const usePitchBooking = () => {
         };
         fetchBusinessesWithCoords();
         return () => { cancelled = true; };
-    }, [coords, radius, filterMode]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [coords, radius]); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
         if (expandedBusinessId && selectedPitchIdInBusiness[expandedBusinessId]) {
@@ -171,12 +165,7 @@ export const usePitchBooking = () => {
 
     // Delegate filter change to global context
     const applyLocationFilter = (filter: LocationFilter) => {
-        if (filter.type === 'ALL') {
-            setFilterMode('ALL');
-        } else {
-            setFilterMode('NEARBY');
-            if (filter.radius) setRadius(filter.radius);
-        }
+        if (filter.radius) setRadius(filter.radius);
     };
 
     const filteredBusinesses = useMemo(() => {
@@ -277,8 +266,6 @@ export const usePitchBooking = () => {
         offerMode, setOfferMode,
         isLocationFilterOpen, setIsLocationFilterOpen,
         locationFilter, setLocationFilter: applyLocationFilter,
-        // isLoadingLocation: true while GPS is in flight, no coords, and location filter is active
-        isLoadingLocation: filterMode === 'NEARBY' && isLocating && !coords,
         myChallenges,
         confirmCancelModal, setConfirmCancelModal,
         confirmDeleteAdModal, setConfirmDeleteAdModal,

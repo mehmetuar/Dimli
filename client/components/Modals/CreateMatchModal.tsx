@@ -7,6 +7,7 @@ import { SkillLevel, Business, ReservationStatus } from '../../types';
 import api, { getReservationsByPitch, getBusinesses } from '../../services/api';
 import { useLocationContext } from '../../contexts/LocationContext';
 import { useKeyboardHeight } from '../../utils/useKeyboardHeight';
+import { LocationAccessGate } from '../LocationAccessGate';
 
 import { DateSelectionModal } from './DateSelectionModal';
 import { TimeSelectionModal } from './TimeSelectionModal';
@@ -30,7 +31,7 @@ export const CreateMatchModal: React.FC<Props> = (props) => {
 };
 
 const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelectedPitchId, preSelectedBusinessId, preSelectedStartTime, preSelectedDate }) => {
-    const { coords, radius, filterMode, isLocating } = useLocationContext();
+    const { coords, radius } = useLocationContext();
     const navigate = useNavigate();
     const keyboardHeight = useKeyboardHeight();
     const [businesses, setBusinesses] = useState<Business[]>([]);
@@ -54,7 +55,7 @@ const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelected
     const [note, setNote] = useState('');
     const [playerCount, setPlayerCount] = useState(7);
     const [isLoading, setIsLoading] = useState(false);
-    const [isLoadingLocation, setIsLoadingLocation] = useState(filterMode === 'NEARBY' && isLocating && !coords);
+    const [isLoadingLocation, setIsLoadingLocation] = useState(!coords);
     const [successMessage, setSuccessMessage] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
     const [currentUser, setCurrentUser] = useState<any>(null);
@@ -64,9 +65,10 @@ const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelected
     const [matchType, setMatchType] = useState<'rakip_araniyor' | 'kendi_aramizda'>('rakip_araniyor');
 
     // Fetch nearby businesses from server (server-side geo filter)
-    const fetchBusinessesNearby = async (c: { lat: number; lng: number }) => {
+    const fetchBusinessesNearby = async (c: { lat: number; lng: number }): Promise<Business[]> => {
         const bList: Business[] = await getBusinesses({ lat: c.lat, lng: c.lng, radius });
         setBusinesses(bList);
+        return bList;
     };
 
     // Fetch initial data (User & Businesses)
@@ -87,22 +89,9 @@ const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelected
                     setLevel(levelMap[rawLevel] ?? (rawLevel as SkillLevel));
                 }
 
-                // 2. For pre-selected pitch: fetch all businesses to locate the pitch by ID
-                if (preSelectedPitchId) {
-                    const bList: Business[] = await getBusinesses();
-                    setBusinesses(bList);
-                    const business = bList.find(b => b.pitches?.some(p => p.id === preSelectedPitchId));
-                    if (business) {
-                        setSelectedBusinessId(business.id);
-                        setSelectedPitchId(preSelectedPitchId);
-                    }
-                    setIsLoadingLocation(false);
-                    return;
-                }
-
-                // 2b. For pre-selected business: fetch all businesses to locate it and default its first pitch
+                // 2b. For pre-selected business: resolve by ID, no location needed
                 if (preSelectedBusinessId) {
-                    const bList: Business[] = await getBusinesses();
+                    const bList: Business[] = await getBusinesses({ ids: [preSelectedBusinessId] });
                     setBusinesses(bList);
                     setSelectedBusinessId(preSelectedBusinessId);
                     const business = bList.find(b => b.id === preSelectedBusinessId);
@@ -112,13 +101,24 @@ const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelected
                     return;
                 }
 
-                // 3. Normal open: use geo filter (same as Marketplace)
-                if (filterMode === 'ALL') {
-                    const bList: Business[] = await getBusinesses();
-                    setBusinesses(bList);
-                } else if (coords) {
-                    await fetchBusinessesNearby(coords);
+                // 2. For pre-selected pitch: resolve via the user's own nearby search
+                // (the pitch was surfaced from an already geo-filtered list, so it's
+                // within the same radius)
+                if (preSelectedPitchId) {
+                    if (!coords) return; // gate covers the missing-coords state
+                    const bList: Business[] = await fetchBusinessesNearby(coords);
+                    const business = bList.find(b => b.pitches?.some(p => p.id === preSelectedPitchId));
+                    if (business) {
+                        setSelectedBusinessId(business.id);
+                        setSelectedPitchId(preSelectedPitchId);
+                    }
+                    setIsLoadingLocation(false);
+                    return;
                 }
+
+                // 3. Normal open: nearby businesses
+                if (!coords) return; // gate covers the missing-coords state
+                await fetchBusinessesNearby(coords);
                 setIsLoadingLocation(false);
 
             } catch (error) {
@@ -129,7 +129,7 @@ const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelected
         };
 
         if (isOpen) {
-            setIsLoadingLocation(filterMode === 'NEARBY');
+            setIsLoadingLocation(!preSelectedBusinessId && !coords);
             setBusinesses([]);
             setDate(preSelectedDate || getTodayDate());
             if (!preSelectedPitchId && !preSelectedBusinessId) {
@@ -142,7 +142,7 @@ const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelected
             }
             fetchInitialData();
         }
-    }, [isOpen, preSelectedPitchId, preSelectedBusinessId]);
+    }, [isOpen, preSelectedPitchId, preSelectedBusinessId, coords]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Fetch booked slots when pitch or date changes
     useEffect(() => {
@@ -344,15 +344,8 @@ const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelected
                                         <span className="text-[10px] bg-slate-800 px-2 py-0.5 rounded-full text-slate-400 border border-slate-700">Sabitlendi</span>
                                     </div>
                                 </div>
-                            ) : isLoadingLocation ? (
-                                // GPS loading — only blocks business list, not the whole form
-                                <div className="flex flex-col items-center justify-center py-10 gap-3 bg-slate-900/50 rounded-xl border border-slate-700/50">
-                                    <LoadingSpinner />
-                                    <p className="text-slate-500 text-xs">Konumunuz alınıyor...</p>
-                                    <p className="text-slate-600 text-[10px]">Yakınındaki sahalar yükleniyor</p>
-                                </div>
                             ) : (
-                                <>
+                                <LocationAccessGate contentLabel="sahaları" compact>
                                     {/* Location badge + Search row */}
                                     <div className="flex gap-2 mb-3">
                                         <div className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold bg-turf-600 text-white border border-turf-500 shrink-0">
@@ -427,7 +420,7 @@ const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelected
                                             </div>
                                         ))}
                                     </div>
-                                </>
+                                </LocationAccessGate>
                             )}
                         </div>
 

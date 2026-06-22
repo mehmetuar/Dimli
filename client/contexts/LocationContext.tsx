@@ -9,15 +9,12 @@ import { calculateDistance } from '../utils/location';
 // ─────────────────────────────────────────────────────────────────────────────
 export interface Coords { lat: number; lng: number }
 export type PermissionStatus = 'unknown' | 'granted' | 'denied';
-export type FilterMode = 'ALL' | 'NEARBY';
 
 interface LocationContextValue {
   /** Current GPS coordinates — null if permission denied or not yet obtained */
   coords: Coords | null;
   /** Global nearby radius in km — shared across all pages */
   radius: number;
-  /** Whether to filter by location or show all cities */
-  filterMode: FilterMode;
   permissionStatus: PermissionStatus;
   /** True while a GPS request is in flight */
   isLocating: boolean;
@@ -27,8 +24,6 @@ interface LocationContextValue {
   clearLocationError: () => void;
   /** Update the global radius and persist to localStorage */
   setRadius: (r: number) => void;
-  /** Update the filter mode and persist to localStorage */
-  setFilterMode: (mode: FilterMode) => void;
   /** Trigger a GPS permission request + position fetch */
   requestLocation: () => Promise<void>;
   /** Directly update coords (used by background watch in App.tsx) */
@@ -40,7 +35,6 @@ interface LocationContextValue {
 // ─────────────────────────────────────────────────────────────────────────────
 const COORD_CACHE_KEY = 'marketplace_user_coords';
 const RADIUS_KEY = 'location_radius';
-const FILTER_MODE_KEY = 'location_filter_mode';
 const DEFAULT_RADIUS = 20;
 
 const getCachedCoords = (): Coords | null => {
@@ -53,11 +47,6 @@ const getSavedRadius = (): number => {
   catch { return DEFAULT_RADIUS; }
 };
 
-const getSavedFilterMode = (): FilterMode => {
-  try { const r = localStorage.getItem(FILTER_MODE_KEY); return r === 'NEARBY' ? 'NEARBY' : 'ALL'; }
-  catch { return 'ALL'; }
-};
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Context
 // ─────────────────────────────────────────────────────────────────────────────
@@ -66,7 +55,6 @@ const LocationContext = createContext<LocationContextValue | undefined>(undefine
 export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [coords, setCoords] = useState<Coords | null>(getCachedCoords);
   const [radius, setRadiusState] = useState<number>(getSavedRadius);
-  const [filterMode, setFilterModeState] = useState<FilterMode>(getSavedFilterMode);
   const [permissionStatus, setPermissionStatus] = useState<PermissionStatus>('unknown');
   const [isLocating, setIsLocating] = useState(false);
   const [locationError, setLocationError] = useState<LocationErrorType | null>(null);
@@ -87,12 +75,6 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const setRadius = useCallback((r: number) => {
     setRadiusState(r);
     try { localStorage.setItem(RADIUS_KEY, String(r)); } catch { /* ignore */ }
-  }, []);
-
-  // Update filter mode globally and persist to localStorage
-  const setFilterMode = useCallback((mode: FilterMode) => {
-    setFilterModeState(mode);
-    try { localStorage.setItem(FILTER_MODE_KEY, mode); } catch { /* ignore */ }
   }, []);
 
   const clearLocationError = useCallback(() => setLocationError(null), []);
@@ -145,7 +127,7 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <LocationContext.Provider value={{ coords, radius, filterMode, permissionStatus, isLocating, locationError, clearLocationError, setRadius, setFilterMode, requestLocation, updateCoords }}>
+    <LocationContext.Provider value={{ coords, radius, permissionStatus, isLocating, locationError, clearLocationError, setRadius, requestLocation, updateCoords }}>
       {children}
     </LocationContext.Provider>
   );

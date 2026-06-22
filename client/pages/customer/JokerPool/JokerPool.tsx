@@ -4,12 +4,12 @@ import { InviteJokerModal } from '../../../components/Modals/InviteJokerModal';
 import { JokerProfileModal } from '../../../components/Modals/JokerProfileModal';
 import { LocationFilterModal } from '../../../components/Modals/LocationFilterModal';
 import { SortModal } from '../../../components/Modals/SortModal';
+import { LocationAccessGate } from '../../../components/LocationAccessGate';
 
 import { useJokerPool } from './hooks/useJokerPool';
 import { JokerLocationFilter } from './components/JokerLocationFilter';
 import { JokerCard } from './components/JokerCard';
 import { JokerDetailModal } from './components/JokerDetailModal';
-import { LoadingSpinner } from '../../../components/UI/LoadingSpinner';
 
 const HEADER_FADE_PX = 140;
 const PULL_THRESHOLD = 70;
@@ -18,7 +18,6 @@ export const JokerPool: React.FC = () => {
    const {
       currentUser,
       isLoading,
-      isLoadingLocation,
       loadingMore,
       hasMore,
       loadMore,
@@ -203,45 +202,41 @@ export const JokerPool: React.FC = () => {
 
             {/* İçerik */}
             <div className="px-4 pt-3 pb-4" style={{ minHeight: 'calc(100% + 1px)' }}>
-               {isLoadingLocation ? (
-                  <div className="flex flex-col items-center justify-center py-16 text-slate-400">
-                     <LoadingSpinner />
-                     <p className="mt-4 text-sm font-medium">Konumunuz alınıyor...</p>
-                     <p className="text-xs text-slate-500 mt-1">Yakınındaki joker oyuncular yükleniyor</p>
-                  </div>
-               ) : isLoading ? (
-                  <div className="flex justify-center items-center py-20">
-                     <Loader2 className="w-8 h-8 text-turf-500 animate-spin" />
-                  </div>
-               ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                     {visibleJokers.map((player) => (
-                        <JokerCard
-                           key={player.id}
-                           player={player}
-                           currentUser={currentUser}
-                           onClick={() => setSelectedJoker(player)}
-                        />
-                     ))}
-                     {visibleJokers.length === 0 && (
-                        <div className="col-span-2 text-center py-12 text-slate-400 bg-slate-800/50 rounded-3xl border border-dashed border-slate-700">
-                           <MapPin className="w-8 h-8 mx-auto mb-3 text-slate-600" />
-                           <p>Yakınınızda joker oyuncu bulunamadı.</p>
-                        </div>
-                     )}
-                     {(hasMore || loadingMore) && (
-                        <div className="col-span-2 flex justify-center pt-2 pb-4">
-                           <button
-                              onClick={loadMore}
-                              disabled={loadingMore}
-                              className="px-6 py-3 bg-slate-800 border border-slate-700 text-white rounded-2xl font-semibold text-sm hover:bg-slate-700 disabled:opacity-50 transition-colors"
-                           >
-                              {loadingMore ? 'Yükleniyor...' : 'Daha Fazla Göster'}
-                           </button>
-                        </div>
-                     )}
-                  </div>
-               )}
+               <LocationAccessGate contentLabel="joker oyuncuları">
+                  {isLoading ? (
+                     <div className="flex justify-center items-center py-20">
+                        <Loader2 className="w-8 h-8 text-turf-500 animate-spin" />
+                     </div>
+                  ) : (
+                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {visibleJokers.map((player) => (
+                           <JokerCard
+                              key={player.id}
+                              player={player}
+                              currentUser={currentUser}
+                              onClick={() => setSelectedJoker(player)}
+                           />
+                        ))}
+                        {visibleJokers.length === 0 && (
+                           <div className="col-span-2 text-center py-12 text-slate-400 bg-slate-800/50 rounded-3xl border border-dashed border-slate-700">
+                              <MapPin className="w-8 h-8 mx-auto mb-3 text-slate-600" />
+                              <p>Yakınınızda joker oyuncu bulunamadı.</p>
+                           </div>
+                        )}
+                        {(hasMore || loadingMore) && (
+                           <div className="col-span-2 flex justify-center pt-2 pb-4">
+                              <button
+                                 onClick={loadMore}
+                                 disabled={loadingMore}
+                                 className="px-6 py-3 bg-slate-800 border border-slate-700 text-white rounded-2xl font-semibold text-sm hover:bg-slate-700 disabled:opacity-50 transition-colors"
+                              >
+                                 {loadingMore ? 'Yükleniyor...' : 'Daha Fazla Göster'}
+                              </button>
+                           </div>
+                        )}
+                     </div>
+                  )}
+               </LocationAccessGate>
             </div>
          </div>
       </div>

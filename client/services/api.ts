@@ -90,10 +90,14 @@ export const getReservationsByPitch = async (pitchId: string, date: string) => {
     return response.data;
 };
 
-export const getBusinesses = async (coords?: { lat: number; lng: number; radius?: number }) => {
-    const params = coords
-        ? { lat: coords.lat, lng: coords.lng, radius: coords.radius ?? 20 }
-        : undefined;
+export const getBusinesses = async (
+    filter?: { lat: number; lng: number; radius?: number } | { ids: string[] }
+) => {
+    const params = !filter
+        ? undefined
+        : 'ids' in filter
+            ? { ids: filter.ids.join(',') }
+            : { lat: filter.lat, lng: filter.lng, radius: filter.radius ?? 20 };
     const response = await api.get('/businesses', { params });
     return response.data;
 };

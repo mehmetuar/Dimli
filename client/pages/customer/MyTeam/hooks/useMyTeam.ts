@@ -9,7 +9,7 @@ import { LocationFilter } from '../../../../components/Modals/LocationFilterModa
 
 export const useMyTeam = (modals: any) => {
     const navigate = useNavigate();
-    const { coords, radius, filterMode, isLocating, setRadius } = useLocationContext();
+    const { coords, radius, setRadius } = useLocationContext();
     const [currentUser, setCurrentUser] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [myTeam, setMyTeam] = useState<Team | undefined>(undefined);
@@ -82,18 +82,16 @@ export const useMyTeam = (modals: any) => {
         fetchUser();
     }, []);
 
-    // Konum/filterMode değişince işletmeleri yeniden çek — PitchBooking ile aynı pattern
+    // Konum değişince işletmeleri yeniden çek — PitchBooking ile aynı pattern
     useEffect(() => {
-        if (filterMode === 'NEARBY' && !coords) {
+        if (!coords) {
             setBusinesses([]);
             return;
         }
         let cancelled = false;
         const fetchBusinessesWithCoords = async () => {
             try {
-                const data = filterMode === 'ALL'
-                    ? await getBusinesses()
-                    : await getBusinesses({ lat: coords!.lat, lng: coords!.lng, radius });
+                const data = await getBusinesses({ lat: coords.lat, lng: coords.lng, radius });
                 if (!cancelled) setBusinesses(data);
             } catch (error) {
                 console.error('Failed to fetch businesses:', error);
@@ -101,7 +99,7 @@ export const useMyTeam = (modals: any) => {
         };
         fetchBusinessesWithCoords();
         return () => { cancelled = true; };
-    }, [coords, radius, filterMode]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [coords, radius]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const fetchUpcomingMatches = async () => {
         if (!myTeam?.id) return;
@@ -233,11 +231,8 @@ export const useMyTeam = (modals: any) => {
         });
     };
 
-    const locationFilter: LocationFilter = filterMode === 'ALL'
-        ? { type: 'ALL' }
-        : { type: 'NEARBY', radius, coords: coords ?? undefined };
+    const locationFilter: LocationFilter = { type: 'NEARBY', radius, coords: coords ?? undefined };
     const applyLocationFilter = (filter: LocationFilter) => { if (filter.radius) setRadius(filter.radius); };
-    const isLoadingLocation = filterMode === 'NEARBY' && isLocating && !coords;
 
     return {
         currentUser, isLoading, myTeam, setMyTeam, roster, setRoster,
@@ -247,6 +242,6 @@ export const useMyTeam = (modals: any) => {
         successMessage, setSuccessMessage, successType, setSuccessType, errorMessage, setErrorMessage,
         handleGenerateBio, handleSaveBio, handleSetHomeBusiness, handleCreateTeam, handleLeaveTeam,
         isLocationFilterOpen, setIsLocationFilterOpen,
-        locationFilter, applyLocationFilter, isLoadingLocation,
+        locationFilter, applyLocationFilter,
     };
 };

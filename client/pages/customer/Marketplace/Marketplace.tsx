@@ -1,7 +1,7 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
-import { MapPin, Settings, RefreshCw, Calendar, ArrowUpDown, EyeOff } from 'lucide-react';
-import { openLocationSettings } from '../../../utils/openLocationSettings';
+import { MapPin, RefreshCw, Calendar, ArrowUpDown, EyeOff } from 'lucide-react';
 import { LoadingSpinner } from '../../../components/UI/LoadingSpinner';
+import { LocationAccessGate } from '../../../components/LocationAccessGate';
 import { CreateMatchModal } from '../../../components/Modals/CreateMatchModal';
 import { ChallengeModal } from '../../../components/Modals/ChallengeModal';
 import { TeamDetailModal } from '../../../components/Modals/TeamDetailModal';
@@ -40,7 +40,6 @@ export const Marketplace: React.FC = () => {
     setIsLocationFilterOpen,
     locationFilter,
     setLocationFilter,
-    locationPermissionDenied,
     isAuthorized,
     getPitchDetails,
     filteredMatches,
@@ -327,66 +326,49 @@ export const Marketplace: React.FC = () => {
 
         {/* İçerik */}
         <div className="px-4 pt-3 space-y-5 pb-4" style={{ minHeight: 'calc(100% + 1px)' }}>
-          {isLoading && matches.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-slate-400">
-              <LoadingSpinner />
-              <p className="mt-4 text-sm font-medium">Maçlar Yükleniyor...</p>
-            </div>
-          ) : displayMatches.length === 0 ? (
-            locationPermissionDenied ? (
-              <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
-                <div className="w-16 h-16 rounded-2xl bg-turf-600/10 border border-turf-600/20 flex items-center justify-center mb-5">
-                  <MapPin className="w-8 h-8 text-turf-400" />
-                </div>
-                <h3 className="text-white font-bold text-lg mb-2">Konum İzni Gerekli</h3>
-                <p className="text-slate-400 text-sm leading-relaxed mb-6">
-                  Yakınındaki maç ilanlarını görmek için ayarlardan konum iznini etkinleştir.
-                </p>
-                <button
-                  onClick={openLocationSettings}
-                  className="flex items-center gap-2 bg-turf-600 hover:bg-turf-500 active:scale-95 text-white font-bold py-3 px-6 rounded-xl transition-all"
-                >
-                  <Settings className="w-4 h-4" />
-                  Ayarlara Git
-                </button>
+          <LocationAccessGate contentLabel="maç ilanlarını">
+            {isLoading && matches.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+                <LoadingSpinner />
+                <p className="mt-4 text-sm font-medium">Maçlar Yükleniyor...</p>
               </div>
-            ) : (
+            ) : displayMatches.length === 0 ? (
               <div className="text-center py-12 text-slate-400">
                 {matches.length === 0
                   ? "Henüz aktif ilan yok. İlk ilanı sen oluştur!"
                   : "Seçilen kriterlere uygun ilan bulunamadı."}
               </div>
-            )
-          ) : (
-            <>
-              {displayMatches.map((announcement) => (
-                <MatchAnnouncementCard
-                  key={announcement.id}
-                  announcement={announcement}
-                  myTeam={myTeam}
-                  myChallenges={myChallenges}
-                  isAuthorized={authorized}
-                  canChallenge={canChallenge}
-                  getPitchDetails={getPitchDetails}
-                  setSelectedTeamId={setSelectedTeamId}
-                  handleDeleteAdClick={handleDeleteAdClick}
-                  handleCancelClick={handleCancelClick}
-                  handleOpenChallengeModal={handleOpenChallengeModal}
-                />
-              ))}
-              {(hasMore || loadingMore) && (
-                <div className="flex justify-center pt-4 pb-2">
-                  <button
-                    onClick={loadMore}
-                    disabled={loadingMore}
-                    className="px-6 py-3 bg-slate-800 border border-slate-700 text-white rounded-2xl font-semibold text-sm hover:bg-slate-700 disabled:opacity-50 transition-colors"
-                  >
-                    {loadingMore ? 'Yükleniyor...' : 'Daha Fazla Göster'}
-                  </button>
-                </div>
-              )}
-            </>
-          )}
+            ) : (
+              <>
+                {displayMatches.map((announcement) => (
+                  <MatchAnnouncementCard
+                    key={announcement.id}
+                    announcement={announcement}
+                    myTeam={myTeam}
+                    myChallenges={myChallenges}
+                    isAuthorized={authorized}
+                    canChallenge={canChallenge}
+                    getPitchDetails={getPitchDetails}
+                    setSelectedTeamId={setSelectedTeamId}
+                    handleDeleteAdClick={handleDeleteAdClick}
+                    handleCancelClick={handleCancelClick}
+                    handleOpenChallengeModal={handleOpenChallengeModal}
+                  />
+                ))}
+                {(hasMore || loadingMore) && (
+                  <div className="flex justify-center pt-4 pb-2">
+                    <button
+                      onClick={loadMore}
+                      disabled={loadingMore}
+                      className="px-6 py-3 bg-slate-800 border border-slate-700 text-white rounded-2xl font-semibold text-sm hover:bg-slate-700 disabled:opacity-50 transition-colors"
+                    >
+                      {loadingMore ? 'Yükleniyor...' : 'Daha Fazla Göster'}
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </LocationAccessGate>
         </div>
       </div>
 

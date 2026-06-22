@@ -39,14 +39,14 @@ const PlayerDetailModalContent: React.FC<PlayerDetailModalProps> = ({
 
     const [businesses, setBusinesses] = React.useState<any[]>([]);
 
-    React.useEffect(() => {
-        if (isOpen) {
-            getBusinesses().then(setBusinesses).catch(console.error);
-        }
-    }, [isOpen]);
-
     // Resolve favorite pitches/businesses (Check both keys to be safe with Player type vs User entity)
     const activeFavorites = (player.favoritePitchIds || []);
+
+    React.useEffect(() => {
+        if (isOpen && activeFavorites.length > 0) {
+            getBusinesses({ ids: activeFavorites }).then(setBusinesses).catch(console.error);
+        }
+    }, [isOpen, activeFavorites.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
     const favoriteItems = activeFavorites.map(id =>
         businesses.find(b => b.id === id)
     ).filter(Boolean);

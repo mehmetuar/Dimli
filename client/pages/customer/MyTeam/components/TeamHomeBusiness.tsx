@@ -2,7 +2,7 @@ import React from 'react';
 import { Store, Plus, MapPin } from 'lucide-react';
 import { Business, Team } from '../../../../types';
 import { LocationFilterModal, LocationFilter } from '../../../../components/Modals/LocationFilterModal';
-import { LoadingSpinner } from '../../../../components/UI/LoadingSpinner';
+import { LocationAccessGate } from '../../../../components/LocationAccessGate';
 
 interface TeamHomeBusinessProps {
     myTeam: Team;
@@ -16,13 +16,12 @@ interface TeamHomeBusinessProps {
     setIsLocationFilterOpen: (open: boolean) => void;
     locationFilter: LocationFilter;
     applyLocationFilter: (filter: LocationFilter) => void;
-    isLoadingLocation: boolean;
 }
 
 export const TeamHomeBusiness: React.FC<TeamHomeBusinessProps> = ({
     myTeam, businesses, isCaptain, isEditingPitch, setIsEditingPitch,
     handleSetHomeBusiness, setIsCreateMatchModalOpen,
-    isLocationFilterOpen, setIsLocationFilterOpen, locationFilter, applyLocationFilter, isLoadingLocation
+    isLocationFilterOpen, setIsLocationFilterOpen, locationFilter, applyLocationFilter
 }) => {
     const selectedHomeBusiness = businesses.find(b => b.id === myTeam?.homeBusinessId);
 
@@ -56,30 +55,27 @@ export const TeamHomeBusiness: React.FC<TeamHomeBusinessProps> = ({
                             {locationFilter.coords ? `${locationFilter.radius} km` : 'Konum Filtresi'}
                         </button>
                     </div>
-                    {isLoadingLocation ? (
-                        <div className="flex flex-col items-center justify-center py-6 text-slate-400">
-                            <LoadingSpinner size="sm" text="" />
-                            <p className="mt-2 text-xs">Konumunuz alınıyor...</p>
-                        </div>
-                    ) : businesses.length === 0 ? (
-                        <div className="text-center py-6 text-slate-500 text-xs flex flex-col items-center gap-2">
-                            <MapPin className="w-5 h-5" />
-                            Yakınında işletme bulunamadı.
-                        </div>
-                    ) : (
-                        <div className="space-y-2 max-h-40 overflow-y-auto">
-                            {businesses.map(business => (
-                                <button
-                                    key={business.id}
-                                    onClick={() => handleSetHomeBusiness(business.id)}
-                                    className="w-full text-left p-3 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 flex justify-between items-center"
-                                >
-                                    <span className="text-white text-sm font-bold">{business.name}</span>
-                                    <span className="text-xs text-slate-400">{business.district}, {business.city}</span>
-                                </button>
-                            ))}
-                        </div>
-                    )}
+                    <LocationAccessGate contentLabel="işletmeleri" compact>
+                        {businesses.length === 0 ? (
+                            <div className="text-center py-6 text-slate-500 text-xs flex flex-col items-center gap-2">
+                                <MapPin className="w-5 h-5" />
+                                Yakınında işletme bulunamadı.
+                            </div>
+                        ) : (
+                            <div className="space-y-2 max-h-40 overflow-y-auto">
+                                {businesses.map(business => (
+                                    <button
+                                        key={business.id}
+                                        onClick={() => handleSetHomeBusiness(business.id)}
+                                        className="w-full text-left p-3 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 flex justify-between items-center"
+                                    >
+                                        <span className="text-white text-sm font-bold">{business.name}</span>
+                                        <span className="text-xs text-slate-400">{business.district}, {business.city}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </LocationAccessGate>
                 </div>
             ) : (
                 selectedHomeBusiness ? (
