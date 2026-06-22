@@ -5,9 +5,14 @@ import {
   ManyToOne,
   JoinColumn,
   CreateDateColumn,
+  Index,
 } from 'typeorm';
 import { Pitch } from '../../pitches/entities/pitch.entity';
 
+// Aynı saha+gün+saat için aktif iki kural oluşmasını DB seviyesinde de
+// engeller — createRecurringClosure()'daki idempotency kontrolünün
+// güvencesi (uygulama katmanı yarış durumlarına karşı).
+@Index(['pitchId', 'dayOfWeek', 'startTime', 'endTime'], { unique: true })
 @Entity('recurring_closures')
 export class RecurringClosure {
   @PrimaryGeneratedColumn('uuid')

@@ -392,6 +392,37 @@ export class ReservationsService {
       timeZone: 'Europe/Istanbul',
     });
 
+    // Aynı saha+gün+saat için zaten aktif bir kural varsa yeni kural açma —
+    // "sadece bu haftayı boşa çıkar" sonrası aynı slota tekrar "Sürekli Kapat"
+    // basıldığında duplicate kural oluşmasını engeller; bunun yerine tıklanan
+    // haftayı mevcut kurala bağlı olarak yeniden doldurur.
+    const existingClosure = await this.recurringClosureRepository.findOne({
+      where: { pitchId, dayOfWeek, startTime, endTime, isActive: true },
+    });
+
+    if (existingClosure) {
+      await this.dataSource.transaction(async (manager) => {
+        await this.blockSlot(
+          manager,
+          pitchId,
+          firstOccurrence,
+          existingClosure.id,
+        );
+      });
+
+      this.logger.log(
+        `Recurring closure ${existingClosure.id} reused for pitch ${pitchId} (${dayOfWeek} ${startTime}-${endTime}); re-blocked ${firstOccurrence.toISOString()}.`,
+      );
+
+      return {
+        success: true,
+        recurringClosure: existingClosure,
+        blockedCount: 1,
+        skippedCount: 0,
+        reused: true,
+      };
+    }
+
     const closure = this.recurringClosureRepository.create({
       pitchId,
       dayOfWeek,
