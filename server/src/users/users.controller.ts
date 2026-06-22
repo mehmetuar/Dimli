@@ -15,6 +15,7 @@ import { UsersService } from './users.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { requireGeoFilter } from '../common/validate-geo.util';
 
 @Controller('users')
 export class UsersController {
@@ -65,16 +66,14 @@ export class UsersController {
     @Query('offset') offset?: string,
     @Query('limit') limit?: string,
   ) {
-    const geoFilter = {
-      lat: lat ? parseFloat(lat) : undefined,
-      lng: lng ? parseFloat(lng) : undefined,
-      radius: radius ? parseFloat(radius) : 20,
+    const geo = requireGeoFilter(lat, lng, radius);
+    return this.usersService.getJokers({
+      ...geo,
       position,
       sharesFee: sharesFee !== undefined ? sharesFee === 'true' : undefined,
       offset: offset ? parseInt(offset, 10) : 0,
       limit: limit ? parseInt(limit, 10) : 50,
-    };
-    return this.usersService.getJokers(geoFilter);
+    });
   }
 
   @UseGuards(JwtAuthGuard)

@@ -36,8 +36,11 @@ export class BusinessService {
     return await this.businessRepository.save(business);
   }
 
-  async findAll(geoFilter?: GeoFilter): Promise<any[]> {
-    if (!geoFilter) {
+  async findAll(params: { geoFilter?: GeoFilter; ids?: string[] }): Promise<any[]> {
+    const { geoFilter, ids: requestedIds } = params;
+
+    if (requestedIds) {
+      if (requestedIds.length === 0) return [];
       const businesses = await this.businessRepository
         .createQueryBuilder('business')
         .leftJoinAndSelect(
@@ -53,7 +56,8 @@ export class BusinessService {
           'subscription',
           'subscription.ownerId = owner.id',
         )
-        .where('business.status = :status', { status: 'active' })
+        .where('business.id IN (:...ids)', { ids: requestedIds })
+        .andWhere('business.status = :status', { status: 'active' })
         .andWhere('business.deletedAt IS NULL')
         .andWhere('subscription.status IN (:...subStatuses)', {
           subStatuses: ['active', 'trial'],
@@ -71,6 +75,10 @@ export class BusinessService {
           }
           return this.mapWithOwnerPhone(b);
         });
+    }
+
+    if (!geoFilter) {
+      throw new Error('findAll requires either geoFilter or ids');
     }
 
     const { lat, lng, radius } = geoFilter;

@@ -8,6 +8,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { BusinessService } from './business.service';
+import { requireGeoFilter } from '../common/validate-geo.util';
 
 @Controller('businesses')
 export class BusinessController {
@@ -23,16 +24,18 @@ export class BusinessController {
     @Query('lat') lat?: string,
     @Query('lng') lng?: string,
     @Query('radius') radius?: string,
+    @Query('ids') ids?: string,
   ) {
-    const geoFilter =
-      lat && lng
-        ? {
-            lat: parseFloat(lat),
-            lng: parseFloat(lng),
-            radius: radius ? parseFloat(radius) : 20,
-          }
-        : undefined;
-    return this.businessService.findAll(geoFilter);
+    // ids: belirli işletmeleri konum kısıtlaması olmadan ID üzerinden çekmek
+    // için (zaten ID'si bilinen bir kaynağı çekmek "tüm şehirleri tara" değildir).
+    if (ids) {
+      return this.businessService.findAll({
+        ids: ids.split(',').filter(Boolean),
+      });
+    }
+    return this.businessService.findAll({
+      geoFilter: requireGeoFilter(lat, lng, radius),
+    });
   }
 
   @Get(':id')

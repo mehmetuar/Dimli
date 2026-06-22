@@ -306,28 +306,26 @@ export class MatchAnnouncementsService {
     return { ...saved, channelId };
   }
 
-  async findAll(filters?: {
+  async findAll(filters: {
     date?: string;
     pitchId?: string;
     offset?: number;
     limit?: number;
-    geoFilter?: { lat: number; lng: number; radius: number };
+    geoFilter: { lat: number; lng: number; radius: number };
   }): Promise<(MatchAnnouncement & { distanceKm?: number })[]> {
     // Clean up expired announcements first
     await this.deleteExpired();
 
-    // ── Geospatial (proximity) query ──────────────────────────────────────
-    if (filters?.geoFilter) {
-      const { lat, lng, radius } = filters.geoFilter;
-      const PAGE = Math.min(filters?.limit ?? 50, 100);
-      const off = filters?.offset ?? 0;
-      console.log(
-        `🌍 Geo filter: lat=${lat}, lng=${lng}, radius=${radius}km offset=${off}`,
-      );
+    const { lat, lng, radius } = filters.geoFilter;
+    const PAGE = Math.min(filters?.limit ?? 50, 100);
+    const off = filters?.offset ?? 0;
+    console.log(
+      `🌍 Geo filter: lat=${lat}, lng=${lng}, radius=${radius}km offset=${off}`,
+    );
 
-      // Raw SQL with Haversine formula — joins through pitch → business
-      const raw: any[] = await this.matchAnnouncementsRepository.query(
-        `SELECT
+    // Raw SQL with Haversine formula — joins through pitch → business
+    const raw: any[] = await this.matchAnnouncementsRepository.query(
+      `SELECT
                     ma.*,
                     (6371 * acos(
                         cos(radians($1)) * cos(radians(b.latitude))
@@ -351,74 +349,36 @@ export class MatchAnnouncementsService {
                    ) <= $3
                  ORDER BY distance_km ASC
                  LIMIT $4 OFFSET $5`,
-        [lat, lng, radius, PAGE, off],
-      );
+      [lat, lng, radius, PAGE, off],
+    );
 
-      if (raw.length === 0) {
-        console.log(`📢 No announcements within ${radius}km`);
-        return [];
-      }
-
-      // Fetch the full entity rows (with relations) for matched ids
-      const ids = raw.map((r) => r.id);
-      const distanceMap = new Map<string, number>(
-        raw.map((r) => [r.id, parseFloat(Number(r.distance_km).toFixed(1))]),
-      );
-
-      const announcements = await this.matchAnnouncementsRepository
-        .createQueryBuilder('announcement')
-        .leftJoinAndSelect('announcement.team', 'team')
-        .leftJoinAndSelect('team.captain', 'captain')
-        .leftJoinAndSelect('team.players', 'players')
-        .where('announcement.id IN (:...ids)', { ids })
-        .andWhere('announcement.status = :status', { status: 'PENDING' })
-        .getMany();
-
-      // Attach distanceKm and re-sort by distance
-      const result = announcements
-        .map((a) => ({ ...a, distanceKm: distanceMap.get(a.id) ?? 0 }))
-        .sort((a, b) => (a.distanceKm ?? 0) - (b.distanceKm ?? 0));
-
-      console.log(`📢 Found ${result.length} announcements within ${radius}km`);
-      return result;
+    if (raw.length === 0) {
+      console.log(`📢 No announcements within ${radius}km`);
+      return [];
     }
 
-    // ── Standard (non-geo) query ──────────────────────────────────────────
-    const query = this.matchAnnouncementsRepository
+    // Fetch the full entity rows (with relations) for matched ids
+    const ids = raw.map((r) => r.id);
+    const distanceMap = new Map<string, number>(
+      raw.map((r) => [r.id, parseFloat(Number(r.distance_km).toFixed(1))]),
+    );
+
+    const announcements = await this.matchAnnouncementsRepository
       .createQueryBuilder('announcement')
       .leftJoinAndSelect('announcement.team', 'team')
       .leftJoinAndSelect('team.captain', 'captain')
       .leftJoinAndSelect('team.players', 'players')
-      .innerJoin('pitches', 'pitch', 'pitch.id = announcement.pitchId')
-      .where('announcement.status = :status', { status: 'PENDING' })
-      .andWhere(
-        'pitch."approvalStatus" = :pApproval AND pitch."isActive" = :pActive',
-        { pApproval: 'approved', pActive: true },
-      );
-
-    if (filters?.date) {
-      query.andWhere('announcement.date = :date', { date: filters.date });
-    }
-
-    if (filters?.pitchId) {
-      query.andWhere('announcement.pitchId = :pitchId', {
-        pitchId: filters.pitchId,
-      });
-    }
-
-    const announcements = await query
-      .orderBy('announcement.date', 'ASC')
-      .addOrderBy('announcement.time', 'ASC')
+      .where('announcement.id IN (:...ids)', { ids })
+      .andWhere('announcement.status = :status', { status: 'PENDING' })
       .getMany();
 
-    console.log(`📢 Found ${announcements.length} announcements`);
-    if (announcements.length > 0) {
-      console.log('First announcement team:', {
-        name: announcements[0].team?.name,
-        playersCount: announcements[0].team?.players?.length,
-      });
-    }
-    return announcements;
+    // Attach distanceKm and re-sort by distance
+    const result = announcements
+      .map((a) => ({ ...a, distanceKm: distanceMap.get(a.id) ?? 0 }))
+      .sort((a, b) => (a.distanceKm ?? 0) - (b.distanceKm ?? 0));
+
+    console.log(`📢 Found ${result.length} announcements within ${radius}km`);
+    return result;
   }
 
   // Run every hour to check for expired announcements

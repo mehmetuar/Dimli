@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { MatchAnnouncementsService } from './match-announcements.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { requireGeoFilter } from '../common/validate-geo.util';
 
 @Controller('match-announcements')
 export class MatchAnnouncementsController {
@@ -37,21 +38,12 @@ export class MatchAnnouncementsController {
     @Query('offset') offset?: string,
     @Query('limit') limit?: string,
   ) {
-    const geoFilter =
-      lat && lng
-        ? {
-            lat: parseFloat(lat),
-            lng: parseFloat(lng),
-            radius: radius ? parseFloat(radius) : 20,
-          }
-        : undefined;
-
     return this.matchAnnouncementsService.findAll({
       date,
       pitchId,
       offset: offset ? parseInt(offset, 10) : 0,
       limit: limit ? parseInt(limit, 10) : 50,
-      geoFilter,
+      geoFilter: requireGeoFilter(lat, lng, radius),
     });
   }
 

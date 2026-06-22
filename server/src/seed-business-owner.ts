@@ -1,10 +1,11 @@
 import { NestFactory } from '@nestjs/core';
 import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { TypeOrmModule, getRepositoryToken } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { BusinessOwnerModule } from './business-owner/business-owner.module';
 import { BusinessOwnerService } from './business-owner/business-owner.service';
 import { BusinessModule } from './business/business.module';
-import { BusinessService } from './business/business.service';
+import { Business } from './business/entities/business.entity';
 import * as bcrypt from 'bcrypt';
 
 @Module({
@@ -32,12 +33,15 @@ async function bootstrap() {
   );
 
   const businessOwnerService = app.get(BusinessOwnerService);
-  const businessService = app.get(BusinessService);
+  const businessRepository = app.get<Repository<Business>>(
+    getRepositoryToken(Business),
+  );
 
   console.log('🌱 Seeding Business Owners for ALL businesses...');
 
-  // Get all businesses from database
-  const businesses = await businessService.findAll();
+  // Get all businesses from database — bypasses the geo-gated public API
+  // since this is a one-off seed script, not a customer-facing request.
+  const businesses = await businessRepository.find();
   if (!businesses || businesses.length === 0) {
     console.log(
       '❌ No businesses found! Please run seed-real-businesses first.',
