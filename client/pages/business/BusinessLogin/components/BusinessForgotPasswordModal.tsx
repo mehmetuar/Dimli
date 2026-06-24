@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, Mail, KeyRound, Lock, CheckCircle2, ArrowRight } from 'lucide-react';
-import api from '../../../services/api';
-import { OtpInput } from '../../../components/UI/OtpInput';
+import api from '../../../../services/api';
+import { OtpInput } from '../../../../components/UI/OtpInput';
 
 interface BusinessForgotPasswordModalProps {
     isOpen: boolean;
