@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { X, MapPin, Calendar, Clock, Shield, Swords, Store, Banknote } from 'lucide-react';
+import { X, MapPin, Calendar, Clock, Swords, Store, Banknote } from 'lucide-react';
 import { LoadingSpinner } from '../UI/LoadingSpinner';
-import { useModalBodyClass } from '../../utils/useModalBodyClass';
+import { KeyboardAwareModal } from './KeyboardAwareModal';
 
 interface ChallengeModalProps {
     isOpen: boolean;
@@ -23,9 +23,6 @@ interface ChallengeModalProps {
 export const ChallengeModal: React.FC<ChallengeModalProps> = ({ isOpen, onClose, match, onSubmit }) => {
     const [note, setNote] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    useModalBodyClass(isOpen);
-
-    if (!isOpen) return null;
 
     const handleSubmit = async () => {
         setIsLoading(true);
@@ -36,9 +33,12 @@ export const ChallengeModal: React.FC<ChallengeModalProps> = ({ isOpen, onClose,
     };
 
     return (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center px-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-            <div className="bg-slate-800 w-full max-w-md rounded-3xl border border-slate-700 overflow-hidden relative shadow-2xl shadow-turf-500/20">
-                {/* Header */}
+        <KeyboardAwareModal
+            isOpen={isOpen}
+            zClassName="z-[70]"
+            panelClassName="bg-slate-800 w-full max-w-md rounded-3xl border border-slate-700 shadow-2xl shadow-turf-500/20"
+            bodyClassName="p-6 space-y-6"
+            header={
                 <div className="bg-gradient-to-r from-turf-600 to-turf-700 p-5 relative overflow-hidden">
                     <div className="absolute -right-6 -top-6 w-24 h-24 bg-white/10 rounded-full blur-xl"></div>
 
@@ -54,9 +54,8 @@ export const ChallengeModal: React.FC<ChallengeModalProps> = ({ isOpen, onClose,
                     </h2>
                     <p className="text-turf-100 text-sm mt-1 relative z-10 font-medium">Rakip takıma maç teklifi gönder</p>
                 </div>
-
-                {/* Body */}
-                <div className="p-6 space-y-6">
+            }
+        >
                     {/* Match Info Card */}
                     <div className="bg-slate-900/50 rounded-2xl border border-slate-700/50 overflow-hidden">
                         {/* Team Header */}
@@ -149,8 +148,6 @@ export const ChallengeModal: React.FC<ChallengeModalProps> = ({ isOpen, onClose,
                             )}
                         </button>
                     </div>
-                </div>
-            </div>
-        </div>
+        </KeyboardAwareModal>
     );
 };

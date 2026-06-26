@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Check, X } from 'lucide-react';
-import { useModalBodyClass } from '../../utils/useModalBodyClass';
+import { KeyboardAwareModal } from './KeyboardAwareModal';
 import { hexToHsl, hslToHex, isValidHex } from '../../utils/colorUtils';
 
 export const TEAM_COLORS = [
@@ -89,38 +89,38 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
         }
     };
 
-    useModalBodyClass(isOpen);
-
     const handleConfirm = () => {
         onChange(tempColor);
         onClose();
     };
 
-    if (!isOpen) return null;
-
     return (
-        <div className="fixed inset-0 z-[90] flex items-end justify-center bg-black/80 backdrop-blur-sm animate-fade-in">
-            <div
-                className="bg-slate-900 w-full max-w-sm rounded-t-3xl border-t border-slate-700 shadow-2xl pb-safe-bottom"
-                onClick={e => e.stopPropagation()}
-            >
-                {/* Handle bar */}
-                <div className="flex justify-center pt-3 pb-1">
-                    <div className="w-10 h-1 rounded-full bg-slate-600" />
-                </div>
+        <KeyboardAwareModal
+            isOpen={isOpen}
+            align="sheet"
+            zClassName="z-[90]"
+            panelClassName="bg-slate-900 w-full max-w-sm border-t border-slate-700 shadow-2xl pb-safe-bottom"
+            bodyClassName="px-5 py-4 space-y-5"
+            header={
+                <>
+                    {/* Handle bar */}
+                    <div className="flex justify-center pt-3 pb-1">
+                        <div className="w-10 h-1 rounded-full bg-slate-600" />
+                    </div>
 
-                {/* Header */}
-                <div className="flex items-center justify-between px-5 py-3 border-b border-slate-800">
-                    <span className="text-white font-black text-base uppercase tracking-wide italic">{title}</span>
-                    <button
-                        onClick={onClose}
-                        className="p-2 rounded-full bg-slate-800 text-slate-400 hover:text-white active:scale-90 transition-all"
-                    >
-                        <X className="w-4 h-4" />
-                    </button>
-                </div>
-
-                <div className="px-5 py-4 space-y-5">
+                    {/* Header */}
+                    <div className="flex items-center justify-between px-5 py-3 border-b border-slate-800">
+                        <span className="text-white font-black text-base uppercase tracking-wide italic">{title}</span>
+                        <button
+                            onClick={onClose}
+                            className="p-2 rounded-full bg-slate-800 text-slate-400 hover:text-white active:scale-90 transition-all"
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
+                    </div>
+                </>
+            }
+        >
                     {/* Preview + Hex */}
                     <div className="flex items-center gap-3">
                         <div
@@ -242,8 +242,6 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
                             Seç
                         </button>
                     </div>
-                </div>
-            </div>
-        </div>
+        </KeyboardAwareModal>
     );
 };

@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X, Search, CheckCircle, AlertCircle, Loader2, Clock, Users } from 'lucide-react';
 import { Team } from '../../types';
 import api from '../../services/api';
-import { useModalBodyClass } from '../../utils/useModalBodyClass';
+import { KeyboardAwareModal } from './KeyboardAwareModal';
 
 interface Props {
   isOpen: boolean;
@@ -11,7 +11,6 @@ interface Props {
 }
 
 export const JoinTeamModal: React.FC<Props> = (props) => {
-  useModalBodyClass(props.isOpen);
   if (!props.isOpen) return null;
   return <JoinTeamModalContent {...props} />;
 };
@@ -90,23 +89,22 @@ const JoinTeamModalContent: React.FC<Props> = ({ isOpen, onClose }) => {
   };
 
   return (
-    /* Overlay — always centered, safe-area aware for iOS/Android */
-    <div
-      className="fixed inset-0 z-[70] flex items-center justify-center p-4"
-      style={{ backgroundColor: 'rgba(0,0,0,0.82)', backdropFilter: 'blur(6px)' }}
-    >
-      <div
-        className="w-full max-w-sm rounded-3xl flex flex-col overflow-hidden"
-        style={{
-          background: '#0f1923',
-          border: '1px solid rgba(255,255,255,0.07)',
-          boxShadow: '0 32px 80px rgba(0,0,0,0.6)',
-          maxHeight: 'calc(100vh - 80px)',
-        }}
-      >
-        {/* Header */}
+    <KeyboardAwareModal
+      isOpen={isOpen}
+      zClassName="z-[70]"
+      backdropClassName="animate-fade-in"
+      backdropStyle={{ backgroundColor: 'rgba(0,0,0,0.82)', backdropFilter: 'blur(6px)' }}
+      panelClassName="w-full max-w-sm rounded-3xl"
+      panelStyle={{
+        background: '#0f1923',
+        border: '1px solid rgba(255,255,255,0.07)',
+        boxShadow: '0 32px 80px rgba(0,0,0,0.6)',
+      }}
+      maxHeightClassName="max-h-[calc(100vh-80px)]"
+      bodyClassName=""
+      header={
         <div
-          className="px-5 pt-5 pb-4 shrink-0"
+          className="px-5 pt-5 pb-4"
           style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}
         >
           <div className="flex justify-between items-start mb-4">
@@ -146,9 +144,8 @@ const JoinTeamModalContent: React.FC<Props> = ({ isOpen, onClose }) => {
             </div>
           </div>
         </div>
-
-        {/* Scrollable body */}
-        <div className="flex-1 overflow-y-auto overscroll-contain">
+      }
+    >
           {/* Error banner */}
           {error && (
             <div className="mx-4 mt-4 flex items-start gap-2 text-red-400 text-sm p-3 rounded-xl" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)' }}>
@@ -294,8 +291,6 @@ const JoinTeamModalContent: React.FC<Props> = ({ isOpen, onClose }) => {
               })}
             </div>
           )}
-        </div>
-      </div>
-    </div>
+        </KeyboardAwareModal>
   );
 };

@@ -116,25 +116,17 @@ export const BusinessRegister: React.FC = () => {
     };
 
     return (
-        <div
-            className="fixed inset-0 w-full bg-slate-950 overflow-hidden flex flex-col z-50 touch-none overscroll-none"
-            style={{
-                top: 'calc(-1 * env(safe-area-inset-top, 0px))',
-                bottom: 'calc(-1 * env(safe-area-inset-bottom, 0px))',
-            }}
-        >
+        <div className="fixed inset-0 w-full bg-slate-950 overflow-hidden flex flex-col z-50 touch-none overscroll-none">
             <div
                 className="flex-1 min-h-0 flex flex-col px-3 md:px-4 md:items-center md:justify-center bg-slate-900 md:bg-transparent transition-all duration-300 md:overflow-y-auto md:scrollbar-hide"
                 style={{
-                    paddingTop: keyboardHeight > 0
-                        ? 'calc(max(env(safe-area-inset-top, 0px), 10px) + 1rem)'
-                        : 'calc(max(env(safe-area-inset-top, 0px), 20px) + 5.5rem)',
-                    paddingBottom: effectiveKeyboardHeight > 0
-                        ? `calc(${effectiveKeyboardHeight}px + env(safe-area-inset-bottom, 0px))`
-                        : 'max(16px, env(safe-area-inset-bottom, 16px))',
+                    // Üst güvenli alan — klavyeden bağımsız, durum çubuğunu her zaman temizler.
+                    paddingTop: 'calc(max(env(safe-area-inset-top, 0px), 24px) + 0.5rem)',
+                    // Alt — yalnızca iOS klavye kaydırması için (Android'de keyboardHeight=0 → native resize halleder).
+                    paddingBottom: effectiveKeyboardHeight > 0 ? `${effectiveKeyboardHeight}px` : 0,
                 }}
             >
-            <div className="w-full max-w-4xl flex-1 md:flex-none md:min-h-[600px] bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-800 shadow-2xl overflow-hidden flex flex-col md:flex-row">
+            <div className="w-full max-w-4xl flex-1 min-h-0 md:flex-none md:min-h-[600px] bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-800 shadow-2xl overflow-hidden flex flex-col md:flex-row">
 
                 <RegisterSidebar currentStep={currentStep} />
 
@@ -157,14 +149,14 @@ export const BusinessRegister: React.FC = () => {
                         </div>
                     )}
 
-                    <div className="flex-1 overflow-y-auto overscroll-contain pr-1 scrollbar-hide pb-24 touch-pan-y">
+                    <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1 scrollbar-hide touch-pan-y">
                         {renderStepContent()}
                     </div>
 
                     {/* Navigation — OTP, payment, congrats adımlarında farklı davranış */}
                     {!isCongratsStep && !isLastInputStep && !isOtpStep && (
                         <div
-                            className="absolute bottom-0 left-0 right-0 flex justify-between items-center px-5 md:px-10 py-4 border-t border-slate-800 bg-slate-900 z-10"
+                            className="shrink-0 flex justify-between items-center -mx-5 md:-mx-10 -mb-5 md:-mb-10 px-5 md:px-10 py-4 border-t border-slate-800 bg-slate-900"
                             style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}
                         >
                             <button
@@ -187,7 +179,7 @@ export const BusinessRegister: React.FC = () => {
                     {/* OTP adımında sadece geri butonu */}
                     {isOtpStep && (
                         <div
-                            className="absolute bottom-0 left-0 right-0 px-5 md:px-10 py-4 border-t border-slate-800 bg-slate-900 z-10"
+                            className="shrink-0 -mx-5 md:-mx-10 -mb-5 md:-mb-10 px-5 md:px-10 py-4 border-t border-slate-800 bg-slate-900"
                             style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}
                         >
                             <button
@@ -202,7 +194,7 @@ export const BusinessRegister: React.FC = () => {
                     {/* Ödeme adımında sadece geri butonu */}
                     {isLastInputStep && (
                         <div
-                            className="absolute bottom-0 left-0 right-0 px-5 md:px-10 py-4 border-t border-slate-800 bg-slate-900 z-10"
+                            className="shrink-0 -mx-5 md:-mx-10 -mb-5 md:-mb-10 px-5 md:px-10 py-4 border-t border-slate-800 bg-slate-900"
                             style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}
                         >
                             <button

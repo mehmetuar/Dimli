@@ -260,7 +260,7 @@ const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelected
         <>
             <div
                 className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-black/90 backdrop-blur-sm animate-fade-in"
-                style={keyboardHeight > 0 ? { bottom: keyboardHeight } : undefined}
+                style={keyboardHeight > 0 ? { paddingBottom: keyboardHeight } : undefined}
             >
                 <div className="bg-slate-800 w-full max-w-lg sm:rounded-3xl rounded-t-3xl border border-slate-700 shadow-2xl shadow-turf-500/10 overflow-hidden flex flex-col max-h-[90%]">
 
@@ -530,7 +530,7 @@ const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelected
                     </div>
 
                     {/* Footer Actions */}
-                    <div className="p-4 bg-slate-900 border-t border-slate-800 sticky bottom-0 z-10">
+                    <div className={`px-4 pt-4 ${keyboardHeight > 0 ? 'pb-2' : 'pb-4'} bg-slate-900 border-t border-slate-800 sticky bottom-0 z-10`}>
                         <div className="flex items-center justify-between mb-4 px-2">
                             <div>
                                 <div className="text-[10px] text-slate-500 uppercase font-bold">Tahmini Saha Payı</div>

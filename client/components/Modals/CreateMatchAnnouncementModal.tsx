@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Calendar, Clock, Users, MapPin } from 'lucide-react';
-import { useModalBodyClass } from '../../utils/useModalBodyClass';
+import { KeyboardAwareModal } from './KeyboardAwareModal';
 
 interface CreateMatchAnnouncementModalProps {
     isOpen: boolean;
@@ -22,8 +22,6 @@ export const CreateMatchAnnouncementModal: React.FC<CreateMatchAnnouncementModal
         description: ''
     });
 
-    useModalBodyClass(isOpen);
-
     const handleSubmit = () => {
         // TODO: API call to create match announcement
         console.log('Match announcement:', {
@@ -33,12 +31,14 @@ export const CreateMatchAnnouncementModal: React.FC<CreateMatchAnnouncementModal
         onClose();
     };
 
-    if (!isOpen) return null;
-
     return (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-slate-800 rounded-3xl w-full max-w-lg border border-slate-600 shadow-2xl">
-                {/* Header */}
+        <KeyboardAwareModal
+            isOpen={isOpen}
+            zClassName="z-50"
+            backdropClassName="bg-black/70 backdrop-blur-sm animate-fade-in"
+            panelClassName="bg-slate-800 w-full max-w-lg rounded-3xl border border-slate-600 shadow-2xl"
+            bodyClassName="p-6 space-y-4"
+            header={
                 <div className="p-6 border-b border-slate-700">
                     <div className="flex items-center justify-between">
                         <h2 className="text-2xl font-sport font-bold text-white uppercase italic">
@@ -52,9 +52,24 @@ export const CreateMatchAnnouncementModal: React.FC<CreateMatchAnnouncementModal
                         </button>
                     </div>
                 </div>
-
-                {/* Form */}
-                <div className="p-6 space-y-4">
+            }
+            footer={
+                <div className="p-6 border-t border-slate-700 flex gap-3">
+                    <button
+                        onClick={onClose}
+                        className="flex-1 py-3 rounded-xl font-bold text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
+                    >
+                        İptal
+                    </button>
+                    <button
+                        onClick={handleSubmit}
+                        className="flex-1 py-3 rounded-xl font-bold bg-turf-600 hover:bg-turf-500 text-white transition-colors shadow-lg"
+                    >
+                        İlanı Yayınla
+                    </button>
+                </div>
+            }
+        >
                     {/* Selected Pitch */}
                     {pitchName && (
                         <div className="bg-turf-900/20 border border-turf-500/30 rounded-xl p-4">
@@ -126,24 +141,6 @@ export const CreateMatchAnnouncementModal: React.FC<CreateMatchAnnouncementModal
                             className="w-full bg-slate-700 text-white rounded-xl px-4 py-3 border border-slate-600 focus:border-turf-500 focus:outline-none resize-none"
                         />
                     </div>
-                </div>
-
-                {/* Footer */}
-                <div className="p-6 border-t border-slate-700 flex gap-3">
-                    <button
-                        onClick={onClose}
-                        className="flex-1 py-3 rounded-xl font-bold text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
-                    >
-                        İptal
-                    </button>
-                    <button
-                        onClick={handleSubmit}
-                        className="flex-1 py-3 rounded-xl font-bold bg-turf-600 hover:bg-turf-500 text-white transition-colors shadow-lg"
-                    >
-                        İlanı Yayınla
-                    </button>
-                </div>
-            </div>
-        </div>
+        </KeyboardAwareModal>
     );
 };

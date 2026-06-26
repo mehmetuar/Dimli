@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
-import { CheckCircle, X } from 'lucide-react';
-import { useModalBodyClass } from '../../utils/useModalBodyClass';
+import { CheckCircle } from 'lucide-react';
+import { KeyboardAwareModal } from './KeyboardAwareModal';
 
 interface OfferModalProps {
     isOpen: boolean;
@@ -14,9 +14,6 @@ export const OfferModal: React.FC<OfferModalProps> = ({ isOpen, onClose, teamNam
     const [note, setNote] = useState('');
     const [isSending, setIsSending] = useState(false);
     const [isSent, setIsSent] = useState(false);
-    useModalBodyClass(isOpen);
-
-    if (!isOpen) return null;
 
     const handleSubmit = async () => {
         setIsSending(true);
@@ -35,8 +32,11 @@ export const OfferModal: React.FC<OfferModalProps> = ({ isOpen, onClose, teamNam
     };
 
     return (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center px-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-            <div className="bg-slate-800 w-full max-w-md rounded-3xl border border-slate-700 p-6 relative">
+        <KeyboardAwareModal
+            isOpen={isOpen}
+            zClassName="z-[60]"
+            panelClassName="bg-slate-800 w-full max-w-md rounded-3xl border border-slate-700"
+        >
                 {isSent ? (
                     <div className="text-center py-8">
                         <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
@@ -81,7 +81,6 @@ export const OfferModal: React.FC<OfferModalProps> = ({ isOpen, onClose, teamNam
                         </div>
                     </>
                 )}
-            </div>
-        </div>
+        </KeyboardAwareModal>
     );
 };

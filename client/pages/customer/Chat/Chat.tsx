@@ -539,7 +539,7 @@ export const Chat: React.FC = () => {
       <div
         ref={scrollContainerRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto p-4 space-y-6 bg-pitch relative chat-scroll-container"
+        className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 space-y-6 bg-pitch relative chat-scroll-container"
       >
         <div className="flex justify-center">
           <span className="bg-slate-800 text-slate-400 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wide mt-6">
@@ -688,7 +688,7 @@ export const Chat: React.FC = () => {
                 </button>
               </div>
             )}
-            <div className="p-3">
+            <div className={keyboardHeight > 0 ? 'px-3 pt-3 pb-0' : 'p-3'}>
               {isMatchFinished ? (
                 <div className="flex flex-col items-center py-3 gap-3">
                   <div className="flex items-center text-slate-500 text-sm font-medium">
