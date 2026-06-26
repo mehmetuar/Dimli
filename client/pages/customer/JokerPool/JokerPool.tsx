@@ -162,10 +162,10 @@ export const JokerPool: React.FC = () => {
             </div>
 
             {/* Başlık — scroll'a göre kademeli kaybolur */}
-            <div className="px-4 pt-3 pb-5 pr-14" style={{ opacity: headerOpacity }}>
+            <div className="px-4 pt-3 pb-5 pr-32" style={{ opacity: headerOpacity }}>
                <h1
-                  className="font-sport font-black text-white uppercase italic tracking-tighter leading-none"
-                  style={{ fontSize: 'clamp(2.75rem, 12vw, 4.25rem)' }}
+                  className="font-sport font-black text-white uppercase italic tracking-tighter leading-none whitespace-nowrap"
+                  style={{ fontSize: 'clamp(1.75rem, 9vw, 2.75rem)' }}
                >
                   JOKER <span className="text-turf-500">HAVUZU</span>
                </h1>
