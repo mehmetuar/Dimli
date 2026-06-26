@@ -1,8 +1,9 @@
 import React from 'react';
-import { Save } from 'lucide-react';
+import { Save, ShieldCheck } from 'lucide-react';
 import { BusinessLoadingSpinner } from '../../../components/Business/BusinessLoadingSpinner';
-import { LocationSelectionModal } from '../../../components/Modals/LocationSelectionModal';
 import { LocationPermissionSheet } from '../../../components/LocationPermissionSheet';
+import { useKeyboardHeight } from '../../../utils/useKeyboardHeight';
+import { primaryButton, noticeText } from '../shared/formStyles';
 
 // Hooks
 import { useBusinessInfoSettings } from './hooks/useBusinessInfoSettings';
@@ -22,9 +23,6 @@ export const BusinessInfoSettings: React.FC = () => {
         formData,
         handleChange,
         handleSubmit,
-        isLocationModalOpen, setIsLocationModalOpen,
-        locationModalStep, setLocationModalStep,
-        handleLocationSelect,
         showMapModal, setShowMapModal,
         mapCoords,
         mapFlyTrigger,
@@ -40,6 +38,8 @@ export const BusinessInfoSettings: React.FC = () => {
         handleConfirmSave,
     } = useBusinessInfoSettings();
 
+    const keyboardHeight = useKeyboardHeight();
+
     if (loading) return <BusinessLoadingSpinner fullScreen />;
 
     return (
@@ -50,10 +50,13 @@ export const BusinessInfoSettings: React.FC = () => {
                 className="flex-1 overflow-y-auto overscroll-contain scrollbar-hide"
                 style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
             >
-                <div className="px-4 py-5 space-y-4">
+                <div
+                    className="px-4 py-5 space-y-4"
+                    style={{ paddingBottom: `calc(${keyboardHeight}px + env(safe-area-inset-bottom) + 1.25rem)` }}
+                >
                     {success && (
-                        <div className="p-4 bg-green-600/20 border border-green-500/40 rounded-2xl text-green-400 font-semibold text-center text-sm">
-                            ✓ Bilgileriniz başarıyla güncellendi!
+                        <div className="p-4 bg-green-600/20 border border-green-500/40 rounded-2xl text-green-400 font-semibold text-center flex items-center justify-center gap-2" style={noticeText}>
+                            <ShieldCheck className="w-4 h-4 shrink-0" /> Bilgileriniz başarıyla güncellendi!
                         </div>
                     )}
 
@@ -61,31 +64,23 @@ export const BusinessInfoSettings: React.FC = () => {
                         <BusinessInfoForm
                             formData={formData}
                             onChange={handleChange}
-                            onOpenLocationModal={(step) => { setLocationModalStep(step); setIsLocationModalOpen(true); }}
                             onOpenMapModal={openMapModal}
                         />
 
                         <button
                             type="submit"
                             disabled={saving}
-                            className="w-full bg-orange-500 hover:bg-orange-600 active:scale-95 disabled:opacity-60 text-white py-4 rounded-2xl font-bold transition-all shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2.5"
+                            className="w-full bg-orange-500 hover:bg-orange-600 active:scale-95 disabled:opacity-60 text-white rounded-2xl font-bold transition-all shadow-lg shadow-orange-500/20 flex items-center justify-center gap-2.5"
+                            style={primaryButton}
                         >
-                            <Save className="w-5 h-5" />
+                            {saving
+                                ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                : <Save className="w-5 h-5" />}
                             {saving ? 'Kaydediliyor...' : 'Değişiklikleri Kaydet'}
                         </button>
                     </form>
                 </div>
             </div>
-
-            {/* ── Location Selection Modal (City/District) ─────────────────── */}
-            <LocationSelectionModal
-                isOpen={isLocationModalOpen}
-                onClose={() => setIsLocationModalOpen(false)}
-                onSelect={handleLocationSelect}
-                initialCity={formData.city}
-                initialDistrict={formData.district}
-                initialStep={locationModalStep}
-            />
 
             {/* ── Map Location Edit Modal ──────────────────────────────────── */}
             <LocationMapModal

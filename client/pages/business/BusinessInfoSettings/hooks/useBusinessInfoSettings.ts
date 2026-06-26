@@ -25,8 +25,6 @@ export const useBusinessInfoSettings = () => {
     const [businessId, setBusinessId] = useState<string | null>(null);
 
     // Modal states
-    const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
-    const [locationModalStep, setLocationModalStep] = useState<'CITY' | 'DISTRICT'>('CITY');
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [showMapModal, setShowMapModal] = useState(false);
 
@@ -36,6 +34,8 @@ export const useBusinessInfoSettings = () => {
     const [isLocating, setIsLocating] = useState(false);
     const [isGeocoding, setIsGeocoding] = useState(false);
     const [mapLocationLabel, setMapLocationLabel] = useState('');
+    // Reverse-geocode sonucu — şehir/ilçe yazımı için yetkili kaynak (etiket parçalamak yerine)
+    const [mapGeocode, setMapGeocode] = useState<{ city: string; district: string }>({ city: '', district: '' });
     const [locationErrorType, setLocationErrorType] = useState<LocationErrorType | null>(null);
 
     // Form state
@@ -65,6 +65,7 @@ export const useBusinessInfoSettings = () => {
                 latitude: b.latitude || DEFAULT_COORDS.lat,
                 longitude: b.longitude || DEFAULT_COORDS.lng,
             });
+            setMapGeocode({ city: b.city || '', district: b.district || '' });
             if (b.latitude && b.longitude) {
                 setMapCoords({ lat: b.latitude, lng: b.longitude });
                 if (b.city || b.district) setMapLocationLabel(`${b.city || ''} / ${b.district || ''}`);
@@ -80,6 +81,7 @@ export const useBusinessInfoSettings = () => {
     const openMapModal = () => {
         setMapCoords({ lat: formData.latitude || DEFAULT_COORDS.lat, lng: formData.longitude || DEFAULT_COORDS.lng });
         setMapLocationLabel(formData.city ? `${formData.city} / ${formData.district}` : '');
+        setMapGeocode({ city: formData.city, district: formData.district });
         setShowMapModal(true);
     };
 
@@ -88,8 +90,8 @@ export const useBusinessInfoSettings = () => {
             ...prev,
             latitude: mapCoords.lat,
             longitude: mapCoords.lng,
-            city: mapLocationLabel.split(' / ')[0] || prev.city,
-            district: mapLocationLabel.split(' / ')[1] || prev.district,
+            city: mapGeocode.city,
+            district: mapGeocode.district,
         }));
         setShowMapModal(false);
     };
@@ -98,8 +100,18 @@ export const useBusinessInfoSettings = () => {
         setIsGeocoding(true);
         try {
             const info = await locationService.reverseGeocode(lat, lng);
-            if (info) setMapLocationLabel(`${info.city} / ${info.district}`);
-        } catch { /* silent */ } finally {
+            if (info) {
+                setMapLocationLabel(`${info.city} / ${info.district}`);
+                setMapGeocode({ city: info.city, district: info.district });
+            } else {
+                // Geocode başarısız: taşınan pin'e eski (yanlış) il/ilçe yazılmasın
+                setMapLocationLabel('');
+                setMapGeocode({ city: '', district: '' });
+            }
+        } catch {
+            setMapLocationLabel('');
+            setMapGeocode({ city: '', district: '' });
+        } finally {
             setIsGeocoding(false);
         }
     };
@@ -159,10 +171,6 @@ export const useBusinessInfoSettings = () => {
         setFormData(prev => ({ ...prev, [field]: value }));
     };
 
-    const handleLocationSelect = (city: string, district: string) => {
-        setFormData(prev => ({ ...prev, city, district }));
-    };
-
     return {
         navigate,
         loading,
@@ -171,10 +179,6 @@ export const useBusinessInfoSettings = () => {
         formData,
         handleChange,
         handleSubmit,
-        // Location (city/district) modal
-        isLocationModalOpen, setIsLocationModalOpen,
-        locationModalStep, setLocationModalStep,
-        handleLocationSelect,
         // Map modal
         showMapModal, setShowMapModal,
         mapCoords,
