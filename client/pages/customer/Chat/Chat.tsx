@@ -332,7 +332,7 @@ export const Chat: React.FC = () => {
   return (
     <div
       className="fixed inset-0 z-[60] flex flex-col bg-pitch-surface"
-      style={keyboardHeight > 0 ? { paddingBottom: `calc(${keyboardHeight}px - env(safe-area-inset-bottom, 0px))` } : undefined}
+      style={keyboardHeight > 0 ? { paddingBottom: keyboardHeight } : undefined}
     >
       {/* Action toast */}
       {actionToast && (
@@ -669,7 +669,7 @@ export const Chat: React.FC = () => {
         const isJokerAddedToMatch = messages.some(m => m.metadata?.type === 'JOKER_ADDED_TO_MATCH');
 
         return (
-          <div className="flex flex-col bg-slate-900 border-t border-slate-800 pb-safe-bottom">
+          <div className={`flex flex-col bg-slate-900 border-t border-slate-800 ${keyboardHeight > 0 ? '' : 'pb-safe-bottom'}`}>
             {isJokerNegotiation && !isMatchFinished && !isJokerAddedToMatch && (
               <div className="p-3 bg-slate-800/50 flex gap-2 justify-center shadow-inner">
                 {isInviter && (
