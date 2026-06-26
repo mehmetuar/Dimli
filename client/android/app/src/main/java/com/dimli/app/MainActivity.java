@@ -5,6 +5,7 @@ import android.os.Bundle;
 import android.view.WindowManager;
 import android.webkit.WebView;
 
+import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -46,8 +47,14 @@ public class MainActivity extends BridgeActivity {
                     null
                 ));
             }
-            // Insets'i tüketmeden döndür — Keyboard plugin ve normal layout insets'i almaya devam etsin.
-            return insets;
+            // Klavye (IME) inset'ini SIFIRLA: setDecorFitsSystemWindows(true) Android 15'te (Samsung S26)
+            // decor'un IME inset'ini de uygulamasına → WebView'in klavye için küçülmesine yol açıyordu.
+            // Manuel keyboardHeight offset'i ile birleşince çift sayım oluşuyordu. IME inset'ini tüketerek
+            // WebView'in klavye için ASLA resize olmamasını sağlıyoruz (tüm cihazlarda tek overlay modeli).
+            // Sistem çubuğu (navigation/status) inset'lerine DOKUNMUYORUZ → koyu çubuklar + nav-inset korunur.
+            return new WindowInsetsCompat.Builder(insets)
+                .setInsets(WindowInsetsCompat.Type.ime(), Insets.NONE)
+                .build();
         });
 
         // Açılışta hemen bir kez tetikle ki ilk input focus'undan önce değişken set olsun.
