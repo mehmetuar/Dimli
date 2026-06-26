@@ -374,10 +374,17 @@ function AppContent() {
     };
 
     // Uygulama arka plana alınınca interval dur, ön plana gelince yeniden başla
-    CapApp.addListener('appStateChange', (state) => {
+    CapApp.addListener('appStateChange', async (state) => {
       if (state.isActive) {
         clearBadge();
-        startLocationTracking();
+        // Konum takibini SADECE izin verilmişse başlat. İzin yoksa poll() (getCurrentPosition)
+        // her foreground'da native bridge'i yorar ve reddedilen izinde kasmaya katkı sağlar.
+        try {
+          const permission = await Geolocation.checkPermissions();
+          if (permission.location === 'granted') startLocationTracking();
+        } catch {
+          // İzin okunamadı → poll başlatma
+        }
       } else {
         stopLocationTracking();
       }
@@ -397,7 +404,7 @@ function AppContent() {
   if (!isReady) return <PageLoader />;
 
   return (
-    <div className="flex flex-col h-dvh bg-pitch text-white overflow-hidden">
+    <div className="flex flex-col h-screen bg-pitch text-white overflow-hidden">
       <div ref={scrollRef} className={`flex-1 overflow-y-auto overscroll-y-contain scrollbar-hide bg-pitch ${isAuthPage ? '' : 'pb-nav'}`}>
         <Suspense fallback={<PageLoader />}>
           <Routes>

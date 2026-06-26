@@ -1,6 +1,7 @@
 import React from 'react';
-import { MapPin, Settings, WifiOff } from 'lucide-react';
+import { MapPin, Settings, WifiOff, RotateCw } from 'lucide-react';
 import { useLocationGate } from '../hooks/useLocationGate';
+import { useLocationContext } from '../contexts/LocationContext';
 import { openLocationSettings } from '../utils/openLocationSettings';
 import { LoadingSpinner } from './UI/LoadingSpinner';
 
@@ -14,6 +15,7 @@ interface LocationAccessGateProps {
 
 export const LocationAccessGate: React.FC<LocationAccessGateProps> = ({ children, contentLabel, compact }) => {
     const { state } = useLocationGate();
+    const { requestLocation } = useLocationContext();
 
     if (state === 'ready') return <>{children}</>;
 
@@ -25,6 +27,27 @@ export const LocationAccessGate: React.FC<LocationAccessGateProps> = ({ children
                 <LoadingSpinner />
                 <p className="mt-4 text-sm font-medium">Konumunuz alınıyor...</p>
                 <p className="text-xs text-slate-500 mt-1">Yakınındaki {contentLabel} yükleniyor</p>
+            </div>
+        );
+    }
+
+    if (state === 'timeout') {
+        return (
+            <div className={`flex flex-col items-center justify-center ${py} px-6 text-center`}>
+                <div className="w-16 h-16 rounded-2xl bg-turf-600/10 border border-turf-600/20 flex items-center justify-center mb-5">
+                    <MapPin className="w-8 h-8 text-turf-400" />
+                </div>
+                <h3 className="text-white font-bold text-lg mb-2">Konum alınamadı</h3>
+                <p className="text-slate-400 text-sm leading-relaxed mb-6">
+                    Konumun şu an alınamadı. Lütfen tekrar dene.
+                </p>
+                <button
+                    onClick={() => { void requestLocation(); }}
+                    className="flex items-center gap-2 bg-turf-600 hover:bg-turf-500 active:scale-95 text-white font-bold py-3 px-6 rounded-xl transition-all"
+                >
+                    <RotateCw className="w-4 h-4" />
+                    Tekrar Dene
+                </button>
             </div>
         );
     }
