@@ -265,7 +265,7 @@ const AllMatchesModal: React.FC<AllMatchesModalProps> = ({
 
             <div
                 className="relative w-full flex flex-col animate-slide-up"
-                style={{ maxHeight: '92dvh' }}
+                style={{ maxHeight: '92vh' }}
                 onClick={e => e.stopPropagation()}
             >
                 {/* Drag handle */}

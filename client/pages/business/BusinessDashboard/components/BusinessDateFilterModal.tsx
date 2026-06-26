@@ -35,7 +35,7 @@ export const BusinessDateFilterModal: React.FC<BusinessDateFilterModalProps> = (
             onClick={onClose}
         >
             <div
-                className="bg-[#0e1e3a] w-full max-w-md sm:rounded-3xl rounded-t-3xl border border-blue-900/50 shadow-2xl overflow-hidden max-h-[90dvh] flex flex-col"
+                className="bg-[#0e1e3a] w-full max-w-md sm:rounded-3xl rounded-t-3xl border border-blue-900/50 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Header */}

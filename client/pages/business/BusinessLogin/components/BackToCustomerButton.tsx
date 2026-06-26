@@ -11,8 +11,8 @@ export const BackToCustomerButton: React.FC<BackToCustomerButtonProps> = ({ keyb
             className="relative flex-shrink-0 transition-all duration-200"
             style={{
                 padding: keyboardOpen
-                    ? '0 clamp(16px, 5vw, 32px) clamp(10px, 1.5dvh, 16px)'
-                    : '0 clamp(16px, 5vw, 32px) clamp(20px, 3.5dvh, 32px)',
+                    ? '0 clamp(16px, 5vw, 32px) clamp(10px, 1.5vh, 16px)'
+                    : '0 clamp(16px, 5vw, 32px) clamp(20px, 3.5vh, 32px)',
             }}
         >
             <button
@@ -23,8 +23,8 @@ export const BackToCustomerButton: React.FC<BackToCustomerButtonProps> = ({ keyb
                     background: '#475569',
                     boxShadow: '0 8px 20px -6px rgba(71,85,105,0.45)',
                     WebkitTapHighlightColor: 'transparent',
-                    height: keyboardOpen ? 'clamp(36px, 5.5dvh, 48px)' : 'clamp(44px, 7dvh, 58px)',
-                    fontSize: keyboardOpen ? 'clamp(0.7rem, 1.8dvh, 0.8rem)' : 'clamp(0.8rem, 2.2dvh, 0.95rem)',
+                    height: keyboardOpen ? 'clamp(36px, 5.5vh, 48px)' : 'clamp(44px, 7vh, 58px)',
+                    fontSize: keyboardOpen ? 'clamp(0.7rem, 1.8vh, 0.8rem)' : 'clamp(0.8rem, 2.2vh, 0.95rem)',
                 }}
             >
                 Oyuncu Girişine Dön

@@ -73,9 +73,9 @@ export const Login: React.FC = () => {
                 <div
                     className="relative flex flex-col items-center justify-start flex-shrink-0 transition-all duration-200"
                     style={{
-                        paddingTop: keyboardOpen ? 'max(env(safe-area-inset-top), 50px)' : 'clamp(28px, 7dvh, 56px)',
+                        paddingTop: keyboardOpen ? 'max(env(safe-area-inset-top), 50px)' : 'clamp(28px, 7vh, 56px)',
                         paddingBottom: '0px',
-                        maxHeight: keyboardOpen ? '17dvh' : '40dvh',
+                        maxHeight: keyboardOpen ? '17vh' : '40vh',
                         overflow: 'hidden',
                     }}
                 >
@@ -111,14 +111,14 @@ export const Login: React.FC = () => {
                     className="flex-1 flex flex-col justify-start min-h-0 animate-enter-up [animation-delay:240ms] transition-all duration-200"
                     style={{
                         padding: '0 clamp(16px, 5vw, 32px)',
-                        paddingTop: keyboardOpen ? '0px' : 'clamp(4px, 1.5dvh, 16px)',
-                        gap: keyboardOpen ? 'clamp(2px, 1dvh, 8px)' : 'clamp(4px, 1.8dvh, 18px)',
+                        paddingTop: keyboardOpen ? '0px' : 'clamp(4px, 1.5vh, 16px)',
+                        gap: keyboardOpen ? 'clamp(2px, 1vh, 8px)' : 'clamp(4px, 1.8vh, 18px)',
                     }}
                 >
                     {error && (
                         <div
                             className="bg-red-500/10 border border-red-500/50 text-red-400 rounded-xl text-center font-bold"
-                            style={{ padding: 'clamp(8px, 1.5dvh, 12px)', fontSize: 'clamp(0.75rem, 2dvh, 0.875rem)' }}
+                            style={{ padding: 'clamp(8px, 1.5vh, 12px)', fontSize: 'clamp(0.75rem, 2vh, 0.875rem)' }}
                         >
                             {error}
                         </div>
@@ -127,24 +127,24 @@ export const Login: React.FC = () => {
                     <form
                         onSubmit={handleLogin}
                         className="flex flex-col transition-all duration-200"
-                        style={{ gap: keyboardOpen ? 'clamp(2px, 1dvh, 8px)' : 'clamp(4px, 1.8dvh, 18px)' }}
+                        style={{ gap: keyboardOpen ? 'clamp(2px, 1vh, 8px)' : 'clamp(4px, 1.8vh, 18px)' }}
                     >
                         <div>
                             <label
                                 htmlFor="username"
                                 className="block text-slate-400 font-bold"
-                                style={{ fontSize: 'clamp(0.6rem, 1.6dvh, 0.8rem)', marginBottom: 'clamp(2px, 0.6dvh, 6px)' }}
+                                style={{ fontSize: 'clamp(0.6rem, 1.6vh, 0.8rem)', marginBottom: 'clamp(2px, 0.6vh, 6px)' }}
                             >
                                 Kullanıcı Adı:
                             </label>
                             <div className="relative">
                                 <User
                                     className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none"
-                                    style={{ width: 'clamp(16px, 4dvh, 20px)', height: 'clamp(16px, 4dvh, 20px)' }}
+                                    style={{ width: 'clamp(16px, 4vh, 20px)', height: 'clamp(16px, 4vh, 20px)' }}
                                 />
                                 <input
                                     className="w-full pl-11 pr-4 rounded-2xl bg-slate-800/40 border border-slate-700/80 text-white focus:outline-none focus:border-turf-500 focus:shadow-neon-sm transition-colors font-bold"
-                                    style={{ height: 'clamp(36px, 6.5dvh, 56px)', fontSize: 'clamp(0.85rem, 2.2dvh, 1rem)' }}
+                                    style={{ height: 'clamp(36px, 6.5vh, 56px)', fontSize: 'clamp(0.85rem, 2.2vh, 1rem)' }}
                                     id="username"
                                     type="text"
                                     placeholder="Kullanıcı adınız"
@@ -159,14 +159,14 @@ export const Login: React.FC = () => {
                             <label
                                 htmlFor="password"
                                 className="block text-slate-400 font-bold"
-                                style={{ fontSize: 'clamp(0.6rem, 1.6dvh, 0.8rem)', marginBottom: 'clamp(2px, 0.6dvh, 6px)' }}
+                                style={{ fontSize: 'clamp(0.6rem, 1.6vh, 0.8rem)', marginBottom: 'clamp(2px, 0.6vh, 6px)' }}
                             >
                                 Şifre:
                             </label>
                             <div className="relative">
                                 <Lock
                                     className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none"
-                                    style={{ width: 'clamp(16px, 4dvh, 20px)', height: 'clamp(16px, 4dvh, 20px)' }}
+                                    style={{ width: 'clamp(16px, 4vh, 20px)', height: 'clamp(16px, 4vh, 20px)' }}
                                 />
                                 <input
                                     id="password"
@@ -174,7 +174,7 @@ export const Login: React.FC = () => {
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     className="w-full pl-11 pr-12 rounded-2xl bg-slate-800/40 border border-slate-700/80 text-white focus:outline-none focus:border-turf-500 focus:shadow-neon-sm transition-colors font-bold"
-                                    style={{ height: 'clamp(36px, 6.5dvh, 56px)', fontSize: 'clamp(0.85rem, 2.2dvh, 1rem)' }}
+                                    style={{ height: 'clamp(36px, 6.5vh, 56px)', fontSize: 'clamp(0.85rem, 2.2vh, 1rem)' }}
                                     placeholder="••••••••"
                                     required
                                 />
@@ -185,15 +185,15 @@ export const Login: React.FC = () => {
                                     tabIndex={-1}
                                 >
                                     {showPassword
-                                        ? <EyeOff style={{ width: 'clamp(16px, 4dvh, 20px)', height: 'clamp(16px, 4dvh, 20px)' }} />
-                                        : <Eye style={{ width: 'clamp(16px, 4dvh, 20px)', height: 'clamp(16px, 4dvh, 20px)' }} />}
+                                        ? <EyeOff style={{ width: 'clamp(16px, 4vh, 20px)', height: 'clamp(16px, 4vh, 20px)' }} />
+                                        : <Eye style={{ width: 'clamp(16px, 4vh, 20px)', height: 'clamp(16px, 4vh, 20px)' }} />}
                                 </button>
                             </div>
-                            <div className="flex justify-end" style={{ marginTop: 'clamp(2px, 0.6dvh, 6px)' }}>
+                            <div className="flex justify-end" style={{ marginTop: 'clamp(2px, 0.6vh, 6px)' }}>
                                 <Link
                                     to="/forgot-password"
                                     className="text-slate-400 font-bold hover:text-turf-400 transition-colors"
-                                    style={{ fontSize: 'clamp(0.7rem, 1.8dvh, 0.8rem)' }}
+                                    style={{ fontSize: 'clamp(0.7rem, 1.8vh, 0.8rem)' }}
                                 >
                                     Şifremi Unuttum
                                 </Link>
@@ -203,12 +203,12 @@ export const Login: React.FC = () => {
                         <button
                             type="submit"
                             className="w-full bg-turf-600 text-white rounded-2xl font-display font-bold uppercase tracking-wider shadow-lg shadow-black/30 border border-turf-400/15 active:bg-turf-700 active:scale-[0.97] transition-all"
-                            style={{ height: 'clamp(40px, 7.5dvh, 58px)', fontSize: 'clamp(0.85rem, 2.4dvh, 1.125rem)' }}
+                            style={{ height: 'clamp(40px, 7.5vh, 58px)', fontSize: 'clamp(0.85rem, 2.4vh, 1.125rem)' }}
                         >
                             Giriş Yap
                         </button>
 
-                        <p className="text-slate-400 font-bold text-center" style={{ fontSize: 'clamp(0.8rem, 2.2dvh, 0.95rem)', marginTop: 'clamp(4px, 1dvh, 10px)' }}>
+                        <p className="text-slate-400 font-bold text-center" style={{ fontSize: 'clamp(0.8rem, 2.2vh, 0.95rem)', marginTop: 'clamp(4px, 1vh, 10px)' }}>
                             Hesabın yok mu?{' '}
                             <Link to="/register" className="text-turf-500 font-bold hover:underline">
                                 Kayıt Ol
@@ -222,8 +222,8 @@ export const Login: React.FC = () => {
                     className="relative flex-shrink-0 transition-all duration-200"
                     style={{
                         padding: keyboardOpen
-                            ? '0 clamp(16px, 5vw, 32px) clamp(10px, 1.5dvh, 16px)'
-                            : '0 clamp(16px, 5vw, 32px) clamp(20px, 3.5dvh, 32px)',
+                            ? '0 clamp(16px, 5vw, 32px) clamp(10px, 1.5vh, 16px)'
+                            : '0 clamp(16px, 5vw, 32px) clamp(20px, 3.5vh, 32px)',
                     }}
                 >
                     <button
@@ -234,8 +234,8 @@ export const Login: React.FC = () => {
                             background: 'linear-gradient(135deg, #c2410c, #9a3412)',
                             boxShadow: '0 8px 20px -8px rgba(154,52,18,0.45)',
                             WebkitTapHighlightColor: 'transparent',
-                            height: keyboardOpen ? 'clamp(36px, 5.5dvh, 48px)' : 'clamp(44px, 7dvh, 58px)',
-                            fontSize: keyboardOpen ? 'clamp(0.7rem, 1.8dvh, 0.8rem)' : 'clamp(0.8rem, 2.2dvh, 0.95rem)',
+                            height: keyboardOpen ? 'clamp(36px, 5.5vh, 48px)' : 'clamp(44px, 7vh, 58px)',
+                            fontSize: keyboardOpen ? 'clamp(0.7rem, 1.8vh, 0.8rem)' : 'clamp(0.8rem, 2.2vh, 0.95rem)',
                         }}
                     >
                         İşletme Hesabına Geçiş Yap

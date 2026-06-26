@@ -15,6 +15,9 @@
     overflow: hidden;
     height: 100%;
     background: #0f172a;
+    /* MIUI/Android sistem yazı ölçeklemesini bastır — autosizer önce root'a bakar */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
   }
   body {
     background: #0f172a;
@@ -203,7 +206,7 @@ body.modal-open .fixed.top-bell-safe {
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: auto;
   /* Android keyboard'da içeriğin görünmesi için */
-  max-height: 80svh;
+  max-height: 80vh;
 }
 
 /* Tüm fixed modal'lar için Android z-index koruması */

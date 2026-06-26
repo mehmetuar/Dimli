@@ -14,7 +14,7 @@ export const DateFilterModal: React.FC<DateFilterModalProps> = ({ isOpen, onClos
 
     return (
         <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/95 backdrop-blur-md animate-fade-in" onClick={onClose}>
-            <div className="bg-slate-800 w-full max-w-md sm:rounded-3xl rounded-t-3xl border border-slate-700 shadow-2xl overflow-hidden max-h-[90dvh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-slate-800 w-full max-w-md sm:rounded-3xl rounded-t-3xl border border-slate-700 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
                 {/* Header */}
                 <div className="p-3 sm:p-6 border-b border-slate-700 bg-slate-900 flex justify-between items-center flex-shrink-0">
                     <div>
