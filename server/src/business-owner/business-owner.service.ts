@@ -26,6 +26,7 @@ import { Business } from '../business/entities/business.entity';
 import { RatingsService } from '../ratings/ratings.service';
 import { Subscription } from '../subscription/entities/subscription.entity';
 import { PitchChangeRequest } from '../pitches/entities/pitch-change-request.entity';
+import { Notification } from '../notifications/notification.entity';
 import {
   addIstanbulDays,
   istanbulDateTimeToUtc,
@@ -549,6 +550,11 @@ export class BusinessOwnerService {
           [owner.id],
         );
       }
+
+      // Sahibe ait bildirimleri temizle — owner hard-delete edildiği için
+      // (notifications.userId = owner.id) öksüz kalmasınlar. Bildirim userId'si
+      // polimorfik (User veya BusinessOwner) olduğundan yalnızca bu owner'ınkiler silinir.
+      await queryRunner.manager.delete(Notification, { userId: owner.id });
 
       await queryRunner.manager.delete(BusinessOwner, { id: owner.id });
 
