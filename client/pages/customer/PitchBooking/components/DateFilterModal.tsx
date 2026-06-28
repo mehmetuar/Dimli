@@ -1,6 +1,7 @@
 import React from 'react';
 import { X } from 'lucide-react';
 import { CalendarPicker } from '../../../../components/UI/CalendarPicker';
+import { todayStr, addDaysStr } from '../../../../utils/today';
 
 interface DateFilterModalProps {
     isOpen: boolean;
@@ -47,7 +48,7 @@ export const DateFilterModal: React.FC<DateFilterModalProps> = ({ isOpen, onClos
                         <div className="flex gap-3">
                             <button
                                 onClick={() => {
-                                    setSelectedDate(new Date().toISOString().split('T')[0]);
+                                    setSelectedDate(todayStr());
                                     onClose();
                                 }}
                                 className="flex-1 px-4 py-2 sm:py-4 bg-slate-900/50 hover:bg-turf-500 hover:text-slate-900 border border-slate-700 text-white rounded-2xl text-sm font-black uppercase italic transition-all"
@@ -56,9 +57,7 @@ export const DateFilterModal: React.FC<DateFilterModalProps> = ({ isOpen, onClos
                             </button>
                             <button
                                 onClick={() => {
-                                    const tomorrow = new Date();
-                                    tomorrow.setDate(tomorrow.getDate() + 1);
-                                    setSelectedDate(tomorrow.toISOString().split('T')[0]);
+                                    setSelectedDate(addDaysStr(new Date(), 1));
                                     onClose();
                                 }}
                                 className="flex-1 px-4 py-2 sm:py-4 bg-slate-900/50 hover:bg-turf-500 hover:text-slate-900 border border-slate-700 text-white rounded-2xl text-sm font-black uppercase italic transition-all"

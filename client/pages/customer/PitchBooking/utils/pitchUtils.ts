@@ -1,4 +1,5 @@
 import { sortSlotsByNightRule } from '../../../../utils/nightSlot';
+import { todayStr, addDaysStr } from '../../../../utils/today';
 
 export { isPastSlot } from '../../../../utils/nightSlot';
 
@@ -16,14 +17,10 @@ export const groupMatchesByDate = (matches: any[]) => {
 };
 
 export const getRelativeDateLabel = (dateStr: string) => {
-    const today = new Date().toISOString().split('T')[0];
     const date = new Date(dateStr);
 
-    if (dateStr === today) return 'BUGÜN';
-
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    if (dateStr === tomorrow.toISOString().split('T')[0]) return 'YARIN';
+    if (dateStr === todayStr()) return 'BUGÜN';
+    if (dateStr === addDaysStr(new Date(), 1)) return 'YARIN';
 
     return date.toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long' });
 };
