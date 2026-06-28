@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { v2 as cloudinary } from 'cloudinary';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, Not, Repository } from 'typeorm';
+import { Brackets, IsNull, Not, Repository, SelectQueryBuilder } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { AdminUser } from './entities/admin-user.entity';
@@ -22,6 +22,8 @@ import { AccountDeletion } from '../account-deletions/account-deletion.entity';
 import { User } from '../users/user.entity';
 import { UserReport, ReportStatus } from '../user-reports/user-report.entity';
 import { FacilitiesService } from '../facilities/facilities.service';
+import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
+import { Paginated, paginate } from '../common/dto/paginated';
 
 const PLAN_LABELS: Record<string, string> = {
   '1_pitch': 'Starter',
@@ -72,6 +74,42 @@ export class AdminService {
     private readonly facilitiesService: FacilitiesService,
   ) {}
 
+  // ─── Helpers (sayfalama / arama / cache) ────────────────────────────────────
+
+  /**
+   * QueryBuilder'a ILIKE arama uygular. Brackets ile OR grubu izole edilir —
+   * aksi halde `WHERE status = x AND a ILIKE q OR b ILIKE q` diğer statüleri
+   * sızdırır. Boş aramada hiçbir şey yapmaz (no-op).
+   */
+  private applySearch(
+    qb: SelectQueryBuilder<any>,
+    search: string | undefined,
+    columns: string[],
+  ): void {
+    if (!search?.trim()) return;
+    const term = `%${search.trim()}%`;
+    qb.andWhere(
+      new Brackets((b) => {
+        columns.forEach((col, i) =>
+          b.orWhere(`${col} ILIKE :s${i}`, { [`s${i}`]: term }),
+        );
+      }),
+    );
+  }
+
+  // Dashboard agregatları için basit in-memory TTL cache (bağımlılıksız,
+  // mevcut ad-hoc Map deseniyle uyumlu). Sadece statistics/deletion-report.
+  private statsCache = new Map<string, { at: number; data: any }>();
+  private readonly STATS_TTL_MS = 60_000;
+
+  private async cached<T>(key: string, fn: () => Promise<T>): Promise<T> {
+    const hit = this.statsCache.get(key);
+    if (hit && Date.now() - hit.at < this.STATS_TTL_MS) return hit.data as T;
+    const data = await fn();
+    this.statsCache.set(key, { at: Date.now(), data });
+    return data;
+  }
+
   // ─── Auth ─────────────────────────────────────────────────────────────────
 
   async login(email: string, password: string) {
@@ -114,39 +152,81 @@ export class AdminService {
 
   // ─── Applications ─────────────────────────────────────────────────────────
 
-  async getApplications(status?: string) {
-    const where: any = { deletedAt: IsNull() };
-    if (status) where.status = status;
-    else where.status = 'pending';
+  /**
+   * İşletme listeleme çekirdeği — getApplications / getAllBusinesses /
+   * getDeletedBusinesses bunu kullanır. Sayfalama + arama + owner JOIN (N+1 giderildi).
+   *
+   * TypeORM tuzağı: COUNT sorgusu OneToMany (b.pitches) JOIN etmez (satır çoğaltır,
+   * total'ı şişirir). ITEMS sorgusu skip/take (offset/limit DEĞİL) ile sayfalanır —
+   * join'li OneToMany'de offset/limit ham satırı keser, yanlış sayıda işletme döner.
+   */
+  private async listBusinesses(opts: {
+    status?: string;
+    page: number;
+    limit: number;
+    search?: string;
+    deleted?: boolean;
+    defaultPendingWhenNoStatus?: boolean;
+  }): Promise<Paginated<any>> {
+    const { status, page, limit, search, deleted = false } = opts;
+    const skip = (page - 1) * limit;
+    const searchCols = ['b.name', 'b.city', 'owner.fullName', 'owner.email'];
 
-    const businesses = await this.businessRepository.find({
-      where,
-      relations: ['pitches', 'pitches.timeSlots'],
-      order: { createdAt: 'DESC' },
+    const applyWhere = (qb: SelectQueryBuilder<Business>) => {
+      qb.where(deleted ? 'b.deletedAt IS NOT NULL' : 'b.deletedAt IS NULL');
+      const effectiveStatus =
+        status ?? (opts.defaultPendingWhenNoStatus ? 'pending' : undefined);
+      if (effectiveStatus)
+        qb.andWhere('b.status = :status', { status: effectiveStatus });
+    };
+
+    // COUNT: owner sadece arama gerekiyorsa join'lenir (OneToOne → satır çoğaltmaz);
+    // b.pitches ASLA join'lenmez.
+    const countQb = this.businessRepository.createQueryBuilder('b');
+    applyWhere(countQb);
+    if (search?.trim()) countQb.leftJoin('b.owner', 'owner');
+    this.applySearch(countQb, search, searchCols);
+    const total = await countQb.getCount();
+
+    // ITEMS: owner (OneToOne) + pitches (OneToMany) join'lenir; skip/take ile sayfalanır.
+    // Liste yalnız pitches.length + facilities kullandığı için timeSlots YÜKLENMEZ
+    // (QueryBuilder eager ilişkiyi otomatik çekmez).
+    const itemsQb = this.businessRepository
+      .createQueryBuilder('b')
+      .leftJoinAndSelect('b.owner', 'owner')
+      .leftJoinAndSelect('b.pitches', 'p');
+    applyWhere(itemsQb);
+    this.applySearch(itemsQb, search, searchCols);
+    itemsQb
+      .orderBy(deleted ? 'b.deletedAt' : 'b.createdAt', 'DESC')
+      .skip(skip)
+      .take(limit);
+    const businesses = await itemsQb.getMany();
+
+    const items = businesses.map((b) => ({
+      ...b,
+      owner: b.owner
+        ? {
+            id: b.owner.id,
+            fullName: b.owner.fullName,
+            email: b.owner.email,
+            phone: b.owner.phone,
+          }
+        : null,
+    }));
+
+    return paginate(items, total, page, limit);
+  }
+
+  getApplications(status: string | undefined, p: PaginationQueryDto) {
+    return this.listBusinesses({
+      status,
+      page: p.page,
+      limit: p.limit,
+      search: p.search,
+      deleted: false,
+      defaultPendingWhenNoStatus: true,
     });
-
-    // BusinessOwner bilgisini ekle
-    const result = await Promise.all(
-      businesses.map(async (business) => {
-        const owner = await this.businessOwnerRepository.findOne({
-          where: { business: { id: business.id } },
-          relations: ['business'],
-        });
-        return {
-          ...business,
-          owner: owner
-            ? {
-                id: owner.id,
-                fullName: owner.fullName,
-                email: owner.email,
-                phone: owner.phone,
-              }
-            : null,
-        };
-      }),
-    );
-
-    return result;
   }
 
   async getApplicationDetail(businessId: string) {
@@ -183,6 +263,7 @@ export class AdminService {
     business.reviewedAt = new Date();
     business.rejectionReason = null;
     await this.businessRepository.save(business);
+    this.statsCache.delete('statistics');
 
     return { success: true, message: 'İşletme onaylandı.' };
   }
@@ -201,40 +282,20 @@ export class AdminService {
     business.reviewedAt = new Date();
     business.rejectionReason = reason;
     await this.businessRepository.save(business);
+    this.statsCache.delete('statistics');
 
     return { success: true, message: 'İşletme reddedildi.' };
   }
 
-  async getAllBusinesses(status?: string) {
-    const where: any = { deletedAt: IsNull() };
-    if (status) where.status = status;
-
-    const businesses = await this.businessRepository.find({
-      where,
-      relations: ['pitches'],
-      order: { createdAt: 'DESC' },
+  getAllBusinesses(status: string | undefined, p: PaginationQueryDto) {
+    return this.listBusinesses({
+      status,
+      page: p.page,
+      limit: p.limit,
+      search: p.search,
+      deleted: false,
+      defaultPendingWhenNoStatus: false,
     });
-
-    const result = await Promise.all(
-      businesses.map(async (business) => {
-        const owner = await this.businessOwnerRepository.findOne({
-          where: { business: { id: business.id } },
-        });
-        return {
-          ...business,
-          owner: owner
-            ? {
-                id: owner.id,
-                fullName: owner.fullName,
-                email: owner.email,
-                phone: owner.phone,
-              }
-            : null,
-        };
-      }),
-    );
-
-    return result;
   }
 
   async suspendBusiness(businessId: string) {
@@ -244,6 +305,7 @@ export class AdminService {
     if (!business) throw new NotFoundException('İşletme bulunamadı.');
     business.status = 'suspended';
     await this.businessRepository.save(business);
+    this.statsCache.delete('statistics');
     return { success: true };
   }
 
@@ -254,6 +316,7 @@ export class AdminService {
     if (!business) throw new NotFoundException('İşletme bulunamadı.');
     business.status = 'active';
     await this.businessRepository.save(business);
+    this.statsCache.delete('statistics');
     return { success: true };
   }
 
@@ -369,15 +432,33 @@ export class AdminService {
 
   // ─── Change Requests ─────────────────────────────────────────────────────
 
-  async getChangeRequests(status?: string): Promise<any[]> {
-    const where: any = status ? { status } : { status: 'pending' };
-    const requests = await this.changeRequestRepository.find({
-      where,
-      relations: ['pitch', 'pitch.business'],
-      order: { createdAt: 'DESC' },
-    });
+  async getChangeRequests(
+    status: string | undefined,
+    p: PaginationQueryDto,
+  ): Promise<Paginated<any>> {
+    const effectiveStatus = status ?? 'pending';
+    const skip = (p.page - 1) * p.limit;
+    const searchCols = ['pitch.name', 'business.name'];
 
-    return requests.map((r) => ({
+    // pitch/business ManyToOne → satır çoğaltmaz; yine de tek-tip için ayrı count.
+    const countQb = this.changeRequestRepository
+      .createQueryBuilder('r')
+      .leftJoin('r.pitch', 'pitch')
+      .leftJoin('pitch.business', 'business')
+      .where('r.status = :status', { status: effectiveStatus });
+    this.applySearch(countQb, p.search, searchCols);
+    const total = await countQb.getCount();
+
+    const itemsQb = this.changeRequestRepository
+      .createQueryBuilder('r')
+      .leftJoinAndSelect('r.pitch', 'pitch')
+      .leftJoinAndSelect('pitch.business', 'business')
+      .where('r.status = :status', { status: effectiveStatus });
+    this.applySearch(itemsQb, p.search, searchCols);
+    itemsQb.orderBy('r.createdAt', 'DESC').skip(skip).take(p.limit);
+    const requests = await itemsQb.getMany();
+
+    const items = requests.map((r) => ({
       id: r.id,
       type: r.type,
       status: r.status,
@@ -391,6 +472,8 @@ export class AdminService {
       businessId: r.businessId,
       businessName: r.pitch?.business?.name,
     }));
+
+    return paginate(items, total, p.page, p.limit);
   }
 
   async approveChangeRequest(requestId: string): Promise<{ success: boolean }> {
@@ -520,33 +603,53 @@ export class AdminService {
 
   // ─── Saha Onayları (Yeni Saha) ──────────────────────────────────────────────
 
-  async getPitchApprovals(status?: string): Promise<any[]> {
+  async getPitchApprovals(
+    status: string | undefined,
+    p: PaginationQueryDto,
+  ): Promise<Paginated<any>> {
     const approvalStatus = status ?? 'pending';
-    const pitches = await this.pitchRepository.find({
-      where: { approvalStatus: approvalStatus as any },
-      relations: ['business', 'timeSlots'],
-      order: { createdAt: 'DESC' },
-    });
+    const skip = (p.page - 1) * p.limit;
+    const searchCols = ['pt.name', 'business.name'];
 
-    return pitches.map((p) => ({
-      id: p.id,
-      name: p.name,
-      description: p.description,
-      type: p.type,
-      pricePerHour: p.pricePerHour,
-      imageUrl: p.imageUrl,
-      openTime: p.openTime,
-      closeTime: p.closeTime,
-      facilities: p.facilities,
-      closedDays: p.closedDays,
-      timeSlots: p.timeSlots,
-      approvalStatus: p.approvalStatus,
-      rejectionReason: p.rejectionReason,
-      createdAt: p.createdAt,
-      reviewedAt: p.reviewedAt,
-      businessId: p.businessId,
-      businessName: p.business?.name,
+    // COUNT: business join (arama için, ManyToOne güvenli); timeSlots join EDİLMEZ.
+    const countQb = this.pitchRepository
+      .createQueryBuilder('pt')
+      .leftJoin('pt.business', 'business')
+      .where('pt.approvalStatus = :st', { st: approvalStatus });
+    this.applySearch(countQb, p.search, searchCols);
+    const total = await countQb.getCount();
+
+    // ITEMS: detay kartı timeSlots render ettiği için burada YÜKLENİR.
+    const itemsQb = this.pitchRepository
+      .createQueryBuilder('pt')
+      .leftJoinAndSelect('pt.business', 'business')
+      .leftJoinAndSelect('pt.timeSlots', 'ts')
+      .where('pt.approvalStatus = :st', { st: approvalStatus });
+    this.applySearch(itemsQb, p.search, searchCols);
+    itemsQb.orderBy('pt.createdAt', 'DESC').skip(skip).take(p.limit);
+    const pitches = await itemsQb.getMany();
+
+    const items = pitches.map((pt) => ({
+      id: pt.id,
+      name: pt.name,
+      description: pt.description,
+      type: pt.type,
+      pricePerHour: pt.pricePerHour,
+      imageUrl: pt.imageUrl,
+      openTime: pt.openTime,
+      closeTime: pt.closeTime,
+      facilities: pt.facilities,
+      closedDays: pt.closedDays,
+      timeSlots: pt.timeSlots,
+      approvalStatus: pt.approvalStatus,
+      rejectionReason: pt.rejectionReason,
+      createdAt: pt.createdAt,
+      reviewedAt: pt.reviewedAt,
+      businessId: pt.businessId,
+      businessName: pt.business?.name,
     }));
+
+    return paginate(items, total, p.page, p.limit);
   }
 
   async approvePitch(pitchId: string): Promise<{ success: boolean }> {
@@ -601,8 +704,13 @@ export class AdminService {
 
   // ─── Statistics ───────────────────────────────────────────────────────────
 
-  async getStatistics() {
-    // Status sayımları (silinmiş işletmeler hariç)
+  // 60sn cache'li; response şekli eskisiyle birebir aynı.
+  getStatistics() {
+    return this.cached('statistics', () => this.computeStatistics());
+  }
+
+  private async computeStatistics() {
+    // Status sayımları (silinmiş işletmeler hariç) — mevcut 5 paralel COUNT korunur.
     const [pending, active, rejected, suspended, deleted] = await Promise.all([
       this.businessRepository.count({
         where: { status: 'pending', deletedAt: IsNull() },
@@ -619,32 +727,40 @@ export class AdminService {
       this.businessRepository.count({ where: { deletedAt: Not(IsNull()) } }),
     ]);
 
-    // Abonelik istatistikleri
-    const allSubscriptions = await this.subscriptionRepository.find({
-      relations: ['owner'],
-    });
-    const activeSubscriptions = allSubscriptions.filter(
-      (s) => s.status === 'active',
-    );
-    const trialSubscriptions = allSubscriptions.filter(
-      (s) => s.status === 'trial',
-    );
-    // Aktif + trial = toplam gelir potansiyeli (RevenueCat entegrasyonu öncesinde trial'lar da sayılır)
-    const billedSubscriptions = [...activeSubscriptions, ...trialSubscriptions];
+    // Abonelik: tüm tabloyu çekmek yerine tek GROUP BY (status, planType) + SUM.
+    // COUNT/SUM driver'dan string döner → Number() ile sarılır.
+    const subRows: Array<{
+      status: string;
+      planType: string;
+      cnt: string;
+      sum: string;
+    }> = await this.subscriptionRepository
+      .createQueryBuilder('s')
+      .select('s.status', 'status')
+      .addSelect('s.planType', 'planType')
+      .addSelect('COUNT(*)', 'cnt')
+      .addSelect('COALESCE(SUM(s.pricePerMonth), 0)', 'sum')
+      .where("s.status IN ('active', 'trial')")
+      .groupBy('s.status')
+      .addGroupBy('s.planType')
+      .orderBy('s.planType', 'ASC')
+      .getRawMany();
 
-    const totalMRR = billedSubscriptions.reduce(
-      (sum, s) => sum + Number(s.pricePerMonth),
-      0,
-    );
-
-    // Plan bazlı dağılım (aktif + trial)
+    let activeCount = 0;
+    let trialCount = 0;
+    let totalMRR = 0;
     const planMap: Record<string, { count: number; monthlyRevenue: number }> =
       {};
-    for (const sub of billedSubscriptions) {
-      if (!planMap[sub.planType])
-        planMap[sub.planType] = { count: 0, monthlyRevenue: 0 };
-      planMap[sub.planType].count++;
-      planMap[sub.planType].monthlyRevenue += Number(sub.pricePerMonth);
+    for (const r of subRows) {
+      const cnt = Number(r.cnt);
+      const sum = Number(r.sum);
+      if (r.status === 'active') activeCount += cnt;
+      if (r.status === 'trial') trialCount += cnt;
+      totalMRR += sum;
+      if (!planMap[r.planType])
+        planMap[r.planType] = { count: 0, monthlyRevenue: 0 };
+      planMap[r.planType].count += cnt;
+      planMap[r.planType].monthlyRevenue += sum;
     }
     const byPlan = Object.entries(planMap).map(([planType, data]) => ({
       planType,
@@ -653,8 +769,34 @@ export class AdminService {
       monthlyRevenue: data.monthlyRevenue,
     }));
 
-    // Son 12 ay aylık büyüme (onaylanan işletmeler)
+    // Son 12 ay büyüme: 24 COUNT yerine 2 GROUP BY date_trunc('month').
+    // (Render sunucusu UTC; depolanan timestamp UTC → TZ dönüşümü gerekmez.)
     const now = new Date();
+    const windowStart = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+
+    const [newRows, apprRows]: Array<Array<{ m: string; c: string }>> =
+      await Promise.all([
+        this.businessRepository
+          .createQueryBuilder('b')
+          .select("to_char(date_trunc('month', b.createdAt), 'YYYY-MM')", 'm')
+          .addSelect('COUNT(*)', 'c')
+          .where('b.createdAt >= :start', { start: windowStart })
+          .groupBy("date_trunc('month', b.createdAt)")
+          .getRawMany(),
+        this.businessRepository
+          .createQueryBuilder('b')
+          .select("to_char(date_trunc('month', b.reviewedAt), 'YYYY-MM')", 'm')
+          .addSelect('COUNT(*)', 'c')
+          .where("b.status = 'active' AND b.reviewedAt >= :start", {
+            start: windowStart,
+          })
+          .groupBy("date_trunc('month', b.reviewedAt)")
+          .getRawMany(),
+      ]);
+
+    const newMap = new Map(newRows.map((r) => [r.m, Number(r.c)]));
+    const apprMap = new Map(apprRows.map((r) => [r.m, Number(r.c)]));
+
     const monthlyGrowth: Array<{
       month: string;
       newBusinesses: number;
@@ -662,42 +804,19 @@ export class AdminService {
     }> = [];
     for (let i = 11; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const year = d.getFullYear();
-      const month = d.getMonth() + 1;
-      const monthStr = `${year}-${String(month).padStart(2, '0')}`;
-
-      const startOfMonth = new Date(year, month - 1, 1);
-      const endOfMonth = new Date(year, month, 0, 23, 59, 59);
-
-      const [newBusinesses, approvedBusinesses] = await Promise.all([
-        this.businessRepository
-          .createQueryBuilder('b')
-          .where('b.createdAt >= :start AND b.createdAt <= :end', {
-            start: startOfMonth,
-            end: endOfMonth,
-          })
-          .getCount(),
-        this.businessRepository
-          .createQueryBuilder('b')
-          .where(
-            'b.status = :status AND b.reviewedAt >= :start AND b.reviewedAt <= :end',
-            { status: 'active', start: startOfMonth, end: endOfMonth },
-          )
-          .getCount(),
-      ]);
-
+      const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       monthlyGrowth.push({
         month: monthStr,
-        newBusinesses,
-        approvedBusinesses,
+        newBusinesses: newMap.get(monthStr) ?? 0,
+        approvedBusinesses: apprMap.get(monthStr) ?? 0,
       });
     }
 
     return {
       counts: { pending, active, rejected, suspended, deleted },
       revenue: {
-        activeSubscriptions: activeSubscriptions.length,
-        trialSubscriptions: trialSubscriptions.length,
+        activeSubscriptions: activeCount,
+        trialSubscriptions: trialCount,
         totalMRR,
         byPlan,
       },
@@ -707,41 +826,23 @@ export class AdminService {
 
   // ─── Deleted Businesses ───────────────────────────────────────────────────
 
-  async getDeletedBusinesses() {
-    const businesses = await this.businessRepository
-      .createQueryBuilder('b')
-      .leftJoinAndSelect('b.pitches', 'p')
-      .where('b.deletedAt IS NOT NULL')
-      .orderBy('b.deletedAt', 'DESC')
-      .getMany();
-
-    return Promise.all(
-      businesses.map(async (business) => {
-        const owner = await this.businessOwnerRepository.findOne({
-          where: { business: { id: business.id } },
-        });
-        return {
-          ...business,
-          owner: owner
-            ? {
-                id: owner.id,
-                fullName: owner.fullName,
-                email: owner.email,
-                phone: owner.phone,
-              }
-            : null,
-        };
-      }),
-    );
+  getDeletedBusinesses(p: PaginationQueryDto) {
+    return this.listBusinesses({
+      page: p.page,
+      limit: p.limit,
+      search: p.search,
+      deleted: true,
+    });
   }
 
   // ─── Deletion Report ──────────────────────────────────────────────────────
 
-  async getDeletionReport() {
-    const deletions = await this.accountDeletionRepository.find({
-      order: { deletedAt: 'DESC' },
-    });
+  // 60sn cache'li; response şekli eskisiyle birebir aynı.
+  getDeletionReport() {
+    return this.cached('deletion-report', () => this.computeDeletionReport());
+  }
 
+  private async computeDeletionReport() {
     const REASON_LABELS: Record<string, string> = {
       NOT_USING: 'Artık kullanmak istemiyorum',
       PRIVACY: 'Gizlilik endişelerim var',
@@ -751,50 +852,95 @@ export class AdminService {
       OTHER: 'Diğer',
     };
 
-    const reasonBreakdown = Object.entries(
-      deletions.reduce(
-        (acc, d) => {
-          acc[d.reason] = (acc[d.reason] || 0) + 1;
-          return acc;
-        },
-        {} as Record<string, number>,
-      ),
-    ).map(([key, count]) => ({ key, label: REASON_LABELS[key] || key, count }));
+    // total + reason kırılımı + son 6 ay trend → tüm tabloyu çekmeden GROUP BY ile.
+    const total = await this.accountDeletionRepository.count();
 
-    // Son 6 aylık trend
+    const reasonRows: Array<{ reason: string; c: string }> =
+      await this.accountDeletionRepository
+        .createQueryBuilder('d')
+        .select('d.reason', 'reason')
+        .addSelect('COUNT(*)', 'c')
+        .groupBy('d.reason')
+        .getRawMany();
+    const reasonBreakdown = reasonRows.map((r) => ({
+      key: r.reason,
+      label: REASON_LABELS[r.reason] || r.reason,
+      count: Number(r.c),
+    }));
+
+    // Eski kod toISOString (UTC) kullanıyordu → UTC korunur (Render sunucusu da UTC).
     const now = new Date();
+    const windowStart = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 5, 1),
+    );
+    const monthRows: Array<{ m: string; c: string }> =
+      await this.accountDeletionRepository
+        .createQueryBuilder('d')
+        .select("to_char(date_trunc('month', d.deletedAt), 'YYYY-MM')", 'm')
+        .addSelect('COUNT(*)', 'c')
+        .where('d.deletedAt >= :start', { start: windowStart })
+        .groupBy("date_trunc('month', d.deletedAt)")
+        .getRawMany();
+    const monthMap = new Map(monthRows.map((r) => [r.m, Number(r.c)]));
+
     const monthlyTrend: { month: string; count: number }[] = [];
     for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const d = new Date(
+        Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1),
+      );
       const monthStr = d.toISOString().slice(0, 7);
-      const count = deletions.filter(
-        (del) => del.deletedAt.toISOString().slice(0, 7) === monthStr,
-      ).length;
-      monthlyTrend.push({ month: monthStr, count });
+      monthlyTrend.push({
+        month: monthStr,
+        count: monthMap.get(monthStr) ?? 0,
+      });
     }
+    const thisMonth = monthlyTrend[monthlyTrend.length - 1].count;
 
-    const thisMonth = now.toISOString().slice(0, 7);
-    const thisMonthCount = deletions.filter(
-      (d) => d.deletedAt.toISOString().slice(0, 7) === thisMonth,
-    ).length;
+    const recent = await this.accountDeletionRepository.find({
+      order: { deletedAt: 'DESC' },
+      take: 30,
+    });
 
-    return {
-      total: deletions.length,
-      thisMonth: thisMonthCount,
-      reasonBreakdown,
-      monthlyTrend,
-      recent: deletions.slice(0, 30),
-    };
+    return { total, thisMonth, reasonBreakdown, monthlyTrend, recent };
   }
 
   // ─── User Reports ─────────────────────────────────────────────────────────
 
-  async getReports(status?: ReportStatus) {
-    return this.userReportRepository.find({
-      where: status ? { status } : {},
-      relations: ['reporter', 'reportedUser', 'message'],
-      order: { createdAt: 'DESC' },
-    });
+  async getReports(
+    status: ReportStatus | undefined,
+    p: PaginationQueryDto,
+  ): Promise<Paginated<UserReport>> {
+    const skip = (p.page - 1) * p.limit;
+    const searchCols = [
+      'reporter.username',
+      'reporter.full_name',
+      'reported.username',
+      'reported.full_name',
+    ];
+
+    // COUNT: reporter/reported sadece arama varsa join'lenir (ManyToOne güvenli).
+    const countQb = this.userReportRepository.createQueryBuilder('r');
+    if (status) countQb.andWhere('r.status = :status', { status });
+    if (p.search?.trim()) {
+      countQb
+        .leftJoin('r.reporter', 'reporter')
+        .leftJoin('r.reportedUser', 'reported');
+    }
+    this.applySearch(countQb, p.search, searchCols);
+    const total = await countQb.getCount();
+
+    // ITEMS: nested reporter/reportedUser/message FE'de kullanıldığı için her zaman join.
+    const itemsQb = this.userReportRepository
+      .createQueryBuilder('r')
+      .leftJoinAndSelect('r.reporter', 'reporter')
+      .leftJoinAndSelect('r.reportedUser', 'reported')
+      .leftJoinAndSelect('r.message', 'message');
+    if (status) itemsQb.andWhere('r.status = :status', { status });
+    this.applySearch(itemsQb, p.search, searchCols);
+    itemsQb.orderBy('r.createdAt', 'DESC').skip(skip).take(p.limit);
+    const items = await itemsQb.getMany();
+
+    return paginate(items, total, p.page, p.limit);
   }
 
   async updateReportStatus(id: string, status: ReportStatus) {
@@ -848,29 +994,50 @@ export class AdminService {
     return { success: true };
   }
 
-  async getBannedUsers() {
-    const users = await this.userRepository.find({
-      where: { isChatBanned: true },
-      select: ['id', 'username', 'full_name', 'chatBannedAt', 'chatBanExpiry'],
-      order: { chatBannedAt: 'DESC' },
-    });
+  async getBannedUsers(p: PaginationQueryDto): Promise<Paginated<any>> {
     const now = new Date();
-    const expiredIds: string[] = [];
-    const active = users.filter((u) => {
-      if (u.chatBanExpiry && u.chatBanExpiry < now) {
-        expiredIds.push(u.id);
-        return false;
-      }
-      return true;
-    });
-    if (expiredIds.length) {
-      await this.userRepository.update(expiredIds, {
-        isChatBanned: false,
-        chatBannedAt: null,
-        chatBanExpiry: null,
-      });
-    }
-    return active;
+    const skip = (p.page - 1) * p.limit;
+    const searchCols = ['u.username', 'u.full_name'];
+
+    // 1) Süresi dolmuş banları toplu temizle (eski döngü yerine tek bulk UPDATE).
+    //    count/fetch ile aynı predicate → sayfalama tutarlı kalır.
+    await this.userRepository
+      .createQueryBuilder()
+      .update(User)
+      .set({ isChatBanned: false, chatBannedAt: null, chatBanExpiry: null })
+      .where(
+        'isChatBanned = true AND chatBanExpiry IS NOT NULL AND chatBanExpiry < :now',
+        { now },
+      )
+      .execute();
+
+    const applyWhere = (qb: SelectQueryBuilder<User>) => {
+      qb.where('u.isChatBanned = true').andWhere(
+        '(u.chatBanExpiry IS NULL OR u.chatBanExpiry >= :now)',
+        { now },
+      );
+    };
+
+    const countQb = this.userRepository.createQueryBuilder('u');
+    applyWhere(countQb);
+    this.applySearch(countQb, p.search, searchCols);
+    const total = await countQb.getCount();
+
+    const itemsQb = this.userRepository
+      .createQueryBuilder('u')
+      .select([
+        'u.id',
+        'u.username',
+        'u.full_name',
+        'u.chatBannedAt',
+        'u.chatBanExpiry',
+      ]);
+    applyWhere(itemsQb);
+    this.applySearch(itemsQb, p.search, searchCols);
+    itemsQb.orderBy('u.chatBannedAt', 'DESC').skip(skip).take(p.limit);
+    const items = await itemsQb.getMany();
+
+    return paginate(items, total, p.page, p.limit);
   }
 
   /**
@@ -960,6 +1127,7 @@ export class AdminService {
       }
     }
 
+    this.statsCache.delete('statistics');
     return { created, updated, skipped, details };
   }
 }
