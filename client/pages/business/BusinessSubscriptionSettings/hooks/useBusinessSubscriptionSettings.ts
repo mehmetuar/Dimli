@@ -183,10 +183,10 @@ export const useBusinessSubscriptionSettings = () => {
         }
     };
 
-    const handleDeleteAccount = async (password: string) => {
+    const handleDeleteAccount = async (reason: string, note: string, password: string) => {
         setDeleteLoading(true);
         try {
-            await api.delete('/business-owner/account', { data: { password } });
+            await api.delete('/business-owner/account', { data: { reason, note, password } });
             await logout();
             navigate('/business/login');
         } catch (err: any) {

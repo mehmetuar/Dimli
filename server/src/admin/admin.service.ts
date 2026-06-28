@@ -320,6 +320,43 @@ export class AdminService {
     return { success: true };
   }
 
+  // İşletmeyi geri yükle (soft-delete'i geri al). Sadece işletme verisi geri gelir;
+  // sahip self-delete ettiyse owner/subscription yok (response'ta belirtilir).
+  async restoreBusiness(businessId: string, adminId: string) {
+    const business = await this.businessRepository.findOne({
+      where: { id: businessId },
+    });
+    if (!business) throw new NotFoundException('İşletme bulunamadı.');
+    if (!business.deletedAt) {
+      throw new BadRequestException('Bu işletme zaten silinmemiş.');
+    }
+
+    // Status'a dokunma — silme status'u değiştirmemişti, eski status korunuyor.
+    business.deletedAt = null;
+    business.restoredAt = new Date();
+    business.restoredBy = adminId;
+    await this.businessRepository.save(business);
+
+    // İşletmenin sahalarını da geri yükle.
+    await this.pitchRepository.update(
+      { businessId },
+      { deletedAt: null, isActive: true },
+    );
+
+    this.statsCache.delete('statistics');
+
+    const ownerExists = await this.businessOwnerRepository.findOne({
+      where: { business: { id: businessId } },
+    });
+    return {
+      success: true,
+      ownerMissing: !ownerExists,
+      message: ownerExists
+        ? 'İşletme geri yüklendi.'
+        : 'İşletme geri yüklendi. Sahip hesabı silinmiş olduğundan sahibin yeniden kayıt olması gerekir.',
+    };
+  }
+
   // ─── Update Application ───────────────────────────────────────────────────
 
   async updateApplication(

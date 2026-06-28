@@ -1,5 +1,5 @@
 import React from 'react';
-import { IconClock, IconX } from '../../components/Icons';
+import { IconClock, IconX, IconTrash } from '../../components/Icons';
 import { useApplicationDetail } from './hooks/useApplicationDetail';
 import ApplicationHeader from './components/ApplicationHeader';
 import OwnerInfoSection from './components/OwnerInfoSection';
@@ -20,7 +20,7 @@ export default function AdminApplicationDetail() {
         showRejectForm, setShowRejectForm,
         rejectReason, setRejectReason,
         navigate,
-        handleCancelEdit, handleSave, handleSaveAndApprove, approve, reject, suspend, activate,
+        handleCancelEdit, handleSave, handleSaveAndApprove, approve, reject, suspend, activate, restore,
     } = useApplicationDetail();
 
     if (loading) return (
@@ -41,6 +41,7 @@ export default function AdminApplicationDetail() {
     const isPending = app.status === 'pending';
     const isActive = app.status === 'active';
     const isSuspended = app.status === 'suspended';
+    const isDeleted = !!app.deletedAt;
 
     return (
         <div className="min-h-screen p-6 max-w-4xl mx-auto">
@@ -87,11 +88,46 @@ export default function AdminApplicationDetail() {
                     </Section>
                 )}
 
+                {isDeleted && (
+                    <Section title="Silinmiş İşletme" icon={<IconTrash size={13} />}>
+                        <div className="space-y-1.5 text-sm">
+                            <p className="text-[#7b9ab8]">
+                                Silinme: <span className="text-[#dde8f5]">{new Date(app.deletedAt).toLocaleString('tr-TR')}</span>
+                                {app.deletedBy && (
+                                    <span className="text-slate-500"> · {app.deletedBy === 'owner' ? 'Sahip tarafından' : 'Admin tarafından'}</span>
+                                )}
+                            </p>
+                            {app.deletionReason && (
+                                <p className="text-[#7b9ab8]">Neden: <span className="text-[#dde8f5]">{app.deletionReason}</span></p>
+                            )}
+                            {app.deletionNote && (
+                                <p className="text-[#7b9ab8]">Not: <span className="text-[#dde8f5]">{app.deletionNote}</span></p>
+                            )}
+                            {(app.ownerNameSnapshot || app.ownerEmailSnapshot || app.ownerPhoneSnapshot) ? (
+                                <p className="text-[#7b9ab8]">
+                                    Arşivlenen sahip: <span className="text-[#dde8f5]">
+                                        {app.ownerNameSnapshot}
+                                        {app.ownerEmailSnapshot ? ` · ${app.ownerEmailSnapshot}` : ''}
+                                        {app.ownerPhoneSnapshot ? ` · ${app.ownerPhoneSnapshot}` : ''}
+                                    </span>
+                                </p>
+                            ) : (
+                                <p className="text-slate-500 italic">Sahip bilgisi arşivlenmemiş (eski silme).</p>
+                            )}
+                            <p className="text-amber-300/80 text-xs mt-2">
+                                Geri yükleme yalnızca işletme verisini geri getirir. Sahip hesabı silindiği için
+                                sahibin yeniden kayıt olması gerekir.
+                            </p>
+                        </div>
+                    </Section>
+                )}
+
                 <ApplicationActions
                     editMode={editMode}
                     isPending={isPending}
                     isActive={isActive}
                     isSuspended={isSuspended}
+                    isDeleted={isDeleted}
                     actionLoading={actionLoading}
                     showRejectForm={showRejectForm}
                     setShowRejectForm={setShowRejectForm}
@@ -103,6 +139,7 @@ export default function AdminApplicationDetail() {
                     reject={reject}
                     suspend={suspend}
                     activate={activate}
+                    restore={restore}
                 />
             </div>
         </div>

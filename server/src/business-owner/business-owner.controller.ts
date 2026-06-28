@@ -105,9 +105,16 @@ export class BusinessOwnerController {
   async deleteAccount(
     @Request() req: { user: Express.User },
     @Body('password') password: string,
+    @Body('reason') reason?: string,
+    @Body('note') note?: string,
   ) {
     if (!password)
       throw new BadRequestException('Şifre doğrulaması gereklidir.');
-    return this.businessOwnerService.deleteAccount(req.user.id, password);
+    return this.businessOwnerService.deleteAccount(
+      req.user.id,
+      password,
+      reason,
+      note,
+    );
   }
 }

@@ -73,6 +73,33 @@ export class Business {
   @Column({ type: 'timestamp', nullable: true, default: null })
   deletedAt: Date | null;
 
+  // ─── Silme arşivi / nedeni / geri yükleme denetimi ──────────────────────────
+  // İşletme silinince doldurulur. Sahip (business_owner) hard-delete edildiğinden,
+  // "Silinen İşletmeler" panelinde sahibi gösterebilmek için snapshot tutulur.
+  @Column({ nullable: true, type: 'varchar' })
+  deletedBy: string | null; // 'owner' | 'admin'
+
+  @Column({ nullable: true, type: 'varchar' })
+  deletionReason: string | null;
+
+  @Column({ nullable: true, type: 'text' })
+  deletionNote: string | null;
+
+  @Column({ nullable: true, type: 'varchar' })
+  ownerNameSnapshot: string | null;
+
+  @Column({ nullable: true, type: 'varchar' })
+  ownerEmailSnapshot: string | null;
+
+  @Column({ nullable: true, type: 'varchar' })
+  ownerPhoneSnapshot: string | null;
+
+  @Column({ nullable: true, type: 'timestamp' })
+  restoredAt: Date | null;
+
+  @Column({ nullable: true, type: 'varchar' })
+  restoredBy: string | null; // admin id
+
   @OneToOne(() => BusinessOwner, (owner) => owner.business)
   owner: BusinessOwner;
 

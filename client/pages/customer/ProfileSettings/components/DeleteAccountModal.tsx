@@ -1,15 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, AlertTriangle, ChevronRight, Eye, EyeOff, Trash2 } from 'lucide-react';
 import { useKeyboardHeight } from '../../../../utils/useKeyboardHeight';
-
-const REASONS = [
-    { key: 'NOT_USING', label: 'Artık kullanmak istemiyorum' },
-    { key: 'PRIVACY', label: 'Gizlilik endişelerim var' },
-    { key: 'DIFFERENT_APP', label: 'Farklı bir uygulama kullanıyorum' },
-    { key: 'NOT_SATISFIED', label: 'Uygulama beklentilerimi karşılamıyor' },
-    { key: 'TECHNICAL', label: 'Teknik sorunlar yaşıyorum' },
-    { key: 'OTHER', label: 'Diğer' },
-];
+import { DELETION_REASONS as REASONS } from '../../../../utils/deletionReasons';
 
 interface DeleteAccountModalProps {
     isOpen: boolean;

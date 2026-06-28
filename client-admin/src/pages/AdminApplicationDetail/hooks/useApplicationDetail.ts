@@ -154,6 +154,19 @@ export const useApplicationDetail = () => {
         }
     };
 
+    const restore = async () => {
+        setActionLoading(true);
+        try {
+            const res = await adminApi.post(`/admin/businesses/${id}/restore`);
+            setApp((prev: any) => ({ ...prev, deletedAt: null, restoredAt: new Date().toISOString() }));
+            setMessage({ text: res.data?.message || 'İşletme geri yüklendi.', type: 'success' });
+        } catch (err: any) {
+            setMessage({ text: 'Hata: ' + (err.response?.data?.message || 'Geri yükleme başarısız.'), type: 'error' });
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
     return {
         app, loading, actionLoading,
         editMode, setEditMode,
@@ -164,6 +177,6 @@ export const useApplicationDetail = () => {
         showRejectForm, setShowRejectForm,
         rejectReason, setRejectReason,
         navigate,
-        handleCancelEdit, handleSave, handleSaveAndApprove, approve, reject, suspend, activate,
+        handleCancelEdit, handleSave, handleSaveAndApprove, approve, reject, suspend, activate, restore,
     };
 };

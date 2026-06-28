@@ -118,6 +118,15 @@ export class AdminController {
     return this.adminService.activateBusiness(businessId);
   }
 
+  @UseGuards(AdminJwtAuthGuard)
+  @Post('businesses/:businessId/restore')
+  async restoreBusiness(
+    @Param('businessId') businessId: string,
+    @Request() req: { user: Express.User },
+  ) {
+    return this.adminService.restoreBusiness(businessId, req.user.id);
+  }
+
   // ─── Change Requests ─────────────────────────────────────────────────────
 
   @UseGuards(AdminJwtAuthGuard)

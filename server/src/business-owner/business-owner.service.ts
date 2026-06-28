@@ -455,6 +455,8 @@ export class BusinessOwnerService {
   async deleteAccount(
     ownerId: string,
     password: string,
+    reason?: string,
+    note?: string,
   ): Promise<{ success: boolean; message?: string }> {
     const owner = await this.businessOwnerRepository.findOne({
       where: { id: ownerId },
@@ -527,10 +529,20 @@ export class BusinessOwnerService {
 
         // İşletmeyi soft-delete et — Business satırı geçmiş rezervasyon/rating/chat
         // join'leri için kalır, ama müşteri sorgularından (deletedAt IS NULL) kalkar.
+        // Sahip hard-delete edileceğinden ad/email/telefonu Business'a arşivle ki
+        // admin "Silinen İşletmeler"de sahibi görebilsin; silme nedenini de sakla.
         await queryRunner.manager.update(
           Business,
           { id: owner.business.id },
-          { deletedAt: now },
+          {
+            deletedAt: now,
+            deletedBy: 'owner',
+            deletionReason: reason ?? null,
+            deletionNote: note ?? null,
+            ownerNameSnapshot: owner.fullName,
+            ownerEmailSnapshot: owner.email,
+            ownerPhoneSnapshot: owner.phone,
+          },
         );
 
         // Bu işletmeyi "ev işletmesi" veya favori olarak tutan takım/kullanıcı referanslarını temizle

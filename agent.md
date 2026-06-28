@@ -200,8 +200,19 @@ Mevcut ölçek küçük: ~14 kullanıcı, 5 işletme (3 aktif + 2 silinmiş), 3 
 - D4. `users.service.ts deleteAccount` transaction'sız (kısmi-state riski) — bu turda dokunulmadı
   (kullanıcı "silme akışına dokunma" dedi); gelecekte sağlamlaştırılabilir.
 
-**E — İşletme silme eksikleri:**
-- Sahip arşivlenmiyor (E/§7), silme nedeni loglanmıyor, admin restore/silme yok, manuel cascade kırılgan.
+**E — İşletme silme → ✅ TASK 3 TAMAMLANDI (2026-06-28):**
+- ✅ **Sahip arşivi:** Business'e `ownerNameSnapshot/ownerEmailSnapshot/ownerPhoneSnapshot` +
+  `deletedBy/deletionReason/deletionNote` + `restoredAt/restoredBy` (nullable, synchronize). `business-owner
+  deleteAccount` owner hard-delete'ten ÖNCE snapshot+nedeni Business'a yazar (geriye uyumlu, reason/note ops.).
+  "Silinen İşletmeler" + detay sahibi snapshot'tan gösterir.
+- ✅ **Admin restore:** `POST /admin/businesses/:id/restore` → business+pitches un-soft-delete (status korunur,
+  restoredBy=admin). Detayda "Geri Yükle" + "Silinmiş" arşiv kartı. **Sadece veri restore** (auth/uniqueness'a
+  dokunulmadı); owner self-delete ettiyse "sahip yeniden kayıt olmalı" notu.
+- ✅ **Silme nedeni:** owner mobil `BusinessSubscriptionSettings/components/DeleteModal.tsx` iki-adımlı
+  neden+not (paylaşımlı `client/utils/deletionReasons.ts`). ⚠️ Neden alanı **app store sürümü** çıkınca dolar
+  (o ana kadar reason=null; server+admin hemen çalışır).
+- **Not:** mevcut 2 eski silinmiş işletme backfill edilemez (sahibi gitti) → "arşivlenmemiş". Owner hard-delete
+  bilinçli kaldı (email/phone uniqueness); FK/CASCADE/owner-soft-delete YAPILMADI.
 
 **F — Panel içeriği (geliştirilebilir):**
 - Kullanıcı yönetimi sayfası yok, genel işletme+abonelik listesi yok, rezervasyon/aktivite görünürlüğü

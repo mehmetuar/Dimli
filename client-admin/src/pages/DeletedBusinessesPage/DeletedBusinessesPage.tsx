@@ -68,9 +68,21 @@ const DeletedBusinessesPage: React.FC = () => {
                                         {biz.pitches?.length || 0} saha
                                     </span>
                                 </p>
-                                {biz.owner && (
+                                {(biz.ownerNameSnapshot || biz.owner) ? (
                                     <p className="text-slate-500 text-xs mt-1 truncate">
-                                        {biz.owner.fullName} · {biz.owner.email}
+                                        {biz.ownerNameSnapshot || biz.owner?.fullName}
+                                        {(biz.ownerEmailSnapshot || biz.owner?.email) && (
+                                            <> · {biz.ownerEmailSnapshot || biz.owner?.email}</>
+                                        )}
+                                    </p>
+                                ) : (
+                                    <p className="text-slate-600 text-xs mt-1 italic">
+                                        Sahip bilgisi arşivlenmemiş (eski silme)
+                                    </p>
+                                )}
+                                {biz.deletionReason && (
+                                    <p className="text-slate-600 text-xs mt-0.5 truncate">
+                                        Neden: {biz.deletionReason}
                                     </p>
                                 )}
                             </div>

@@ -6,6 +6,7 @@ interface ApplicationActionsProps {
     isPending: boolean;
     isActive: boolean;
     isSuspended: boolean;
+    isDeleted: boolean;
     actionLoading: boolean;
     showRejectForm: boolean;
     setShowRejectForm: (v: boolean) => void;
@@ -17,13 +18,14 @@ interface ApplicationActionsProps {
     reject: () => void;
     suspend: () => void;
     activate: () => void;
+    restore: () => void;
 }
 
 const ApplicationActions: React.FC<ApplicationActionsProps> = ({
-    editMode, isPending, isActive, isSuspended, actionLoading,
+    editMode, isPending, isActive, isSuspended, isDeleted, actionLoading,
     showRejectForm, setShowRejectForm,
     rejectReason, setRejectReason,
-    handleSave, handleSaveAndApprove, approve, reject, suspend, activate,
+    handleSave, handleSaveAndApprove, approve, reject, suspend, activate, restore,
 }) => {
     if (editMode) {
         return (
@@ -48,6 +50,21 @@ const ApplicationActions: React.FC<ApplicationActionsProps> = ({
                         </button>
                     )}
                 </div>
+            </div>
+        );
+    }
+
+    if (isDeleted) {
+        return (
+            <div className="space-y-3 pt-2">
+                <button
+                    onClick={restore}
+                    disabled={actionLoading}
+                    className="w-full flex items-center justify-center gap-2 bg-sky-700 hover:bg-sky-600 disabled:opacity-50 text-white py-3 rounded-xl font-black transition-colors"
+                >
+                    <IconCheck size={16} />
+                    {actionLoading ? 'Geri yükleniyor...' : 'İşletmeyi Geri Yükle'}
+                </button>
             </div>
         );
     }
