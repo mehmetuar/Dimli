@@ -1,9 +1,14 @@
 import React from 'react';
 import { IconTrash, IconPitch, IconChevronRight } from '../../components/Icons';
+import SearchInput from '../../components/SearchInput';
+import Pagination from '../../components/Pagination';
 import { useDeletedBusinesses } from './hooks/useDeletedBusinesses';
 
 const DeletedBusinessesPage: React.FC = () => {
-    const { businesses, loading, navigate } = useDeletedBusinesses();
+    const {
+        businesses, total, totalPages, page, setPage,
+        search, setSearch, loading, navigate,
+    } = useDeletedBusinesses();
 
     return (
         <div className="p-6 max-w-5xl mx-auto">
@@ -16,8 +21,12 @@ const DeletedBusinessesPage: React.FC = () => {
                     <p className="text-[#7b9ab8] text-xs">Hesabını silen işletme sahiplerinin kayıtları</p>
                 </div>
                 <span className="ml-auto text-[#7b9ab8] text-sm font-bold">
-                    {!loading && `${businesses.length} kayıt`}
+                    {!loading && `${total} kayıt`}
                 </span>
+            </div>
+
+            <div className="mb-4">
+                <SearchInput value={search} onChange={setSearch} placeholder="İşletme, şehir veya sahip ara..." />
             </div>
 
             {loading ? (
@@ -74,6 +83,10 @@ const DeletedBusinessesPage: React.FC = () => {
                         </div>
                     ))}
                 </div>
+            )}
+
+            {!loading && (
+                <Pagination page={page} totalPages={totalPages} total={total} onPageChange={setPage} />
             )}
         </div>
     );

@@ -1,5 +1,7 @@
 import React from 'react';
 import { IconBan, IconUser, IconCheck, IconAlertCircle, IconClock } from '../../components/Icons';
+import SearchInput from '../../components/SearchInput';
+import Pagination from '../../components/Pagination';
 import { useBannedUsers, BannedUser } from './hooks/useBannedUsers';
 
 // ─── Yardımcı: tarih formatı ──────────────────────────────────────────────────
@@ -89,7 +91,10 @@ const BannedUserCard: React.FC<{
 // ─── Ana Sayfa ────────────────────────────────────────────────────────────────
 
 const BannedUsersPage: React.FC = () => {
-    const { users, loading, processing, toast, handleUnban } = useBannedUsers();
+    const {
+        users, total, totalPages, page, setPage, search, setSearch,
+        loading, processing, toast, handleUnban,
+    } = useBannedUsers();
 
     return (
         <div className="p-6 max-w-4xl mx-auto">
@@ -116,8 +121,12 @@ const BannedUsersPage: React.FC = () => {
                     <p className="text-[#7b9ab8] text-xs">Aktif mesaj yasağı olan kullanıcılar</p>
                 </div>
                 {!loading && (
-                    <span className="ml-auto text-[#7b9ab8] text-sm font-bold">{users.length} kullanıcı</span>
+                    <span className="ml-auto text-[#7b9ab8] text-sm font-bold">{total} kullanıcı</span>
                 )}
+            </div>
+
+            <div className="mb-5">
+                <SearchInput value={search} onChange={setSearch} placeholder="Kullanıcı adı ara..." />
             </div>
 
             {/* Liste */}
@@ -146,6 +155,10 @@ const BannedUsersPage: React.FC = () => {
                         />
                     ))}
                 </div>
+            )}
+
+            {!loading && (
+                <Pagination page={page} totalPages={totalPages} total={total} onPageChange={setPage} />
             )}
         </div>
     );

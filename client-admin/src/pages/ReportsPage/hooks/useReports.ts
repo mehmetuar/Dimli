@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import adminApi from '../../../services/adminApi';
+import { usePaginatedList } from '../../../hooks/usePaginatedList';
 
 export type ReportStatus = 'pending' | 'reviewed' | 'dismissed';
 
@@ -18,9 +19,13 @@ export interface Report {
 }
 
 export const useReports = () => {
-    const [reports, setReports] = useState<Report[]>([]);
-    const [loading, setLoading] = useState(true);
     const [statusFilter, setStatusFilter] = useState<ReportStatus>('pending');
+
+    const {
+        items: reports, total, totalPages, page, setPage,
+        search, setSearch, loading, refetch,
+    } = usePaginatedList<Report>('/admin/reports', { status: statusFilter });
+
     const [selectedReport, setSelectedReport] = useState<Report | null>(null);
     const [processing, setProcessing] = useState(false);
     const [toast, setToast] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
@@ -30,26 +35,12 @@ export const useReports = () => {
         setTimeout(() => setToast(null), 3500);
     }, []);
 
-    const fetchReports = useCallback(async () => {
-        setLoading(true);
-        try {
-            const res = await adminApi.get(`/admin/reports?status=${statusFilter}`);
-            setReports(res.data);
-        } catch {
-            // silent
-        } finally {
-            setLoading(false);
-        }
-    }, [statusFilter]);
-
-    useEffect(() => { fetchReports(); }, [fetchReports]);
-
     const handleUpdateStatus = useCallback(async (id: string, status: ReportStatus) => {
         setProcessing(true);
         try {
             await adminApi.patch(`/admin/reports/${id}/status`, { status });
             setSelectedReport(null);
-            await fetchReports();
+            await refetch();
             showToast(
                 status === 'reviewed' ? 'Şikayet incelendi olarak işaretlendi.' : 'Şikayet yoksayıldı.',
                 'success',
@@ -59,7 +50,7 @@ export const useReports = () => {
         } finally {
             setProcessing(false);
         }
-    }, [fetchReports, showToast]);
+    }, [refetch, showToast]);
 
     const handleChatBanAndReview = useCallback(async (report: Report, durationHours?: number) => {
         if (!report.reportedUser) return;
@@ -68,14 +59,14 @@ export const useReports = () => {
             await adminApi.post(`/admin/users/${report.reportedUserId}/chat-ban`, { durationHours });
             await adminApi.patch(`/admin/reports/${report.id}/status`, { status: 'reviewed' });
             setSelectedReport(null);
-            await fetchReports();
+            await refetch();
             showToast(`${report.reportedUser.full_name} kullanıcısına chat yasağı uygulandı.`, 'success');
         } catch {
             showToast('İşlem başarısız. Tekrar deneyin.', 'error');
         } finally {
             setProcessing(false);
         }
-    }, [fetchReports, showToast]);
+    }, [refetch, showToast]);
 
     const handleChatUnban = useCallback(async (userId: string) => {
         setProcessing(true);
@@ -98,10 +89,11 @@ export const useReports = () => {
     }, [showToast]);
 
     return {
-        reports, loading, statusFilter, setStatusFilter,
+        reports, total, totalPages, page, setPage, search, setSearch,
+        loading, statusFilter, setStatusFilter,
         selectedReport, setSelectedReport,
         processing, toast,
         handleUpdateStatus, handleChatBanAndReview, handleChatUnban,
-        fetchReports,
+        fetchReports: refetch,
     };
 };

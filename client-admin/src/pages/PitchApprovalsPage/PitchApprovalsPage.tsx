@@ -1,4 +1,6 @@
 import React from 'react';
+import SearchInput from '../../components/SearchInput';
+import Pagination from '../../components/Pagination';
 import { usePitchApprovals } from './hooks/usePitchApprovals';
 
 type ApprovalStatus = 'pending' | 'approved' | 'rejected';
@@ -22,7 +24,8 @@ const TYPE_LABELS: Record<string, string> = {
 
 export default function PitchApprovalsPage() {
     const {
-        pitches, loading, statusFilter, setStatusFilter,
+        pitches, total, totalPages, page, setPage, search, setSearch,
+        loading, statusFilter, setStatusFilter,
         selectedPitch, openPitch, closePitch,
         rejectReason, setRejectReason,
         showRejectInput, setShowRejectInput,
@@ -52,6 +55,10 @@ export default function PitchApprovalsPage() {
                         {STATUS_LABELS[s]}
                     </button>
                 ))}
+            </div>
+
+            <div className="mb-5">
+                <SearchInput value={search} onChange={setSearch} placeholder="İşletme veya saha adı ara..." />
             </div>
 
             {loading ? (
@@ -103,6 +110,10 @@ export default function PitchApprovalsPage() {
                         </div>
                     ))}
                 </div>
+            )}
+
+            {!loading && (
+                <Pagination page={page} totalPages={totalPages} total={total} onPageChange={setPage} />
             )}
 
             {selectedPitch && (

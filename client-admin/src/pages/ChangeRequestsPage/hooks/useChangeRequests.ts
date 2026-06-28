@@ -1,5 +1,6 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useState } from 'react';
 import adminApi from '../../../services/adminApi';
+import { usePaginatedList } from '../../../hooks/usePaginatedList';
 
 type RequestType = 'CUSTOM_FACILITY' | 'PHOTO_UPDATE';
 type RequestStatus = 'pending' | 'approved' | 'rejected';
@@ -20,35 +21,25 @@ export interface ChangeRequest {
 }
 
 export const useChangeRequests = () => {
-    const [requests, setRequests] = useState<ChangeRequest[]>([]);
-    const [loading, setLoading] = useState(true);
     const [statusFilter, setStatusFilter] = useState<RequestStatus | 'all'>('pending');
+    const effectiveStatus = statusFilter === 'all' ? 'pending' : statusFilter;
+
+    const {
+        items: requests, total, totalPages, page, setPage,
+        search, setSearch, loading, refetch,
+    } = usePaginatedList<ChangeRequest>('/admin/change-requests', { status: effectiveStatus });
+
     const [selectedRequest, setSelectedRequest] = useState<ChangeRequest | null>(null);
     const [rejectReason, setRejectReason] = useState('');
     const [showRejectInput, setShowRejectInput] = useState(false);
     const [processing, setProcessing] = useState(false);
-
-    const fetchRequests = useCallback(async () => {
-        setLoading(true);
-        try {
-            const params = statusFilter !== 'all' ? `?status=${statusFilter}` : '?status=pending';
-            const res = await adminApi.get(`/admin/change-requests${params}`);
-            setRequests(res.data);
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setLoading(false);
-        }
-    }, [statusFilter]);
-
-    useEffect(() => { fetchRequests(); }, [fetchRequests]);
 
     const handleApprove = async (id: string) => {
         setProcessing(true);
         try {
             await adminApi.post(`/admin/change-requests/${id}/approve`);
             setSelectedRequest(null);
-            await fetchRequests();
+            await refetch();
         } catch (err) {
             console.error(err);
             alert('Onaylama sırasında hata oluştu.');
@@ -68,7 +59,7 @@ export const useChangeRequests = () => {
             setSelectedRequest(null);
             setRejectReason('');
             setShowRejectInput(false);
-            await fetchRequests();
+            await refetch();
         } catch (err) {
             console.error(err);
             alert('Reddetme sırasında hata oluştu.');
@@ -90,7 +81,8 @@ export const useChangeRequests = () => {
     };
 
     return {
-        requests, loading, statusFilter, setStatusFilter,
+        requests, total, totalPages, page, setPage, search, setSearch,
+        loading, statusFilter, setStatusFilter,
         selectedRequest, openRequest, closeRequest,
         rejectReason, setRejectReason,
         showRejectInput, setShowRejectInput,

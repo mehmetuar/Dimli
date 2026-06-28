@@ -1,18 +1,20 @@
-import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import adminApi from '../../../services/adminApi';
+import { usePaginatedList } from '../../../hooks/usePaginatedList';
 
 export const useDeletedBusinesses = () => {
     const navigate = useNavigate();
-    const [businesses, setBusinesses] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { items, total, totalPages, page, setPage, search, setSearch, loading } =
+        usePaginatedList<any>('/admin/businesses/deleted');
 
-    useEffect(() => {
-        adminApi.get('/admin/businesses/deleted')
-            .then(r => setBusinesses(r.data))
-            .catch(console.error)
-            .finally(() => setLoading(false));
-    }, []);
-
-    return { businesses, loading, navigate };
+    return {
+        businesses: items,
+        total,
+        totalPages,
+        page,
+        setPage,
+        search,
+        setSearch,
+        loading,
+        navigate,
+    };
 };
