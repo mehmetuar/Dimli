@@ -47,12 +47,6 @@ const ImageCropModalContent: React.FC<ImageCropModalProps> = ({ file, onCrop, on
         return () => URL.revokeObjectURL(url);
     }, [file]);
 
-    // Body scroll kilitle
-    useEffect(() => {
-        document.body.style.overflow = 'hidden';
-        return () => { document.body.style.overflow = ''; };
-    }, []);
-
     // touchmove passive:false kaydı (Capacitor/Android için zorunlu)
     useEffect(() => {
         const el = overlayRef.current;

@@ -31,11 +31,16 @@ const config: CapacitorConfig = {
       showSpinner: false,
     },
     Keyboard: {
+      // Her iki platformda da TEK model: klavye WebView'in üstüne biner (overlay) ve
+      // boşluk uygulama tarafında keyboardHeight offset'i ile yönetilir (paddingBottom/bottom).
+      // Android'de resizeOnFullScreen native resize bu cihazlarda WebView'i küçültmüyordu;
+      // false bırakılır ki olası kısmi-resize/çift-offset olmasın. İçeriği klavye üstüne
+      // taşıma işini useKeyboardHeight (iOS+Android) yapar; useKeyboardScroll yalnızca iOS'ta.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       resize: 'none' as any,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       style: 'dark' as any,
-      resizeOnFullScreen: true,
+      resizeOnFullScreen: false,
     }
   },
   android: {

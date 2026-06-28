@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import adminApi from '../../../services/adminApi';
+import { usePaginatedList } from '../../../hooks/usePaginatedList';
 
 export interface BannedUser {
     id: string;
@@ -10,8 +11,11 @@ export interface BannedUser {
 }
 
 export const useBannedUsers = () => {
-    const [users, setUsers] = useState<BannedUser[]>([]);
-    const [loading, setLoading] = useState(true);
+    const {
+        items: users, total, totalPages, page, setPage,
+        search, setSearch, loading, refetch,
+    } = usePaginatedList<BannedUser>('/admin/users/banned');
+
     const [processing, setProcessing] = useState<string | null>(null); // userId
     const [toast, setToast] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
@@ -20,32 +24,21 @@ export const useBannedUsers = () => {
         setTimeout(() => setToast(null), 3500);
     }, []);
 
-    const fetchUsers = useCallback(async () => {
-        setLoading(true);
-        try {
-            const res = await adminApi.get('/admin/users/banned');
-            setUsers(res.data);
-        } catch {
-            // silent
-        } finally {
-            setLoading(false);
-        }
-    }, []);
-
-    useEffect(() => { fetchUsers(); }, [fetchUsers]);
-
     const handleUnban = useCallback(async (userId: string, name: string) => {
         setProcessing(userId);
         try {
             await adminApi.delete(`/admin/users/${userId}/chat-ban`);
             showToast(`${name} kullanıcısının chat yasağı kaldırıldı.`, 'success');
-            setUsers(prev => prev.filter(u => u.id !== userId));
+            await refetch();
         } catch {
             showToast('Yasak kaldırma başarısız. Tekrar deneyin.', 'error');
         } finally {
             setProcessing(null);
         }
-    }, [showToast]);
+    }, [showToast, refetch]);
 
-    return { users, loading, processing, toast, handleUnban, fetchUsers };
+    return {
+        users, total, totalPages, page, setPage, search, setSearch,
+        loading, processing, toast, handleUnban, fetchUsers: refetch,
+    };
 };

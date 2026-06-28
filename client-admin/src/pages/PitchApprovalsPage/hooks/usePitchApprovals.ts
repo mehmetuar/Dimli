@@ -1,5 +1,6 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useState } from 'react';
 import adminApi from '../../../services/adminApi';
+import { usePaginatedList } from '../../../hooks/usePaginatedList';
 
 type ApprovalStatus = 'pending' | 'approved' | 'rejected';
 
@@ -24,34 +25,24 @@ export interface PitchApproval {
 }
 
 export const usePitchApprovals = () => {
-    const [pitches, setPitches] = useState<PitchApproval[]>([]);
-    const [loading, setLoading] = useState(true);
     const [statusFilter, setStatusFilter] = useState<ApprovalStatus>('pending');
+
+    const {
+        items: pitches, total, totalPages, page, setPage,
+        search, setSearch, loading, refetch,
+    } = usePaginatedList<PitchApproval>('/admin/pitch-approvals', { status: statusFilter });
+
     const [selectedPitch, setSelectedPitch] = useState<PitchApproval | null>(null);
     const [rejectReason, setRejectReason] = useState('');
     const [showRejectInput, setShowRejectInput] = useState(false);
     const [processing, setProcessing] = useState(false);
-
-    const fetchPitches = useCallback(async () => {
-        setLoading(true);
-        try {
-            const res = await adminApi.get(`/admin/pitch-approvals?status=${statusFilter}`);
-            setPitches(res.data);
-        } catch (err) {
-            console.error(err);
-        } finally {
-            setLoading(false);
-        }
-    }, [statusFilter]);
-
-    useEffect(() => { fetchPitches(); }, [fetchPitches]);
 
     const handleApprove = async (id: string) => {
         setProcessing(true);
         try {
             await adminApi.post(`/admin/pitch-approvals/${id}/approve`);
             setSelectedPitch(null);
-            await fetchPitches();
+            await refetch();
         } catch (err) {
             console.error(err);
             alert('Onaylama sırasında hata oluştu.');
@@ -71,7 +62,7 @@ export const usePitchApprovals = () => {
             setSelectedPitch(null);
             setRejectReason('');
             setShowRejectInput(false);
-            await fetchPitches();
+            await refetch();
         } catch (err) {
             console.error(err);
             alert('Reddetme sırasında hata oluştu.');
@@ -93,7 +84,8 @@ export const usePitchApprovals = () => {
     };
 
     return {
-        pitches, loading, statusFilter, setStatusFilter,
+        pitches, total, totalPages, page, setPage, search, setSearch,
+        loading, statusFilter, setStatusFilter,
         selectedPitch, openPitch, closePitch,
         rejectReason, setRejectReason,
         showRejectInput, setShowRejectInput,

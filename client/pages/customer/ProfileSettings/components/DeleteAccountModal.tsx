@@ -80,10 +80,10 @@ export const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({ isOpen, 
     };
 
     return (
-        // bottom: keyboardHeight → overlay'in alt sınırı klavyenin üstüne gelir, flex items-center içeriği klavyenin üstünde ortalar
+        // paddingBottom: keyboardHeight → backdrop tam ekran kalır (klavye arkasına kadar örter), kart klavyenin üstüne taşınır
         <div
             className="fixed inset-0 z-50 flex items-center justify-center px-5 bg-black/70 backdrop-blur-sm"
-            style={keyboardHeight > 0 ? { bottom: keyboardHeight } : undefined}
+            style={keyboardHeight > 0 ? { paddingBottom: keyboardHeight } : undefined}
         >
             <div className="w-full max-w-md bg-slate-900 rounded-3xl border border-slate-700/60 shadow-2xl flex flex-col overflow-hidden max-h-[92%]">
                 {/* Header — asla kaydırılmaz */}

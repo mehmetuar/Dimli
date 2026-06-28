@@ -164,11 +164,16 @@ export const useMarketplace = () => {
   };
 
   // Birikmiş tüm matches üzerinde client-side date + sort
-  // Kendi takım ilanları filtre/sıralama bağımsız her zaman en üstte sabitlenir
+  // Kendi takım ilanları da tarih filtresine tabidir; seçili tarihe ait olanlar
+  // sıralamadan bağımsız her zaman en üstte sabitlenir
   const filteredMatches = useMemo(() => {
     const myTeamId = myTeam?.id;
     const myListings = myTeamId ? matches.filter(m => m.teamId === myTeamId) : [];
     const otherListings = myTeamId ? matches.filter(m => m.teamId !== myTeamId) : matches;
+
+    const filteredMine = !selectedDate
+      ? myListings
+      : myListings.filter(m => m.date === selectedDate);
 
     const filteredOthers = !selectedDate
       ? otherListings
@@ -197,7 +202,7 @@ export const useMarketplace = () => {
     }
 
     if (hideMyListings) return sortedOthers;
-    return [...myListings, ...sortedOthers];
+    return [...filteredMine, ...sortedOthers];
   }, [matches, businesses, selectedDate, sortBy, myTeam, hideMyListings]);
 
   useEffect(() => () => setIsDateFilterOpen(false), []);

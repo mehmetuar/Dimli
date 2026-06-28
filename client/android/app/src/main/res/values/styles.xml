@@ -1,22 +1,40 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <!-- Base application theme. -->
-    <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
+    <!-- Base application theme. DayNight + koyu pencere zemini → light modda bile beyaz olmasın. -->
+    <style name="AppTheme" parent="Theme.AppCompat.DayNight.DarkActionBar">
         <!-- Customize your theme here. -->
         <item name="colorPrimary">@color/colorPrimary</item>
         <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
         <item name="colorAccent">@color/colorAccent</item>
+        <item name="android:windowBackground">@color/dimliPitch</item>
     </style>
 
     <style name="AppTheme.NoActionBar" parent="Theme.AppCompat.DayNight.NoActionBar">
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
-        <item name="android:background">@null</item>
+        <!-- Pencere zemini koyu: geçici şeffaflıkta (örn. splash sonrası) beyaz görünmesin. -->
+        <item name="android:windowBackground">@color/dimliPitch</item>
+        <!-- Sistem çubukları her zaman koyu + açık ikonlar (values-night yok → her iki modda geçerli).
+             MainActivity bunu native olarak da pekiştirir; tema sadece flash sigortasıdır. -->
+        <item name="android:statusBarColor">@color/dimliPitch</item>
+        <item name="android:navigationBarColor">@color/dimliPitch</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
     </style>
 
 
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
         <item name="android:background">@drawable/splash</item>
+        <!-- Android 12+ sistem splash'ı (cold start): koyu zemin + sade D logosu — Samsung'da beyaz
+             açılmasın, iOS/Redmi ile aynı koyu görünüm. (android:background yalnız Android <12 içindir.) -->
+        <item name="windowSplashScreenBackground">@color/dimliPitch</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_icon</item>
+        <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
+        <!-- Açılış (splash) frame'inde beyaz çubuk flash'ı olmasın (splash zemini zaten koyu). -->
+        <item name="android:statusBarColor">@color/dimliPitch</item>
+        <item name="android:navigationBarColor">@color/dimliPitch</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
     </style>
 </resources>

@@ -332,7 +332,7 @@ export const Chat: React.FC = () => {
   return (
     <div
       className="fixed inset-0 z-[60] flex flex-col bg-pitch-surface"
-      style={keyboardHeight > 0 ? { paddingBottom: `calc(${keyboardHeight}px - env(safe-area-inset-bottom, 0px))` } : undefined}
+      style={keyboardHeight > 0 ? { paddingBottom: keyboardHeight } : undefined}
     >
       {/* Action toast */}
       {actionToast && (
@@ -539,7 +539,7 @@ export const Chat: React.FC = () => {
       <div
         ref={scrollContainerRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto p-4 space-y-6 bg-pitch relative chat-scroll-container"
+        className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 space-y-6 bg-pitch relative chat-scroll-container"
       >
         <div className="flex justify-center">
           <span className="bg-slate-800 text-slate-400 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wide mt-6">
@@ -669,7 +669,7 @@ export const Chat: React.FC = () => {
         const isJokerAddedToMatch = messages.some(m => m.metadata?.type === 'JOKER_ADDED_TO_MATCH');
 
         return (
-          <div className="flex flex-col bg-slate-900 border-t border-slate-800 pb-safe-bottom">
+          <div className={`flex flex-col bg-slate-900 border-t border-slate-800 ${keyboardHeight > 0 ? '' : 'pb-safe-bottom'}`}>
             {isJokerNegotiation && !isMatchFinished && !isJokerAddedToMatch && (
               <div className="p-3 bg-slate-800/50 flex gap-2 justify-center shadow-inner">
                 {isInviter && (
@@ -688,7 +688,7 @@ export const Chat: React.FC = () => {
                 </button>
               </div>
             )}
-            <div className="p-3">
+            <div className={keyboardHeight > 0 ? 'px-3 pt-3 pb-0' : 'p-3'}>
               {isMatchFinished ? (
                 <div className="flex flex-col items-center py-3 gap-3">
                   <div className="flex items-center text-slate-500 text-sm font-medium">

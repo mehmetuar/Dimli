@@ -110,7 +110,7 @@ const CreateTeamModalContent: React.FC<Props> = ({ isOpen, onClose, onCreate }) 
         <>
             <div
                 className="fixed inset-0 z-[70] flex items-center justify-center px-4 bg-black/90 backdrop-blur-sm animate-fade-in"
-                style={keyboardHeight > 0 ? { bottom: keyboardHeight } : undefined}
+                style={keyboardHeight > 0 ? { paddingBottom: keyboardHeight } : undefined}
             >
                 <div className="bg-slate-800 w-full max-w-lg rounded-3xl border border-slate-700 shadow-2xl flex flex-col max-h-[90vh]">
 

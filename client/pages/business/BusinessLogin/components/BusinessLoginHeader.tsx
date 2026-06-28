@@ -9,9 +9,9 @@ export const BusinessLoginHeader: React.FC<BusinessLoginHeaderProps> = ({ keyboa
         <div
             className="relative flex flex-col items-center justify-start flex-shrink-0 transition-all duration-200"
             style={{
-                paddingTop: keyboardOpen ? 'max(env(safe-area-inset-top), 50px)' : 'clamp(28px, 7dvh, 56px)',
+                paddingTop: keyboardOpen ? 'max(env(safe-area-inset-top), 50px)' : 'clamp(28px, 7vh, 56px)',
                 paddingBottom: '0px',
-                maxHeight: keyboardOpen ? '17dvh' : '40dvh',
+                maxHeight: keyboardOpen ? '17vh' : '40vh',
                 overflow: 'hidden',
             }}
         >
@@ -43,7 +43,7 @@ export const BusinessLoginHeader: React.FC<BusinessLoginHeaderProps> = ({ keyboa
                 className="relative z-10 font-sport font-black text-white italic animate-enter-up transition-all duration-200"
                 style={{
                     fontSize: keyboardOpen ? 'clamp(1rem, 4.5vw, 1.4rem)' : 'clamp(1.5rem, 8vw, 2.25rem)',
-                    marginTop: 'clamp(4px, 1dvh, 12px)',
+                    marginTop: 'clamp(4px, 1vh, 12px)',
                 }}
             >
                 İŞLETME PANELİ

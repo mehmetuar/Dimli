@@ -267,8 +267,8 @@ export const Marketplace: React.FC = () => {
 
         {/* Başlık — scroll'a göre kademeli kaybolur */}
         <div className="px-4 pt-3 pb-5 pr-14" style={{ opacity: headerOpacity }}>
-          <h1 className="font-sport font-black text-white uppercase italic tracking-tighter leading-none"
-            style={{ fontSize: 'clamp(2.75rem, 12vw, 4.25rem)' }}>
+          <h1 className="font-sport font-black text-white uppercase italic tracking-tighter leading-none whitespace-nowrap"
+            style={{ fontSize: 'clamp(2.25rem, 11vw, 4.25rem)' }}>
             MAÇ <span className="text-turf-500">PAZARI</span>
           </h1>
           <p className="text-slate-400 mt-1 font-medium">Sahaya çıkmaya hazır mısın kaptan?</p>

@@ -3,6 +3,8 @@ import {
     IconClock, IconCheck, IconX, IconPause, IconPending,
     IconChevronRight, IconPitch,
 } from '../../components/Icons';
+import SearchInput from '../../components/SearchInput';
+import Pagination from '../../components/Pagination';
 import { useApplicationsList } from './hooks/useApplicationsList';
 
 type Status = 'pending' | 'active' | 'rejected' | 'suspended';
@@ -66,7 +68,10 @@ interface ApplicationsListProps {
 }
 
 const ApplicationsList: React.FC<ApplicationsListProps> = ({ status }) => {
-    const { applications, loading, navigate } = useApplicationsList(status);
+    const {
+        applications, total, totalPages, page, setPage,
+        search, setSearch, loading, navigate,
+    } = useApplicationsList(status);
     const cfg = STATUS_CONFIG[status];
     const { Icon } = cfg;
 
@@ -81,8 +86,12 @@ const ApplicationsList: React.FC<ApplicationsListProps> = ({ status }) => {
                     <p className="text-[#7b9ab8] text-xs">{cfg.pageDesc}</p>
                 </div>
                 <span className="ml-auto text-[#7b9ab8] text-sm font-bold">
-                    {!loading && `${applications.length} kayıt`}
+                    {!loading && `${total} kayıt`}
                 </span>
+            </div>
+
+            <div className="mb-4">
+                <SearchInput value={search} onChange={setSearch} placeholder="İşletme, şehir veya sahip ara..." />
             </div>
 
             {loading ? (
@@ -160,6 +169,10 @@ const ApplicationsList: React.FC<ApplicationsListProps> = ({ status }) => {
                         );
                     })}
                 </div>
+            )}
+
+            {!loading && (
+                <Pagination page={page} totalPages={totalPages} total={total} onPageChange={setPage} />
             )}
         </div>
     );

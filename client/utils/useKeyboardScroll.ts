@@ -9,12 +9,19 @@ const isFocusable = (el: Element | null): el is HTMLElement => {
 };
 
 /**
- * Klavye açıkken odaklanan input/textarea'yı her zaman ekranın ortasına kaydırır.
- * App.tsx kökünde tek sefer mount edilir — tüm ekranlarda otomatik çalışır.
+ * Klavye açıkken odaklanan input/textarea'yı ekranın ortasına kaydırır — yalnızca iOS'ta.
+ * App.tsx kökünde tek sefer mount edilir.
+ *
+ * Android'de DEVRE DIŞI: native resize (resizeOnFullScreen) WebView'i klavyenin üstüne
+ * küçültüp odaklanan input'u zaten görünür kılar. Bu durumda manuel `scrollIntoView`
+ * tüm WebView'i PAN'ler (sabit üst başlığı ekran dışına çıkarır, footer'ı klavyenin
+ * altına iter). Bu yüzden Android'de çalışmaz — bkz. [[useKeyboardHeight]] ile aynı ayrım.
  */
 export function useKeyboardScroll() {
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
+    // Android: native resize hallediyor — manuel scroll WebView'i pan'ler, sabit başlık/footer bozulur.
+    if (Capacitor.getPlatform() === 'android') return;
 
     const keyboardVisible = { current: false };
 

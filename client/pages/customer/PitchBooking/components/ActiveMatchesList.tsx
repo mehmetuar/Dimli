@@ -6,6 +6,7 @@ import { LevelBadge } from '../../../../components/UI/LevelBadge';
 import { FairPlayScore } from '../../../../components/UI/FairPlayScore';
 import { getRelativeDateLabel } from '../utils/pitchUtils';
 import { useModalBodyClass } from '../../../../utils/useModalBodyClass';
+import { todayStr, addDaysStr } from '../../../../utils/today';
 
 interface ActiveMatchesListProps {
     activeMatches: any[];
@@ -39,12 +40,8 @@ const groupByDate = (matches: any[]): Record<string, any[]> => {
 
 /** Compact date label for card badges: "Bugün" / "Yarın" / "25 Nis Sal" */
 const getCompactDateLabel = (dateStr: string): string => {
-    const today = new Date().toISOString().split('T')[0];
-    if (dateStr === today) return 'Bugün';
-
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    if (dateStr === tomorrow.toISOString().split('T')[0]) return 'Yarın';
+    if (dateStr === todayStr()) return 'Bugün';
+    if (dateStr === addDaysStr(new Date(), 1)) return 'Yarın';
 
     const d = new Date(dateStr);
     // "25 Nis Sal"
@@ -265,7 +262,7 @@ const AllMatchesModal: React.FC<AllMatchesModalProps> = ({
 
             <div
                 className="relative w-full flex flex-col animate-slide-up"
-                style={{ maxHeight: '92dvh' }}
+                style={{ maxHeight: '92vh' }}
                 onClick={e => e.stopPropagation()}
             >
                 {/* Drag handle */}

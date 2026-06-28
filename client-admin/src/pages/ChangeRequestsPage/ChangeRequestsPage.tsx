@@ -1,4 +1,6 @@
 import React from 'react';
+import SearchInput from '../../components/SearchInput';
+import Pagination from '../../components/Pagination';
 import { useChangeRequests } from './hooks/useChangeRequests';
 
 type RequestType = 'CUSTOM_FACILITY' | 'PHOTO_UPDATE';
@@ -23,7 +25,8 @@ const STATUS_LABELS: Record<RequestStatus, string> = {
 
 export default function ChangeRequestsPage() {
     const {
-        requests, loading, statusFilter, setStatusFilter,
+        requests, total, totalPages, page, setPage, search, setSearch,
+        loading, statusFilter, setStatusFilter,
         selectedRequest, openRequest, closeRequest,
         rejectReason, setRejectReason,
         showRejectInput, setShowRejectInput,
@@ -53,6 +56,10 @@ export default function ChangeRequestsPage() {
                         {STATUS_LABELS[s]}
                     </button>
                 ))}
+            </div>
+
+            <div className="mb-5">
+                <SearchInput value={search} onChange={setSearch} placeholder="İşletme veya saha adı ara..." />
             </div>
 
             {loading ? (
@@ -104,6 +111,10 @@ export default function ChangeRequestsPage() {
                         </div>
                     ))}
                 </div>
+            )}
+
+            {!loading && (
+                <Pagination page={page} totalPages={totalPages} total={total} onPageChange={setPage} />
             )}
 
             {selectedRequest && (

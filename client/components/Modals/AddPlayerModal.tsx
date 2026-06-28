@@ -5,7 +5,7 @@ import { Browser } from '@capacitor/browser';
 import { Player } from '../../types';
 
 import api from '../../services/api';
-import { useModalBodyClass } from '../../utils/useModalBodyClass';
+import { KeyboardAwareModal } from './KeyboardAwareModal';
 import { getToken, decodeTokenPayload } from '../../services/authStorage';
 
 interface Props {
@@ -18,7 +18,6 @@ interface Props {
 }
 
 export const AddPlayerModal: React.FC<Props> = (props) => {
-    useModalBodyClass(props.isOpen);
     if (!props.isOpen) return null;
     return <AddPlayerModalContent {...props} />;
 };
@@ -98,10 +97,14 @@ const AddPlayerModalContent: React.FC<Props> = ({ isOpen, onClose, currentRoster
     };
 
     return (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center px-4 bg-black/90 backdrop-blur-sm animate-fade-in">
-            <div className="bg-slate-800 w-full max-w-md rounded-3xl border border-slate-700 shadow-2xl flex flex-col overflow-hidden max-h-[80vh]">
-
-                {/* Header */}
+        <KeyboardAwareModal
+            isOpen={isOpen}
+            zClassName="z-[70]"
+            backdropClassName="bg-black/90 backdrop-blur-sm animate-fade-in"
+            panelClassName="bg-slate-800 w-full max-w-md rounded-3xl border border-slate-700 shadow-2xl"
+            maxHeightClassName="max-h-[80vh]"
+            bodyClassName="p-6 space-y-6"
+            header={
                 <div className="p-5 border-b border-slate-700 bg-slate-900 flex justify-between items-center">
                     <div>
                         <h2 className="font-sport font-black text-2xl text-white italic uppercase tracking-wide">
@@ -113,10 +116,8 @@ const AddPlayerModalContent: React.FC<Props> = ({ isOpen, onClose, currentRoster
                         <X className="w-5 h-5" />
                     </button>
                 </div>
-
-                {/* Content */}
-                <div className="p-6 space-y-6 overflow-y-auto">
-
+            }
+        >
                     {/* Search Input */}
                     <div className="relative">
                         <input
@@ -200,9 +201,6 @@ const AddPlayerModalContent: React.FC<Props> = ({ isOpen, onClose, currentRoster
                             </p>
                         </div>
                     )}
-
-                </div>
-            </div>
-        </div>
+        </KeyboardAwareModal>
     );
 };

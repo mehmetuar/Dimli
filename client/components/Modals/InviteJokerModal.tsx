@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Calendar, MapPin, Send, CheckCircle, Loader2 } from 'lucide-react';
 import api from '../../services/api';
-import { useModalBodyClass } from '../../utils/useModalBodyClass';
+import { KeyboardAwareModal } from './KeyboardAwareModal';
 
 interface Props {
    isOpen: boolean;
@@ -12,7 +12,6 @@ interface Props {
 }
 
 export const InviteJokerModal: React.FC<Props> = (props) => {
-   useModalBodyClass(props.isOpen);
    if (!props.isOpen || !props.joker) return null;
    return <InviteJokerModalContent {...props} />;
 };
@@ -124,15 +123,22 @@ const InviteJokerModalContent: React.FC<Props> = ({ isOpen, onClose, joker }) =>
    const jokerAvatar = joker?.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(jokerName)}&background=1a2e35&color=4ade80&size=80`;
 
    return (
-      <div className="fixed inset-0 z-[80] flex items-center justify-center px-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-         <div className="bg-slate-800 w-full max-w-md rounded-3xl border border-slate-700 p-6 relative shadow-2xl">
-            <button
-               onClick={onClose}
-               className="absolute top-4 right-4 text-slate-400 hover:text-white"
-            >
-               <X className="w-6 h-6" />
-            </button>
-
+      <>
+      <KeyboardAwareModal
+         isOpen={isOpen}
+         zClassName="z-[80]"
+         panelClassName="bg-slate-800 w-full max-w-md rounded-3xl border border-slate-700 shadow-2xl"
+         header={
+            <div className="relative">
+               <button
+                  onClick={onClose}
+                  className="absolute top-4 right-4 z-10 text-slate-400 hover:text-white"
+               >
+                  <X className="w-6 h-6" />
+               </button>
+            </div>
+         }
+      >
             {isSent ? (
                <div className="text-center py-8">
                   <div className="w-20 h-20 bg-turf-600 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce shadow-neon">
@@ -229,7 +235,7 @@ const InviteJokerModalContent: React.FC<Props> = ({ isOpen, onClose, joker }) =>
                   </button>
                </>
             )}
-         </div>
+      </KeyboardAwareModal>
 
          {/* Cancel Confirmation Modal */}
          {showCancelConfirm && (
@@ -259,6 +265,6 @@ const InviteJokerModalContent: React.FC<Props> = ({ isOpen, onClose, joker }) =>
                </div>
             </div>
          )}
-      </div>
+      </>
    );
 };

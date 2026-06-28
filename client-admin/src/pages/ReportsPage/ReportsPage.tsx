@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { IconFlag, IconBan, IconCheck, IconX, IconUser, IconChevronRight, IconAlertCircle } from '../../components/Icons';
+import SearchInput from '../../components/SearchInput';
+import Pagination from '../../components/Pagination';
 import { useReports, Report } from './hooks/useReports';
 
 // ─── Sabitler ─────────────────────────────────────────────────────────────────
@@ -265,7 +267,8 @@ const ReportDetailModal: React.FC<{
 
 const ReportsPage: React.FC = () => {
     const {
-        reports, loading, statusFilter, setStatusFilter,
+        reports, total, totalPages, page, setPage, search, setSearch,
+        loading, statusFilter, setStatusFilter,
         selectedReport, setSelectedReport,
         processing, toast,
         handleUpdateStatus, handleChatBanAndReview, handleChatUnban,
@@ -295,11 +298,11 @@ const ReportsPage: React.FC = () => {
                     <h1 className="text-xl font-black text-[#dde8f5]">Kullanıcı Şikayetleri</h1>
                     <p className="text-[#7b9ab8] text-xs">Uygunsuz içerik ve kullanıcı bildirimleri</p>
                 </div>
-                <span className="ml-auto text-[#7b9ab8] text-sm font-bold">{reports.length} kayıt</span>
+                <span className="ml-auto text-[#7b9ab8] text-sm font-bold">{total} kayıt</span>
             </div>
 
             {/* Filtre sekmeleri */}
-            <div className="flex gap-2 mb-6">
+            <div className="flex gap-2 mb-4">
                 {FILTER_TABS.map(tab => (
                     <button
                         key={tab.key}
@@ -313,6 +316,10 @@ const ReportsPage: React.FC = () => {
                         {tab.label}
                     </button>
                 ))}
+            </div>
+
+            <div className="mb-5">
+                <SearchInput value={search} onChange={setSearch} placeholder="Şikayet eden/edilen kullanıcı ara..." />
             </div>
 
             {/* Liste */}
@@ -342,6 +349,10 @@ const ReportsPage: React.FC = () => {
                         />
                     ))}
                 </div>
+            )}
+
+            {!loading && (
+                <Pagination page={page} totalPages={totalPages} total={total} onPageChange={setPage} />
             )}
 
             {/* Detay Modalı */}

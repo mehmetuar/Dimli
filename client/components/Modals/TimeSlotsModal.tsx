@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
 import { X, Plus, Trash2, Clock } from 'lucide-react';
 import { useModalBodyClass } from '../../utils/useModalBodyClass';
@@ -39,11 +39,6 @@ const TimeSlotsModalContent: React.FC<TimeSlotsModalProps> = ({
     const [newEnd, setNewEnd] = useState('09:00');
     const [pickerTarget, setPickerTarget] = useState<PickerTarget>(null);
     const [error, setError] = useState('');
-
-    useEffect(() => {
-        document.body.style.overflow = 'hidden';
-        return () => { document.body.style.overflow = ''; };
-    }, []);
 
     const handleAddSlot = () => {
         setError('');

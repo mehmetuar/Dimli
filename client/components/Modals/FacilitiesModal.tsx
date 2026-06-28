@@ -25,9 +25,7 @@ const FacilitiesModalContent: React.FC<FacilitiesModalProps> = ({
     const inputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
-        document.body.style.overflow = 'hidden';
         getFacilities().then(setFacilities).catch(console.error);
-        return () => { document.body.style.overflow = ''; };
     }, []);
 
     const handleAddCustom = () => {

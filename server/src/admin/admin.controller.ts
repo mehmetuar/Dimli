@@ -13,6 +13,7 @@ import {
 import { AdminService } from './admin.service';
 import { AdminJwtAuthGuard } from './admin-jwt-auth.guard';
 import { ReportStatus } from '../user-reports/user-report.entity';
+import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 
 @Controller('admin')
 export class AdminController {
@@ -29,8 +30,11 @@ export class AdminController {
 
   @UseGuards(AdminJwtAuthGuard)
   @Get('applications')
-  async getApplications(@Query('status') status?: string) {
-    return this.adminService.getApplications(status);
+  async getApplications(
+    @Query() pagination: PaginationQueryDto,
+    @Query('status') status?: string,
+  ) {
+    return this.adminService.getApplications(status, pagination);
   }
 
   @UseGuards(AdminJwtAuthGuard)
@@ -89,14 +93,17 @@ export class AdminController {
 
   @UseGuards(AdminJwtAuthGuard)
   @Get('businesses')
-  async getAllBusinesses(@Query('status') status?: string) {
-    return this.adminService.getAllBusinesses(status);
+  async getAllBusinesses(
+    @Query() pagination: PaginationQueryDto,
+    @Query('status') status?: string,
+  ) {
+    return this.adminService.getAllBusinesses(status, pagination);
   }
 
   @UseGuards(AdminJwtAuthGuard)
   @Get('businesses/deleted')
-  async getDeletedBusinesses() {
-    return this.adminService.getDeletedBusinesses();
+  async getDeletedBusinesses(@Query() pagination: PaginationQueryDto) {
+    return this.adminService.getDeletedBusinesses(pagination);
   }
 
   @UseGuards(AdminJwtAuthGuard)
@@ -115,8 +122,11 @@ export class AdminController {
 
   @UseGuards(AdminJwtAuthGuard)
   @Get('change-requests')
-  async getChangeRequests(@Query('status') status?: string) {
-    return this.adminService.getChangeRequests(status);
+  async getChangeRequests(
+    @Query() pagination: PaginationQueryDto,
+    @Query('status') status?: string,
+  ) {
+    return this.adminService.getChangeRequests(status, pagination);
   }
 
   @UseGuards(AdminJwtAuthGuard)
@@ -138,8 +148,11 @@ export class AdminController {
 
   @UseGuards(AdminJwtAuthGuard)
   @Get('pitch-approvals')
-  async getPitchApprovals(@Query('status') status?: string) {
-    return this.adminService.getPitchApprovals(status);
+  async getPitchApprovals(
+    @Query() pagination: PaginationQueryDto,
+    @Query('status') status?: string,
+  ) {
+    return this.adminService.getPitchApprovals(status, pagination);
   }
 
   @UseGuards(AdminJwtAuthGuard)
@@ -161,8 +174,14 @@ export class AdminController {
 
   @UseGuards(AdminJwtAuthGuard)
   @Get('reports')
-  async getReports(@Query('status') status?: string) {
-    return this.adminService.getReports(status as ReportStatus | undefined);
+  async getReports(
+    @Query() pagination: PaginationQueryDto,
+    @Query('status') status?: string,
+  ) {
+    return this.adminService.getReports(
+      status as ReportStatus | undefined,
+      pagination,
+    );
   }
 
   @UseGuards(AdminJwtAuthGuard)
@@ -184,8 +203,8 @@ export class AdminController {
 
   @UseGuards(AdminJwtAuthGuard)
   @Get('users/banned')
-  async getBannedUsers() {
-    return this.adminService.getBannedUsers();
+  async getBannedUsers(@Query() pagination: PaginationQueryDto) {
+    return this.adminService.getBannedUsers(pagination);
   }
 
   @UseGuards(AdminJwtAuthGuard)

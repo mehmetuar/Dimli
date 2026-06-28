@@ -15,8 +15,8 @@ export const useApplicationStats = () => {
         setLoading(true);
         try {
             const status = currentFilter === 'all' ? undefined : currentFilter;
-            const res = await adminApi.get('/admin/applications', { params: { status } });
-            setApplications(res.data);
+            const res = await adminApi.get('/admin/applications', { params: { status, page: 1, limit: 20 } });
+            setApplications(res.data.items ?? []);
         } catch (err) {
             console.error(err);
         } finally {
@@ -27,13 +27,19 @@ export const useApplicationStats = () => {
     useEffect(() => {
         const fetchStats = async () => {
             try {
+                // Sayım için tüm listeyi çekmek yerine limit=1 ile sadece `total` okunur.
                 const [p, a, r, s] = await Promise.all([
-                    adminApi.get('/admin/applications', { params: { status: 'pending' } }),
-                    adminApi.get('/admin/applications', { params: { status: 'active' } }),
-                    adminApi.get('/admin/applications', { params: { status: 'rejected' } }),
-                    adminApi.get('/admin/applications', { params: { status: 'suspended' } }),
+                    adminApi.get('/admin/applications', { params: { status: 'pending', limit: 1 } }),
+                    adminApi.get('/admin/applications', { params: { status: 'active', limit: 1 } }),
+                    adminApi.get('/admin/applications', { params: { status: 'rejected', limit: 1 } }),
+                    adminApi.get('/admin/applications', { params: { status: 'suspended', limit: 1 } }),
                 ]);
-                setStats({ pending: p.data.length, active: a.data.length, rejected: r.data.length, suspended: s.data.length });
+                setStats({
+                    pending: p.data.total ?? 0,
+                    active: a.data.total ?? 0,
+                    rejected: r.data.total ?? 0,
+                    suspended: s.data.total ?? 0,
+                });
             } catch (err) { console.error(err); }
         };
         fetchStats();

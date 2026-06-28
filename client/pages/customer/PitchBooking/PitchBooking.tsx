@@ -220,8 +220,8 @@ export const PitchBooking: React.FC = () => {
 
             {/* Başlık — scroll'a göre kademeli kaybolur */}
             <div className="px-4 pt-3 pb-5 pr-14" style={{ opacity: headerOpacity }}>
-               <h1 className="font-sport font-black text-white uppercase italic tracking-tighter leading-none"
-                  style={{ fontSize: 'clamp(2.75rem, 12vw, 4.25rem)' }}>
+               <h1 className="font-sport font-black text-white uppercase italic tracking-tighter leading-none whitespace-nowrap"
+                  style={{ fontSize: 'clamp(2.25rem, 11vw, 4.25rem)' }}>
                   SAHA<span className="text-turf-500">LAR</span>
                </h1>
                <p className="text-slate-400 text-sm mt-1">Favori sahanı bul, takvimi incele ve maçı ayarla.</p>
