@@ -11,6 +11,15 @@ import {
 import { Pitch } from '../../pitches/entities/pitch.entity';
 import { BusinessOwner } from '../../business-owner/entities/business-owner.entity';
 
+// İşletme başvurusunun inceleme yaşam döngüsü denetim kaydı (audit). Her admin/sahip
+// aksiyonu sırayla eklenir; reddet→tekrar gönder döngüsünün geçmişini admin görebilir.
+export interface ReviewEvent {
+  action: 'submitted' | 'rejected' | 'resubmitted' | 'approved';
+  at: string; // ISO timestamp
+  reason?: string; // yalnız 'rejected'
+  by?: string; // admin id (admin aksiyonları) | 'owner' (resubmit)
+}
+
 @Entity('businesses')
 export class Business {
   @PrimaryGeneratedColumn('uuid')
@@ -69,6 +78,11 @@ export class Business {
 
   @Column({ nullable: true, type: 'timestamp' })
   reviewedAt: Date | null;
+
+  // İnceleme geçmişi (audit): submitted/rejected/resubmitted/approved olayları.
+  // rejectionReason "aktif" red nedeni iken bu kalıcı denetim katmanıdır (resubmit'te silinmez).
+  @Column({ type: 'json', nullable: true })
+  reviewHistory: ReviewEvent[] | null;
 
   @Column({ type: 'timestamp', nullable: true, default: null })
   deletedAt: Date | null;

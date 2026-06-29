@@ -22,7 +22,7 @@ import {
   Reservation,
   ReservationStatus,
 } from '../reservations/entities/reservation.entity';
-import { Business } from '../business/entities/business.entity';
+import { Business, ReviewEvent } from '../business/entities/business.entity';
 import { RatingsService } from '../ratings/ratings.service';
 import { Subscription } from '../subscription/entities/subscription.entity';
 import { PitchChangeRequest } from '../pitches/entities/pitch-change-request.entity';
@@ -309,9 +309,57 @@ export class BusinessOwnerService {
     return {
       businessName: business.name,
       businessStatus: business.status,
+      rejectionReason: business.rejectionReason,
       date: dateStr,
       pitches: slotsResponse,
     };
+  }
+
+  /**
+   * Reddedilmiş işletmeyi sahibinin "tekrar onaya gönderme" akışı.
+   * Saf durum geçişi: yalnız status='rejected' iken pending'e çeker, red nedeni
+   * ve inceleme tarihini sıfırlar. Pitch'lerin approvalStatus'üne DOKUNMAZ
+   * (her sahanın kendi onay yaşam döngüsü var). `ownerId` JWT'den (req.user.id)
+   * gelir; client'tan status/business kimliği güvenilmez şekilde alınmaz.
+   */
+  async resubmitBusiness(ownerId: string) {
+    const owner = await this.businessOwnerRepository.findOne({
+      where: { id: ownerId },
+      relations: ['business'],
+    });
+    if (!owner || !owner.business) {
+      throw new NotFoundException('İşletme bulunamadı.');
+    }
+    const business = owner.business;
+    if (business.status !== 'rejected') {
+      throw new BadRequestException(
+        'Yalnızca reddedilmiş işletmeler tekrar onaya gönderilebilir.',
+      );
+    }
+
+    business.status = 'pending';
+    business.rejectionReason = null;
+    business.reviewedAt = null;
+
+    // İnceleme geçmişine (audit) 'resubmitted' olayı ekle — önceki red nedeni
+    // geçmişte korunur (artık silinmiyor), admin "kaçıncı kez + önceki neden"i görür.
+    const history: ReviewEvent[] = business.reviewHistory ?? [];
+    if (history.length === 0) {
+      history.push({
+        action: 'submitted',
+        at: new Date(business.createdAt).toISOString(),
+      });
+    }
+    history.push({
+      action: 'resubmitted',
+      at: new Date().toISOString(),
+      by: 'owner',
+    });
+    business.reviewHistory = history;
+
+    await this.businessRepository.save(business);
+
+    return { success: true, status: business.status };
   }
 
   async approveReservation(reservationId: string, _ownerId: string) {

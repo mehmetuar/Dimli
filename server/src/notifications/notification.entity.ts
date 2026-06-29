@@ -41,7 +41,9 @@ export class Notification {
     | 'MATCH_CANCELLED_BY_BUSINESS_APPROVAL'
     | 'CANCEL_REQUEST_SENT'
     | 'PITCH_APPROVAL_APPROVED'
-    | 'PITCH_APPROVAL_REJECTED';
+    | 'PITCH_APPROVAL_REJECTED'
+    | 'BUSINESS_APPLICATION_APPROVED'
+    | 'BUSINESS_APPLICATION_REJECTED';
 
   @Column({ nullable: true })
   title: string;

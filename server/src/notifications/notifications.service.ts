@@ -198,6 +198,8 @@ export class NotificationsService {
       'CANCEL_REQUEST_UNDONE',
       'PITCH_CHANGE_APPROVED',
       'PITCH_CHANGE_REJECTED',
+      'BUSINESS_APPLICATION_APPROVED',
+      'BUSINESS_APPLICATION_REJECTED',
     ]);
     if (businessPushTypes.has(saved.type) && saved.userId) {
       this.businessOwnerRepository

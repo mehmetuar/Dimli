@@ -11,7 +11,7 @@ import { Brackets, IsNull, Not, Repository, SelectQueryBuilder } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { AdminUser } from './entities/admin-user.entity';
-import { Business } from '../business/entities/business.entity';
+import { Business, ReviewEvent } from '../business/entities/business.entity';
 import { BusinessOwner } from '../business-owner/entities/business-owner.entity';
 import { Subscription } from '../subscription/entities/subscription.entity';
 import { Pitch } from '../pitches/entities/pitch.entity';
@@ -22,6 +22,7 @@ import { AccountDeletion } from '../account-deletions/account-deletion.entity';
 import { User } from '../users/user.entity';
 import { UserReport, ReportStatus } from '../user-reports/user-report.entity';
 import { FacilitiesService } from '../facilities/facilities.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { Paginated, paginate } from '../common/dto/paginated';
 
@@ -72,6 +73,7 @@ export class AdminService {
     private userReportRepository: Repository<UserReport>,
     private jwtService: JwtService,
     private readonly facilitiesService: FacilitiesService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   // ─── Helpers (sayfalama / arama / cache) ────────────────────────────────────
@@ -253,7 +255,7 @@ export class AdminService {
     };
   }
 
-  async approveApplication(businessId: string, _adminId: string) {
+  async approveApplication(businessId: string, adminId: string) {
     const business = await this.businessRepository.findOne({
       where: { id: businessId },
     });
@@ -262,17 +264,25 @@ export class AdminService {
     business.status = 'active';
     business.reviewedAt = new Date();
     business.rejectionReason = null;
+    this.appendReview(business, {
+      action: 'approved',
+      at: new Date().toISOString(),
+      by: adminId,
+    });
     await this.businessRepository.save(business);
     this.statsCache.delete('statistics');
+
+    await this.notifyOwnerOfApplicationResult(
+      businessId,
+      'BUSINESS_APPLICATION_APPROVED',
+      'Başvurunuz Onaylandı',
+      'İşletme başvurunuz onaylandı. Artık rezervasyon almaya başlayabilirsiniz.',
+    );
 
     return { success: true, message: 'İşletme onaylandı.' };
   }
 
-  async rejectApplication(
-    businessId: string,
-    _adminId: string,
-    reason: string,
-  ) {
+  async rejectApplication(businessId: string, adminId: string, reason: string) {
     const business = await this.businessRepository.findOne({
       where: { id: businessId },
     });
@@ -281,10 +291,67 @@ export class AdminService {
     business.status = 'rejected';
     business.reviewedAt = new Date();
     business.rejectionReason = reason;
+    this.appendReview(business, {
+      action: 'rejected',
+      at: new Date().toISOString(),
+      reason,
+      by: adminId,
+    });
     await this.businessRepository.save(business);
     this.statsCache.delete('statistics');
 
+    await this.notifyOwnerOfApplicationResult(
+      businessId,
+      'BUSINESS_APPLICATION_REJECTED',
+      'Başvurunuz Reddedildi',
+      `İşletme başvurunuz reddedildi. Nedeni: ${reason}. Lütfen düzeltmeleri yapıp tekrar onaya gönderin.`,
+    );
+
     return { success: true, message: 'İşletme reddedildi.' };
+  }
+
+  /**
+   * İnceleme geçmişine (audit) olay ekler. Geçmiş boşsa önce `createdAt` ile bir
+   * 'submitted' olayı seed edilir → timeline her zaman başvuruyla başlar. Mutasyonu
+   * çağıran metodun `save()` çağrısı kalıcılaştırır.
+   */
+  private appendReview(business: Business, event: ReviewEvent): void {
+    const history = business.reviewHistory ?? [];
+    if (history.length === 0) {
+      history.push({
+        action: 'submitted',
+        at: new Date(business.createdAt).toISOString(),
+      });
+    }
+    history.push(event);
+    business.reviewHistory = history;
+  }
+
+  /**
+   * İşletme başvurusu onay/red sonucunu sahibe bildirir.
+   * `notificationsService.create()` üzerinden gider → DB + websocket + FCM push
+   * (pitch onay/red akışındaki private sendOwnerNotification yalnızca DB'ye
+   * yazıyor; bilinçli olarak tam-teslimatlı yolu kullanıyoruz).
+   */
+  private async notifyOwnerOfApplicationResult(
+    businessId: string,
+    type: 'BUSINESS_APPLICATION_APPROVED' | 'BUSINESS_APPLICATION_REJECTED',
+    title: string,
+    message: string,
+  ): Promise<void> {
+    const owner = await this.businessOwnerRepository.findOne({
+      where: { business: { id: businessId } },
+    });
+    if (!owner) return;
+
+    await this.notificationsService.create({
+      userId: owner.id,
+      type,
+      title,
+      message,
+      relatedId: businessId,
+      read: false,
+    });
   }
 
   getAllBusinesses(status: string | undefined, p: PaginationQueryDto) {

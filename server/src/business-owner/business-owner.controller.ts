@@ -51,6 +51,14 @@ export class BusinessOwnerController {
     return { success: true };
   }
 
+  // Reddedilmiş işletmeyi tekrar onaya gönder. Guard'lı: owner JWT'den türetilir
+  // (req.user.id = BusinessOwner.id), client status göndermez (self-approve kapalı).
+  @UseGuards(JwtAuthGuard)
+  @Patch('business/resubmit')
+  async resubmitBusiness(@Request() req: { user: Express.User }) {
+    return this.businessOwnerService.resubmitBusiness(req.user.id);
+  }
+
   @Get('dashboard')
   async getDashboard(
     @Request() req,
