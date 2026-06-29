@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import api from '../../../../services/api';
 import { getBusinesses } from '../../../../services/api';
+import { getErrorMessage } from '../../../../utils/apiError';
 import { Business, Team } from '../../../../types';
 import { LocationFilter } from '../../../../components/Modals/LocationFilterModal';
 import { useLocationContext } from '../../../../contexts/LocationContext';
@@ -47,6 +48,8 @@ export const usePitchBooking = () => {
     const [isSortOpen, setIsSortOpen] = useState(false);
     // selectedDate — shared via FilterContext (synced with Marketplace, persisted)
     const [reservations, setReservations] = useState<any[]>([]);
+    // Kapalı/dolu saate istek denemesinde gösterilen uyarı (server mesajı).
+    const [slotWarning, setSlotWarning] = useState<string | null>(null);
 
     const [slotDetailModal, setSlotDetailModal] = useState<{
         isOpen: boolean;
@@ -133,23 +136,24 @@ export const usePitchBooking = () => {
         }
     }, [expandedBusinessId, selectedPitchIdInBusiness]);
 
-    useEffect(() => {
+    const refetchReservations = useCallback(async () => {
         if (expandedBusinessId && selectedPitchIdInBusiness[expandedBusinessId]) {
             const pitchId = selectedPitchIdInBusiness[expandedBusinessId];
-            const fetchReservations = async () => {
-                try {
-                    const response = await api.get(`/reservations/pitch/${pitchId}?date=${selectedDate}`);
-                    setReservations(response.data);
-                } catch (error) {
-                    console.error('Failed to fetch reservations:', error);
-                    setReservations([]);
-                }
-            };
-            fetchReservations();
+            try {
+                const response = await api.get(`/reservations/pitch/${pitchId}?date=${selectedDate}`);
+                setReservations(response.data);
+            } catch (error) {
+                console.error('Failed to fetch reservations:', error);
+                setReservations([]);
+            }
         } else {
             setReservations([]);
         }
     }, [expandedBusinessId, selectedPitchIdInBusiness, selectedDate]);
+
+    useEffect(() => {
+        refetchReservations();
+    }, [refetchReservations]);
 
     useEffect(() => {
         if (expandedBusinessId) {
@@ -194,8 +198,22 @@ export const usePitchBooking = () => {
                 note
             });
             setMyChallenges(prev => [...prev, response.data]);
-        } catch (error) {
+        } catch (error: any) {
             console.error('Failed to send offer:', error);
+            // Slot az önce kapanmış/dolmuşsa (409): uyarı göster + slot listesini yenile.
+            const isSlotConflict =
+                error?.response?.status === 409 ||
+                error?.response?.data?.code === 'SLOT_UNAVAILABLE';
+            setOfferMode(null);
+            setSlotWarning(
+                getErrorMessage(
+                    error,
+                    isSlotConflict
+                        ? 'Bu saat artık müsait değil. Lütfen başka bir saat seçin.'
+                        : 'Teklif gönderilemedi. Lütfen tekrar deneyin.'
+                )
+            );
+            if (isSlotConflict) refetchReservations();
         }
     };
 
@@ -284,5 +302,7 @@ export const usePitchBooking = () => {
         handleCreateAd, handleUnauthorizedSlotClick, openSlotDetail,
         handleCancelClick, handleDeleteAdClick,
         requestLocation,
+        slotWarning, setSlotWarning,
+        refetchReservations,
     };
 };

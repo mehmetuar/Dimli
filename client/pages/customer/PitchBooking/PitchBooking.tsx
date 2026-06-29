@@ -46,6 +46,8 @@ export const PitchBooking: React.FC = () => {
       handleCancelClick, handleDeleteAdClick,
       isLoadingBusinesses,
       requestLocation,
+      slotWarning, setSlotWarning,
+      refetchReservations,
    } = usePitchBooking();
 
    const scrollRef = useRef<HTMLDivElement>(null);
@@ -171,6 +173,18 @@ export const PitchBooking: React.FC = () => {
             preSelectedPitchId={createModalPitchId}
             preSelectedStartTime={createModalStartTime}
             preSelectedDate={selectedDate}
+            onSlotConflict={refetchReservations}
+         />
+         {/* Kapalı/dolu saate istek denemesi uyarısı (server 409) */}
+         <ConfirmModal
+            isOpen={!!slotWarning}
+            onClose={() => setSlotWarning(null)}
+            onConfirm={() => setSlotWarning(null)}
+            title="Bu saat artık müsait değil"
+            message={slotWarning || ''}
+            confirmText="Tamam"
+            cancelText="Kapat"
+            isDangerous={true}
          />
          <NeedTeamRoleModal
             isOpen={needTeamRoleModal.isOpen}

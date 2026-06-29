@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, MapPin, Calendar, Clock, Shield, ChevronRight, CheckCircle, Trophy, Store, Info, Search } from 'lucide-react';
 import { LoadingSpinner } from '../UI/LoadingSpinner';
@@ -20,6 +20,8 @@ interface Props {
     preSelectedBusinessId?: string;
     preSelectedStartTime?: string;
     preSelectedDate?: string;
+    // Slot kapalı/dolu (409) nedeniyle istek reddedilince üst slot listesini yenilemek için.
+    onSlotConflict?: () => void;
 }
 
 // Wrapper: always has the same hook count regardless of isOpen.
@@ -30,7 +32,7 @@ export const CreateMatchModal: React.FC<Props> = (props) => {
     return <CreateMatchModalContent {...props} />;
 };
 
-const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelectedPitchId, preSelectedBusinessId, preSelectedStartTime, preSelectedDate }) => {
+const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelectedPitchId, preSelectedBusinessId, preSelectedStartTime, preSelectedDate, onSlotConflict }) => {
     const { coords, radius } = useLocationContext();
     const navigate = useNavigate();
     const keyboardHeight = useKeyboardHeight();
@@ -144,24 +146,25 @@ const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelected
         }
     }, [isOpen, preSelectedPitchId, preSelectedBusinessId, coords]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Fetch booked slots when pitch or date changes
-    useEffect(() => {
-        const fetchBookedSlots = async () => {
-            if (!selectedPitchId || !date) return;
-            try {
-                const reservations = await getReservationsByPitch(selectedPitchId, date);
-                const approvedReservations = reservations.filter((r: any) => r.status === ReservationStatus.APPROVED);
-                const times = approvedReservations.map((r: any) => {
-                    const d = new Date(r.slotTime);
-                    return d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', hour12: false });
-                });
-                setBookedTimes(times);
-            } catch (error) {
-                console.error('Failed to fetch booked slots:', error);
-            }
-        };
-        fetchBookedSlots();
+    // Fetch booked slots when pitch or date changes (conflict sonrası tekrar çağrılabilir)
+    const refreshBookedSlots = useCallback(async () => {
+        if (!selectedPitchId || !date) return;
+        try {
+            const reservations = await getReservationsByPitch(selectedPitchId, date);
+            const approvedReservations = reservations.filter((r: any) => r.status === ReservationStatus.APPROVED);
+            const times = approvedReservations.map((r: any) => {
+                const d = new Date(r.slotTime);
+                return d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', hour12: false });
+            });
+            setBookedTimes(times);
+        } catch (error) {
+            console.error('Failed to fetch booked slots:', error);
+        }
     }, [selectedPitchId, date]);
+
+    useEffect(() => {
+        refreshBookedSlots();
+    }, [refreshBookedSlots]);
 
     const myTeam = currentUser?.team;
 
@@ -195,6 +198,12 @@ const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelected
                 setErrorMessage(serverMessage);
             } else {
                 setErrorMessage('İlan oluşturulurken bir hata oluştu');
+            }
+            // Slot az önce dolmuş/kapanmışsa (bayat görünüm): hem modaldaki dolu
+            // saatleri hem üst slot listesini yenile ki kullanıcı gerçek durumu görsün.
+            if (error.response?.status === 409 || error.response?.data?.code === 'SLOT_UNAVAILABLE') {
+                refreshBookedSlots();
+                onSlotConflict?.();
             }
         } finally {
             setIsLoading(false);
