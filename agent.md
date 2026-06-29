@@ -237,3 +237,159 @@ Mevcut ölçek küçük: ~14 kullanıcı, 5 işletme (3 aktif + 2 silinmiş), 3 
 Yeni bir şey öğrenince (yeni sayfa/endpoint, çözülen teknik borç, şema değişikliği) bu dosyaya işle.
 Çözülen maddeyi §8'den çıkar/işaretle. Kalıcı çalışma kuralları `CLAUDE.md`'ye, geçici/oturumluk
 notlar buraya değil.
+
+---
+
+## 11. Joker (yedek oyuncu) sistemi — UYGULAMA tarafı (2026-06-28 denetimi)
+
+> Bu, uygulama-tarafı (`client/` + `server/`) bilgi tabanının ilk bölümü. Admin paneli kapsam dışı.
+
+### Ne işe yarar / akış
+Bir kullanıcı joker modunu açıp **başka takımların** tek maçlık sohbetine misafir oyuncu olarak
+katılabilir. Kaptan da joker olabilir.
+1. `PATCH /users/me { isJoker:true }` → konum (lat/lng) ile joker havuzuna girer.
+2. Kaptan `GET /users/jokers?lat&lng&radius[&position&sharesFee]` ile yakındaki jokerleri bulur
+   (Haversine, `users.service.ts getJokers`).
+3. Kaptan `POST /notifications/joker-invite {jokerId,matchId,note}` → `JOKER_INVITE` bildirimi.
+4. Joker kabul → `POST /chat/joker-negotiation {matchId,inviterId,notificationId}` → joker+kaptan
+   arası 1:1 `JOKER_NEGOTIATION` kanalı (`chat.service.ts createJokerNegotiation`).
+5. Kaptan `POST /chat/channels/:id/invite-joker` → joker ana `MATCH_GROUP`'a eklenir
+   (`JOKER_JOINED` sistem mesajı; `inviteJokerToMatchGroup`).
+6. Çıkış/atılma: `DELETE /chat/channels/:id/jokers/:jokerId` (`removeJokerFromChannel`); ilgili
+   `JOKER_NEGOTIATION` da soft-delete edilir. Listeleme: `GET /chat/channels/:id/jokers`.
+
+Anahtar dosyalar: `server/src/chat/chat.service.ts` (joker metotları ~1271-1641, isJoker tespiti
+~265-277), `server/src/notifications/notifications.service.ts` (~220-312),
+`server/src/users/users.service.ts getJokers`, `client/components/Modals/{JokerProfileModal,
+InviteJokerModal,ManageJokersModal,JokerDMChatInfoModal}.tsx`, `client/pages/customer/JokerPool/*`.
+
+### KRİTİK mimari nüanslar (hatalara zemin)
+- **`MatchAnnouncement` tek takıma aittir** (`team_id`), ama onaylı maçın `MATCH_GROUP` kanalında
+  **iki takım** vardır. Kanalların `relatedMatchId`'si = **maç ilanı id'si** (reservation değil).
+  ⚠️ `chat_channels.relatedMatchId` **varchar**, `match_announcements.id` **uuid** → ham SQL'de
+  join için `ma.id::text = c."relatedMatchId"` cast'i gerekir.
+- **Joker tespiti tamamen takım-bazlı:** bir `MATCH_GROUP` katılımcısının `teamId`'si maçtaki iki
+  takımdan biri değilse joker sayılır. `user.isJoker` bayrağı sadece havuzda görünürlük içindir.
+- ⚠️ `user` tablosunda kolon adı **`team_id`** (snake_case) ama **`isJoker`** camelCase (karışık).
+  Entity property `teamId`/`isJoker` (kodda bunları kullan).
+
+### Bilinen sorunlar (denetim F1–F7; adversaryal + canlı-DB ile doğrulandı)
+**✅ Bu oturumda DÜZELTİLDİ (server, geriye-uyumlu, synchronize):**
+- **F3 — yetim joker:** "Joker'i hangi takım davet etti" bilgisi sorgu anında canlı
+  `sender.team`'den türetiliyordu → davet eden kaptan takımdan ayrılınca (canlıda 14 kullanıcının
+  6'sı takımsız!) joker görünmez/çıkarılamaz hale geliyordu. Fix: `JOKER_JOINED` metadata'sına
+  `invitingTeamId` yazılıyor; `getJokersInChannel`/`removeJokerFromChannel` önce onu, yoksa
+  `sender.team` fallback'ini kullanıyor.
+- **F4 — iptalde joker öksüzlüğü:** `cancel()`/`acceptCancelRequest()` sadece iki takımın
+  oyuncularına bildirim atıyor, jokeri ne çıkarıyor ne haber veriyordu (canlıda ölü maç
+  gruplarında 27 budanmamış aktif üyelik). Fix: `reservations.service.ts
+  cleanupJokersOnMatchCancel()` helper'ı — jokeri `MATCH_GROUP`'tan soft-delete + `SYSTEM`
+  bildirim (`JOKER_MATCH_CANCELLED`) + `JOKER_NEGOTIATION` temizliği.
+- **F5 — çift rezervasyon:** `inviteJokerToMatchGroup` zaman çakışmasını/kadroyu kontrol etmiyordu
+  (canlıda aynı kullanıcı 2026-06-20 22:00 için iki maç grubunda görüldü). Fix: joker'in başka
+  aktif `MATCH_GROUP` üyeliklerinde **aynı date+time** varsa reddet + takım başına joker sayısı
+  `playerCount`'u aşamaz (suistimal kapısı).
+
+**⏳ AÇIK (henüz yapılmadı):**
+- **F1 (orta):** `sendJokerInvite` çağıranın yetkisini doğrulamıyor → herhangi biri herhangi bir
+  takım "adına" joker daveti gönderebilir. Fix: çağıran maçtaki **iki takımdan birinin** kaptanı/
+  yardımcı kaptanı olmalı.
+- **F2 (orta, gizli):** `invite-joker`'da rol "kim çağırdıysa" mantığıyla; joker'in kendisi
+  çağırırsa davet edeni "joker" diye ekleyebilir (pratik zarar `existingMainParticipant` guard'ı
+  yüzünden sınırlı). Fix: kaptan/yardımcı kaptan kontrolü.
+- **F6 (ölçek):** `getJokers` tam-tablo Haversine (trig satır başına 2×, index kullanılamaz). Fix:
+  index kullanan bounding-box ön-filtre (`latitude/longitude BETWEEN`) sonra hassas Haversine.
+- **F7 (orta):** duplicate-davet koruması check-then-insert yarışı + dedup anahtarı `inviterId`'yi
+  görmüyor → rakip takım aynı joker'i aynı maça davet edemiyor. Fix: dedup'a inviterId + partial
+  unique index + transaction (F1 ile birlikte).
+
+**Bilinçli ertelenen ürün kararları (uygulanmadı, onay bekler):**
+- *Roster boyutu = playerCount* sert kapısı YOK (kadro çoğu zaman playerCount'tan büyük; eksik
+  gelen oyuncu varken joker meşru). F5'te sadece joker-sayısı tavanı kondu.
+- Joker maça girince `isJoker=false` otomatik kapatma YOK (joker hafta içi birden çok *çakışmayan*
+  maça girmek isteyebilir).
+- **Expire (cron) yolunda** joker temizliği YOK (sadece aktif iptal yolları). Canlıda öksüzlerin
+  çoğu EXPIRED gruplarda; bulk-update yapısı nedeniyle ayrı iş.
+- **Genel üye budaması:** maç bitince/iptal olunca **takım üyeleri de** maç grubunda kalıyor
+  (jokerlere özel değil) → ölçekte sohbet listesi şişer. Ayrı ürün kararı.
+
+### DB notu
+Canlı doğrulama 2026-06-28'de salt-okunur yapıldı (Render PG, `?sslmode=require`, sadece SELECT).
+Bağlantı dizesi bu repoda **tutulmaz** — gerekirse kullanıcıdan iste (bkz. §9).
+
+---
+
+## 12. İşletme "Reddedildi" → tekrar onaya gönder akışı (2026-06-29 eklendi)
+
+> Önceden eksik olan halka: admin işletmeyi reddedince `Business.status='rejected'` +
+> `rejectionReason` yazılıyordu ama (a) sahibe bildirim gitmiyordu, (b) sahibin mobil panelinde
+> "rejected" durumu hiç ele alınmıyordu (aktif gibi görünüyordu), (c) düzeltip tekrar gönderme
+> yolu yoktu. Bu akış mevcut **saha (pitch) reddedildi → resubmit** desenini taklit eder.
+
+### Server
+- **İki yeni bildirim tipi** (`notifications/notification.entity.ts` union):
+  `BUSINESS_APPLICATION_APPROVED` ve `BUSINESS_APPLICATION_REJECTED`. Ayrıca
+  `notifications.service.ts` içindeki **`businessPushTypes`** whitelist'ine eklendi (yoksa websocket
+  emit olur ama FCM push gitmez).
+- **AdminModule artık `NotificationsModule`'ü import ediyor** (`admin.module.ts`) → `AdminService`
+  constructor'ına `NotificationsService` inject edildi. ⚠️ Mevcut private `admin.service.ts
+  sendOwnerNotification` (pitch onay/red için) hâlâ **yalnız DB'ye** yazıyor (ws/push yok); başvuru
+  onay/red bilinçli olarak yeni `notifyOwnerOfApplicationResult` helper'ı üzerinden
+  `notificationsService.create()` (DB + ws + FCM) kullanır. (İleride pitch bildirimleri de bu yola
+  taşınabilir.)
+- `approveApplication`/`rejectApplication` (`admin.service.ts`) save sonrası sahibe bildirim atar
+  (owner null guard'lı). Mesaj reddetmede: "İşletme başvurunuz reddedildi. Nedeni: {reason}. Lütfen
+  düzeltmeleri yapıp tekrar onaya gönderin."
+- **Güvenli resubmit ucu:** `PATCH /business-owner/business/resubmit`
+  (`business-owner.controller.ts`, **`@UseGuards(JwtAuthGuard)`**). Owner JWT'den (`req.user.id` =
+  BusinessOwner.id) çözülür — client status/businessId göndermez. `business-owner.service.ts
+  resubmitBusiness(ownerId)`: yalnız `status==='rejected'` iken (`BadRequestException` aksi halde)
+  `status='pending'`, `rejectionReason=null`, `reviewedAt=null` yapar; **pitch'lere dokunmaz**.
+- `getDashboardSlots` dönüşüne `rejectionReason: business.status` yanına eklendi (banner ekstra
+  istek atmasın diye).
+
+### Client (işletme sahibi, `client/`)
+- **Dashboard** (`BusinessDashboard.tsx` + `hooks/useBusinessDashboard.ts`): yeni `isRejected`
+  tam-ekran pasif durumu. Precedence: **suspended → rejected → abonelik-yok → pending → normal**
+  (rejected, abonelik kontrolünden ÖNCE). Red nedeni kartı + "İşletme Bilgilerini Düzenle"
+  (`/business/settings/info`) + "Sahaları Düzenle" (`/business/settings/pitches`) + birincil
+  **"Tekrar Onaya Gönder"** (ConfirmModal → `api.patch('/business-owner/business/resubmit')` →
+  refetch). `handleResubmit`/`resubmitting`/`rejectionReason` hook'tan gelir.
+- **Pitch list** (`BusinessPitchList.tsx` + hook): tutarlılık için `isRejected` kırmızı banner
+  (red nedeni + "panodan Tekrar Onaya Gönder" yönlendirmesi). Ana yüzey dashboard.
+- **Bildirim gösterimi**: değişiklik gerekmedi — `BusinessNotificationBell`/`BusinessNotificationsPage`
+  tip-agnostik; yeni bildirim `notificationsService.create` ile room=`owner.id`'ye düşüp otomatik akar.
+
+### Admin panel (`client-admin/`)
+- İlk artışta reddetme UI'si zaten vardı; bildirim tamamen server'da. **2. artışta (audit geçmişi)
+  admin tarafı da değişti — aşağıya bak.**
+
+### İnceleme geçmişi / audit (reddet → tekrar gönder) — 2. artış (2026-06-29)
+> Sorun: `resubmitBusiness` `rejectionReason`'ı null'lıyordu → resubmit sonrası admin önceki red
+> nedenini ve "kaçıncı kez" bilgisini göremiyordu. Çözüm: kalıcı **`reviewHistory`** denetim katmanı.
+- **`Business.reviewHistory`** (`business.entity.ts`): `@Column({type:'json',nullable:true})`,
+  `ReviewEvent[]` = `{action:'submitted'|'rejected'|'resubmitted'|'approved', at:ISO, reason?, by?}`.
+  `rejectionReason`/`reviewedAt` KORUNUR (aktif red nedeni); reviewHistory üstüne kalıcı audit.
+- **Yazım:** `admin.service.ts` private `appendReview(business,event)` (geçmiş boşsa `createdAt` ile
+  'submitted' seed eder). `rejectApplication`→'rejected'(+reason,by:adminId); `approveApplication`→
+  'approved'(by:adminId); **`_adminId` artık `adminId` olarak audit'e `by` yazılıyor** (C2 audit-log
+  temeli). `business-owner.service.ts resubmitBusiness`→'resubmitted'(by:'owner'), geçmişi KORUR.
+- **Admin UI:** `ApplicationsList.tsx` — pending satırda `resubmitCount>0` ise turuncu "↻ Tekrar ×N"
+  rozeti (reviewHistory'den türetilir, ek alan yok). `AdminApplicationDetail.tsx` + yeni
+  `components/ReviewHistorySection.tsx` — ters-kronolojik "İnceleme Geçmişi" timeline (Red Nedeni
+  bölümünden sonra, `ApplicationActions`'tan ÖNCE). Veri otomatik akar (`...business` spread).
+- **İmkân (nargile) kaldırma onaysız/doğrudan:** owner `PATCH /pitches/:id` (toggle+kaydet); imkân
+  EKLEME ise `pitch_change_requests CUSTOM_FACILITY` ile admin onaylı. Admin imkânları detayda
+  `pitch.facilities` üzerinden görür.
+- **Tepekent test verisi (2026-06-29):** Tepekent (`f0412a65…`) DB'de `rejected` + reason="Nargile
+  salonu imkanını kaldırın" + reviewHistory=[submitted,rejected] olarak seed edildi. Kaldırılacak
+  imkân: pitch **"1 No'lu Saha"** (`eda4bb54…`) facilities'indeki **"Nargile kafe"**. `reviewHistory`
+  kolonu canlı DB'ye `ALTER TABLE ... ADD COLUMN IF NOT EXISTS "reviewHistory" json` ile elle eklendi
+  (entity tipiyle eşleşir; deploy'da synchronize no-op). Deploy sonrası owner nargile'yi kaldırıp
+  resubmit edince timeline 'resubmitted' ekler; admin önceki nedeni timeline'da görür.
+
+### ⚠️ Açık kalan güvenlik borcu (follow-up)
+`PATCH /businesses/:id` (`business.controller.ts`) **hâlâ guard'sız** ve `Object.assign` ile her
+alanı (status dahil!) yazıyor → bir owner teoride kendini `active` yapabilir. Resubmit bu açığı
+**kullanmıyor** (ayrı, güvenli, JWT-türetimli uç). Genel düzeltme: `/businesses` controller'ına
+guard + sahiplik kontrolü (mevcut çağıranları — `BusinessInfoSettings` save vb. — denetleyerek).
