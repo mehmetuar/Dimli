@@ -440,3 +440,48 @@ Server `npm run build` ✓ + lint (yalnız önceden var olan 2 sorun). Client `t
 önceden var olan `LocationStep` window.google hatası) + `vite build` ✓. Deploy sonra: Ayarlar→Hazır
 Notlar CRUD; Panel→slot→Onayla/Not Gönder→seçici→düzenle→gönder (MATCH_GROUP'a düşer); modalda
 "Bu notu kaydet"→hem listede hem Ayarlar'da görünür. DB: `SELECT * FROM preset_notes WHERE business_id='…'`.
+
+---
+
+## 14. Kapalı/dolu saate istek engelleme (backend guard + client uyarı) — 2026-06-29
+
+> Sorun: bir slot "SÜREKLİ DOLU" (sabit/recurring kapatma) olmasına rağmen kullanıcı sayfayı
+> yenilemeyip **bayat (stale)** BOŞ görüp istek atabiliyordu; sunucuda engel yoktu.
+
+### Kritik mimari
+- **Sabit (recurring), manuel kapatma ve gerçek rezervasyon — hepsi aynı:** `pitchId`+`slotTime` için
+  **APPROVED** bir `Reservation`. `recurringClosureId` dolu → **sabit**; `teamId=null` &
+  `recurringClosureId=null` → **manuel kapatma**; `teamId` dolu → **onaylı maç (dolu)**.
+  Kontrol her zaman **±15 dk pencere** (`Between(windowStart, windowEnd)`) ile materyalize satır
+  üzerinden yapılır (runtime kural eşleştirme YOK; recurring closures `blockSlot` + gece cron ile
+  60 gün materyalize edilir).
+- **Tüm PENDING rezervasyonlar tek metottan geçer:** `ReservationsService.create()`.
+
+### Server — `reservations.service.ts` + 2 çağıran
+- Yeni `assertSlotAvailable(pitchId, slotTime)` (±15 dk pencerede APPROVED varsa **`ConflictException`
+  (409)** `{ message, code:'SLOT_UNAVAILABLE' }`; mesaj sabit/manuel/dolu'ya göre değişir).
+- **3 giriş noktasında** uygulanır (hepsi "istek atma" yüzeyi):
+  1. `reservations.service.ts create()` — `isPitchClosedOnDate`'ten sonra. **Evrensel backstop**
+     (challenge-kabul, kendi_aramizda, direkt rezervasyon — hepsi buradan geçer).
+  2. `match-announcements.service.ts create()` — slot çakışma kontrollerinden sonra, ilan
+     **kaydedilmeden ÖNCE** (kendi_aramizda rezervasyonu try/catch ile yutulduğundan asıl engel burada).
+  3. `challenges.service.ts create()` — `match` fetch'i challenge kaydından öne alındı; sonra
+     `assertSlotAvailable(match.pitchId, istanbulDateTimeToUtc(match.date, match.time))`.
+- Not: slot kapatılınca `blockSlot()` zaten mevcut PENDING istekleri reddedip ilanları iptal ediyor;
+  guard'lar **yeni** isteklerin (bayat görünüm) düşmesini kapatır.
+
+### Client (`client/`) — uyarı + otomatik yenileme
+- `pages/customer/PitchBooking/hooks/usePitchBooking.ts`: inline reservations fetch →
+  `refetchReservations` (useCallback); `slotWarning` state; `handleSendOffer` (challenge) artık
+  409/`SLOT_UNAVAILABLE`'da `slotWarning` set eder + `refetchReservations()` (eskiden hatayı yutuyordu).
+- `components/Modals/CreateMatchModal.tsx`: yeni `onSlotConflict` prop'u; 409'da kendi `refreshBookedSlots`'unu
+  ve üst listeyi (`onSlotConflict=refetchReservations`) yeniler; server mesajı satır-içi gösterilir.
+- `PitchBooking.tsx`: `slotWarning` → uyarı `ConfirmModal`'ı ("Bu saat artık müsait değil").
+- Client 409'u `error.response.status===409 || data.code==='SLOT_UNAVAILABLE'` ile algılar; slot listesi
+  yenilenince `PitchSchedule.tsx` slotu otomatik **SABİT/KAPALI/DOLU** render eder.
+
+### Doğrulama
+Server `npm run build` ✓ + lint (yalnız önceden var olan e2e parse hatası + `any`-DTO uyarıları). Client
+`tsc --noEmit` (yalnız önceden var olan `LocationStep` window.google) + `vite build` ✓. Manuel: sabit/manuel
+kapalı veya dolu bir slota ilan aç / meydan oku / challenge kabul → 409 + net uyarı; yeni PENDING rezervasyon
+oluşmaz.
