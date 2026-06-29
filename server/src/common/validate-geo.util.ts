@@ -24,7 +24,8 @@ export function requireGeoFilter(
     throw new BadRequestException('lat ve lng parametreleri zorunludur');
   }
 
-  const parsedRadius = radius !== undefined ? parseFloat(radius) : DEFAULT_RADIUS;
+  const parsedRadius =
+    radius !== undefined ? parseFloat(radius) : DEFAULT_RADIUS;
   const safeRadius = Number.isNaN(parsedRadius)
     ? DEFAULT_RADIUS
     : Math.min(parsedRadius, MAX_RADIUS);

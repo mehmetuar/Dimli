@@ -36,7 +36,10 @@ export class BusinessService {
     return await this.businessRepository.save(business);
   }
 
-  async findAll(params: { geoFilter?: GeoFilter; ids?: string[] }): Promise<any[]> {
+  async findAll(params: {
+    geoFilter?: GeoFilter;
+    ids?: string[];
+  }): Promise<any[]> {
     const { geoFilter, ids: requestedIds } = params;
 
     if (requestedIds) {

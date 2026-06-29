@@ -389,8 +389,11 @@ export class MatchAnnouncementsService {
 
     // İstanbul yerel takvim günü/saati — process.env.TZ'den bağımsız, sabit
     // +3 ofsetle hesaplanır (bkz. common/turkey-time.util.ts).
-    const { dateStr: todayStr, hours: currentHour, minutes: currentMinute } =
-      nowInIstanbul();
+    const {
+      dateStr: todayStr,
+      hours: currentHour,
+      minutes: currentMinute,
+    } = nowInIstanbul();
 
     // 1. Find all PENDING announcements
     const announcements = await this.matchAnnouncementsRepository.find({

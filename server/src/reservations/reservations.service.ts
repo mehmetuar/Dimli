@@ -1593,6 +1593,75 @@ export class ReservationsService {
       .getMany();
   }
 
+  /**
+   * F4: Bir maç iptal edildiğinde maç grubundaki joker oyuncuları (iki takımdan da
+   * olmayan aktif katılımcılar) maç grubundan düşür, kendilerine bildirim gönder ve
+   * ilgili JOKER_NEGOTIATION kanallarını temizle. Çağıran transaction (manager)
+   * içinde çalışır; hata olsa bile iptali bloklamaz (best-effort).
+   */
+  private async cleanupJokersOnMatchCancel(
+    manager: EntityManager,
+    matchAnnouncementId: string,
+    validTeamIds: (string | null | undefined)[],
+    jokerMessage: string,
+    reservationId: string,
+  ): Promise<void> {
+    try {
+      const teamIds = validTeamIds.filter(Boolean) as string[];
+
+      const matchChannel = await manager.findOne(ChatChannel, {
+        where: { relatedMatchId: matchAnnouncementId, type: 'MATCH_GROUP' },
+      });
+      if (matchChannel) {
+        const participants = await manager.find(ChatParticipant, {
+          where: { channelId: matchChannel.id, deletedAt: IsNull() },
+          relations: ['user'],
+        });
+        // Joker = takımı maçtaki iki takımdan biri OLMAYAN katılımcı
+        const jokers = participants.filter(
+          (p) => !teamIds.includes(p.user?.teamId ?? ''),
+        );
+        for (const jp of jokers) {
+          await manager.update(
+            ChatParticipant,
+            { id: jp.id },
+            { deletedAt: new Date() },
+          );
+          try {
+            await this.notificationsService.create({
+              userId: jp.userId,
+              type: 'SYSTEM',
+              title: 'Maç İptal Edildi',
+              message: jokerMessage,
+              relatedId: reservationId,
+              read: false,
+              metadata: { type: 'JOKER_MATCH_CANCELLED', reservationId },
+            });
+          } catch (e) {
+            this.logger.error('Joker iptal bildirimi gönderilemedi:', e);
+          }
+        }
+      }
+
+      // İlgili JOKER_NEGOTIATION kanal(lar)ını da kapat
+      const negotiationChannels = await manager.find(ChatChannel, {
+        where: {
+          relatedMatchId: matchAnnouncementId,
+          type: 'JOKER_NEGOTIATION',
+        },
+      });
+      for (const nc of negotiationChannels) {
+        await manager.update(
+          ChatParticipant,
+          { channelId: nc.id, deletedAt: IsNull() },
+          { deletedAt: new Date() },
+        );
+      }
+    } catch (e) {
+      this.logger.error('İptal sonrası joker temizliği başarısız:', e);
+    }
+  }
+
   async cancel(id: string, teamId: string) {
     return this.dataSource.transaction(async (manager) => {
       const reservation = await manager.findOne(Reservation, {
@@ -1689,6 +1758,15 @@ export class ReservationsService {
             error,
           );
         }
+
+        // F4: maç grubundaki jokerleri düşür + bilgilendir + negotiation kanallarını temizle
+        await this.cleanupJokersOnMatchCancel(
+          manager,
+          reservation.matchAnnouncement.id,
+          [reservation.team?.id, reservation.opponentTeam?.id],
+          `${businessName} - ${pitchName}\n${dateStr} ${timeStr}\n\nDavet edildiğiniz maç iptal edildi.`,
+          reservation.id,
+        );
       }
 
       return reservation;
@@ -2010,6 +2088,15 @@ export class ReservationsService {
             error,
           );
         }
+
+        // F4: maç grubundaki jokerleri düşür + bilgilendir + negotiation kanallarını temizle
+        await this.cleanupJokersOnMatchCancel(
+          manager,
+          reservation.matchAnnouncement.id,
+          [reservation.team?.id, reservation.opponentTeam?.id],
+          `${businessName} - ${pitchName}\n${dateStr} ${timeStr}\n\nDavet edildiğiniz maç iptal edildi.`,
+          reservation.id,
+        );
       }
 
       return reservation;

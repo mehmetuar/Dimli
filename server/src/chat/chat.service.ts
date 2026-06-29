@@ -1391,6 +1391,57 @@ export class ChatService {
     if (!matchChannel)
       throw new NotFoundException('Bağlı maç veya etkinlik grubu bulunamadı.');
 
+    // F5: çift-rezervasyon ve joker sayısı tavanı kontrolleri (ekleme öncesi)
+    const currentMatch = await this.matchAnnouncementRepository.findOne({
+      where: { id: negotiationChannel.relatedMatchId },
+    });
+    if (!currentMatch) throw new NotFoundException('Maç ilanı bulunamadı.');
+
+    // (a) Zaman çakışması: joker aynı tarih+saatte başka bir maçta mı?
+    const jokerActiveParticipations = await this.chatParticipantRepository.find(
+      {
+        where: { userId: joker.id, deletedAt: IsNull() },
+        relations: ['channel'],
+      },
+    );
+    const otherMatchIds = jokerActiveParticipations
+      .filter(
+        (p) =>
+          p.channel?.type === 'MATCH_GROUP' &&
+          !!p.channel?.relatedMatchId &&
+          p.channel.id !== matchChannel.id,
+      )
+      .map((p) => p.channel.relatedMatchId);
+    if (otherMatchIds.length > 0) {
+      const otherMatches = await this.matchAnnouncementRepository.find({
+        where: {
+          id: In(otherMatchIds),
+          status: In(['PENDING', 'CONFIRMED']),
+        },
+      });
+      const hasClash = otherMatches.some(
+        (m) => m.date === currentMatch.date && m.time === currentMatch.time,
+      );
+      if (hasClash) {
+        throw new BadRequestException(
+          'Bu oyuncu aynı tarih ve saatte başka bir maçta yer alıyor.',
+        );
+      }
+    }
+
+    // (b) Joker tavanı: bu takımın mevcut joker sayısı playerCount'u aşamaz
+    // (roster büyüklüğüne değil joker sayısına bakar → meşru durumları engellemez,
+    // sadece absürt suistimali keser).
+    const existingTeamJokers = await this.getJokersInChannel(
+      matchChannel.id,
+      inviterId,
+    );
+    if (existingTeamJokers.length >= currentMatch.playerCount) {
+      throw new BadRequestException(
+        'Bu maç için joker oyuncu sınırına ulaşıldı.',
+      );
+    }
+
     // 4. Check if joker is already in the main channel
     const existingMainParticipant =
       await this.chatParticipantRepository.findOne({
@@ -1426,7 +1477,14 @@ export class ChatService {
       inviterId,
       `[ICON:joker_added] Takımımıza ${jokerName} isimli joker oyuncu dahil olmuştur. Hoş geldin!`,
       true, // system message
-      { type: 'JOKER_JOINED', jokerId: joker.id },
+      {
+        type: 'JOKER_JOINED',
+        jokerId: joker.id,
+        // F3: davet eden takımı kalıcı olarak kaydet (sorgu anında canlı
+        // sender.team'den türetmek yerine) — kaptan takım değiştirse bile
+        // joker yetim kalmasın.
+        invitingTeamId: inviterParticipant.user?.teamId ?? null,
+      },
     );
 
     // In the negotiation channel
@@ -1496,7 +1554,10 @@ export class ChatService {
     const allowedJokerIds = new Set<string>();
     for (const msg of joinMessages) {
       if (msg.metadata?.type === 'JOKER_JOINED' && msg.metadata?.jokerId) {
-        if (msg.sender?.team?.id === requesterTeamId) {
+        // F3: önce kalıcı invitingTeamId; eski mesajlarda yoksa canlı sender.team fallback.
+        const invitingTeamId =
+          (msg.metadata?.invitingTeamId as string) ?? msg.sender?.team?.id;
+        if (invitingTeamId === requesterTeamId) {
           allowedJokerIds.add(msg.metadata.jokerId as string);
         }
       }
@@ -1569,7 +1630,9 @@ export class ChatService {
         (msg) =>
           msg.metadata?.type === 'JOKER_JOINED' &&
           msg.metadata?.jokerId === jokerId &&
-          msg.sender?.team?.id === teamId,
+          // F3: kalıcı invitingTeamId; eski mesajlarda canlı sender.team fallback.
+          ((msg.metadata?.invitingTeamId as string) ?? msg.sender?.team?.id) ===
+            teamId,
       );
 
       if (!wasInvitedByMyTeam) {
