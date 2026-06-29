@@ -24,6 +24,7 @@ import { GatewayModule } from './gateway/gateway.module';
 import { UserBlocksModule } from './user-blocks/user-blocks.module';
 import { UserReportsModule } from './user-reports/user-reports.module';
 import { FacilitiesModule } from './facilities/facilities.module';
+import { PresetNotesModule } from './preset-notes/preset-notes.module';
 
 @Module({
   imports: [
@@ -69,6 +70,7 @@ import { FacilitiesModule } from './facilities/facilities.module';
     UserBlocksModule,
     UserReportsModule,
     FacilitiesModule,
+    PresetNotesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
