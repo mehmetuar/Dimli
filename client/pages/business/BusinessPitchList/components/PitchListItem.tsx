@@ -6,9 +6,10 @@ interface PitchListItemProps {
     onClick: () => void;
     isPending?: boolean;
     isSuspended?: boolean;
+    isRejected?: boolean;
 }
 
-export const PitchListItem: React.FC<PitchListItemProps> = ({ pitch, onClick, isPending = false, isSuspended = false }) => {
+export const PitchListItem: React.FC<PitchListItemProps> = ({ pitch, onClick, isPending = false, isSuspended = false, isRejected = false }) => {
     const isActive = pitch.isActive !== false;
     const approvalStatus = pitch.approvalStatus ?? 'approved';
 
@@ -63,6 +64,10 @@ export const PitchListItem: React.FC<PitchListItemProps> = ({ pitch, onClick, is
                 {isSuspended ? (
                     <span className="text-[clamp(9px,2.5vw,11px)] font-bold px-2.5 py-1 rounded-lg border bg-red-500/10 text-red-400 border-red-500/25 whitespace-nowrap">
                         Askıda
+                    </span>
+                ) : isRejected ? (
+                    <span className="text-[clamp(9px,2.5vw,11px)] font-bold px-2.5 py-1 rounded-lg border bg-red-500/10 text-red-400 border-red-500/25 whitespace-nowrap">
+                        Reddedildi
                     </span>
                 ) : approvalStatus === 'pending' ? (
                     <span className="flex items-center gap-1 text-[clamp(9px,2.5vw,11px)] font-bold px-2.5 py-1 rounded-lg border bg-orange-500/10 text-orange-400 border-orange-500/25 whitespace-nowrap">

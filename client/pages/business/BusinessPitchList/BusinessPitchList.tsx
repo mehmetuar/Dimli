@@ -82,6 +82,7 @@ export const BusinessPitchList: React.FC = () => {
                             pitch={pitch}
                             isPending={isPending}
                             isSuspended={isSuspended}
+                            isRejected={isRejected}
                             onClick={() => navigate(`/business/settings/pitches/${pitch.id}`)}
                         />
                     ))}
