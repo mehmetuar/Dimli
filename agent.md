@@ -393,3 +393,50 @@ Bağlantı dizesi bu repoda **tutulmaz** — gerekirse kullanıcıdan iste (bkz.
 alanı (status dahil!) yazıyor → bir owner teoride kendini `active` yapabilir. Resubmit bu açığı
 **kullanmıyor** (ayrı, güvenli, JWT-türetimli uç). Genel düzeltme: `/businesses` controller'ına
 guard + sahiplik kontrolü (mevcut çağıranları — `BusinessInfoSettings` save vb. — denetleyerek).
+
+---
+
+## 13. İşletme "Hazır Notlar" (preset notes) — 2026-06-29 eklendi
+
+> İşletmenin sık kullandığı kısa notları bir kez kaydedip (örn. "Lütfen 15 dk erken gelin"), maç
+> onaylarken/sohbete not gönderirken tek dokunuşla seçip göndermesi. Yemeksepeti "hazır not" tarzı.
+
+### Önemli mimari: not GÖNDERME zaten vardı, yeniden kullanılıyor
+İşletme→chat tek yüzeyi **rezervasyon not modalı** (MATCH_GROUP). Gönderim mevcut uçlarla yapılır,
+DEĞİŞMEDİ: `POST /reservations/:id/business-note {note}` ve onayla-ile-not `POST
+/reservations/:id/approve {note}` → `reservations.service.ts` `sendBusinessNote`/`sendSystemMessage`
+(sistem mesajı + tüm oyunculara push). **Hazır notlar yalnızca `note` metnini dolduran kolaylık
+katmanıdır**; server preset'ten haberdar değil (gönderilen not bağımsız bir ChatMessage olur).
+
+### Server — yeni modül `server/src/preset-notes/`
+- **`PresetNote` entity** (`preset_notes` tablosu, synchronize ile otomatik oluşur): `id`,
+  `businessId` (`business_id`, `@ManyToOne Business onDelete:CASCADE`), `content` (text),
+  `createdAt`/`updatedAt`. **Sadece metin** (ayrı başlık yok); **hard delete** (soft-delete yok).
+- **Güvenli owner-JWT deseni** (resubmit/change-password gibi; gevşek `/pitches` deseni DEĞİL):
+  controller `@Controller('preset-notes')` + **tüm route'lar `@UseGuards(JwtAuthGuard)`**;
+  `req.user.id` = BusinessOwner.id. Service `getOwnerBusinessId(ownerId)` ile owner→business çözer;
+  businessId **asla client'tan alınmaz**. Uçlar: `GET/POST /preset-notes`, `PATCH/DELETE
+  /preset-notes/:id`. Sahiplik kontrolü: `note.businessId !== ownerBusinessId` → 404. Sınırlar:
+  içerik 1..500 karakter, **işletme başına ≤30 not** (`BadRequestException`). DTO
+  `CreatePresetNoteDto {content @IsString @IsNotEmpty @MaxLength(500)}` (create+update ortak).
+  `app.module.ts`'e `PresetNotesModule` eklendi.
+
+### Client (`client/`)
+- **Servis** `services/presetNotes.ts`: `listPresetNotes/createPresetNote/updatePresetNote/
+  deletePresetNote` (default `api` instance, Bearer interceptor; businessId göndermez).
+- **Yönetim ekranı** `pages/business/BusinessPresetNotes/` (`BusinessPresetNotes.tsx` +
+  `hooks/useBusinessPresetNotes.ts`): tam-ekran, ekle/düzenle(satır-içi)/sil(ConfirmModal), boş durum,
+  toast. **Ayarlar Hub'ında** ("Saha Ayarları"dan sonra) "Hazır Notlar" menü öğesi (indigo,
+  `MessageSquareText`); rota `/business/settings/preset-notes` (App.tsx, lazy).
+- **Not modalı entegrasyonu** (asıl özellik) — `BusinessDashboard/components/DashboardActionModals.tsx`
+  + `hooks/useBusinessDashboard.ts`: hook mount'ta `listPresetNotes()` → `presetNotes`; modalda
+  (hem APPROVE hem SEND_NOTE) "Hazır notlardan seç" açılır listesi (dokun → `setNote(content)`,
+  **metin kutusuna yazılır, düzenlenebilir**), **"Bu notu kaydet"** (→ `savePresetFromNote`, trim'li
+  dedupe, inline geri bildirim), "Notları Yönet" kısayolu. Gönderme akışı (`handleTransaction`)
+  değişmedi.
+
+### Doğrulama
+Server `npm run build` ✓ + lint (yalnız önceden var olan 2 sorun). Client `tsc --noEmit` (yalnız
+önceden var olan `LocationStep` window.google hatası) + `vite build` ✓. Deploy sonra: Ayarlar→Hazır
+Notlar CRUD; Panel→slot→Onayla/Not Gönder→seçici→düzenle→gönder (MATCH_GROUP'a düşer); modalda
+"Bu notu kaydet"→hem listede hem Ayarlar'da görünür. DB: `SELECT * FROM preset_notes WHERE business_id='…'`.
