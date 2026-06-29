@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, MapPin, Lock, LogOut, ChevronRight, CreditCard, Settings } from 'lucide-react';
+import { Building2, MapPin, Lock, LogOut, ChevronRight, CreditCard, Settings, MessageSquareText } from 'lucide-react';
 import { BusinessNavbar } from '../../../components/Business/BusinessNavbar';
 import { ConfirmModal } from '../../../components/Modals/ConfirmModal';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -37,6 +37,17 @@ export const BusinessSettingsHub: React.FC = () => {
             iconGradient: 'from-orange-500/20 to-orange-600/10',
             iconBorder: 'border-orange-500/30',
             chevronColor: 'text-orange-500/60',
+        },
+        {
+            title: 'Hazır Notlar',
+            description: 'Sık kullandığın notları yönet',
+            icon: MessageSquareText,
+            path: '/business/settings/preset-notes',
+            color: 'text-indigo-400',
+            borderColor: 'border-indigo-500/30',
+            iconGradient: 'from-indigo-500/20 to-indigo-600/10',
+            iconBorder: 'border-indigo-500/30',
+            chevronColor: 'text-indigo-500/60',
         },
         {
             title: 'Şifre Değiştir',

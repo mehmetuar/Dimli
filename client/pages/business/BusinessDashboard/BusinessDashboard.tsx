@@ -57,6 +57,8 @@ export const BusinessDashboard: React.FC = () => {
         handleRemoveRecurringClosure,
         processing,
         silentRefetch,
+        presetNotes,
+        savePresetFromNote,
     } = useBusinessDashboard();
 
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -266,6 +268,8 @@ export const BusinessDashboard: React.FC = () => {
                 setActionType={setActionType}
                 handleTransaction={handleTransaction}
                 processing={processing}
+                presetNotes={presetNotes}
+                savePresetFromNote={savePresetFromNote}
             />
 
             {/* Cancel Match Confirmation */}

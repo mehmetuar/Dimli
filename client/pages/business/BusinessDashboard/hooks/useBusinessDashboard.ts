@@ -3,6 +3,7 @@ import api from '../../../../services/api';
 import { getOwnerId } from '../../../../services/authStorage';
 import { SuccessType } from '../../../../components/Modals/SuccessModal';
 import { isPastSlot as isPastSlotShared } from '../../../../utils/nightSlot';
+import { listPresetNotes, createPresetNote, PresetNote } from '../../../../services/presetNotes';
 
 export const useBusinessDashboard = () => {
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -18,6 +19,9 @@ export const useBusinessDashboard = () => {
     const [actionType, setActionType] = useState<'APPROVE' | 'SEND_NOTE' | null>(null);
     const [targetReservationId, setTargetReservationId] = useState<string | null>(null);
     const [processing, setProcessing] = useState(false);
+
+    // Hazır notlar — not modalındaki seçici + "bu notu kaydet" için.
+    const [presetNotes, setPresetNotes] = useState<PresetNote[]>([]);
 
     // UX States
     const [successModal, setSuccessModal] = useState<{ isOpen: boolean; message: string; type: SuccessType }>({
@@ -41,6 +45,37 @@ export const useBusinessDashboard = () => {
     useEffect(() => {
         fetchDashboard();
     }, [selectedDate]);
+
+    const loadPresetNotes = useCallback(async () => {
+        try {
+            setPresetNotes(await listPresetNotes());
+        } catch (error) {
+            console.error('Preset notes fetch error:', error);
+        }
+    }, []);
+
+    useEffect(() => {
+        loadPresetNotes();
+    }, [loadPresetNotes]);
+
+    // Not modalındaki metni hazır notlara kaydet. Trim'li dedupe; gönderme akışını
+    // etkilemez (sadece presete ekler). Sonuç mesajı modalda inline gösterilir.
+    const savePresetFromNote = async (
+        content: string,
+    ): Promise<{ ok: boolean; message: string }> => {
+        const trimmed = content.trim();
+        if (!trimmed) return { ok: false, message: 'Önce bir not yazın.' };
+        if (presetNotes.some((n) => n.content.trim() === trimmed)) {
+            return { ok: false, message: 'Bu not zaten kayıtlı.' };
+        }
+        try {
+            await createPresetNote(trimmed);
+            await loadPresetNotes();
+            return { ok: true, message: 'Hazır notlara kaydedildi ✓' };
+        } catch (error: any) {
+            return { ok: false, message: error?.response?.data?.message || 'Kaydedilemedi.' };
+        }
+    };
 
     const slotSortMin = (time: string): number => {
         const startStr = time.includes(' - ') ? time.split(' - ')[0] : time;
@@ -382,5 +417,7 @@ export const useBusinessDashboard = () => {
         handleRemoveRecurringClosure,
         processing,
         silentRefetch,
+        presetNotes,
+        savePresetFromNote,
     };
 };

@@ -1,4 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { BookmarkPlus, ChevronDown, ChevronUp, Settings2 } from 'lucide-react';
+import { PresetNote } from '../../../../services/presetNotes';
 
 interface DashboardActionModalsProps {
     targetReservationId: string | null;
@@ -9,6 +12,8 @@ interface DashboardActionModalsProps {
     setActionType: (type: 'APPROVE' | 'SEND_NOTE' | null) => void;
     handleTransaction: () => void;
     processing: boolean;
+    presetNotes: PresetNote[];
+    savePresetFromNote: (content: string) => Promise<{ ok: boolean; message: string }>;
 }
 
 export const DashboardActionModals: React.FC<DashboardActionModalsProps> = ({
@@ -19,13 +24,38 @@ export const DashboardActionModals: React.FC<DashboardActionModalsProps> = ({
     setTargetReservationId,
     setActionType,
     handleTransaction,
-    processing
+    processing,
+    presetNotes,
+    savePresetFromNote,
 }) => {
+    const navigate = useNavigate();
+    const [showPicker, setShowPicker] = useState(false);
+    const [savingPreset, setSavingPreset] = useState(false);
+    const [presetFeedback, setPresetFeedback] = useState<{ ok: boolean; message: string } | null>(null);
+
     if (!targetReservationId || !actionType) return null;
+
+    const close = () => {
+        setTargetReservationId(null);
+        setActionType(null);
+        setNote('');
+        setShowPicker(false);
+        setPresetFeedback(null);
+    };
+
+    const handleSavePreset = async () => {
+        if (savingPreset) return;
+        setSavingPreset(true);
+        setPresetFeedback(null);
+        const result = await savePresetFromNote(note);
+        setPresetFeedback(result);
+        setSavingPreset(false);
+        setTimeout(() => setPresetFeedback(null), 2500);
+    };
 
     return (
         <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4">
-            <div className="bg-slate-800 w-full max-w-sm rounded-3xl border border-slate-700 p-6 animate-scale-in">
+            <div className="bg-slate-800 w-full max-w-sm rounded-3xl border border-slate-700 p-6 animate-scale-in max-h-[88vh] overflow-y-auto">
                 <h3 className="text-xl font-bold text-white mb-2 text-center">
                     {actionType === 'APPROVE' ? 'Rezervasyonu Onayla' : 'Takımlara Not Gönder'}
                 </h3>
@@ -36,20 +66,78 @@ export const DashboardActionModals: React.FC<DashboardActionModalsProps> = ({
                         : 'Maç sahiplerinin göreceği bir not girin.'}
                 </p>
 
+                {/* Hazır notlardan seç */}
+                {presetNotes.length > 0 ? (
+                    <div className="mb-3">
+                        <button
+                            onClick={() => setShowPicker((s) => !s)}
+                            className="w-full flex items-center justify-between bg-slate-900/70 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-200 active:scale-[0.99] transition-all"
+                            style={{ WebkitTapHighlightColor: 'transparent' }}
+                        >
+                            <span className="font-semibold">Hazır notlardan seç</span>
+                            {showPicker ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                        </button>
+                        {showPicker && (
+                            <div className="mt-2 max-h-40 overflow-y-auto space-y-1.5 pr-0.5">
+                                {presetNotes.map((p) => (
+                                    <button
+                                        key={p.id}
+                                        onClick={() => {
+                                            setNote(p.content);
+                                            setShowPicker(false);
+                                        }}
+                                        className="w-full text-left bg-slate-900/60 hover:bg-slate-700/60 border border-slate-700/60 rounded-xl px-3 py-2.5 text-[13px] text-slate-200 leading-relaxed active:scale-[0.99] transition-all"
+                                        style={{ WebkitTapHighlightColor: 'transparent' }}
+                                    >
+                                        {p.content}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                    <p className="text-[11px] text-slate-500 text-center mb-3 leading-relaxed">
+                        Henüz hazır notun yok. Aşağıya yazıp <span className="text-slate-300 font-semibold">"Bu notu kaydet"</span> ile ekleyebilirsin.
+                    </p>
+                )}
+
                 <textarea
                     value={note}
                     onChange={(e) => setNote(e.target.value)}
                     placeholder="Örn: Lütfen 15 dk erken gelin (Opsiyonel)"
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-orange-500 min-h-[100px] mb-4"
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-orange-500 min-h-[100px] mb-2 resize-none"
                 />
+
+                {/* Bu notu kaydet + Notları Yönet */}
+                <div className="flex items-center justify-between mb-4">
+                    <button
+                        onClick={handleSavePreset}
+                        disabled={savingPreset || !note.trim()}
+                        className="flex items-center gap-1.5 text-[13px] font-semibold text-indigo-300 disabled:text-slate-600 disabled:cursor-not-allowed active:scale-95 transition-all"
+                        style={{ WebkitTapHighlightColor: 'transparent' }}
+                    >
+                        <BookmarkPlus className="w-4 h-4" />
+                        {savingPreset ? 'Kaydediliyor...' : 'Bu notu kaydet'}
+                    </button>
+                    <button
+                        onClick={() => { close(); navigate('/business/settings/preset-notes'); }}
+                        className="flex items-center gap-1 text-[12px] font-medium text-slate-400 active:scale-95 transition-all"
+                        style={{ WebkitTapHighlightColor: 'transparent' }}
+                    >
+                        <Settings2 className="w-3.5 h-3.5" />
+                        Notları Yönet
+                    </button>
+                </div>
+
+                {presetFeedback && (
+                    <p className={`text-[12px] text-center -mt-2 mb-3 font-semibold ${presetFeedback.ok ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {presetFeedback.message}
+                    </p>
+                )}
 
                 <div className="flex gap-3">
                     <button
-                        onClick={() => {
-                            setTargetReservationId(null);
-                            setActionType(null);
-                            setNote('');
-                        }}
+                        onClick={close}
                         className="flex-1 bg-slate-700 text-white font-bold py-3 rounded-xl hover:bg-slate-600 transition-colors"
                     >
                         Vazgeç

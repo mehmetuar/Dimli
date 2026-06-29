@@ -54,6 +54,7 @@ const BusinessPitchList = lazy(() => import('./pages/business/BusinessPitchList/
 const BusinessAddPitch = lazy(() => import('./pages/business/BusinessAddPitch/BusinessAddPitch').then(m => ({ default: m.BusinessAddPitch })));
 const BusinessPitchSettings = lazy(() => import('./pages/business/BusinessPitchSettings/BusinessPitchSettings').then(m => ({ default: m.BusinessPitchSettings })));
 const BusinessPasswordSettings = lazy(() => import('./pages/business/BusinessPasswordSettings/BusinessPasswordSettings').then(m => ({ default: m.BusinessPasswordSettings })));
+const BusinessPresetNotes = lazy(() => import('./pages/business/BusinessPresetNotes/BusinessPresetNotes').then(m => ({ default: m.BusinessPresetNotes })));
 const BusinessSubscriptionSettings = lazy(() => import('./pages/business/BusinessSubscriptionSettings/BusinessSubscriptionSettings').then(m => ({ default: m.BusinessSubscriptionSettings })));
 const BusinessNotificationsPage = lazy(() => import('./pages/business/BusinessNotificationsPage/BusinessNotificationsPage').then(m => ({ default: m.BusinessNotificationsPage })));
 const BusinessStats = lazy(() => import('./pages/business/BusinessStats/BusinessStats').then(m => ({ default: m.BusinessStats })));
@@ -421,6 +422,7 @@ function AppContent() {
               <Route path="/business/settings/pitches/add" element={<BusinessAddPitch />} />
               <Route path="/business/settings/pitches/:pitchId" element={<BusinessPitchSettings />} />
               <Route path="/business/settings/password" element={<BusinessPasswordSettings />} />
+              <Route path="/business/settings/preset-notes" element={<BusinessPresetNotes />} />
               <Route path="/business/settings/subscription" element={<BusinessSubscriptionSettings />} />
               <Route path="/business/notifications" element={<BusinessNotificationsPage />} />
               <Route path="/business/stats" element={<BusinessStats />} />
