@@ -182,6 +182,14 @@ export class MatchAnnouncementsService {
       );
     }
 
+    // Slot kapalı/dolu mu? (sabit/manuel kapatma veya başka takımca onaylı maç) —
+    // ilan kaydedilmeden ÖNCE kontrol et; kendi_aramizda rezervasyonu try/catch ile
+    // yutulduğundan, asıl engel burada olmalı (kullanıcı net hatayı burada görür).
+    await this.reservationsService.assertSlotAvailable(
+      data.pitchId as string,
+      slotDateTime,
+    );
+
     // Optional: Also ensure a minimum buffer (e.g., at least 15 minutes from now)
     // const minAllowedTime = new Date(now.getTime() + 15 * 60 * 1000); // 15 min buffer
     // if (announcementDate < minAllowedTime) {

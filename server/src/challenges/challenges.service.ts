@@ -42,7 +42,23 @@ export class ChallengesService {
       throw new Error('Bu maça zaten meydan okudunuz. Cevap bekleniyor.');
     }
 
-    // 1. Create Challenge Record
+    // 1. Fetch Match Announcement (challenge kaydından ÖNCE — slot uygunluğu için)
+    const match = await this.matchAnnouncementsRepository.findOne({
+      where: { id: toMatchId },
+      relations: ['team', 'team.captain'],
+    });
+
+    if (!match) throw new Error('Match not found');
+
+    // 1b. Slot kapalı/dolu mu? (sabit/manuel kapatma veya başka takımca onaylı maç) —
+    // kapalı slottaki ilana meydan okuma gönderilmesini anında engelle (gönderen
+    // kullanıcı uyarıyı send anında görür).
+    await this.reservationsService.assertSlotAvailable(
+      match.pitchId,
+      istanbulDateTimeToUtc(match.date, match.time),
+    );
+
+    // 2. Create Challenge Record
     const challenge = this.challengesRepository.create({
       fromTeamId,
       toMatchId,
@@ -50,14 +66,6 @@ export class ChallengesService {
       status: 'PENDING',
     });
     const savedChallenge = await this.challengesRepository.save(challenge);
-
-    // 2. Fetch Match Announcement to find target team
-    const match = await this.matchAnnouncementsRepository.findOne({
-      where: { id: toMatchId },
-      relations: ['team', 'team.captain'],
-    });
-
-    if (!match) throw new Error('Match not found');
 
     // 3. Fetch Challenger Team Name
     const challengerTeam = await this.teamsService.findOne(fromTeamId);

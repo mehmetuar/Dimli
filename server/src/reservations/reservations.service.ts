@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
@@ -560,6 +561,33 @@ export class ReservationsService {
     }
   }
 
+  /**
+   * Bir saatin (pitch + slotTime) istek/rezervasyona AÇIK olduğunu doğrular.
+   * Kapalı/dolu ise (±15 dk pencerede APPROVED bir rezervasyon: sürekli/sabit
+   * kapatma, işletmenin manuel kapatması veya başka takımca onaylanmış maç)
+   * 409 ConflictException fırlatır. `code: 'SLOT_UNAVAILABLE'` ile client güvenle
+   * dallanır. Kullanıcı slotu bayat (stale) görüp istek attığında sunucu engeli.
+   */
+  async assertSlotAvailable(pitchId: string, slotTime: Date): Promise<void> {
+    const windowStart = new Date(slotTime.getTime() - 15 * 60000);
+    const windowEnd = new Date(slotTime.getTime() + 15 * 60000);
+    const blocking = await this.reservationRepository.findOne({
+      where: {
+        pitchId,
+        status: ReservationStatus.APPROVED,
+        slotTime: Between(windowStart, windowEnd),
+      },
+    });
+    if (!blocking) return;
+
+    const message = blocking.recurringClosureId
+      ? 'Bu saat sürekli kapatma nedeniyle dolu (sabit). Lütfen başka bir saat seçin.'
+      : !blocking.teamId
+        ? 'Bu saat işletme tarafından kapatılmış. Lütfen başka bir saat seçin.'
+        : 'Bu saat az önce doldu. Lütfen başka bir saat seçin.';
+    throw new ConflictException({ message, code: 'SLOT_UNAVAILABLE' });
+  }
+
   async create(createReservationDto: any) {
     const pitch = await this.pitchRepository.findOne({
       where: { id: createReservationDto.pitchId },
@@ -585,6 +613,14 @@ export class ReservationsService {
         `Bu saha ${slotDateStr} tarihinde kapalı, rezervasyon oluşturamazsınız.`,
       );
     }
+
+    // Slot kapalı/dolu mu? (sabit/manuel kapatma veya başka takımca onaylı maç)
+    // Evrensel backstop: challenge-kabul, kendi_aramizda ve direkt rezervasyonun
+    // hepsi buradan geçer → hiçbir rezervasyon kapalı slota düşemez.
+    await this.assertSlotAvailable(
+      createReservationDto.pitchId,
+      new Date(createReservationDto.slotTime),
+    );
 
     if (!pitch.business?.owner?.id) {
       throw new BadRequestException(
