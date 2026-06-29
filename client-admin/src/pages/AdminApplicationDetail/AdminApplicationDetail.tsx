@@ -7,6 +7,7 @@ import BusinessInfoSection from './components/BusinessInfoSection';
 import BusinessLocationSection from './components/BusinessLocationSection';
 import PitchList from './components/PitchList';
 import ApplicationActions from './components/ApplicationActions';
+import ReviewHistorySection from './components/ReviewHistorySection';
 import Section from './components/Section';
 
 export default function AdminApplicationDetail() {
@@ -86,6 +87,10 @@ export default function AdminApplicationDetail() {
                     <Section title="Red Nedeni" icon={<IconX size={13} />}>
                         <p className="text-red-300 text-sm">{app.rejectionReason}</p>
                     </Section>
+                )}
+
+                {app.reviewHistory && app.reviewHistory.length > 0 && (
+                    <ReviewHistorySection history={app.reviewHistory} createdAt={app.createdAt} />
                 )}
 
                 {isDeleted && (

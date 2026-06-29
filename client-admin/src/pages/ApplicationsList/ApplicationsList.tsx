@@ -115,6 +115,9 @@ const ApplicationsList: React.FC<ApplicationsListProps> = ({ status }) => {
                             (acc: number, p: any) => acc + parseFacilitiesCount(p.facilities), 0
                         );
                         const hasHours = app.openTime && app.closeTime;
+                        const resubmitCount = (app.reviewHistory ?? []).filter(
+                            (e: any) => e.action === 'resubmitted'
+                        ).length;
 
                         return (
                             <div
@@ -130,6 +133,11 @@ const ApplicationsList: React.FC<ApplicationsListProps> = ({ status }) => {
                                         <span className={`shrink-0 text-xs font-bold px-2 py-0.5 rounded-full border ${cfg.badgeClass}`}>
                                             {cfg.label}
                                         </span>
+                                        {status === 'pending' && resubmitCount > 0 && (
+                                            <span className="shrink-0 text-xs font-bold px-2 py-0.5 rounded-full border bg-orange-500/20 text-orange-300 border-orange-500/30">
+                                                ↻ Tekrar ×{resubmitCount}
+                                            </span>
+                                        )}
                                     </div>
                                     <p className="text-[#7b9ab8] text-sm">
                                         {app.city} / {app.district}
