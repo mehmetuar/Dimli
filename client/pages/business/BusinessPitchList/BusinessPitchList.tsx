@@ -16,6 +16,7 @@ export const BusinessPitchList: React.FC = () => {
         pitches,
         subscription,
         businessStatus,
+        rejectionReason,
         canAddPitch,
         toast,
     } = useBusinessPitchList();
@@ -24,6 +25,7 @@ export const BusinessPitchList: React.FC = () => {
 
     const isPending = businessStatus === 'pending';
     const isSuspended = businessStatus === 'suspended';
+    const isRejected = businessStatus === 'rejected';
 
     return (
         <div className="fixed inset-0 bg-gradient-to-b from-slate-900 to-slate-800 text-white flex flex-col overflow-hidden" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
@@ -42,6 +44,21 @@ export const BusinessPitchList: React.FC = () => {
                                 <p className="text-red-300 text-[clamp(12px,3.5vw,14px)] font-bold">İşletmeniz Askıya Alındı</p>
                                 <p className="text-red-200/70 text-[clamp(10px,2.8vw,12px)] leading-relaxed">
                                     Hesabınız yönetim ekibimiz tarafından askıya alınmıştır. Sahalarınız pasif durumdadır ve gösterilmemektedir.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
+                    {isRejected && (
+                        <div className="flex items-start gap-3 bg-red-500/10 border border-red-500/30 px-4 py-3.5 rounded-2xl">
+                            <AlertTriangle className="text-red-400 shrink-0 mt-0.5" size={18} />
+                            <div className="space-y-0.5">
+                                <p className="text-red-300 text-[clamp(12px,3.5vw,14px)] font-bold">İşletme Başvurunuz Reddedildi</p>
+                                <p className="text-red-200/70 text-[clamp(10px,2.8vw,12px)] leading-relaxed">
+                                    {rejectionReason
+                                        ? `Red nedeni: ${rejectionReason}`
+                                        : 'Başvurunuz reddedildi.'}
+                                    {' '}Gerekli düzeltmeleri yapıp panodan "Tekrar Onaya Gönder" ile yeniden başvurun.
                                 </p>
                             </div>
                         </div>

@@ -9,6 +9,8 @@ export const useBusinessDashboard = () => {
     const [dashboardData, setDashboardData] = useState<any>(null);
     const [subscription, setSubscription] = useState<any>(null);
     const [businessStatus, setBusinessStatus] = useState<string | null>(null);
+    const [rejectionReason, setRejectionReason] = useState<string | null>(null);
+    const [resubmitting, setResubmitting] = useState(false);
     const [loading, setLoading] = useState(true);
     const [selectedSlot, setSelectedSlot] = useState<any>(null);
     const [showDatePicker, setShowDatePicker] = useState(false);
@@ -69,6 +71,7 @@ export const useBusinessDashboard = () => {
 
             setDashboardData(data);
             setBusinessStatus(data?.businessStatus ?? null);
+            setRejectionReason(data?.rejectionReason ?? null);
             setSubscription(subRes.data);
         } catch (error) {
             console.error('Error fetching dashboard:', error);
@@ -78,6 +81,37 @@ export const useBusinessDashboard = () => {
     };
 
     const silentRefetch = useCallback(() => fetchDashboard(true), [selectedDate]);
+
+    // Reddedilen işletmeyi tekrar onaya gönder (status rejected -> pending).
+    // Body yok; sunucu owner'ı JWT'den çözer ve yalnız 'rejected'tan geçişe izin verir.
+    const handleResubmit = () => {
+        setConfirmModal({
+            isOpen: true,
+            title: 'Tekrar Onaya Gönder',
+            message: 'Gerekli düzeltmeleri yaptınız mı? İşletmeniz tekrar incelenmek üzere yönetim ekibine gönderilecek.',
+            isDangerous: false,
+            confirmText: 'Evet, Gönder',
+            onConfirm: async () => {
+                setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                if (resubmitting) return;
+                setResubmitting(true);
+                try {
+                    await api.patch('/business-owner/business/resubmit');
+                    setSuccessModal({
+                        isOpen: true,
+                        message: 'Başvurunuz tekrar onaya gönderildi. İnceleme 1-2 iş günü sürmektedir.',
+                        type: 'DEFAULT'
+                    });
+                    await fetchDashboard(true);
+                } catch (error: any) {
+                    console.error('Resubmit error:', error);
+                    alert(error.response?.data?.message || 'İşlem başarısız.');
+                } finally {
+                    setResubmitting(false);
+                }
+            }
+        });
+    };
 
     const isPastSlot = (time: string, date: string): boolean => {
         const startTimeStr = time.includes(' - ') ? time.split(' - ')[0] : time;
@@ -315,6 +349,9 @@ export const useBusinessDashboard = () => {
         dashboardData,
         subscription,
         businessStatus,
+        rejectionReason,
+        resubmitting,
+        handleResubmit,
         loading,
         selectedSlot,
         setSelectedSlot,

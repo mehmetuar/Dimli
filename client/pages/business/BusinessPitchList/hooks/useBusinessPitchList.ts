@@ -10,6 +10,7 @@ export const useBusinessPitchList = () => {
     const [pitches, setPitches] = useState<any[]>([]);
     const [subscription, setSubscription] = useState<any>(null);
     const [businessStatus, setBusinessStatus] = useState<string | null>(null);
+    const [rejectionReason, setRejectionReason] = useState<string | null>(null);
     const [businessId, setBusinessId] = useState<string | null>(null);
     const [toast, setToast] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
@@ -34,6 +35,7 @@ export const useBusinessPitchList = () => {
             const busId = ownerResponse.data.business?.id;
             const busStatus = ownerResponse.data.business?.status ?? null;
             setBusinessStatus(busStatus);
+            setRejectionReason(ownerResponse.data.business?.rejectionReason ?? null);
             if (!busId) { alert('İşletme bulunamadı'); return; }
             setBusinessId(busId);
 
@@ -67,6 +69,7 @@ export const useBusinessPitchList = () => {
         pitches,
         subscription,
         businessStatus,
+        rejectionReason,
         businessId,
         canAddPitch,
         toast,

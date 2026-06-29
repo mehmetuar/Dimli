@@ -24,6 +24,9 @@ export const BusinessDashboard: React.FC = () => {
         dashboardData,
         subscription,
         businessStatus,
+        rejectionReason,
+        resubmitting,
+        handleResubmit,
         loading,
         selectedSlot,
         setSelectedSlot,
@@ -92,6 +95,7 @@ export const BusinessDashboard: React.FC = () => {
     const hasActiveSubscription = subscription && ['active', 'trial'].includes(subscription.status);
     const isPending = businessStatus === 'pending';
     const isSuspended = businessStatus === 'suspended';
+    const isRejected = businessStatus === 'rejected';
 
     return (
         <div className="fixed inset-0 bg-slate-900 text-white flex flex-col overflow-hidden" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
@@ -139,6 +143,53 @@ export const BusinessDashboard: React.FC = () => {
                     <div className="w-full max-w-xs bg-slate-800/60 border border-slate-700 rounded-2xl px-5 py-4 text-left space-y-2">
                         <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">Destek</p>
                         <p className="text-white font-bold text-sm">destek@dimli.app</p>
+                    </div>
+                </div>
+            ) : isRejected ? (
+                /* Senaryo 3: Başvuru reddedildi — düzelt ve tekrar onaya gönder */
+                <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
+                    <div className="w-20 h-20 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-6">
+                        <svg className="w-10 h-10 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                        </svg>
+                    </div>
+                    <h2 className="text-[clamp(18px,5vw,22px)] font-black text-white mb-3 uppercase italic">Başvurunuz Reddedildi</h2>
+                    <p className="text-slate-400 text-[clamp(12px,3.5vw,14px)] leading-relaxed mb-6 max-w-xs">
+                        İşletme başvurunuz yönetim ekibimiz tarafından reddedildi. Lütfen aşağıdaki düzeltmeleri yapıp tekrar onaya gönderin.
+                    </p>
+                    {rejectionReason && (
+                        <div className="w-full max-w-xs bg-red-500/5 border border-red-500/20 rounded-2xl px-5 py-4 text-left space-y-1.5 mb-8">
+                            <p className="text-red-400/80 text-xs font-bold uppercase tracking-widest">Red Nedeni</p>
+                            <p className="text-red-200 font-semibold text-[clamp(12px,3.5vw,14px)] leading-relaxed">{rejectionReason}</p>
+                        </div>
+                    )}
+                    <div className="w-full max-w-xs flex flex-col gap-3">
+                        <button
+                            onClick={() => navigate('/business/settings/info')}
+                            className="bg-slate-800 hover:bg-slate-700 active:scale-95 text-white font-bold px-6 py-3.5 rounded-2xl transition-all border border-slate-700"
+                        >
+                            İşletme Bilgilerini Düzenle
+                        </button>
+                        <button
+                            onClick={() => navigate('/business/settings/pitches')}
+                            className="bg-slate-800 hover:bg-slate-700 active:scale-95 text-white font-bold px-6 py-3.5 rounded-2xl transition-all border border-slate-700"
+                        >
+                            Sahaları Düzenle
+                        </button>
+                        <button
+                            onClick={handleResubmit}
+                            disabled={resubmitting}
+                            className="bg-orange-500 hover:bg-orange-600 active:scale-95 disabled:opacity-60 disabled:active:scale-100 text-white font-bold px-6 py-4 rounded-2xl transition-all shadow-lg shadow-orange-500/25 flex items-center justify-center gap-2 mt-1"
+                        >
+                            {resubmitting ? (
+                                <RefreshCw className="w-5 h-5 animate-spin" />
+                            ) : (
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                                </svg>
+                            )}
+                            {resubmitting ? 'Gönderiliyor...' : 'Tekrar Onaya Gönder'}
+                        </button>
                     </div>
                 </div>
             ) : !hasActiveSubscription ? (
