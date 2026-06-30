@@ -55,18 +55,21 @@ export class FirebaseService {
     }
   }
 
+  // Dönüş: { success, invalidToken }. invalidToken=true ise token kalıcı olarak
+  // geçersizdir (cihaz silinmiş/izin reddedilmiş/stale) → çağıran tarafı token'ı
+  // DB'den temizlemeli ki bir daha denenmesin ve sorun teşhis edilebilir olsun.
   async sendToDevice(
     token: string,
     title: string,
     body: string,
     data?: Record<string, string>,
     badge = 1,
-  ): Promise<void> {
+  ): Promise<{ success: boolean; invalidToken: boolean }> {
     if (!admin.apps.length) {
       this.logger.warn(
         `FCM gönderilemedi (token ${token?.slice(0, 20)}...): Firebase Admin SDK başlatılamadı, yukarıdaki "Firebase init failed" logunu kontrol edin.`,
       );
-      return;
+      return { success: false, invalidToken: false };
     }
     try {
       await admin.messaging().send({
@@ -79,10 +82,18 @@ export class FirebaseService {
       this.logger.log(
         `FCM gönderildi → token ${token?.slice(0, 20)}... badge=${badge}`,
       );
+      return { success: true, invalidToken: false };
     } catch (e) {
+      const code: string =
+        (e?.errorInfo?.code as string) || (e?.code as string) || 'unknown';
+      const invalidToken =
+        code === 'messaging/registration-token-not-registered' ||
+        code === 'messaging/invalid-registration-token' ||
+        code === 'messaging/invalid-argument';
       this.logger.warn(
-        `FCM send failed for token ${token?.slice(0, 20)}...: ${e.message}`,
+        `FCM send failed (${code}) token ${token?.slice(0, 20)}...: ${e.message}`,
       );
+      return { success: false, invalidToken };
     }
   }
 }

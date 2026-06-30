@@ -29,10 +29,10 @@ export class AppGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   private readonly logger = new Logger(AppGateway.name);
 
-  // userId → ön planda (foreground) aktif soket sayısı. Boolean/Set değil SAYAÇ
-  // kullanılır çünkü bir kullanıcının aynı anda birden çok soketi olabilir
-  // (reconnect, auth:tokenChanged reconnect, web+native). Push baskılama bunu okur.
-  private activeUsers = new Map<string, number>();
+  // userId → ön planda (foreground) aktif soket id'leri. SAYAÇ değil SET: tüm
+  // operasyonlar idempotent (her socket.id kendi disconnect'inde silinir) → kaçan/
+  // çift event ile sayaç "takılı kalma" riski YOK. Push baskılama bunu okur.
+  private foregroundSockets = new Map<string, Set<string>>();
 
   constructor(private jwtService: JwtService) {}
 
@@ -40,13 +40,24 @@ export class AppGateway implements OnGatewayConnection, OnGatewayDisconnect {
   // (uygulama-içi websocket olayı zaten iletildi). gateway enjekte edilmemişse
   // çağıran tarafı `?.` ile "aktif değil" sayar → push gönderilir (güvenli varsayılan).
   isUserActive(userId: string): boolean {
-    return (this.activeUsers.get(userId) ?? 0) > 0;
+    const set = this.foregroundSockets.get(userId);
+    return !!set && set.size > 0;
   }
 
-  private adjustPresence(userId: string, delta: number) {
-    const next = (this.activeUsers.get(userId) ?? 0) + delta;
-    if (next > 0) this.activeUsers.set(userId, next);
-    else this.activeUsers.delete(userId);
+  private addForeground(userId: string, socketId: string) {
+    let set = this.foregroundSockets.get(userId);
+    if (!set) {
+      set = new Set<string>();
+      this.foregroundSockets.set(userId, set);
+    }
+    set.add(socketId);
+  }
+
+  private removeForeground(userId: string, socketId: string) {
+    const set = this.foregroundSockets.get(userId);
+    if (!set) return;
+    set.delete(socketId);
+    if (set.size === 0) this.foregroundSockets.delete(userId);
   }
 
   async handleConnection(socket: Socket) {
@@ -64,14 +75,13 @@ export class AppGateway implements OnGatewayConnection, OnGatewayDisconnect {
         secret: process.env.JWT_SECRET || 'SECRET_KEY',
       });
 
-      const userId = payload.sub;
+      const userId = payload.sub as string;
       socket.data.userId = userId;
       socket.data.username = payload.username;
       // Bağlantı = uygulama ön planda kabul edilir (yeni açıldı/öne geldi).
-      socket.data.foreground = true;
-      this.adjustPresence(userId as string, +1);
+      this.addForeground(userId, socket.id);
 
-      await socket.join(userId as string);
+      await socket.join(userId);
       this.logger.log(`Client connected: ${userId}`);
     } catch {
       socket.disconnect();
@@ -81,30 +91,25 @@ export class AppGateway implements OnGatewayConnection, OnGatewayDisconnect {
   handleDisconnect(socket: Socket) {
     const userId = socket.data.userId as string | undefined;
     if (userId) {
-      if (socket.data.foreground) this.adjustPresence(userId, -1);
+      // Koşulsuz: Set.delete idempotent → kaçan decrement / takılı kalma imkânsız.
+      this.removeForeground(userId, socket.id);
       this.logger.log(`Client disconnected: ${userId}`);
     }
   }
 
   // Client, uygulama öne gelince 'presence:active', arka plana alınınca
-  // 'presence:inactive' gönderir (App.tsx appStateChange). Soket bazında foreground
-  // durumu tutulur; sayaç buna göre güncellenir.
+  // 'presence:inactive' gönderir (App.tsx appStateChange). Soket id bazında eklenir/
+  // silinir; idempotent olduğundan tekrar eden event zarar vermez.
   @SubscribeMessage('presence:active')
   handlePresenceActive(@ConnectedSocket() socket: Socket) {
     const userId = socket.data.userId as string | undefined;
-    if (userId && socket.data.foreground !== true) {
-      socket.data.foreground = true;
-      this.adjustPresence(userId, +1);
-    }
+    if (userId) this.addForeground(userId, socket.id);
   }
 
   @SubscribeMessage('presence:inactive')
   handlePresenceInactive(@ConnectedSocket() socket: Socket) {
     const userId = socket.data.userId as string | undefined;
-    if (userId && socket.data.foreground === true) {
-      socket.data.foreground = false;
-      this.adjustPresence(userId, -1);
-    }
+    if (userId) this.removeForeground(userId, socket.id);
   }
 
   @SubscribeMessage('ping')

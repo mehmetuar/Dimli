@@ -864,6 +864,7 @@ export class ReservationsService {
           reservation.team,
           messageContent,
           { type: 'MATCH_APPROVED', reservationId: reservation.id },
+          true, // skipPush: MATCH_APPROVED bildirimi ("Maçınız Kesinleşti!") zaten push atıyor
         );
       } else {
         this.logger.warn(
@@ -1533,6 +1534,7 @@ export class ReservationsService {
       reservation.team,
       messageContent,
       { type: 'BUSINESS_NOTE', reservationId: reservation.id },
+      true, // skipPush: aşağıdaki BUSINESS_NOTE bildirimi zaten push atıyor → çift push olmasın
     );
 
     try {
@@ -1570,6 +1572,7 @@ export class ReservationsService {
     _team: any,
     content: string,
     metadata?: any,
+    skipPush = false,
   ) {
     try {
       // Find channel by relatedMatchId and type MATCH_GROUP
@@ -1589,6 +1592,7 @@ export class ReservationsService {
           content,
           true, // isSystemMessage
           metadata, // Pass metadata
+          skipPush, // çift push'u önlemek için (ayrı bildirim zaten push atıyorsa)
         );
         this.logger.log(`System message sent to channel ${channel.id}`);
       } else {

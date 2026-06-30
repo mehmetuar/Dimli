@@ -600,3 +600,42 @@ sunucuda `Client connected`; 2 cihaz aynı sohbette anlık mesaj; ön planda pus
 resume'da otomatik reconnect. **Fallback:** düzeltme sonrası hâlâ aksarsa Render **instance sayısını**
 kontrol et (>1 ise `server.to(room)`/in-memory presence instance-başına çalışır → Socket.IO Redis adapter
 gerekir; mevcut ölçekte tek instance, canlı test tek instance'a bağlandı).
+
+> **TestFlight doğrulaması (2026-06-30):** Socket fix Mehmet42'de ÇALIŞTI (ön planda push gelmiyor,
+> kapatınca geliyor). §16 commit `4cfc4af` `main`'e push'landı.
+
+---
+
+## 17. TestFlight test bulguları: FCM öz-iyileşme, çift bildirim, çift gönderim (2026-06-30)
+
+### A. Push görünürlüğü + öz-iyileşme + presence sağlamlığı (sunucu)
+- **Kök sorun (Yasin'de hiç push gelmiyordu):** FCM hataları **sessizce yutuluyordu**
+  (`.catch(()=>{})` / `allSettled` sonucu okunmuyor) → stale/geçersiz token (örn. yeni build'de bildirim
+  izni reddedilmiş, eski install'un token'ı kalmış) görünmez şekilde başarısız oluyordu.
+- **`firebase.service.ts sendToDevice`** artık `{ success, invalidToken }` döndürür; hata kodunu loglar
+  (`registration-token-not-registered`/`invalid-registration-token`/`invalid-argument` → invalidToken).
+- **`notifications.service.ts`**: tüm 7 FCM çağrısı yeni `pushToUser`/`pushToOwner` helper'larından geçer;
+  `invalidToken` true ise o satırın token'ı `UPDATE … SET pushToken=NULL WHERE id=$1 AND pushToken=$2` ile
+  temizlenir (yarış-güvenli). Böylece geçersiz token bir kez başarısız olunca null'lanır + Render log'unda
+  görünür (teşhis). Kullanıcı aksiyonu: cihazda bildirim izni açık olmalı, sonra uygulama açılınca taze token kaydolur.
+- **`app.gateway.ts` presence** sayaç (`Map<userId,number>`) yerine **`Map<userId,Set<socketId>>`** oldu.
+  add/remove idempotent (her socket.id kendi disconnect'inde koşulsuz silinir) → kaçan/çift event ile
+  "takılı kalma" (isUserActive hep true → tüm push baskılanır) riski **imkânsız**. `isUserActive` sync kaldı.
+
+### B. İşletme notunda çift bildirim → tek bildirim (sunucu)
+- İşletme not gönderince oyuncu 2 push alıyordu: `BUSINESS_NOTE` bildirimi + sohbet sistem mesajının push'u.
+- **`chat.service.ts sendMessage`** imzasına `skipPush=false` eklendi; push tetikleyen blok `if (!skipPush)`.
+  Diğer tüm çağıranlar varsayılan false → değişmez. `reservations.service.ts sendSystemMessage`'a `skipPush`
+  geçirildi; **`sendBusinessNote`** ve **onay-ile-not (`approve` MATCH_APPROVED sistem mesajı)** `skipPush=true`
+  verir → sistem mesajı sohbete düşer ama chat push'u atılmaz; dedike bildirim (BUSINESS_NOTE / "Maçınız
+  Kesinleşti!") tek push olarak kalır.
+
+### C. Sohbette çift gönderim (client → yeni build)
+- **`useChat.ts handleSend`**: `sendingRef` re-entry guard + `isSending` state; input **await'ten ÖNCE**
+  temizlenir (ikinci dokunuş boş input'la erken döner); hata → metin geri yüklenir; `finally` reset.
+- **`Chat.tsx`** gönder butonu `disabled={isSending || !input.trim()}`.
+
+### Doğrulama
+Server build ✓ + lint (yalnız önceden var olan e2e + any). Client `tsc` (yalnız `LocationStep`) + build ✓ +
+`cap sync` ✓. Deploy sırası: önce sunucu (A+B — TestFlight'a anında etki), sonra client (C) yeni native sürüm.
+Deploy sonrası Render log'u her alıcının FCM sonucunu (`FCM gönderildi` / `FCM send failed (code)`) net gösterir.

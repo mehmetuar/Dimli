@@ -439,6 +439,11 @@ export class ChatService {
     content: string,
     isSystemMessage = false,
     metadata?: any,
+    // skipPush: mesaj sohbete düşer + websocket'le iletilir ama FCM push ATILMAZ.
+    // Aynı olay için ayrı bir bildirim (örn. BUSINESS_NOTE/MATCH_APPROVED) zaten push
+    // gönderdiğinde çift push'u önlemek için kullanılır. Varsayılan false → diğer
+    // tüm çağıranlar aynı davranışta kalır.
+    skipPush = false,
   ): Promise<ChatMessage> {
     // System messages can always be sent
     if (!isSystemMessage && senderId) {
@@ -529,7 +534,7 @@ export class ChatService {
       );
     }
 
-    {
+    if (!skipPush) {
       // Sistem mesajları dahil HER mesaj türü için push + okunmadı sayacı
       // tetiklenir — gönderenin kendisi (varsa) zaten yukarıda okumuş sayıldı,
       // diğer tüm katılımcılar bildirim alır.

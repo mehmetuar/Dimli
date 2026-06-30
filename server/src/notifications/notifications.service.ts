@@ -65,7 +65,8 @@ export class NotificationsService {
       .findOne({ where: { id: saved.userId } })
       .then((user) => {
         if (user?.pushToken && !this.gateway?.isUserActive(saved.userId)) {
-          void this.firebaseService.sendToDevice(
+          void this.pushToUser(
+            user.id,
             user.pushToken,
             'Katılım İsteği',
             'Takımına yeni bir katılım isteği var',
@@ -101,7 +102,8 @@ export class NotificationsService {
       .findOne({ where: { id: playerId } })
       .then((user) => {
         if (user?.pushToken && !this.gateway?.isUserActive(playerId)) {
-          void this.firebaseService.sendToDevice(
+          void this.pushToUser(
+            user.id,
             user.pushToken,
             'Takımdan Çıkarıldınız',
             `${team.name} takımından çıkarıldınız.`,
@@ -138,7 +140,8 @@ export class NotificationsService {
       .findOne({ where: { id: userId } })
       .then((user) => {
         if (user?.pushToken && !this.gateway?.isUserActive(userId)) {
-          void this.firebaseService.sendToDevice(
+          void this.pushToUser(
+            user.id,
             user.pushToken,
             'Katılma İsteği Onaylandı',
             `${team.name} takımına katılma isteğiniz onaylandı!`,
@@ -184,11 +187,12 @@ export class NotificationsService {
         .findOne({ where: { id: saved.userId } })
         .then((user) => {
           if (user?.pushToken) {
-            void this.firebaseService.sendToDevice(
+            void this.pushToUser(
+              user.id,
               user.pushToken,
               this.cleanPushText(saved.title) || 'Yeni Bildirim',
               this.cleanPushText(saved.message),
-              { type: saved.metadata?.type || saved.type },
+              { type: String(saved.metadata?.type || saved.type) },
             );
           }
         })
@@ -212,7 +216,8 @@ export class NotificationsService {
         .findOne({ where: { id: saved.userId } })
         .then((owner) => {
           if (owner?.pushToken) {
-            void this.firebaseService.sendToDevice(
+            void this.pushToOwner(
+              owner.id,
               owner.pushToken,
               this.cleanPushText(saved.title) || 'Yeni Bildirim',
               this.cleanPushText(saved.message),
@@ -277,7 +282,8 @@ export class NotificationsService {
       .findOne({ where: { id: jokerId } })
       .then((user) => {
         if (user?.pushToken && !this.gateway?.isUserActive(jokerId)) {
-          void this.firebaseService.sendToDevice(
+          void this.pushToUser(
+            user.id,
             user.pushToken,
             'Joker Daveti',
             this.cleanPushText(saved.message) ||
@@ -496,7 +502,8 @@ export class NotificationsService {
       users
         .filter((u) => u.pushToken && !this.gateway?.isUserActive(u.id))
         .map((u) =>
-          this.firebaseService.sendToDevice(
+          this.pushToUser(
+            u.id,
             u.pushToken,
             title,
             body,
@@ -548,5 +555,55 @@ export class NotificationsService {
       .replace(/(\{\{\w+\}\}|\[ICON:\w+\])/g, '')
       .replace(/\s+/g, ' ')
       .trim();
+  }
+
+  // FCM gönder + kalıcı geçersiz token'ı DB'den temizle (öz-iyileşme + teşhis).
+  // where'e token de konur → yarışta yeni kaydolan token yanlışlıkla silinmez.
+  private async pushToUser(
+    userId: string,
+    token: string,
+    title: string,
+    body: string,
+    data: Record<string, string>,
+    badge = 1,
+  ): Promise<void> {
+    const r = await this.firebaseService.sendToDevice(
+      token,
+      title,
+      body,
+      data,
+      badge,
+    );
+    if (r.invalidToken) {
+      await this.usersRepository.query(
+        'UPDATE "user" SET "pushToken" = NULL WHERE id = $1 AND "pushToken" = $2',
+        [userId, token],
+      );
+      this.logger.warn(`Geçersiz push token temizlendi (user=${userId})`);
+    }
+  }
+
+  private async pushToOwner(
+    ownerId: string,
+    token: string,
+    title: string,
+    body: string,
+    data: Record<string, string>,
+    badge = 1,
+  ): Promise<void> {
+    const r = await this.firebaseService.sendToDevice(
+      token,
+      title,
+      body,
+      data,
+      badge,
+    );
+    if (r.invalidToken) {
+      await this.businessOwnerRepository.query(
+        'UPDATE "business_owner" SET "pushToken" = NULL WHERE id = $1 AND "pushToken" = $2',
+        [ownerId, token],
+      );
+      this.logger.warn(`Geçersiz push token temizlendi (owner=${ownerId})`);
+    }
   }
 }
