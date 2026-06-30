@@ -376,7 +376,11 @@ function AppContent() {
 
     // Uygulama arka plana alınınca interval dur, ön plana gelince yeniden başla
     CapApp.addListener('appStateChange', async (state) => {
+      // Presence: uygulama ön plandayken sunucu OS push'larını baskılar (uygulama-içi
+      // websocket bildirimi yeterli), arka plana alınınca tekrar push gönderir.
+      const sock = (window as any).__socket;
       if (state.isActive) {
+        if (sock?.connected) sock.emit('presence:active');
         clearBadge();
         // Konum takibini SADECE izin verilmişse başlat. İzin yoksa poll() (getCurrentPosition)
         // her foreground'da native bridge'i yorar ve reddedilen izinde kasmaya katkı sağlar.
@@ -387,6 +391,8 @@ function AppContent() {
           // İzin okunamadı → poll başlatma
         }
       } else {
+        // İlk satırda (await'siz): iOS askıya almadan önce flush şansı en yüksek.
+        if (sock?.connected) sock.emit('presence:inactive');
         stopLocationTracking();
       }
     }).then(h => { stateListener = h; });

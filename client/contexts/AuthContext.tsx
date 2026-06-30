@@ -6,6 +6,7 @@ import {
     saveBusinessSession,
     getRole,
 } from '../services/authStorage';
+import { unregisterPushOnLogout } from '../services/pushNotificationService';
 
 interface AuthContextValue {
     isReady: boolean;
@@ -71,6 +72,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     const logout = async () => {
+        // clearAuthSession'dan ÖNCE: bu hesabın push token'ını sunucudan sil + cihaz
+        // FCM token'ını geçersizle + listener'ları sıfırla. Aksi halde çıkış sonrası
+        // bu hesabın bildirimleri cihaza düşmeye devam eder ve sonraki hesap için
+        // token yeniden kaydolmaz.
+        await unregisterPushOnLogout();
         await clearAuthSession();
         setToken(null);
         setOwnerId(null);

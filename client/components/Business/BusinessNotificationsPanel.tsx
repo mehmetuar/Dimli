@@ -3,6 +3,7 @@ import { X, Bell, Calendar, Clock, ChevronRight, CheckCircle2 } from 'lucide-rea
 import api from '../../services/api';
 import { getOwnerId } from '../../services/authStorage';
 import { ConfirmModal } from '../Modals/ConfirmModal';
+import { stripNotificationEmoji } from '../../utils/notificationText';
 
 interface BusinessNotificationsPanelProps {
     isOpen: boolean;
@@ -119,14 +120,14 @@ export const BusinessNotificationsPanel: React.FC<BusinessNotificationsPanelProp
                                 <div className="flex-1 min-w-0">
                                     <div className="flex justify-between items-start mb-1">
                                         <h4 className={`text-[15px] font-black leading-tight ${notif.read ? 'text-slate-300' : 'text-white'}`}>
-                                            {notif.title}
+                                            {stripNotificationEmoji(notif.title)}
                                         </h4>
                                         <span className="text-[10px] text-slate-600 font-bold whitespace-nowrap ml-2">
                                             {new Date(notif.createdAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
                                         </span>
                                     </div>
                                     <p className={`text-sm leading-relaxed ${notif.read ? 'text-slate-500' : 'text-slate-400'}`}>
-                                        {notif.message}
+                                        {stripNotificationEmoji(notif.message)}
                                     </p>
 
                                     {!notif.read && (

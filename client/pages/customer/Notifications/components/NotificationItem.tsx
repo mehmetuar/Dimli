@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, Check, UserPlus, UserX, UserCheck, ShieldCheck, Swords, Clock, XCircle, ShieldAlert, Handshake, MessageCircle, MessageSquare } from 'lucide-react';
 import { Notification } from '../hooks/useNotifications';
+import { stripNotificationEmoji } from '../../../../utils/notificationText';
 
 interface NotificationItemProps {
     notif: Notification;
@@ -90,9 +91,9 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({
         if (type === 'CHALLENGE') return 'Yeni Meydan Okuma';
         if (type === 'MATCH_RESULT') return 'Maç Sonucu';
         if (type === 'REMATCH_PROPOSAL') return 'Yeni Maç Teklifi';
-        if (type === 'SYSTEM') return notifObj.title ? notifObj.title.replace(/^[⚽⏳📩✅❌⚠️🌟💬🚫🕒]\s*/, '') : 'Sistem Mesajı';
-        if (type === 'MATCH_REMINDER') return notifObj.title ? notifObj.title.replace(/^[⚽⏳📩✅❌⚠️🌟💬🚫🕒]\s*/, '') : 'Maç Hatırlatıcısı';
-        if (type === 'RESERVATION_REQUEST') return notifObj.title ? notifObj.title.replace(/^[⚽⏳📩✅❌⚠️🌟💬🚫🕒]\s*/, '') : 'Rezervasyon İsteği';
+        if (type === 'SYSTEM') return stripNotificationEmoji(notifObj.title) || 'Sistem Mesajı';
+        if (type === 'MATCH_REMINDER') return stripNotificationEmoji(notifObj.title) || 'Maç Hatırlatıcısı';
+        if (type === 'RESERVATION_REQUEST') return stripNotificationEmoji(notifObj.title) || 'Rezervasyon İsteği';
         return 'Bildirim';
     };
 
@@ -115,7 +116,7 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({
                 </div>
 
                 <p className="text-sm text-slate-300 mb-3 leading-relaxed whitespace-pre-wrap">
-                    {notif.message || 'Bildirim detayları'}
+                    {stripNotificationEmoji(notif.message) || 'Bildirim detayları'}
                 </p>
 
                 {/* Challenge — tıklanabilir kart, Maç İstekleri tab'ına yönlendirir */}

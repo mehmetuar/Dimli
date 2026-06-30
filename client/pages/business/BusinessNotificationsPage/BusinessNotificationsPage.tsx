@@ -5,6 +5,7 @@ import api from '../../../services/api';
 import { getOwnerId } from '../../../services/authStorage';
 import { BusinessNavbar } from '../../../components/Business/BusinessNavbar';
 import { BusinessLoadingSpinner } from '../../../components/Business/BusinessLoadingSpinner';
+import { stripNotificationEmoji } from '../../../utils/notificationText';
 
 export const BusinessNotificationsPage: React.FC = () => {
     const navigate = useNavigate();
@@ -80,14 +81,14 @@ export const BusinessNotificationsPage: React.FC = () => {
                             <div className="flex-1 min-w-0">
                                 <div className="flex justify-between items-start mb-1">
                                     <h4 className="font-black text-white leading-tight" style={{ fontSize: 'clamp(0.8rem, 3.5vw, 1rem)' }}>
-                                        {notif.title}
+                                        {stripNotificationEmoji(notif.title)}
                                     </h4>
                                     <span className="text-[10px] text-slate-500 font-bold whitespace-nowrap ml-2 shrink-0">
                                         {new Date(notif.createdAt).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })}
                                     </span>
                                 </div>
                                 <p className="text-slate-400 leading-relaxed line-clamp-2" style={{ fontSize: 'clamp(0.75rem, 3vw, 0.875rem)' }}>
-                                    {notif.message}
+                                    {stripNotificationEmoji(notif.message)}
                                 </p>
                             </div>
 

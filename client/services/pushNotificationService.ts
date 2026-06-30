@@ -76,6 +76,47 @@ export const initializePushNotifications = async () => {
     }
 };
 
+// Çıkışta listener birikmesini önler ve sonraki hesabın yeniden init olabilmesi için
+// _initialized'i sıfırlar. Aksi halde init `if (_initialized) return` ile erken döner
+// (yeni hesabın token PATCH'i atılmaz) ve eski addListener'lar üst üste birikir.
+export const resetPushNotifications = async (): Promise<void> => {
+    _initialized = false;
+    if (!Capacitor.isNativePlatform()) return;
+    try {
+        await FirebaseMessaging.removeAllListeners();
+    } catch {
+        /* best-effort */
+    }
+};
+
+// Çıkışta çağrılır — clearAuthSession'dan ÖNCE (Bearer header + getRole() için gerekli).
+// Sunucudaki token'ı sil (bu hesaba push gelmesin), cihaz FCM token'ını geçersizle
+// (sonraki girişte taze token üretilsin), yerel kaydı temizle, listener'ları sıfırla.
+// Hepsi best-effort; ağ hatası çıkışı bloklamaz.
+export const unregisterPushOnLogout = async (): Promise<void> => {
+    try {
+        const endpoint = getRole() === 'business_owner'
+            ? '/business-owner/push-token'
+            : '/users/push-token';
+        await api.delete(endpoint);
+    } catch {
+        /* best-effort */
+    }
+    if (Capacitor.isNativePlatform()) {
+        try {
+            await FirebaseMessaging.deleteToken();
+        } catch {
+            /* best-effort */
+        }
+    }
+    try {
+        localStorage.removeItem('pushToken');
+    } catch {
+        /* ignore */
+    }
+    await resetPushNotifications();
+};
+
 export const clearBadge = async (): Promise<void> => {
     if (!Capacitor.isNativePlatform()) return;
     try {
