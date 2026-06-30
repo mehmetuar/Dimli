@@ -2,6 +2,7 @@ import { useState } from 'react';
 import api from '../../../../services/api';
 import { purchasePlan, linkRevenueCatUser } from '../../../../services/revenuecatService';
 import { useAuth } from '../../../../contexts/AuthContext';
+import { initializePushNotifications } from '../../../../services/pushNotificationService';
 import { isValidTurkishPhone, PHONE_INVALID_MESSAGE } from '../../../../utils/phone';
 import { getErrorMessage } from '../../../../utils/apiError';
 
@@ -294,6 +295,8 @@ export const useBusinessRegister = () => {
             // Otomatik giriş: kayıt yanıtındaki token'ı sakla
             if (response.data?.access_token) {
                 await loginAsBusiness(response.data.access_token, response.data.ownerId);
+                // Kayıt sonrası push token'ı kaydet (eskiden eksikti).
+                initializePushNotifications();
             }
 
             // ADIM 4: Anonim RC kullanıcısını gerçek ownerId'ye bağla
