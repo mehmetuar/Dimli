@@ -639,3 +639,34 @@ gerekir; mevcut ölçekte tek instance, canlı test tek instance'a bağlandı).
 Server build ✓ + lint (yalnız önceden var olan e2e + any). Client `tsc` (yalnız `LocationStep`) + build ✓ +
 `cap sync` ✓. Deploy sırası: önce sunucu (A+B — TestFlight'a anında etki), sonra client (C) yeni native sürüm.
 Deploy sonrası Render log'u her alıcının FCM sonucunu (`FCM gönderildi` / `FCM send failed (code)`) net gösterir.
+
+---
+
+## 18. Push token oluşmuyor — §16/§17'nin yan etkileri (2026-06-30)
+
+> Belirti: Yasin'de `pushToken=NULL` ve izin verse de yeni token oluşmuyordu; Mehmet42 (çıkış yapmamış)
+> sorunsuz. iOS native yapı doğru (aps-environment=production). İki bağımsız regresyon — ikisi de bu
+> haftaki push işinden:
+
+### Bug 1 (client) — çıkışta `deleteToken()` token üretimini bozuyordu
+- §16'da eklenen `unregisterPushOnLogout` `FirebaseMessaging.deleteToken()` çağırıyordu. iOS'ta deleteToken
+  sonrası APNs yeniden tetiklenmediği için `getToken()` null döner; üstelik `_initialized=true` getToken'dan
+  ÖNCE set ediliyordu (tekrar deneme yok) ve `removeAllListeners()` tokenReceived güvenlik ağını kaldırıyordu.
+  → **çıkış yapan kullanıcı yeniden kaydolamıyordu**.
+- **Düzeltme (`pushNotificationService.ts`):** `deleteToken()` + `removeAllListeners()` + `resetPushNotifications`
+  + logout'taki `localStorage.removeItem` **kaldırıldı**. Listener'lar `_listenersAdded` ile **bir kez**
+  kurulur (idempotent `setupListeners`), token **her `initializePushNotifications` çağrısında** yeniden
+  alınıp gönderilir (tek-seferlik guard yok). `unregisterPushOnLogout` artık **yalnız server DELETE**
+  (hesap-değişimi güvenliği DELETE + unbind-on-register'da; cihaz token'ı silinmez). `useBusinessRegister`
+  kayıt sonrası `initializePushNotifications()` eklendi (eksikti).
+
+### Bug 2 (server) — `invalid-argument` geçerli token'ı siliyordu
+- §17'deki FCM cleanup `messaging/invalid-argument`'i invalidToken sayıyordu; ama FCM bunu **bozuk payload**
+  (örn. boş gövde) için de döndürür → geçerli token yanlışlıkla NULL'lanıp döngüye giriyordu.
+- **Düzeltme (`firebase.service.ts`):** invalidToken artık yalnız `registration-token-not-registered` +
+  `invalid-registration-token` (token'a özgü kesin hatalar). `invalid-argument` loglanır ama token silinmez.
+
+### Anında kurtarma + deploy
+Server Fix 2 deploy → geçerli token bir daha silinmez. Yasin **uygulamayı sil-kur + izin** → temiz token
+kaydolur. Kalıcı çözüm (deleteToken'sız akış) yeni client build ile. **Önce server, sonra client build.**
+Doğrulama: server build/lint ✓, client tsc/build/cap sync ✓ (yalnız önceden var olan hatalar).

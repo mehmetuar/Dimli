@@ -86,10 +86,12 @@ export class FirebaseService {
     } catch (e) {
       const code: string =
         (e?.errorInfo?.code as string) || (e?.code as string) || 'unknown';
+      // Yalnız TOKEN'a özgü kesin hatalarda token'ı geçersiz say. 'invalid-argument'
+      // FCM tarafından bozuk PAYLOAD için de döndürülür (örn. boş gövde) → onu
+      // invalidToken sayMA, yoksa geçerli token yanlışlıkla silinir.
       const invalidToken =
         code === 'messaging/registration-token-not-registered' ||
-        code === 'messaging/invalid-registration-token' ||
-        code === 'messaging/invalid-argument';
+        code === 'messaging/invalid-registration-token';
       this.logger.warn(
         `FCM send failed (${code}) token ${token?.slice(0, 20)}...: ${e.message}`,
       );
