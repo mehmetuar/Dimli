@@ -56,8 +56,33 @@ export class BusinessOwnerService {
     return Array.isArray(saved) ? saved[0] : saved;
   }
 
+  // Bkz. UsersService.updatePushToken: bir cihaz token'ı global olarak TEK hesaba
+  // bağlı olmalı. Token'ı önce HER İKİ tablodaki diğer satırlardan çöz, sonra bu
+  // işletme sahibinin satırına yaz — tek transaction.
   async updatePushToken(id: string, pushToken: string): Promise<void> {
-    await this.businessOwnerRepository.update(id, { pushToken });
+    if (!pushToken) return;
+    await this.businessOwnerRepository.manager.transaction(async (em) => {
+      await em.query(
+        'UPDATE "user" SET "pushToken" = NULL WHERE "pushToken" = $1',
+        [pushToken],
+      );
+      await em.query(
+        'UPDATE "business_owner" SET "pushToken" = NULL WHERE "pushToken" = $1 AND id <> $2',
+        [pushToken, id],
+      );
+      await em.query(
+        'UPDATE "business_owner" SET "pushToken" = $1 WHERE id = $2',
+        [pushToken, id],
+      );
+    });
+  }
+
+  // Çıkışta çağrılır: yalnızca bu sahibin satırını id ile temizler.
+  async clearPushToken(id: string): Promise<void> {
+    await this.businessOwnerRepository.query(
+      'UPDATE "business_owner" SET "pushToken" = NULL WHERE id = $1',
+      [id],
+    );
   }
 
   async updatePassword(id: string, passwordHash: string): Promise<void> {

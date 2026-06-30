@@ -119,7 +119,7 @@ export class ReservationsService {
         await this.notificationsService.create({
           userId: player.id,
           type: 'MATCH_REMINDER',
-          title: '⏳ Maçın Başlamasına 2 Saat Kaldı!',
+          title: 'Maçın Başlamasına 2 Saat Kaldı!',
           message: `${businessName} - ${pitchName} sahasındaki maçınız saat ${timeStr}'da başlayacak. Hazırlanmayı unutmayın!`,
           relatedId: reservation.id,
           read: false,
@@ -222,8 +222,8 @@ export class ReservationsService {
               await this.notificationsService.create({
                 userId: player.id,
                 type: 'SYSTEM',
-                title: '❌ Maç Yapılacak Saat Doldu',
-                message: `⚠️ Bu saat için saha ayrılmış durumda. İşletme sahibi saati doluya geçirdi.`,
+                title: 'Maç Yapılacak Saat Doldu',
+                message: `Bu saat için saha ayrılmış durumda. İşletme sahibi saati doluya geçirdi.`,
                 relatedId: pending.id,
                 read: false,
                 metadata: {
@@ -273,8 +273,8 @@ export class ReservationsService {
             await this.notificationsService.create({
               userId: userId,
               type: 'SYSTEM',
-              title: '⚠️ İlan Saat Dolduğu İçin Kaldırıldı',
-              message: `⚠️ Bu saat için saha ayrılmış durumda. İşletme sahibi saati doluya geçirdi.`,
+              title: 'İlan Saat Dolduğu İçin Kaldırıldı',
+              message: `Bu saat için saha ayrılmış durumda. İşletme sahibi saati doluya geçirdi.`,
               relatedId: ann.id,
               read: false,
               metadata: {
@@ -900,8 +900,8 @@ export class ReservationsService {
           await this.notificationsService.create({
             userId: player.id,
             type: 'SYSTEM',
-            title: '⚽ Maçınız Kesinleşti!',
-            message: `${businessName} - ${pitchName}\n${notifDateStr} ${notifDayName.charAt(0).toUpperCase() + notifDayName.slice(1)} | ${notifTimeStr}\n\nTakımım sayfasından yaklaşan maçlarınızı görüntüleyebilirsiniz. İyi oyunlar! 🏆`,
+            title: 'Maçınız Kesinleşti!',
+            message: `${businessName} - ${pitchName}\n${notifDateStr} ${notifDayName.charAt(0).toUpperCase() + notifDayName.slice(1)} | ${notifTimeStr}\n\nTakımım sayfasından yaklaşan maçlarınızı görüntüleyebilirsiniz. İyi oyunlar!`,
             relatedId: reservation.id,
             read: false,
             metadata: {
@@ -965,7 +965,7 @@ export class ReservationsService {
               conflict.teamId === reservation.teamId
                 ? conflict.team
                 : conflict.opponentTeam,
-              `⚠️ Maç İptal Edildi - Saat Çakışması\n\nFarklı bir sahadaki maçınız onaylandı, maç saatleri çakışıyor.\n{{CLOCK}} Onaylanan maç: ${conflictTimeStr} - ${conflictEndTimeStr}\n\nBu rezervasyon iptal edildi.`,
+              `Maç İptal Edildi - Saat Çakışması\n\nFarklı bir sahadaki maçınız onaylandı, maç saatleri çakışıyor.\n{{CLOCK}} Onaylanan maç: ${conflictTimeStr} - ${conflictEndTimeStr}\n\nBu rezervasyon iptal edildi.`,
               { type: 'TIME_CONFLICT_CANCELLED', reservationId: conflict.id },
             );
 
@@ -1014,7 +1014,7 @@ export class ReservationsService {
             await this.notificationsService.create({
               userId: playerId,
               type: 'SYSTEM',
-              title: '⚠️ Maç İptal - Saat Çakışması',
+              title: 'Maç İptal - Saat Çakışması',
               message: `Aynı saatte farklı bir sahadaki maçınız onaylandığı için bu rezervasyon iptal edildi.`,
               relatedId: conflict.id,
               read: false,
@@ -1035,7 +1035,7 @@ export class ReservationsService {
             await this.notificationsService.create({
               userId: playerId,
               type: 'SYSTEM',
-              title: '⚠️ Maç İptal - Saat Çakışması',
+              title: 'Maç İptal - Saat Çakışması',
               message: `Rakibinizin aynı saatte farklı bir maçı kesinleştiği için bu maç iptal edilmiştir.`,
               relatedId: conflict.id,
               read: false,
@@ -1086,7 +1086,7 @@ export class ReservationsService {
             await this.notificationsService.create({
               userId: captainId as string,
               type: 'SYSTEM',
-              title: '⚠️ İlan Kaldırıldı - Saat Çakışması',
+              title: 'İlan Kaldırıldı - Saat Çakışması',
               message: `Aynı saatte başka bir sahadaki maçınız onaylandığı için ${ann.date} - ${ann.time} saatindeki ilanınız kaldırıldı.`,
               relatedId: ann.id,
               read: false,
@@ -1104,7 +1104,7 @@ export class ReservationsService {
               await this.notificationsService.create({
                 userId: pId,
                 type: 'SYSTEM',
-                title: '⚠️ İlan Kaldırıldı - Saat Çakışması',
+                title: 'İlan Kaldırıldı - Saat Çakışması',
                 message: `Aynı saatte başka bir sahadaki maçınız onaylandığı için ${ann.date} - ${ann.time} saatindeki ilanınız kaldırıldı.`,
                 relatedId: ann.id,
                 read: false,
@@ -1210,7 +1210,7 @@ export class ReservationsService {
           );
 
           const businessName = reservation.pitch?.business?.name || 'İşletme';
-          const notifTitle = '⚠️ İlan Saat Dolduğu İçin Kaldırıldı';
+          const notifTitle = 'İlan Saat Dolduğu İçin Kaldırıldı';
           const notifMessage = `${businessName}, bu saat için farklı bir maçı kesinleştirdi. ${approvedDateStr} - ${approvedTimeStr} saatindeki rakip arama ilanınız kaldırıldı.`;
 
           for (const ann of conflictingAnnouncements) {
@@ -1352,7 +1352,7 @@ export class ReservationsService {
               await this.notificationsService.create({
                 userId: player.id,
                 type: 'SYSTEM',
-                title: '✅ Saat Yeniden Boşaldı!',
+                title: 'Saat Yeniden Boşaldı!',
                 message: `İşletme saati tekrar boşa çevirdi. Yerinizi ayırtmak için saha ile iletişime geçin.`,
                 relatedId: rej.id,
                 read: false,
@@ -1412,7 +1412,7 @@ export class ReservationsService {
             await this.notificationsService.create({
               userId: player.id,
               type: 'SYSTEM',
-              title: '⚠️ İşletme Onayı Kaldırdı',
+              title: 'İşletme Onayı Kaldırdı',
               message: `Kesinleşen maçınızın onayı işletme tarafından kaldırıldı. Rezervasyon tekrar 'Onay Bekliyor' durumuna döndü.`,
               relatedId: reservation.id,
               read: false,
@@ -1475,7 +1475,7 @@ export class ReservationsService {
                   await this.notificationsService.create({
                     userId: player.id,
                     type: 'SYSTEM',
-                    title: '🌟 Şansın Devam Ediyor!',
+                    title: 'Şansın Devam Ediyor!',
                     message: `İşletme diğer takımın onayını kaldırdı. Reddedilen rezervasyonunuz tekrar "Onay Bekliyor" olarak güncellendi.`,
                     relatedId: conflict.id,
                     read: false,
@@ -1546,7 +1546,7 @@ export class ReservationsService {
         await this.notificationsService.create({
           userId: player.id,
           type: 'SYSTEM',
-          title: `💬 İşletmeden Mesaj: ${businessName}`,
+          title: `İşletmeden Mesaj: ${businessName}`,
           message: note,
           relatedId: reservation.id,
           read: false,
@@ -2306,7 +2306,7 @@ export class ReservationsService {
           await this.notificationsService.create({
             userId: targetCaptainId,
             type: 'SYSTEM',
-            title: '🕒 Yeni Saat Teklifi',
+            title: 'Yeni Saat Teklifi',
             message: `${proposerName} kaptanı yeni bir saat önerdi: ${dateStr}`,
             relatedId: reservation.id,
             read: false,

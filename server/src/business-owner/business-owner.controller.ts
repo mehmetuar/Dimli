@@ -33,6 +33,14 @@ export class BusinessOwnerController {
     return { success: true };
   }
 
+  // Çıkışta çağrılır: bu işletme sahibinin push token'ını siler.
+  @UseGuards(JwtAuthGuard)
+  @Delete('push-token')
+  async clearPushToken(@Request() req: { user: Express.User }) {
+    await this.businessOwnerService.clearPushToken(req.user.id);
+    return { success: true };
+  }
+
   @Get('notifications')
   async getNotifications(@Query('ownerId') ownerId: string) {
     return this.notificationsService.findByOwner(ownerId);

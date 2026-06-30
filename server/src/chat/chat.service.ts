@@ -1046,7 +1046,7 @@ export class ChatService {
       await this.notificationsService.create({
         userId: recipientId,
         type: 'REMATCH_PROPOSAL',
-        title: '📩 Yeni Maç Teklifi!',
+        title: 'Yeni Maç Teklifi!',
         message: `${userTeam.name} takımından rövanş teklifi: ${formattedDate} ${dayName.charAt(0).toUpperCase() + dayName.slice(1)} ${data.time} - ${businessName} ${pitchName}`,
         relatedId: savedChallenge.id,
         metadata: {
@@ -1240,7 +1240,7 @@ export class ChatService {
       await this.notificationsService.create({
         userId: proposerTeam.captain.id,
         type: 'CHALLENGE',
-        title: 'Rövanş Teklifi Kabul Edildi! ✅',
+        title: 'Rövanş Teklifi Kabul Edildi!',
         message: `${userTeam.name} rövanş teklifinizi kabul etti. Sohbet kanalı oluşturuldu.`,
         relatedId: newChannel.id,
         metadata: {

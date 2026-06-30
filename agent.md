@@ -485,3 +485,68 @@ Server `npm run build` ✓ + lint (yalnız önceden var olan e2e parse hatası +
 `tsc --noEmit` (yalnız önceden var olan `LocationStep` window.google) + `vite build` ✓. Manuel: sabit/manuel
 kapalı veya dolu bir slota ilan aç / meydan oku / challenge kabul → 409 + net uyarı; yeni PENDING rezervasyon
 oluşmaz.
+
+---
+
+## 15. Dış bildirim (push notification) mimarisi ve düzeltmeleri — 2026-06-30
+
+> iOS'ta tespit edilen 3 sorun (mimari ortak → Android'de de geçerli) giderildi. FCM altyapısı:
+> Firebase Admin (`server/src/firebase/firebase.service.ts sendToDevice`), client
+> `@capacitor-firebase/messaging` (`client/services/pushNotificationService.ts`). Bildirimler
+> `notifications.service.ts create()` üzerinden DB + websocket (`gateway 'notification'`) + FCM.
+
+### Kritik mimari: push token TEK kolon modeli
+- Token **tek `pushToken` varchar kolonu** olarak hem `user` hem `business_owner` satırında tutulur
+  (ayrı tablo/platform/isActive YOK). Client rol'e göre `PATCH /users/push-token` veya
+  `/business-owner/push-token`'a yazar. **Bir cihaz = bir hesap** (çok-cihaz/çok-hesap aynı kolonda olmaz).
+
+### Sorun 1 — bildirimlerde emoji/ikon (çözüldü, "her yerde temiz")
+- **Kaynak temizliği:** sistem-üretimi tüm bildirim `title`/`message` literallerinden dekoratif emoji
+  çıkarıldı (`notifications.service.ts`, `reservations.service.ts` ~12 literal, `chat.service.ts`
+  REMATCH/CHALLENGE başlıkları). Bu hem DB'ye yazılanı hem in-app zili temizler.
+- **Push sınırı güvenlik ağı:** `notifications.service.ts cleanPushText()` (emoji `\p{Extended_Pictographic}`
+  + VS16/ZWJ strip → whitespace sadeleştir → trim → uzunluk sınırı) `create()` push'larında
+  title+body'ye uygulanır. **Sohbet push gövdesine UYGULANMAZ** (kullanıcı emoji'si meşru) — onun
+  yerine `stripChatMarkers()` `{{TOKEN}}`/`[ICON:..]` işaretlerini temizler (eskiden push'a ham
+  `{{STADIUM}}` gidiyordu — ayrı hataydı). Sohbet başlığı yalnız whitespace/uzunluk normalize edilir
+  (gönderen adındaki emoji'ye dokunulmaz).
+- **In-app (tarihsel kayıtlar dahil):** `client/utils/notificationText.ts stripNotificationEmoji()`
+  (⚠️ **'u' bayrağı YOK** — eski/MIUI WebView `\p{}`/`u` desteklemeyip parse-time kırabilir; surrogate
+  çiftleri + BMP sembol aralıkları açıkça taranır). `NotificationItem.tsx` (müşteri),
+  `BusinessNotificationsPage.tsx` + `BusinessNotificationsPanel.tsx` (işletme) title+message'a uygular.
+
+### Sorun 2 — hesap değişiminde eski hesabın bildirimi (çözüldü)
+- **Kök neden:** çıkışta token temizlenmiyordu + kayıtta token diğer hesaplardan çözülmüyordu →
+  aynı cihaz token'ı birden çok hesaba bağlanıyordu (canlı kanıt: `ctRnr6BN…` 3 user + 1 owner'da).
+- **Birincil fix — unbind-on-register:** `UsersService.updatePushToken` /
+  `BusinessOwnerService.updatePushToken` artık **tek transaction** içinde token'ı HER İKİ tablodaki
+  diğer satırlardan NULL'lar, sonra çağırana yazar → bir token global olarak tek hesaba bağlı. App
+  start/login'de yeniden kayıt olduğu için **mevcut bozulmayı kendi kendine iyileştirir** (deploy +
+  cihaz açılışı sonrası baseline sorgu boşalır).
+- **Çıkış temizliği (savunma derinliği):** `@Delete('push-token')` (her iki controller, JwtAuthGuard,
+  yalnız çağıranın satırını **id ile** temizler). Client `AuthContext.logout()` →
+  `unregisterPushOnLogout()` (`pushNotificationService.ts`): clearAuthSession'dan ÖNCE DELETE çağrısı +
+  `FirebaseMessaging.deleteToken()` + `localStorage 'pushToken'` sil + `resetPushNotifications()`
+  (`_initialized=false` + `removeAllListeners()` → listener birikmesi/erken-return düzeltir).
+
+### Sorun 3 — uygulama ön plandayken push (çözüldü, "sessiz")
+- **Gateway presence:** `app.gateway.ts` `activeUsers: Map<userId, sayaç>` (boolean değil SAYAÇ —
+  çok-soket). Bağlan→+1 (foreground varsay), `presence:active`/`presence:inactive` (client emit),
+  disconnect→-1. `isUserActive(userId)` push baskılamada okunur. `pingInterval/pingTimeout=10s` (ölü
+  soketi hızlı düşür; swipe-kill'de `presence:inactive` ulaşmazsa fallback).
+- **Baskılama:** `isUserActive(recipient)` true ise FCM gönderilmez — `create()` (user+owner yolu),
+  `sendChatPushToParticipants` (alıcı bazında filtre), ve 4 doğrudan-push metodu
+  (joinRequest/playerRemoved/joinRequestAccepted/jokerInvite). Uygulama-içi websocket olayı
+  (`'notification'`/`'newMessage'`) zaten iletildiğinden in-app rozet/liste anlık güncellenir, banner çıkmaz.
+- **Client:** `App.tsx appStateChange` → öne gelince `socket.emit('presence:active')` (+clearBadge),
+  arka plana alınınca **ilk satırda (await'siz)** `socket.emit('presence:inactive')` (`window.__socket`).
+- İşletme sahibi JWT'si de `JWT_SECRET` ile imzalı → owner soketleri de bağlanır, presence owner için çalışır.
+
+### Doğrulama
+Server build ✓ + lint (yalnız önceden var olan e2e + `any` uyarıları). Client `tsc --noEmit` (yalnız
+önceden var olan `LocationStep`) + `vite build` ✓. `cleanPushText`/`stripNotificationEmoji` node ile
+test edildi (tüm emoji gider, `·`/`—`/Türkçe korunur). DB baseline (salt-okunur) alındı; **deploy + cihaz
+açılışı sonrası** `SELECT "pushToken",count(*) FROM "user" ... HAVING count(*)>1` ve user↔owner ortak token
+sorguları BOŞ dönmeli. **Opsiyonel:** mevcut `ctRnr6BN…` 4'lü bağlanması için tek seferlik SQL dedupe
+(canlı yazma, onayla) — yoksa ilk yeniden-kayıtta kendi kendine iyileşir. Client değişiklikleri (çıkış
+temizliği + presence) **yeni native sürüm** ister; sunucu eski client'larla da doğru çalışır.

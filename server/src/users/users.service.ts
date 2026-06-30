@@ -215,8 +215,35 @@ export class UsersService {
     await this.usersRepository.update(id, { password: hashedPassword });
   }
 
+  // Bir cihaz push token'ı global olarak TEK hesaba bağlı olmalıdır. Aksi halde
+  // aynı cihazda hesap değiştirildiğinde (çıkış yapılmadan) önceki hesabın
+  // bildirimleri yeni hesaba düşer. Bu yüzden token'ı önce HER İKİ tablodaki
+  // diğer tüm satırlardan çöz, sonra çağıranın satırına yaz — hepsi tek transaction.
   async updatePushToken(id: string, pushToken: string): Promise<void> {
-    await this.usersRepository.update(id, { pushToken });
+    if (!pushToken) return;
+    await this.usersRepository.manager.transaction(async (em) => {
+      await em.query(
+        'UPDATE "user" SET "pushToken" = NULL WHERE "pushToken" = $1 AND id <> $2',
+        [pushToken, id],
+      );
+      await em.query(
+        'UPDATE "business_owner" SET "pushToken" = NULL WHERE "pushToken" = $1',
+        [pushToken],
+      );
+      await em.query('UPDATE "user" SET "pushToken" = $1 WHERE id = $2', [
+        pushToken,
+        id,
+      ]);
+    });
+  }
+
+  // Çıkışta çağrılır: yalnızca çağıranın kendi satırını temizler (token değeriyle
+  // DEĞİL, id ile — yarış halinde başka hesabın yeniden kaydettiği token'ı silmemek için).
+  async clearPushToken(id: string): Promise<void> {
+    await this.usersRepository.query(
+      'UPDATE "user" SET "pushToken" = NULL WHERE id = $1',
+      [id],
+    );
   }
 
   async changePassword(

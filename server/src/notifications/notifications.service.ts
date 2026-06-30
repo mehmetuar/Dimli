@@ -64,7 +64,7 @@ export class NotificationsService {
     this.usersRepository
       .findOne({ where: { id: saved.userId } })
       .then((user) => {
-        if (user?.pushToken) {
+        if (user?.pushToken && !this.gateway?.isUserActive(saved.userId)) {
           void this.firebaseService.sendToDevice(
             user.pushToken,
             'Katılım İsteği',
@@ -100,7 +100,7 @@ export class NotificationsService {
     this.usersRepository
       .findOne({ where: { id: playerId } })
       .then((user) => {
-        if (user?.pushToken) {
+        if (user?.pushToken && !this.gateway?.isUserActive(playerId)) {
           void this.firebaseService.sendToDevice(
             user.pushToken,
             'Takımdan Çıkarıldınız',
@@ -137,7 +137,7 @@ export class NotificationsService {
     this.usersRepository
       .findOne({ where: { id: userId } })
       .then((user) => {
-        if (user?.pushToken) {
+        if (user?.pushToken && !this.gateway?.isUserActive(userId)) {
           void this.firebaseService.sendToDevice(
             user.pushToken,
             'Katılma İsteği Onaylandı',
@@ -177,15 +177,17 @@ export class NotificationsService {
       (userPushTypes.has(saved.type) ||
         (saved.type === 'SYSTEM' &&
           userSystemPushTypes.has(saved.metadata?.type as string)));
-    if (isUserPush) {
+    // Uygulama ön plandayken (kullanıcı içerideyken) OS push gönderme — websocket
+    // 'notification' olayı yukarıda zaten iletildi (rozet/liste anlık güncellenir).
+    if (isUserPush && !this.gateway?.isUserActive(saved.userId)) {
       this.usersRepository
         .findOne({ where: { id: saved.userId } })
         .then((user) => {
           if (user?.pushToken) {
             void this.firebaseService.sendToDevice(
               user.pushToken,
-              saved.title || 'Yeni Bildirim',
-              saved.message || '',
+              this.cleanPushText(saved.title) || 'Yeni Bildirim',
+              this.cleanPushText(saved.message),
               { type: saved.metadata?.type || saved.type },
             );
           }
@@ -201,15 +203,19 @@ export class NotificationsService {
       'BUSINESS_APPLICATION_APPROVED',
       'BUSINESS_APPLICATION_REJECTED',
     ]);
-    if (businessPushTypes.has(saved.type) && saved.userId) {
+    if (
+      businessPushTypes.has(saved.type) &&
+      saved.userId &&
+      !this.gateway?.isUserActive(saved.userId)
+    ) {
       this.businessOwnerRepository
         .findOne({ where: { id: saved.userId } })
         .then((owner) => {
           if (owner?.pushToken) {
             void this.firebaseService.sendToDevice(
               owner.pushToken,
-              saved.title || 'Yeni Bildirim',
-              saved.message || '',
+              this.cleanPushText(saved.title) || 'Yeni Bildirim',
+              this.cleanPushText(saved.message),
               { type: saved.type },
             );
           }
@@ -270,11 +276,12 @@ export class NotificationsService {
     this.usersRepository
       .findOne({ where: { id: jokerId } })
       .then((user) => {
-        if (user?.pushToken) {
+        if (user?.pushToken && !this.gateway?.isUserActive(jokerId)) {
           void this.firebaseService.sendToDevice(
             user.pushToken,
-            'Joker Daveti ⚡',
-            saved.message || 'Seni maça joker olarak davet ediyorlar!',
+            'Joker Daveti',
+            this.cleanPushText(saved.message) ||
+              'Seni maça joker olarak davet ediyorlar!',
             { type: 'JOKER_INVITE' },
           );
         }
@@ -451,9 +458,17 @@ export class NotificationsService {
     const recipients = participantUserIds.filter((uid) => uid !== senderId);
     if (!recipients.length) return;
 
-    const title = this.buildChatTitle(senderName, channelType, channelName);
+    // Sohbet başlığı gönderen adını içerir (kullanıcı seçimi) → emoji'ye dokunma,
+    // sadece whitespace sadeleştir + uzunluk sınırı. Gövde kullanıcı/sistem mesajı:
+    // {{...}}/[ICON:...] token'larını temizle ama kullanıcının emoji'sine dokunma;
+    // sonra OS banner için 120'ye kırp.
+    const title = this.buildChatTitle(senderName, channelType, channelName)
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 80);
+    const stripped = this.stripChatMarkers(content);
     const body =
-      content.length > 120 ? content.substring(0, 117) + '...' : content;
+      stripped.length > 120 ? stripped.substring(0, 117) + '...' : stripped;
 
     const users = await this.usersRepository.find({
       where: { id: In(recipients) },
@@ -475,9 +490,11 @@ export class NotificationsService {
       );
     }
 
+    // Uygulama ön plandaki alıcılara OS push gönderme — 'newMessage' websocket olayı
+    // zaten tüm katılımcılara iletildi (sohbet anlık açılır/rozet güncellenir).
     await Promise.allSettled(
       users
-        .filter((u) => u.pushToken)
+        .filter((u) => u.pushToken && !this.gateway?.isUserActive(u.id))
         .map((u) =>
           this.firebaseService.sendToDevice(
             u.pushToken,
@@ -505,5 +522,31 @@ export class NotificationsService {
       default:
         return senderName;
     }
+  }
+
+  // Push bildirimleri için SİSTEM üretimi metni temizler: emoji/piktograf + variation
+  // selector + ZWJ çıkar, satır sonu/fazla boşluğu tek boşluğa indir, trim, uzunluk
+  // sınırı. \p{Extended_Pictographic} (u-flag) ⚠️/⏳/✅/❌ gibi sembolleri de yakalar.
+  // Kullanıcının yazdığı sohbet içeriğine UYGULANMAZ (oradaki emoji meşrudur).
+  cleanPushText(text: string | null | undefined, maxLen = 178): string {
+    if (!text) return '';
+    return text
+      .replace(/\p{Extended_Pictographic}/gu, '') // emoji/piktograf
+      .replace(/️/g, '') // variation selector (örn. ⚠️'deki görünmez parça)
+      .replace(/‍/g, '') // zero-width joiner (bileşik emoji)
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, maxLen);
+  }
+
+  // Sohbet sistem mesajları {{STADIUM}} / [ICON:name] token'ları içerir (uygulama
+  // içinde SVG'ye çevrilir). Push'a düz metin gitmesi için bunları temizler;
+  // kullanıcının yazdığı emoji'ye DOKUNMAZ.
+  private stripChatMarkers(text: string): string {
+    if (!text) return '';
+    return text
+      .replace(/(\{\{\w+\}\}|\[ICON:\w+\])/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
   }
 }

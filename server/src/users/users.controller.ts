@@ -101,6 +101,15 @@ export class UsersController {
     return { success: true };
   }
 
+  // Çıkışta çağrılır: bu hesabın push token'ını siler ki çıkış sonrası bildirim
+  // bu cihaza düşmesin.
+  @UseGuards(JwtAuthGuard)
+  @Delete('push-token')
+  async clearPushToken(@Request() req: { user: Express.User }) {
+    await this.usersService.clearPushToken(req.user.id);
+    return { success: true };
+  }
+
   @UseGuards(JwtAuthGuard)
   @Post('change-password')
   @HttpCode(HttpStatus.OK)
