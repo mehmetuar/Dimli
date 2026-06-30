@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../../../services/api';
 import { getToken, decodeTokenPayload } from '../../../../services/authStorage';
+import { useSocket } from '../../../../contexts/SocketContext';
 import { Challenge } from '../../../../types';
 
 export interface JoinRequest {
@@ -49,26 +50,28 @@ export const useNotifications = () => {
     const [successMessage, setSuccessMessage] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
     const navigate = useNavigate();
+    const socket = useSocket();
     const [selectedJoinRequest, setSelectedJoinRequest] = useState<JoinRequest | null>(null);
     const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
 
     useEffect(() => {
         fetchData();
 
-        const socket = (window as any).__socket;
-        if (socket) {
-            const handleRefresh = () => fetchData();
-            socket.on('notification', handleRefresh);
-            socket.on('newChallenge', handleRefresh);
-            socket.on('joinRequest', handleRefresh);
+        // Reaktif socket (useSocket) — socket bağlanınca/değişince listener yeniden bağlanır.
+        // Eskiden (window as any).__socket deps:[] ile okunuyordu; socket sonradan bağlanırsa
+        // listener hiç takılmıyordu.
+        if (!socket) return;
+        const handleRefresh = () => fetchData();
+        socket.on('notification', handleRefresh);
+        socket.on('newChallenge', handleRefresh);
+        socket.on('joinRequest', handleRefresh);
 
-            return () => {
-                socket.off('notification', handleRefresh);
-                socket.off('newChallenge', handleRefresh);
-                socket.off('joinRequest', handleRefresh);
-            };
-        }
-    }, []);
+        return () => {
+            socket.off('notification', handleRefresh);
+            socket.off('newChallenge', handleRefresh);
+            socket.off('joinRequest', handleRefresh);
+        };
+    }, [socket]);
 
     const getCurrentUserId = () => {
         const token = getToken();

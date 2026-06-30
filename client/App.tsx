@@ -380,6 +380,9 @@ function AppContent() {
       // websocket bildirimi yeterli), arka plana alınınca tekrar push gönderir.
       const sock = (window as any).__socket;
       if (state.isActive) {
+        // iOS arka planda socket'i askıya alır → ön plana gelince ölü socket'i hemen
+        // canlandır (backoff bekleme). Sunucu her bağlanmada kullanıcıyı aktif işaretler.
+        if (sock && !sock.connected) sock.connect();
         if (sock?.connected) sock.emit('presence:active');
         clearBadge();
         // Konum takibini SADECE izin verilmişse başlat. İzin yoksa poll() (getCurrentPosition)

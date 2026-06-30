@@ -550,3 +550,53 @@ açılışı sonrası** `SELECT "pushToken",count(*) FROM "user" ... HAVING coun
 sorguları BOŞ dönmeli. **Opsiyonel:** mevcut `ctRnr6BN…` 4'lü bağlanması için tek seferlik SQL dedupe
 (canlı yazma, onayla) — yoksa ilk yeniden-kayıtta kendi kendine iyileşir. Client değişiklikleri (çıkış
 temizliği + presence) **yeni native sürüm** ister; sunucu eski client'larla da doğru çalışır.
+
+> **Güncelleme (2026-06-30):** §15 tek seferlik DB temizliği **yapıldı** (onaylı): `ctRnr6BN…`'in
+> 3 user + 1 owner kopyası NULL'landı; doğrulama sorguları boş döndü. Commit'ler `0a1d0b9` (server) +
+> `1302b34` (client) `main`'e push'landı, Render'da aktif.
+
+---
+
+## 16. Socket gerçek-zaman + ön plan push düzeltmesi (KRİTİK, 2026-06-30)
+
+> §15 deploy sonrası iki belirti: (1) sohbetteyken mesaj anlık gelmiyor (çık-gir → REST refetch ile
+> görünüyor), (2) ön plan push baskılaması çalışmıyor (push gelmeye devam). **Tek kök neden.**
+
+### Kök neden: açılışta socket HİÇ bağlanmıyordu (auth refactor regresyonu)
+- `AuthProvider` oturumu **async** yükler (`initAuth()`, Capacitor Preferences) ve state set eder ama
+  açılışta `auth:tokenChanged` **göndermiyordu**. `SocketProvider` ise mount'ta senkron `getToken()`
+  ile bağlanmayı deniyordu. React **çocuk effect'leri ebeveynden ÖNCE** çalıştırır → SocketProvider
+  effect'i `initAuth` daha çağrılmadan çalışıp token'ı `null` görüyor, bir daha denemiyordu →
+  **socket tüm oturum kapalı.** Sonuç: `newMessage` ulaşmaz + sunucu kullanıcıyı aktif görmez
+  (`isUserActive=false`) → ön plan push'u baskılanmaz. ~2 ay önceki senkron `localStorage` → async
+  Preferences refactor'ının (`da5dcc3`) gizli regresyonu; push+REST belirtiyi maskeliyordu.
+- **Kanıt:** canlı test — taze client deploy edilmiş sunucuya WS ile **233ms'de** bağlandı (sunucu
+  sadece geçersiz test token'ı için düşürdü) → sunucu/WS sağlıklı, sorun %100 client.
+
+### Düzeltme (yalnız client — yeni native sürüm ister; sunucu DEĞİŞMEDİ)
+- **`SocketContext.tsx`** artık **token-driven**: `useAuth()` token'ına bağlı tek `useEffect([token])`.
+  Token gelir gelmez bağlanır; login/logout/hesap-değişimi/expiry token state'iyle yönetilir.
+  **StrictMode açık** (`index.tsx`) → cleanup closure'daki `s`'i kapatır, `socketRef`/`__socket`/state'i
+  **`=== s` koşuluyla** temizler (ikinci çalıştırmanın socket'ini null'lamaz). io opsiyonları sertleşti:
+  `reconnectionAttempts: Infinity` (eski `10` kalıcı pes ediyordu), `transports:['websocket','polling']`
+  (fallback), `reconnectionDelay 1000`/`Max 5000`. connect/disconnect/connect_error log'lanır.
+- **`AuthContext.tsx`**: artık ölü `auth:tokenChanged` dispatch'leri (4 adet) kaldırıldı; token state
+  değişimi socket'i sürüyor. **`auth:sessionExpired` KORUNDU** (api.ts 401 → token=null → socket teardown).
+- **`App.tsx`** `appStateChange` isActive: ölü socket'i `sock.connect()` ile canlandırır (iOS arka
+  planda askıya alır), sonra `presence:active`.
+- **`useNotifications.ts`**: `(window as any).__socket` (deps `[]`, reconnect'te bağlanmıyordu) yerine
+  reaktif `useSocket()` + `[socket]`.
+- ⚠️ **Edge — bozuk/expired token reconnect fırtınası:** `Infinity` ile sonsuz dener; 401→`sessionExpired`
+  →token=null teardown ile durur, `reconnectionDelayMax` sınırlar, `initAuth` expired token'ı null'lar.
+
+### Neden ön plan push'u da düzelir
+Socket ön planda güvenilir bağlanınca sunucu `handleConnection`'da kullanıcıyı aktif işaretler →
+`isUserActive=true` → FCM atlanır. `1302b34`'teki `presence:active/inactive` emit arka planı hassaslaştırır.
+
+### Doğrulama
+Client `tsc --noEmit` (yalnız önceden var olan `LocationStep`) + `vite build` ✓ + `npx cap sync` ✓
+(CocoaPods encoding hatası için `LANG=en_US.UTF-8` gerekti). Cihazda: açılışta `[socket] connect` log'u +
+sunucuda `Client connected`; 2 cihaz aynı sohbette anlık mesaj; ön planda push gelmez, arka planda gelir;
+resume'da otomatik reconnect. **Fallback:** düzeltme sonrası hâlâ aksarsa Render **instance sayısını**
+kontrol et (>1 ise `server.to(room)`/in-memory presence instance-başına çalışır → Socket.IO Redis adapter
+gerekir; mevcut ölçekte tek instance, canlı test tek instance'a bağlandı).

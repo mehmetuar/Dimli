@@ -49,7 +49,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setToken(null);
             setOwnerId(null);
             setRole(null);
-            window.dispatchEvent(new CustomEvent('auth:tokenChanged'));
         };
         window.addEventListener('auth:sessionExpired', onExpired);
         return () => window.removeEventListener('auth:sessionExpired', onExpired);
@@ -60,7 +59,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setToken(newToken);
         setOwnerId(null);
         setRole('user');
-        window.dispatchEvent(new CustomEvent('auth:tokenChanged'));
     };
 
     const loginAsBusiness = async (newToken: string, newOwnerId: string) => {
@@ -68,7 +66,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setToken(newToken);
         setOwnerId(newOwnerId);
         setRole('business_owner');
-        window.dispatchEvent(new CustomEvent('auth:tokenChanged'));
     };
 
     const logout = async () => {
@@ -81,7 +78,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setToken(null);
         setOwnerId(null);
         setRole(null);
-        window.dispatchEvent(new CustomEvent('auth:tokenChanged'));
     };
 
     return (
