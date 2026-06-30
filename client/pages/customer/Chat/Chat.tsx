@@ -30,7 +30,7 @@ export const Chat: React.FC = () => {
     selectedChannelId, setSelectedChannelId,
     channels, activeChannel,
     messages, currentUser,
-    input, setInput,
+    input, setInput, isSending,
     showTactic, tactic,
     isInviteModalOpen, setIsInviteModalOpen,
     matchDetailData,
@@ -747,11 +747,12 @@ export const Chat: React.FC = () => {
                   </div>
                   <button
                     onPointerDown={(e) => e.preventDefault()}
+                    disabled={isSending || !input.trim()}
                     onClick={() => {
                       handleSend();
                       inputRef.current?.focus();
                     }}
-                    className={`p-3 rounded-xl transition-all ${input.trim() ? 'bg-turf-600 text-white shadow-lg shadow-turf-600/20 scale-100' : 'bg-slate-800 text-slate-500 scale-95'}`}
+                    className={`p-3 rounded-xl transition-all ${input.trim() && !isSending ? 'bg-turf-600 text-white shadow-lg shadow-turf-600/20 scale-100' : 'bg-slate-800 text-slate-500 scale-95 opacity-60'}`}
                   >
                     <Send className="w-5 h-5" />
                   </button>

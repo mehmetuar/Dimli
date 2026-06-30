@@ -24,6 +24,8 @@ export const useChat = () => {
     const [channels, setChannels] = useState<any[]>([]);
     const [messages, setMessages] = useState<any[]>([]);
     const [input, setInput] = useState('');
+    const [isSending, setIsSending] = useState(false);
+    const sendingRef = useRef(false); // çift gönderim guard'ı (hızlı 2 dokunuş)
     const [showTactic, setShowTactic] = useState(false);
     const [tactic, setTactic] = useState('');
     const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
@@ -217,19 +219,29 @@ export const useChat = () => {
     };
 
     const handleSend = async () => {
-        if (!input.trim() || !selectedChannelId) return;
+        const text = input.trim();
+        if (!text || !selectedChannelId) return;
+        // Re-entry guard: gönderim sürerken ikinci dokunuş yok sayılır.
+        if (sendingRef.current) return;
+        sendingRef.current = true;
+        setIsSending(true);
+        // Input'u await'ten ÖNCE temizle → ikinci dokunuş boş input'la erken döner.
+        setInput('');
         try {
-            await api.post(`/chat/channels/${selectedChannelId}/messages`, { content: input });
-            setInput('');
+            await api.post(`/chat/channels/${selectedChannelId}/messages`, { content: text });
             const response = await api.get(`/chat/channels/${selectedChannelId}/messages`);
             const mappedMessages = response.data.map((msg: any) => mapMsg(msg, currentUser?.id));
             setMessages(mappedMessages);
             await api.post(`/chat/channels/${selectedChannelId}/read`);
         } catch (error: any) {
+            setInput(text); // hata → metni geri yükle ki kullanıcı tekrar gönderebilsin
             const data = error.response?.data;
             if (data?.statusCode === 403 && 'chatBanExpiry' in data) {
                 setBanModalExpiry(data.chatBanExpiry ?? null);
             }
+        } finally {
+            sendingRef.current = false;
+            setIsSending(false);
         }
     };
 
@@ -453,6 +465,7 @@ export const useChat = () => {
         channels, activeChannel,
         messages, currentUser,
         input, setInput,
+        isSending,
         showTactic, setShowTactic,
         tactic, setTactic,
         isInviteModalOpen, setIsInviteModalOpen,
