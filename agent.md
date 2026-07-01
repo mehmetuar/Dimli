@@ -811,3 +811,44 @@ kötüye kullanıldığına dair iz YOK. Deploy: **yalnız server (Render)**; es
 `npm run build` ✓ (exit 0); `npm run lint` **iyileşti** (önceki 4 sorun → 1; yalnız önceden var olan
 e2e parse hatası kaldı, 3 eski `any` uyarısı da temizlendi). reservations.service `any` sayısı 0.
 **Deploy: yalnız server (Render); client değişmedi, eski sürümlerle uyumlu.**
+
+---
+
+## 22. Tanrı-servisleri bölme — 1/3: admin.service (facade + delegation, 2026-07-01)
+
+> agent.md §21'de tespit edilen 3 tanrı-servisten **ilki**: `admin.service.ts` (1237 satır) cohesive
+> alt-servislere bölündü. reservations (2427) ve chat (1812) **ayrı task**. **SIFIR davranış
+> değişikliği** — yalnız kod organizasyonu.
+
+### Desen: Facade + Delegation
+- `AdminService` bir **facade** olarak kalır: 26 public metot birebir imzayla alt-servislere delege eder.
+  → `admin.controller` + dış çağıranlar DEĞİŞMEDİ. Metot gövdeleri **VERBATIM** taşındı (mantık aynı).
+- **1237 → 150 satır** (facade). Mantık `admin/services/` altında 8 dosyaya dağıldı:
+  - `admin.util.ts` — `applySearch()` + `PLAN_LABELS` + `PITCH_COUNT_TO_PLAN` (paylaşılan util).
+  - `admin-stats-cache.service.ts` — `AdminStatsCacheService`: `statsCache` Map + `cached()` + `bust()`.
+    **Cache invalidation decouple edildi:** mutasyon servisleri (business/subscription) `bust('statistics')`
+    çağırır; statistics/moderation `cached()` kullanır (eski facade-içi 6 `statsCache.delete` çağrısı taşındı).
+  - `admin-auth.service.ts` (login/createAdmin), `admin-business.service.ts` (`listBusinesses` çekirdeği
+    + başvurular + işletme yaşam döngüsü + `appendReview` + `notifyOwnerOfApplicationResult`),
+    `admin-pitch-review.service.ts` (saha onayları + değişiklik istekleri + `sendOwnerNotification`),
+    `admin-moderation.service.ts` (şikayet + chat-ban + silme raporu), `admin-statistics.service.ts`,
+    `admin-subscription.service.ts` (`seedMissingSubscriptions`).
+- `admin.module.ts`: 7 alt-servis + `AdminStatsCacheService` `providers`'a eklendi; `forFeature`/import'lar
+  (Facilities/Notifications/Jwt) korundu. Alt-servisler export edilmez (dahili).
+- ⚠️ **İki bildirim deseni bilinçli AYRI:** `notifyOwnerOfApplicationResult` (başvuru → ws+FCM,
+  `notificationsService.create`) business-service'te; `sendOwnerNotification` (saha/değişiklik → DB-only,
+  `notificationRepository`) pitch-review'da. Birleştirilmedi.
+- ⚠️ **Facade imza korundu (kritik):** `admin.controller` `Parameters<AdminService['updateApplication']>[1]`
+  kullanıyor → facade `updateApplication` imzası `Parameters<AdminBusinessService['updateApplication']>[1]`
+  ile türetildi.
+
+### Doğrulama
+`npm run build` ✓ (exit 0) + `npm run lint` temiz (yalnız önceden var olan e2e parse). Temiz rebuild
+sonrası `require('./dist/app.module.js')` OK (import interop + DI grafiği bütün; tüm alt-servisler
+providers'da, repo'lar forFeature'da). Yalnız server; deploy Render. Deploy sonrası admin panel akışları
+smoke-test önerilir (giriş/başvuru/işletme/saha/şikayet/istatistik/seed).
+
+### Sıradaki (ayrı task)
+- **reservations.service (2427)** bölme — facade + Query/RecurringClosure/Proposal/Lifecycle/Support.
+- **chat.service (1812)** bölme — facade + Message/Channel/Rematch/Joker/Membership (forwardRef korunur).
+- Ertelenen T3 tip kalemleri (business-owner enrichment, chat/notification metadata, auth.service login).
