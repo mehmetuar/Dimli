@@ -1,7 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { PitchChangeRequest } from '../pitches/entities/pitch-change-request.entity';
+import {
+  PitchChangeRequest,
+  PitchChangeData,
+} from '../pitches/entities/pitch-change-request.entity';
 import { Pitch } from '../pitches/entities/pitch.entity';
 import { BusinessOwner } from '../business-owner/entities/business-owner.entity';
 import { Notification } from '../notifications/notification.entity';
@@ -23,7 +26,7 @@ export class PitchChangeRequestsService {
     pitchId: string,
     businessId: string,
     type: 'CUSTOM_FACILITY' | 'PHOTO_UPDATE',
-    requestedData: any,
+    requestedData: PitchChangeData,
   ): Promise<PitchChangeRequest> {
     const pitch = await this.pitchRepository.findOne({
       where: { id: pitchId },

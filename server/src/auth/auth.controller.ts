@@ -57,11 +57,13 @@ export class AuthController {
 
       const { password: _password, ...result } = user;
       return result;
-    } catch (error: any) {
-      console.error('Registration error:', error.message);
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : 'Registration failed';
+      console.error('Registration error:', message);
       return {
         statusCode: 400,
-        message: error.message || 'Registration failed',
+        message: message || 'Registration failed',
         error: 'Bad Request',
       };
     }

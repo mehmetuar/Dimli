@@ -11,9 +11,11 @@ export class AdminJwtAuthGuard extends AuthGuard('admin-jwt') {
     return super.canActivate(context);
   }
 
-  handleRequest(err: any, user: any) {
+  handleRequest<TUser = unknown>(err: unknown, user: TUser): TUser {
     if (err || !user) {
-      throw err || new UnauthorizedException('Admin yetkisi gerekli.');
+      throw err instanceof Error
+        ? err
+        : new UnauthorizedException('Admin yetkisi gerekli.');
     }
     return user;
   }

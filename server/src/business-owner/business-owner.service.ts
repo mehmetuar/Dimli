@@ -48,10 +48,10 @@ export class BusinessOwnerService {
     private ratingsService: RatingsService,
   ) {}
 
-  async create(createBusinessOwnerDto: any): Promise<BusinessOwner> {
-    const owner = this.businessOwnerRepository.create(
-      createBusinessOwnerDto as DeepPartial<BusinessOwner>,
-    );
+  async create(
+    createBusinessOwnerDto: DeepPartial<BusinessOwner>,
+  ): Promise<BusinessOwner> {
+    const owner = this.businessOwnerRepository.create(createBusinessOwnerDto);
     const saved = await this.businessOwnerRepository.save(owner);
     return Array.isArray(saved) ? saved[0] : saved;
   }

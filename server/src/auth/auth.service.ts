@@ -10,7 +10,7 @@ import { UsersService } from '../users/users.service';
 import { BusinessOwnerService } from '../business-owner/business-owner.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { DataSource, Repository, MoreThanOrEqual } from 'typeorm';
+import { DataSource, DeepPartial, Repository, MoreThanOrEqual } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { RegisterBusinessDto } from './dto/register-business.dto';
 import { Business } from '../business/entities/business.entity';
@@ -534,7 +534,7 @@ export class AuthService {
     };
   }
 
-  async registerBusinessOwner(data: any) {
+  async registerBusinessOwner(data: DeepPartial<BusinessOwner>) {
     const salt = await bcrypt.genSalt();
     const hashedPassword = await bcrypt.hash(data.password as string, salt);
 

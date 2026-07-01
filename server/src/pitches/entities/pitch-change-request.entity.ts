@@ -12,6 +12,14 @@ import { Pitch } from './pitch.entity';
 export type ChangeRequestType = 'CUSTOM_FACILITY' | 'PHOTO_UPDATE';
 export type ChangeRequestStatus = 'pending' | 'approved' | 'rejected';
 
+// CUSTOM_FACILITY isteğinde requestedData tek `{ facility }`, currentData mevcut
+// `{ facilities }` dizisini (snapshot) taşır; PHOTO_UPDATE isteğinde ikisi de `{ imageUrl }`.
+export interface PitchChangeData {
+  facility?: string;
+  facilities?: string[];
+  imageUrl?: string;
+}
+
 @Entity('pitch_change_requests')
 export class PitchChangeRequest {
   @PrimaryGeneratedColumn('uuid')
@@ -34,10 +42,10 @@ export class PitchChangeRequest {
   status: ChangeRequestStatus;
 
   @Column({ type: 'json' })
-  requestedData: any; // { facility: string } or { imageUrl: string }
+  requestedData: PitchChangeData; // { facility } veya { imageUrl }
 
   @Column({ type: 'json', nullable: true })
-  currentData: any; // existing value before change
+  currentData: PitchChangeData; // değişiklikten önceki değer
 
   @Column({ nullable: true })
   rejectionReason: string;

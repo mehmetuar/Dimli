@@ -1,5 +1,6 @@
 import { Controller, Post, Get, Body, Param } from '@nestjs/common';
 import { PitchChangeRequestsService } from './pitch-change-requests.service';
+import type { PitchChangeData } from '../pitches/entities/pitch-change-request.entity';
 
 @Controller('pitches')
 export class PitchChangeRequestsController {
@@ -12,7 +13,7 @@ export class PitchChangeRequestsController {
     body: {
       businessId: string;
       type: 'CUSTOM_FACILITY' | 'PHOTO_UPDATE';
-      requestedData: any;
+      requestedData: PitchChangeData;
     },
   ) {
     return this.service.createRequest(

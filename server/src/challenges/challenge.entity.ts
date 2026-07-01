@@ -6,6 +6,8 @@ import {
   ManyToOne,
   JoinColumn,
 } from 'typeorm';
+import type { Team } from '../teams/team.entity';
+import type { MatchAnnouncement } from '../match-announcements/match-announcement.entity';
 
 @Entity('challenges')
 export class Challenge {
@@ -23,14 +25,14 @@ export class Challenge {
 
   @ManyToOne('Team', { eager: true })
   @JoinColumn({ name: 'fromTeamId' })
-  fromTeam: any;
+  fromTeam: Team;
 
   @Column({ nullable: true })
   fromTeamId: string;
 
   @ManyToOne('MatchAnnouncement', { eager: true, onDelete: 'CASCADE' })
   @JoinColumn({ name: 'toMatchId' })
-  match: any;
+  match: MatchAnnouncement;
 
   @Column({ nullable: true })
   toMatchId: string;

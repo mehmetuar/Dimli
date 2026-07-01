@@ -6,6 +6,7 @@ import {
   JoinColumn,
   Index,
 } from 'typeorm';
+import type { Team } from '../teams/team.entity';
 
 @Entity()
 export class User {
@@ -84,7 +85,7 @@ export class User {
   @Column('float', { nullable: true })
   longitude: number | null;
 
-  @ManyToOne('Team', (team: any) => team.players, { nullable: true })
+  @ManyToOne('Team', (team: Team) => team.players, { nullable: true })
   @JoinColumn({ name: 'team_id' })
-  team: any; // Using 'any' or import Team to avoid circular dependency issues for now, or use forwardRef
+  team: Team;
 }

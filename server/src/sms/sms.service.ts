@@ -50,11 +50,15 @@ export class SmsService {
       this.logger.log(
         `OTP SMS gönderildi: ${normalizedPhone} (Job ID: ${responseData.jobid})`,
       );
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const err = error as {
+        response?: { data?: { description?: string; code?: string } };
+        message?: string;
+      };
       const errorMessage =
-        error?.response?.data?.description ||
-        error?.response?.data?.code ||
-        error.message;
+        err?.response?.data?.description ||
+        err?.response?.data?.code ||
+        err.message;
       this.logger.error(`SMS gönderilemedi: ${errorMessage}`);
       throw new Error('SMS gönderilemedi. Lütfen daha sonra tekrar deneyin.');
     }
