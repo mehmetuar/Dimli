@@ -741,3 +741,73 @@ skip → 2 kez; hata→retry → 2 kez; GET → 2 kez. **Client değişmez.** De
 `cd server && npm run build` ✓ + `npm run lint` temiz (yalnız önceden var olan e2e parse + `any`
 uyarıları). Canlı DB salt-okunur teyit (2026-07-01): business/subscription tablolarında bu açıkların
 kötüye kullanıldığına dair iz YOK. Deploy: **yalnız server (Render)**; eski client'larla uyumlu.
+
+---
+
+## 21. Server yapısal denetim + tip güvenliği turu (T1-T2-T3, 2026-07-01)
+
+> `server/` kapsamlı yapısal denetim yapıldı (ölü kod, `any`, modülerlik, büyük dosyalar, DB
+> tablo/kolon kullanımı). Bulgulardan kullanıcının seçtiği **T1 (controller `@Body:any`→DTO), T2
+> (reservations `any` temizliği), T3 (odaklı `any`/tip güvenliği)** uygulandı. **Yalnız server;
+> client DEĞİŞMEDİ.**
+
+### T1 — Controller DTO'ları + pitches güvenlik + orphan temizliği ✅
+- **T1.1 (pitches — §20 "kalan"ı kapatır):** `pitches.controller.ts` tüm 7 mutasyon ucu (`POST`,
+  `PATCH :id`, `:id/resubmit`, `:id/status`, `:id/closed-days`, `PUT :id/time-slots`, `DELETE :id`)
+  artık `@UseGuards(JwtAuthGuard)` + **sahiplik kontrolü** (`pitches.service`
+  `assertPitchOwnedBy`/`assertBusinessOwnedBy`, pitch→business→owner). Yeni `pitches/dto/*` (Create/
+  Update/Resubmit/TimeSlot/ClosedDays/SetTimeSlots). → **saha kendini `approvalStatus:'approved'`
+  yapamaz**, kimliksiz biri fiyat/silme yapamaz. GET uçları müşteri için AÇIK bırakıldı (guard yok).
+- **T1.2:** `teams/dto/create-team.dto.ts` — captainId/fairPlayScore DTO'da yok (whitelist ayıklar).
+- **T1.3:** `subscription/dto/revenuecat-webhook.ts` — **class-DTO değil INTERFACE** (`import type`);
+  webhook gerçek event'i `body.event` içinde iç içe → katı whitelist `event`'i düşürüp CANLI
+  entegrasyonu bozardı. Controller `@Body` tipi düzeldi; `handleWebhook` iç `any`'si (harici, kabul).
+- **T1.4:** orphan `POST /businesses` route + `businessService.create()` **silindi** (hiç çağıranı
+  yoktu; auth kaydı `new Business()`+`queryRunner.save`, business-owner `businessRepository.save`).
+  → §20'deki "kalan POST /businesses" maddesi de böylece kapandı.
+
+### T2 — reservations.service `any` temizliği ✅
+- **33 `any` → 0.** `team.captain` gerçek `@OneToOne` ilişki, sorgularda yüklü → cast'ler savunma
+  amaçlıydı, **runtime birebir aynı** (yetki kontrolleri 2268/2271/2351/2354 dahil güvenlik
+  zayıflamaz). `any[]`→`User[]`, `savedReservation.id`, `CreateReservationDto`, `EntityManager`/
+  `Team`/`Record<string,unknown>` paramları, `null as unknown as Date`. Caller `challenges.service`
+  `'MATCH' as const`.
+
+### T3 — Odaklı `any`/tip güvenliği (yapılanlar) ✅
+- **T3.6** `catch (error: unknown)` + narrowing (auth/teams controller, sms.service).
+- **T3.4** `business-owner.create(dto: DeepPartial<BusinessOwner>)` + `auth.service.registerBusinessOwner`.
+- **T3.1** entity ilişki tipleri: `challenge.entity` (fromTeam/match), `user.entity` (team) →
+  **`import type` + gerçek tip** (string relation formu KORUNUR; nodenext'te `import type` ZORUNLU).
+  **Sıfır cascade** (kod optional-chaining/truthy kullanıyor). Yan etki: eslint --fix
+  `match-announcements.service` `user.team.id as string`→`user.team.id` (gereksiz cast kalktı).
+- **T3.3** passport payload: yeni `auth/types.ts` `JwtPayload`; jwt/admin-jwt strategy `payload:
+  JwtPayload`; admin guard `handleRequest<TUser>(err: unknown, user)` (base generic imzası).
+- **T3.2** `pitch-change-request.entity` `requestedData`/`currentData` → `PitchChangeData`
+  (`facility?/facilities?:string[]/imageUrl?`; ⚠️ `pitch.facilities` `string[]` simple-array).
+
+### T3 — Bilinçli ERTELENENLER (cascade/entanglement, düşük değer — ayrı task)
+- **business-owner dashboard enrichment cast'leri** (`(res.team as any).playedMatchCount` — entity'ye
+  ad-hoc alan MUTASYONU + `(r:any)` callback'lerinde slotTime/status-enum bağı; canlı dashboard
+  regresyon riski). Fix: `Team & {playedMatchCount?...}` tipli cast + `r.status===ReservationStatus.X`.
+- **chat/notification `metadata: any`** (gerçekten polimorfik; katı tip yüzlerce yazımı bozar,
+  index-signature güvenlik katmaz). **auth.service** `validateUser/login/loginBusinessOwner`
+  param+return tipleri (`Express.User` augmentation'ına bağlı cascade).
+- Ayrıca üst-seviye backlog: **büyük dosya bölme** (T4-T6 tanrı-servisler: reservations 2427 / chat
+  1812 / admin 1237 satır), `@nestjs/config`, global exception filter, chat.service raw-SQL tipleme,
+  `noImplicitAny:true`.
+
+### Denetimden çıkan kalıcı bilgiler (DB, salt-okunur 2026-07-01)
+- **Şema entity'lerle TAM hizalı:** 26 tablo/249 kolon hepsi entity'lerle eşleşiyor → `synchronize:
+  true`'ya rağmen **öksüz tablo/kolon YOK**.
+- **`facilities` tablosu = 14 default imkânın ana referans listesi** (ölü DEĞİL); `pitches.facilities`
+  bunları **`simple-array` (string[])** olarak DENORMALIZE tutar + özel eklenenler inline (FK yok).
+- **`user_blocks` KULLANILIYOR** ama şu an 0 satır (özellik bağlı, veri yok — ölü değil).
+- RevenueCat kolonları dolu (4/4), push token adopsiyonu user 7/15 & owner 2/4 → aktif özellikler.
+- Kod hijyeni iyi: ölü dosya/yedek/dead-comment/duplicate-util YOK; yardımcılar merkezî.
+- **nodenext dersi (§ tsconfig):** decorated signature'da (`@Body`, `@ManyToOne` alanı) kullanılan
+  INTERFACE/type `import type` ile alınmalı (TS1272), yoksa build kırılır.
+
+### Doğrulama
+`npm run build` ✓ (exit 0); `npm run lint` **iyileşti** (önceki 4 sorun → 1; yalnız önceden var olan
+e2e parse hatası kaldı, 3 eski `any` uyarısı da temizlendi). reservations.service `any` sayısı 0.
+**Deploy: yalnız server (Render); client değişmedi, eski sürümlerle uyumlu.**
