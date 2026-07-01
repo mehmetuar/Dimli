@@ -24,12 +24,15 @@ if (!global.crypto) {
   });
 }
 import { ValidationPipe } from '@nestjs/common';
+import { DuplicateRequestInterceptor } from './common/duplicate-request.interceptor';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.enableCors();
   app.useWebSocketAdapter(new IoAdapter(app));
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+  // Uygulama geneli: aynı kullanıcının hızlı çift-tıklaması → tek istek/tek bildirim.
+  app.useGlobalInterceptors(new DuplicateRequestInterceptor());
   await app.listen(process.env.PORT ?? 3000, '0.0.0.0');
 }
 void bootstrap();

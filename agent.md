@@ -670,3 +670,27 @@ Deploy sonrası Render log'u her alıcının FCM sonucunu (`FCM gönderildi` / `
 Server Fix 2 deploy → geçerli token bir daha silinmez. Yasin **uygulamayı sil-kur + izin** → temiz token
 kaydolur. Kalıcı çözüm (deleteToken'sız akış) yeni client build ile. **Önce server, sonra client build.**
 Doğrulama: server build/lint ✓, client tsc/build/cap sync ✓ (yalnız önceden var olan hatalar).
+
+---
+
+## 19. Çift-tıklama = çift istek: uygulama-geneli backend guard (2026-07-01)
+
+> Sorun: hızlı çift/üçlü tıklama backend'de çift kayıt VE çift bildirim oluşturabiliyordu. Client
+> guard'ları (isLoading/isSending) bazı butonlarda vardı ama backend'de **check-then-insert yarışı**
+> mevcuttu (challenges/joker/join-request/rating/team/reservation), ayrıca 8+ kabul/ret butonu client
+> guard'sızdı. İstek: garantinin **backend'de** verilmesi.
+
+### Çözüm: global `DuplicateRequestInterceptor` (yalnız sunucu → mevcut sürümlere anında etki)
+- `server/src/common/duplicate-request.interceptor.ts` + `main.ts app.useGlobalInterceptors(...)`.
+- Yalnız mutasyon (POST/PATCH/PUT/DELETE). Anahtar = `(user.id||ip) | method | path | sha1(stableJSON(body))`.
+- **In-flight + 5sn TTL:** aynı anahtarlı duplicate handler'ı TEKRAR ÇALIŞTIRMAZ; ilk isteğin **aynı
+  yanıtını** döndürür (409 yok, client hata görmez). Handler tam bir kez → **tek kayıt + tek bildirim**
+  (bildirim de handler içinde üretildiğinden çift gitmez). Hata → anahtar hemen silinir (gerçek retry çalışır).
+- **Skip:** sohbet mesajı (`/chat/channels/:id/messages` — meşru ardışık aynı mesaj) + `/files/upload`
+  (multipart). GET vb. dokunulmaz.
+- In-memory (tek Render instance varsayımı; çok-instance'ta Redis'e taşınmalı).
+
+### Doğrulama
+Server build ✓ + lint ✓ (yalnız önceden var olan e2e + any). Derlenmiş interceptor'a karşı davranış testi
+(node, 6/6): aynı-key eşzamanlı → handler 1 kez + aynı yanıt; farklı body/farklı user → 2 kez; chat mesaj
+skip → 2 kez; hata→retry → 2 kez; GET → 2 kez. **Client değişmez.** Deploy: yalnız server (Render).
