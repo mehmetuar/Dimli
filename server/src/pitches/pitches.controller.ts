@@ -7,16 +7,27 @@ import {
   Patch,
   Delete,
   Put,
+  UseGuards,
+  Request,
 } from '@nestjs/common';
 import { PitchesService } from './pitches.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { CreatePitchDto } from './dto/create-pitch.dto';
+import { UpdatePitchDto } from './dto/update-pitch.dto';
+import { ResubmitPitchDto } from './dto/resubmit-pitch.dto';
+import { SetTimeSlotsDto, UpdateClosedDaysDto } from './dto/pitch-actions.dto';
 
+// Mutasyon uçları JwtAuthGuard + sahiplik kontrolüyle korunur (sahibi olmayan/kimliksiz biri
+// saha oluşturamaz/düzenleyemez/silemez, approvalStatus gövdeden geçmez). GET uçları müşteri
+// tarafından da kullanıldığı için açık bırakılır.
 @Controller('pitches')
 export class PitchesController {
   constructor(private readonly pitchesService: PitchesService) {}
 
+  @UseGuards(JwtAuthGuard)
   @Post()
-  create(@Body() createPitchDto: any) {
-    return this.pitchesService.create(createPitchDto);
+  create(@Body() dto: CreatePitchDto, @Request() req: { user: Express.User }) {
+    return this.pitchesService.create(dto, req.user.id);
   }
 
   @Get()
@@ -31,27 +42,39 @@ export class PitchesController {
 
   // ===== STATUS & CLOSED DAYS — must be before @Get(':id') / @Patch(':id') =====
 
+  @UseGuards(JwtAuthGuard)
   @Patch(':id/status')
-  toggleStatus(@Param('id') id: string) {
-    return this.pitchesService.toggleStatus(id);
+  toggleStatus(
+    @Param('id') id: string,
+    @Request() req: { user: Express.User },
+  ) {
+    return this.pitchesService.toggleStatus(id, req.user.id);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Patch(':id/closed-days')
   updateClosedDays(
     @Param('id') id: string,
-    @Body() body: { closedDays: string[] },
+    @Body() body: UpdateClosedDaysDto,
+    @Request() req: { user: Express.User },
   ) {
-    return this.pitchesService.updateClosedDays(id, body.closedDays);
+    return this.pitchesService.updateClosedDays(
+      id,
+      body.closedDays,
+      req.user.id,
+    );
   }
 
   // ===== TIME SLOT ENDPOINTS — must be before @Get(':id') =====
 
+  @UseGuards(JwtAuthGuard)
   @Put(':id/time-slots')
   setTimeSlots(
     @Param('id') id: string,
-    @Body() body: { slots: { startTime: string; endTime: string }[] },
+    @Body() body: SetTimeSlotsDto,
+    @Request() req: { user: Express.User },
   ) {
-    return this.pitchesService.setTimeSlots(id, body.slots);
+    return this.pitchesService.setTimeSlots(id, body.slots, req.user.id);
   }
 
   @Get(':id/time-slots')
@@ -66,19 +89,30 @@ export class PitchesController {
     return this.pitchesService.findOne(id);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updatePitchDto: any) {
-    return this.pitchesService.update(id, updatePitchDto);
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdatePitchDto,
+    @Request() req: { user: Express.User },
+  ) {
+    return this.pitchesService.update(id, dto, req.user.id);
   }
 
   // Reddedilen sahanın bilgilerini güncelleyip yeniden admin onayına gönderir
+  @UseGuards(JwtAuthGuard)
   @Patch(':id/resubmit')
-  resubmit(@Param('id') id: string, @Body() updatePitchDto: any) {
-    return this.pitchesService.resubmit(id, updatePitchDto);
+  resubmit(
+    @Param('id') id: string,
+    @Body() dto: ResubmitPitchDto,
+    @Request() req: { user: Express.User },
+  ) {
+    return this.pitchesService.resubmit(id, dto, req.user.id);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.pitchesService.remove(id);
+  remove(@Param('id') id: string, @Request() req: { user: Express.User }) {
+    return this.pitchesService.remove(id, req.user.id);
   }
 }

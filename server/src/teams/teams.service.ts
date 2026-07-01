@@ -12,6 +12,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Team } from './team.entity';
+import { CreateTeamDto } from './dto/create-team.dto';
 import { User } from '../users/user.entity';
 import { UsersService } from '../users/users.service';
 import { RatingsService } from '../ratings/ratings.service';
@@ -77,9 +78,9 @@ export class TeamsService implements OnModuleInit {
     throw new Error('Could not generate unique shortId');
   }
 
-  async create(createTeamDto: any, user: User): Promise<Team> {
-    // Prevent frontend mock captainId from overriding
-    delete createTeamDto.captainId;
+  async create(createTeamDto: CreateTeamDto, user: User): Promise<Team> {
+    // captainId/fairPlayScore DTO'da yok → ValidationPipe(whitelist) istemciden gelmelerini
+    // engeller; captain aşağıda JWT kullanıcısından set edilir.
 
     // Fetch the managed user entity to ensure TypeORM tracks it for the relationship
     const managedUser = await this.usersService.findById(user.id);

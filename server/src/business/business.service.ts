@@ -4,7 +4,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DeepPartial } from 'typeorm';
+import { Repository } from 'typeorm';
 import { Business } from './entities/business.entity';
 import { UpdateBusinessDto } from './dto/update-business.dto';
 import { SubscriptionService } from '../subscription/subscription.service';
@@ -28,13 +28,6 @@ export class BusinessService {
       ...b,
       ownerPhone: b.owner?.phone ?? null,
     };
-  }
-
-  async create(createBusinessDto: any) {
-    const business = this.businessRepository.create(
-      createBusinessDto as DeepPartial<Business>,
-    );
-    return await this.businessRepository.save(business);
   }
 
   async findAll(params: {

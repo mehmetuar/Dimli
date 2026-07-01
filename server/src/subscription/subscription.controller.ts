@@ -9,6 +9,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { SubscriptionService } from './subscription.service';
+import type { RevenueCatWebhookPayload } from './dto/revenuecat-webhook';
 
 @Controller('subscription')
 export class SubscriptionController {
@@ -55,7 +56,7 @@ export class SubscriptionController {
   // RevenueCat webhook — abonelik durumu değişikliklerini dinler
   @Post('webhook/revenuecat')
   async revenuecatWebhook(
-    @Body() body: any,
+    @Body() body: RevenueCatWebhookPayload,
     @Headers('authorization') authHeader: string,
   ) {
     const expectedSecret = process.env.REVENUECAT_WEBHOOK_SECRET || '';

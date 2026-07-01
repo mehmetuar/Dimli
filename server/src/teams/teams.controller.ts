@@ -14,6 +14,7 @@ import {
 import { TeamsService } from './teams.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { User } from '../users/user.entity';
+import { CreateTeamDto } from './dto/create-team.dto';
 import { ChatService } from '../chat/chat.service';
 import { NotificationsService } from '../notifications/notifications.service';
 
@@ -28,7 +29,7 @@ export class TeamsController {
   @UseGuards(JwtAuthGuard)
   @Post()
   async create(
-    @Body() createTeamDto: any,
+    @Body() createTeamDto: CreateTeamDto,
     @Request() req: { user: Express.User },
   ) {
     try {
@@ -36,14 +37,19 @@ export class TeamsController {
         createTeamDto,
         req.user as unknown as User,
       );
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('🔥 TEAM CREATION ERROR 🔥', error);
+      const err = error as {
+        message?: string;
+        detail?: string;
+        stack?: string;
+      };
       throw new HttpException(
         {
           status: HttpStatus.INTERNAL_SERVER_ERROR,
-          error: error.message,
-          detail: error.detail,
-          stack: error.stack,
+          error: err.message,
+          detail: err.detail,
+          stack: err.stack,
         },
         HttpStatus.INTERNAL_SERVER_ERROR,
       );

@@ -2,10 +2,15 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, MoreThan, IsNull, DeepPartial } from 'typeorm';
 import { Pitch } from './entities/pitch.entity';
+import { CreatePitchDto } from './dto/create-pitch.dto';
+import { UpdatePitchDto } from './dto/update-pitch.dto';
+import { ResubmitPitchDto } from './dto/resubmit-pitch.dto';
+import { TimeSlotDto } from './dto/time-slot.dto';
 import { TimeSlot } from './entities/time-slot.entity';
 import {
   Reservation,
@@ -32,12 +37,12 @@ export class PitchesService {
     private businessOwnerRepository: Repository<BusinessOwner>,
   ) {}
 
-  async create(createPitchDto: any) {
+  async create(createPitchDto: CreatePitchDto, ownerId: string) {
     const { timeSlots, ...pitchData } = createPitchDto;
 
-    if (pitchData.businessId) {
-      await this.assertPitchLimitAvailable(pitchData.businessId as string);
-    }
+    // Sahip yalnız kendi işletmesine saha ekleyebilir.
+    await this.assertBusinessOwnedBy(pitchData.businessId, ownerId);
+    await this.assertPitchLimitAvailable(pitchData.businessId);
 
     const pitch = this.pitchesRepository.create({
       ...pitchData,
@@ -50,7 +55,7 @@ export class PitchesService {
 
     // If timeSlots provided during creation, save them
     if (timeSlots && Array.isArray(timeSlots) && timeSlots.length > 0) {
-      const slotEntities = timeSlots.map((slot: any) =>
+      const slotEntities = timeSlots.map((slot: TimeSlotDto) =>
         this.timeSlotRepository.create({
           pitchId: savedPitch.id,
           startTime: slot.startTime,
@@ -62,6 +67,36 @@ export class PitchesService {
     }
 
     return this.findOne(savedPitch.id as string);
+  }
+
+  // ===== OWNERSHIP GUARDS =====
+
+  // Verilen işletmenin sahibi çağıran mı? Değilse 403.
+  private async assertBusinessOwnedBy(
+    businessId: string,
+    ownerId: string,
+  ): Promise<void> {
+    const owner = await this.businessOwnerRepository.findOne({
+      where: { business: { id: businessId } },
+    });
+    if (!owner || owner.id !== ownerId) {
+      throw new ForbiddenException('Bu saha üzerinde yetkiniz yok.');
+    }
+  }
+
+  // Sahayı yükler, mevcut ve çağırana ait olduğunu doğrular; değilse 404/403.
+  private async assertPitchOwnedBy(
+    pitchId: string,
+    ownerId: string,
+  ): Promise<Pitch> {
+    const pitch = await this.pitchesRepository.findOne({
+      where: { id: pitchId, deletedAt: IsNull() },
+    });
+    if (!pitch) {
+      throw new NotFoundException(`Pitch with ID ${pitchId} not found`);
+    }
+    await this.assertBusinessOwnedBy(pitch.businessId, ownerId);
+    return pitch;
   }
 
   // ===== SUBSCRIPTION LIMIT CHECK =====
@@ -94,15 +129,14 @@ export class PitchesService {
 
   // ===== RESUBMIT AFTER REJECTION =====
 
-  async resubmit(pitchId: string, updateData: any) {
-    const pitch = await this.pitchesRepository.findOne({
-      where: { id: pitchId },
-    });
-    if (!pitch)
-      throw new NotFoundException(`Pitch with ID ${pitchId} not found`);
+  async resubmit(
+    pitchId: string,
+    updateData: ResubmitPitchDto,
+    ownerId: string,
+  ) {
+    await this.assertPitchOwnedBy(pitchId, ownerId);
 
     const { timeSlots, ...pitchData } = updateData;
-    delete pitchData.businessId;
 
     await this.pitchesRepository.update(pitchId, {
       ...pitchData,
@@ -114,7 +148,7 @@ export class PitchesService {
     if (timeSlots && Array.isArray(timeSlots)) {
       await this.timeSlotRepository.delete({ pitchId });
       if (timeSlots.length > 0) {
-        const slotEntities = timeSlots.map((slot: any) =>
+        const slotEntities = timeSlots.map((slot: TimeSlotDto) =>
           this.timeSlotRepository.create({
             pitchId,
             startTime: slot.startTime,
@@ -161,15 +195,16 @@ export class PitchesService {
     });
   }
 
-  async update(id: string, updateData: any) {
+  async update(id: string, updateData: UpdatePitchDto, ownerId: string) {
+    await this.assertPitchOwnedBy(id, ownerId);
     return await this.pitchesRepository.update(
       id,
       updateData as Partial<Pitch>,
     );
   }
 
-  async remove(id: string) {
-    await this.findOne(id); // yoksa veya zaten silinmişse NotFoundException
+  async remove(id: string, ownerId: string) {
+    await this.assertPitchOwnedBy(id, ownerId); // yoksa 404 / sahibi değilse 403
 
     const conflicts = await this.getFutureApprovedConflicts(id);
     if (conflicts.length > 0) {
@@ -205,7 +240,8 @@ export class PitchesService {
     }));
   }
 
-  async toggleStatus(pitchId: string) {
+  async toggleStatus(pitchId: string, ownerId: string) {
+    await this.assertPitchOwnedBy(pitchId, ownerId);
     const pitch = await this.findOne(pitchId);
 
     // Only check for conflicts when trying to deactivate
@@ -226,8 +262,12 @@ export class PitchesService {
 
   // ===== CLOSED DAYS =====
 
-  async updateClosedDays(pitchId: string, closedDays: string[]) {
-    await this.findOne(pitchId); // verify exists
+  async updateClosedDays(
+    pitchId: string,
+    closedDays: string[],
+    ownerId: string,
+  ) {
+    await this.assertPitchOwnedBy(pitchId, ownerId);
     await this.pitchesRepository.update(pitchId, { closedDays });
     return this.findOne(pitchId);
   }
@@ -237,9 +277,9 @@ export class PitchesService {
   async setTimeSlots(
     pitchId: string,
     slots: { startTime: string; endTime: string }[],
+    ownerId: string,
   ) {
-    // Verify pitch exists
-    await this.findOne(pitchId);
+    await this.assertPitchOwnedBy(pitchId, ownerId);
 
     // Delete existing slots for this pitch
     await this.timeSlotRepository.delete({ pitchId });
