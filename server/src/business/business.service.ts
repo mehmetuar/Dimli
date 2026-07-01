@@ -6,6 +6,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DeepPartial } from 'typeorm';
 import { Business } from './entities/business.entity';
+import { UpdateBusinessDto } from './dto/update-business.dto';
 import { SubscriptionService } from '../subscription/subscription.service';
 
 interface GeoFilter {
@@ -192,14 +193,27 @@ export class BusinessService {
     return this.mapWithOwnerPhone(business);
   }
 
-  async update(id: string, updateDto: any) {
+  async update(id: string, updateDto: UpdateBusinessDto, ownerId: string) {
     const business = await this.businessRepository.findOne({
       where: { id },
       relations: ['owner'],
     });
     if (!business)
       throw new NotFoundException(`Business with ID ${id} not found`);
-    Object.assign(business, updateDto);
+    if (business.owner?.id !== ownerId)
+      throw new ForbiddenException('Bu işletmeyi düzenleme yetkiniz yok.');
+    // Yalnız izin verilen alanlar yazılır (status/deletedAt gibi hassas alanlar
+    // DTO whitelist'i sayesinde zaten istekten ayıklanmış olur; burada da açıkça
+    // yalnız bilinen alanlar atanarak savunma-derinliği sağlanır).
+    if (updateDto.name !== undefined) business.name = updateDto.name;
+    if (updateDto.address !== undefined) business.address = updateDto.address;
+    if (updateDto.city !== undefined) business.city = updateDto.city;
+    if (updateDto.district !== undefined)
+      business.district = updateDto.district;
+    if (updateDto.latitude !== undefined)
+      business.latitude = updateDto.latitude;
+    if (updateDto.longitude !== undefined)
+      business.longitude = updateDto.longitude;
     return await this.businessRepository.save(business);
   }
 }

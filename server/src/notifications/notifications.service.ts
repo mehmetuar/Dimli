@@ -4,6 +4,7 @@ import {
   Inject,
   forwardRef,
   Logger,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
@@ -242,6 +243,20 @@ export class NotificationsService {
     });
 
     if (!match) throw new Error('Match not found');
+
+    // F1: Davet her zaman match.team adına gönderilir — çağıran o takımın kaptanı
+    // veya yardımcı kaptanı olmalı. Aksi halde herhangi biri başka takım "adına"
+    // joker daveti gönderebilirdi.
+    const invitingTeam = match.team;
+    const isTeamLeader =
+      !!invitingTeam &&
+      (invitingTeam.captainId === inviterId ||
+        (invitingTeam.viceCaptainIds || []).includes(inviterId));
+    if (!isTeamLeader) {
+      throw new ForbiddenException(
+        'Bu takım adına joker daveti gönderme yetkiniz yok.',
+      );
+    }
 
     // Prevent duplicate invites
     const existingInvite = await this.notificationsRepository.findOne({

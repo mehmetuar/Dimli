@@ -236,14 +236,11 @@ export class AdminController {
   /**
    * Aboneliği olmayan veya yanlış planla eşleşmiş işletmeleri otomatik düzeltir.
    * POST /admin/maintenance/seed-subscriptions
-   * Body: { secret: "ADMIN_SEED_SECRET" }  (ek güvenlik katmanı)
+   * Yalnız geçerli admin JWT'siyle çağrılabilir (diğer tüm admin uçları gibi).
    */
+  @UseGuards(AdminJwtAuthGuard)
   @Post('maintenance/seed-subscriptions')
-  async seedSubscriptions(@Body('secret') secret: string) {
-    const expected = process.env.ADMIN_SEED_SECRET || 'dimli-seed-2026';
-    if (secret !== expected) {
-      return { success: false, message: 'Geçersiz secret.' };
-    }
+  async seedSubscriptions() {
     const result = await this.adminService.seedMissingSubscriptions();
     return { success: true, ...result };
   }

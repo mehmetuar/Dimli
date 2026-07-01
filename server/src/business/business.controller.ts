@@ -6,9 +6,13 @@ import {
   Param,
   Patch,
   Query,
+  UseGuards,
+  Request,
 } from '@nestjs/common';
 import { BusinessService } from './business.service';
 import { requireGeoFilter } from '../common/validate-geo.util';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { UpdateBusinessDto } from './dto/update-business.dto';
 
 @Controller('businesses')
 export class BusinessController {
@@ -43,8 +47,15 @@ export class BusinessController {
     return this.businessService.findOne(id);
   }
 
+  // Yalnız işletmenin sahibi kendi işletmesini güncelleyebilir (JWT'den çözülür);
+  // gövde UpdateBusinessDto whitelist'iyle sınırlıdır (status vb. hassas alanlar geçmez).
+  @UseGuards(JwtAuthGuard)
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateDto: any) {
-    return this.businessService.update(id, updateDto);
+  update(
+    @Param('id') id: string,
+    @Body() updateDto: UpdateBusinessDto,
+    @Request() req: { user: Express.User },
+  ) {
+    return this.businessService.update(id, updateDto, req.user.id);
   }
 }

@@ -1396,6 +1396,34 @@ export class ChatService {
     if (!matchChannel)
       throw new NotFoundException('Bağlı maç veya etkinlik grubu bulunamadı.');
 
+    // F2: Anlaşma kanalında olmak yetmez — çağıran, maçtaki iki takımdan birinin
+    // kaptanı/yardımcı kaptanı olmalı (yoksa jokerin kendisi kendini ana gruba
+    // ekleyebilirdi). removeJokerFromChannel ile aynı yetki deseni.
+    const matchDetails = await this.getChannelMatchDetails(matchChannel.id);
+    const inviterUser = await this.userRepository.findOne({
+      where: { id: inviterId },
+      relations: ['team'],
+    });
+    const inviterTeamId = inviterUser?.team?.id;
+    const validTeamIds = [
+      matchDetails?.homeTeam?.id,
+      matchDetails?.awayTeam?.id,
+    ].filter(Boolean);
+    if (!inviterTeamId || !validTeamIds.includes(inviterTeamId)) {
+      throw new ForbiddenException('Bu maçta yetkili değilsiniz.');
+    }
+    const inviterTeam = await this.teamRepository.findOne({
+      where: { id: inviterTeamId },
+    });
+    if (
+      inviterTeam?.captainId !== inviterId &&
+      !inviterTeam?.viceCaptainIds?.includes(inviterId)
+    ) {
+      throw new ForbiddenException(
+        'Joker eklemek için kaptan veya yardımcı kaptan olmalısınız.',
+      );
+    }
+
     // F5: çift-rezervasyon ve joker sayısı tavanı kontrolleri (ekleme öncesi)
     const currentMatch = await this.matchAnnouncementRepository.findOne({
       where: { id: negotiationChannel.relatedMatchId },

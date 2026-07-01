@@ -87,8 +87,8 @@ menü `components/Sidebar.tsx`, ikonlar `components/Icons.tsx`, tema koyu (`bg-[
 | Silinen İşletmeler | `GET /admin/businesses/deleted` | Salt-okunur; ⚠️ sahip bilgisi boş gelir (§7) |
 
 **Backend tarafı:** `server/src/admin/admin.controller.ts` (endpoint'ler) →
-`admin.service.ts` (mantık). Korumalı endpoint'lerin hepsi `@UseGuards(AdminJwtAuthGuard)`;
-istisna: `POST /admin/maintenance/seed-subscriptions` (**guard'sız**, §8/C3).
+`admin.service.ts` (mantık). Korumalı endpoint'lerin **hepsi** `@UseGuards(AdminJwtAuthGuard)`
+(2026-07-01: seed endpoint de guard'landı → artık istisna yok, §8/C3 ✅ / §20).
 
 ---
 
@@ -177,8 +177,9 @@ Mevcut ölçek küçük: ~14 kullanıcı, 5 işletme (3 aktif + 2 silinmiş), 3 
 - C1. **RBAC YOK** — reviewer de suspend/ban/approve yapabiliyor. → `@Roles`+`RolesGuard`.
 - C2. **Audit log YOK** — `approveApplication`/`rejectApplication` adminId alıp `_adminId` olarak
   atıyor. → `admin_audit_log` tablosu + adminId'yi yaz.
-- C3. **Korumasız seed endpoint** (`/admin/maintenance/seed-subscriptions`) + kodda sabit secret
-  (`'dimli-seed-2026'`). → guard ekle / sabit secret kaldır.
+- C3. ✅ **ÇÖZÜLDÜ (2026-07-01, §20):** `/admin/maintenance/seed-subscriptions` artık
+  `@UseGuards(AdminJwtAuthGuard)`'lı; kodda gömülü `'dimli-seed-2026'` fallback secret'ı ve
+  `secret` parametresi tamamen kaldırıldı (admin JWT asıl koruma).
 - C4. JWT localStorage'da; yetki kararı her zaman sunucuda doğrulanmalı.
 
 **D — Veri bütünlüğü → ✅ TASK 2 ELE ALINDI (2026-06-28, rafine ölçümle):**
@@ -290,13 +291,16 @@ InviteJokerModal,ManageJokersModal,JokerDMChatInfoModal}.tsx`, `client/pages/cus
   aktif `MATCH_GROUP` üyeliklerinde **aynı date+time** varsa reddet + takım başına joker sayısı
   `playerCount`'u aşamaz (suistimal kapısı).
 
+**✅ 2026-07-01'de EK OLARAK DÜZELTİLDİ (server, geriye-uyumlu, §20):**
+- **F1 — davet yetkisi:** `sendJokerInvite` artık çağıranın `match.team`'in kaptanı/yardımcı
+  kaptanı olduğunu doğruluyor (aksi halde `ForbiddenException`). Davet her zaman `match.team`
+  adına gittiği için kontrol kesin. (`notifications.service.ts`)
+- **F2 — grup ekleme yetkisi:** `inviteJokerToMatchGroup` artık yalnız anlaşma-kanalı
+  katılımcılığına değil, çağıranın **maçtaki iki takımdan birinin** kaptanı/yardımcı kaptanı
+  olmasına bakıyor (`getChannelMatchDetails` + `teamRepository`; `removeJokerFromChannel` deseni).
+  Joker'in kendini ana gruba eklemesi kapandı. (`chat.service.ts`)
+
 **⏳ AÇIK (henüz yapılmadı):**
-- **F1 (orta):** `sendJokerInvite` çağıranın yetkisini doğrulamıyor → herhangi biri herhangi bir
-  takım "adına" joker daveti gönderebilir. Fix: çağıran maçtaki **iki takımdan birinin** kaptanı/
-  yardımcı kaptanı olmalı.
-- **F2 (orta, gizli):** `invite-joker`'da rol "kim çağırdıysa" mantığıyla; joker'in kendisi
-  çağırırsa davet edeni "joker" diye ekleyebilir (pratik zarar `existingMainParticipant` guard'ı
-  yüzünden sınırlı). Fix: kaptan/yardımcı kaptan kontrolü.
 - **F6 (ölçek):** `getJokers` tam-tablo Haversine (trig satır başına 2×, index kullanılamaz). Fix:
   index kullanan bounding-box ön-filtre (`latitude/longitude BETWEEN`) sonra hassas Haversine.
 - **F7 (orta):** duplicate-davet koruması check-then-insert yarışı + dedup anahtarı `inviterId`'yi
@@ -388,11 +392,14 @@ Bağlantı dizesi bu repoda **tutulmaz** — gerekirse kullanıcıdan iste (bkz.
   (entity tipiyle eşleşir; deploy'da synchronize no-op). Deploy sonrası owner nargile'yi kaldırıp
   resubmit edince timeline 'resubmitted' ekler; admin önceki nedeni timeline'da görür.
 
-### ⚠️ Açık kalan güvenlik borcu (follow-up)
-`PATCH /businesses/:id` (`business.controller.ts`) **hâlâ guard'sız** ve `Object.assign` ile her
-alanı (status dahil!) yazıyor → bir owner teoride kendini `active` yapabilir. Resubmit bu açığı
-**kullanmıyor** (ayrı, güvenli, JWT-türetimli uç). Genel düzeltme: `/businesses` controller'ına
-guard + sahiplik kontrolü (mevcut çağıranları — `BusinessInfoSettings` save vb. — denetleyerek).
+### ✅ Güvenlik borcu (follow-up) — ÇÖZÜLDÜ (2026-07-01, §20)
+`PATCH /businesses/:id` artık `@UseGuards(JwtAuthGuard)` + sahiplik kontrolü (`business.owner.id
+=== req.user.id`, aksi halde `ForbiddenException`) + **`UpdateBusinessDto` beyaz listesi** (yalnız
+`name/address/city/district/latitude/longitude`; `status/deletedAt` gibi alanlar global
+`ValidationPipe(whitelist:true)` ile ayıklanır + service'te açık alan ataması). Owner artık kendini
+`active` yapamaz / silinmiş işletme dirilti­lemez. ⚠️ Kalan: aynı controller'daki `POST /businesses`
+(kayıt) ve `GET` uçları **hâlâ guard'sız** (asıl yetki-yükseltme vektörü PATCH'ti); POST/GET
+sıkılaştırması çağıran denetimiyle ayrı adım.
 
 ---
 
@@ -694,3 +701,43 @@ Doğrulama: server build/lint ✓, client tsc/build/cap sync ✓ (yalnız önced
 Server build ✓ + lint ✓ (yalnız önceden var olan e2e + any). Derlenmiş interceptor'a karşı davranış testi
 (node, 6/6): aynı-key eşzamanlı → handler 1 kez + aynı yanıt; farklı body/farklı user → 2 kez; chat mesaj
 skip → 2 kez; hata→retry → 2 kez; GET → 2 kez. **Client değişmez.** Deploy: yalnız server (Render).
+
+---
+
+## 20. Kritik güvenlik düzeltmeleri: business PATCH + seed endpoint + joker yetki (2026-07-01)
+
+> Denetim (agent.md) sonrası açık kalmış kritik maddelerden kullanıcının seçtiği 3'ü kapatıldı.
+> RBAC (§8/C1) bilinçli kapsam dışı (tek `admin` yeterli, tek başına çalışılıyor). **Hepsi yalnız
+> server → mevcut mobil sürümlere anında etki; client DEĞİŞMEDİ.** Görev 3 (`synchronize:true`) ve
+> Görev 4 (user-delete transaction) kullanıcı tarafından **ayrı task'a** bırakıldı (§8/D3, D4).
+
+### 1. `PATCH /businesses/:id` yetki-yükseltme açığı (§12 follow-up) ✅
+- **Sorun:** uç guard'sızdı ve `Object.assign(business, body)` ile **status dahil** her alanı
+  yazıyordu → owner (hatta token'sız biri geçerli businessId ile) kendini `active` yapabilir /
+  silinmiş işletme diriltebilir / audit alanlarını ezebilirdi.
+- **Fix:** yeni `business/dto/update-business.dto.ts` (beyaz liste: yalnız `name/address/city/
+  district/latitude/longitude`); `business.controller.ts` PATCH'e `@UseGuards(JwtAuthGuard)` + body
+  DTO'ya bağlandı + `req.user.id` service'e geçiyor; `business.service.ts update(id,dto,ownerId)`
+  sahiplik kontrolü (`business.owner.id !== ownerId` → `ForbiddenException`) + `Object.assign`
+  yerine açık alan ataması. Global `ValidationPipe(whitelist:true)` fazla alanları zaten ayıklar
+  (çift katman). Client tek çağıran `BusinessInfoSettings` yalnız bu 6 alanı gönderiyor → bozulmaz.
+- ⚠️ **Kalan:** aynı controller'daki `POST /businesses` (kayıt) + `GET` uçları hâlâ guard'sız
+  (asıl vektör PATCH'ti); POST/GET sıkılaştırması çağıran denetimiyle ayrı adım.
+
+### 2. Korumasız seed endpoint (§8/C3) ✅
+- **Sorun:** `POST /admin/maintenance/seed-subscriptions` guard'sızdı; tek koruma env yoksa koda
+  gömülü `'dimli-seed-2026'` → repo'yu görebilen herkes tüm abonelikleri oluşturup/değiştirebilirdi.
+- **Fix:** `@UseGuards(AdminJwtAuthGuard)` eklendi; sabit secret fallback'i ve `secret` parametresi
+  tamamen kaldırıldı. Artık tüm admin uçları guard'lı — istisna yok.
+
+### 3. Joker davet yetkilendirmesi (§11 F1+F2) ✅
+- **F1** (`sendJokerInvite`): çağıran `match.team`'in kaptanı/yardımcı kaptanı değilse
+  `ForbiddenException` (davet her zaman `match.team` adına gider → kontrol kesin).
+- **F2** (`inviteJokerToMatchGroup`): çağıran maçtaki iki takımdan birinin kaptanı/yardımcı kaptanı
+  olmalı (`getChannelMatchDetails` + `teamRepository`; `removeJokerFromChannel` deseniyle birebir)
+  → joker kendini ana gruba ekleyemez. F6 (Haversine ölçek) / F7 (dedup index) hâlâ açık.
+
+### Doğrulama
+`cd server && npm run build` ✓ + `npm run lint` temiz (yalnız önceden var olan e2e parse + `any`
+uyarıları). Canlı DB salt-okunur teyit (2026-07-01): business/subscription tablolarında bu açıkların
+kötüye kullanıldığına dair iz YOK. Deploy: **yalnız server (Render)**; eski client'larla uyumlu.
