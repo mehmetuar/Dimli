@@ -18,6 +18,13 @@ import { User } from '../users/user.entity';
 import { UserReport } from '../user-reports/user-report.entity';
 import { FacilitiesModule } from '../facilities/facilities.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { AdminStatsCacheService } from './services/admin-stats-cache.service';
+import { AdminAuthService } from './services/admin-auth.service';
+import { AdminStatisticsService } from './services/admin-statistics.service';
+import { AdminSubscriptionService } from './services/admin-subscription.service';
+import { AdminModerationService } from './services/admin-moderation.service';
+import { AdminPitchReviewService } from './services/admin-pitch-review.service';
+import { AdminBusinessService } from './services/admin-business.service';
 
 @Module({
   imports: [
@@ -43,7 +50,17 @@ import { NotificationsModule } from '../notifications/notifications.module';
     }),
   ],
   controllers: [AdminController],
-  providers: [AdminService, AdminJwtStrategy],
+  providers: [
+    AdminService,
+    AdminJwtStrategy,
+    AdminStatsCacheService,
+    AdminAuthService,
+    AdminStatisticsService,
+    AdminSubscriptionService,
+    AdminModerationService,
+    AdminPitchReviewService,
+    AdminBusinessService,
+  ],
   exports: [AdminService],
 })
 export class AdminModule {}
