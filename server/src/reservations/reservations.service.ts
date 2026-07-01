@@ -30,6 +30,8 @@ import { Pitch } from '../pitches/entities/pitch.entity';
 import { BusinessOwner } from '../business-owner/entities/business-owner.entity';
 import { MatchAnnouncement } from '../match-announcements/match-announcement.entity';
 import { User } from '../users/user.entity';
+import { Team } from '../teams/team.entity';
+import { CreateReservationDto } from './dto/create-reservation.dto';
 import { SubscriptionService } from '../subscription/subscription.service';
 import {
   addIstanbulDays,
@@ -95,7 +97,7 @@ export class ReservationsService {
     }
 
     for (const reservation of reservations) {
-      const playersToNotify: any[] = [];
+      const playersToNotify: User[] = [];
 
       // Add Team A players
       if (reservation.team?.players) {
@@ -214,7 +216,7 @@ export class ReservationsService {
 
           // Notifications to players
           try {
-            const playersToNotify: any[] = [];
+            const playersToNotify: User[] = [];
             if (pending.team?.players)
               playersToNotify.push(...pending.team.players);
 
@@ -284,13 +286,12 @@ export class ReservationsService {
             });
           };
 
-          const captainId =
-            (ann.team?.captain as any)?.id || ann.team?.captainId;
-          if (captainId) await notifyUser(captainId as string);
+          const captainId = ann.team?.captain?.id || ann.team?.captainId;
+          if (captainId) await notifyUser(captainId);
 
           if (ann.team?.players) {
             for (const player of ann.team.players) {
-              await notifyUser((player as any).id as string);
+              await notifyUser(player.id);
             }
           }
         }
@@ -588,7 +589,7 @@ export class ReservationsService {
     throw new ConflictException({ message, code: 'SLOT_UNAVAILABLE' });
   }
 
-  async create(createReservationDto: any) {
+  async create(createReservationDto: CreateReservationDto) {
     const pitch = await this.pitchRepository.findOne({
       where: { id: createReservationDto.pitchId },
       relations: ['business', 'business.owner'],
@@ -652,9 +653,7 @@ export class ReservationsService {
         });
 
         if (owner) {
-          const slotTime = new Date(
-            (savedReservation as any).slotTime as string,
-          );
+          const slotTime = new Date(savedReservation.slotTime);
           const dateStr = slotTime.toLocaleDateString('tr-TR', {
             day: 'numeric',
             month: 'long',
@@ -669,10 +668,10 @@ export class ReservationsService {
             type: 'RESERVATION_REQUEST',
             title: 'Yeni Rezervasyon İsteği!',
             message: `${pitch.name} için ${dateStr} saat ${timeStr} dilimine yeni bir istek var.`,
-            relatedId: (savedReservation as any).id,
+            relatedId: savedReservation.id,
             read: false,
             metadata: {
-              reservationId: (savedReservation as any).id,
+              reservationId: savedReservation.id,
               pitchName: pitch.name,
               date: dateStr,
               time: timeStr,
@@ -680,7 +679,7 @@ export class ReservationsService {
             },
           });
           this.logger.log(
-            `Notification sent to business owner ${owner.id} for reservation ${(savedReservation as any).id}`,
+            `Notification sent to business owner ${owner.id} for reservation ${savedReservation.id}`,
           );
         }
       }
@@ -889,7 +888,7 @@ export class ReservationsService {
           minute: '2-digit',
         });
 
-        const playersToNotify: any[] = [];
+        const playersToNotify: User[] = [];
         if (reservation.team?.players) {
           playersToNotify.push(...reservation.team.players);
         }
@@ -1009,7 +1008,7 @@ export class ReservationsService {
           const conflictingPlayerIds = new Set<string>();
           if (conflictingTeam?.players)
             conflictingTeam.players.forEach((p) =>
-              conflictingPlayerIds.add((p as any).id as string),
+              conflictingPlayerIds.add(p.id),
             );
           for (const playerId of conflictingPlayerIds) {
             await this.notificationsService.create({
@@ -1029,9 +1028,7 @@ export class ReservationsService {
           // Rakibinin çakışması nedeniyle maçı iptal edilen (massum) takıma farklı bildirim
           const innocentPlayerIds = new Set<string>();
           if (innocentTeam?.players)
-            innocentTeam.players.forEach((p) =>
-              innocentPlayerIds.add((p as any).id as string),
-            );
+            innocentTeam.players.forEach((p) => innocentPlayerIds.add(p.id));
           for (const playerId of innocentPlayerIds) {
             await this.notificationsService.create({
               userId: playerId,
@@ -1080,12 +1077,11 @@ export class ReservationsService {
           await manager.save(ann);
 
           const annNotifiedIds = new Set<string>();
-          const captainId =
-            (ann.team?.captain as any)?.id || (ann.team as any)?.captainId;
+          const captainId = ann.team?.captain?.id || ann.team?.captainId;
           if (captainId) {
-            annNotifiedIds.add(captainId as string);
+            annNotifiedIds.add(captainId);
             await this.notificationsService.create({
-              userId: captainId as string,
+              userId: captainId,
               type: 'SYSTEM',
               title: 'İlan Kaldırıldı - Saat Çakışması',
               message: `Aynı saatte başka bir sahadaki maçınız onaylandığı için ${ann.date} - ${ann.time} saatindeki ilanınız kaldırıldı.`,
@@ -1099,9 +1095,9 @@ export class ReservationsService {
           }
           if (ann.team?.players) {
             for (const player of ann.team.players) {
-              const pId = (player as any).id;
-              if (!pId || annNotifiedIds.has(pId as string)) continue;
-              annNotifiedIds.add(pId as string);
+              const pId = player.id;
+              if (!pId || annNotifiedIds.has(pId)) continue;
+              annNotifiedIds.add(pId);
               await this.notificationsService.create({
                 userId: pId,
                 type: 'SYSTEM',
@@ -1154,7 +1150,7 @@ export class ReservationsService {
               );
 
               try {
-                const playersToNotify: any[] = [];
+                const playersToNotify: User[] = [];
                 if (other.team?.players)
                   playersToNotify.push(...other.team.players);
 
@@ -1224,12 +1220,11 @@ export class ReservationsService {
             const notifiedPlayerIds = new Set<string>();
 
             // Notify captain first
-            const captainId =
-              (ann.team?.captain as any)?.id || ann.team?.captainId;
+            const captainId = ann.team?.captain?.id || ann.team?.captainId;
             if (captainId) {
-              notifiedPlayerIds.add(captainId as string);
+              notifiedPlayerIds.add(captainId);
               await this.notificationsService.create({
-                userId: captainId as string,
+                userId: captainId,
                 type: 'SYSTEM',
                 title: notifTitle,
                 message: notifMessage,
@@ -1246,10 +1241,9 @@ export class ReservationsService {
             // Notify remaining team players
             if (ann.team?.players) {
               for (const player of ann.team.players) {
-                const playerId = (player as any).id;
-                if (!playerId || notifiedPlayerIds.has(playerId as string))
-                  continue;
-                notifiedPlayerIds.add(playerId as string);
+                const playerId = player.id;
+                if (!playerId || notifiedPlayerIds.has(playerId)) continue;
+                notifiedPlayerIds.add(playerId);
                 await this.notificationsService.create({
                   userId: playerId,
                   type: 'SYSTEM',
@@ -1346,7 +1340,7 @@ export class ReservationsService {
 
           // Notifications to players
           try {
-            const playersToNotify: any[] = [];
+            const playersToNotify: User[] = [];
             if (rej.team?.players) playersToNotify.push(...rej.team.players);
 
             for (const player of playersToNotify) {
@@ -1403,7 +1397,7 @@ export class ReservationsService {
         );
 
         try {
-          const playersToNotify: any[] = [];
+          const playersToNotify: User[] = [];
           if (reservation.team?.players)
             playersToNotify.push(...reservation.team.players);
           if (reservation.opponentTeam?.players)
@@ -1468,7 +1462,7 @@ export class ReservationsService {
               );
 
               try {
-                const playersToNotify: any[] = [];
+                const playersToNotify: User[] = [];
                 if (conflict.team?.players)
                   playersToNotify.push(...conflict.team.players);
 
@@ -1538,7 +1532,7 @@ export class ReservationsService {
     );
 
     try {
-      const playersToNotify: any[] = [];
+      const playersToNotify: User[] = [];
       if (reservation.team?.players)
         playersToNotify.push(...reservation.team.players);
       if (reservation.opponentTeam?.players)
@@ -1567,11 +1561,11 @@ export class ReservationsService {
 
   // Helper to send system message with robust sender fallback and metadata
   private async sendSystemMessage(
-    manager: any,
+    manager: EntityManager,
     matchId: string,
-    _team: any,
+    _team: Team,
     content: string,
-    metadata?: any,
+    metadata?: Record<string, unknown>,
     skipPush = false,
   ) {
     try {
@@ -1587,7 +1581,7 @@ export class ReservationsService {
         // olarak takım kaptanı kullanılıyordu, bu da kaptanın o kanaldaki
         // okunmadı sayacının her sistem mesajında silinmesine yol açıyordu.
         await this.chatService.sendMessage(
-          channel.id as string,
+          channel.id,
           null,
           content,
           true, // isSystemMessage
@@ -1772,7 +1766,7 @@ export class ReservationsService {
         );
 
         try {
-          const playersToNotify: any[] = [];
+          const playersToNotify: User[] = [];
           if (reservation.team?.players)
             playersToNotify.push(...reservation.team.players);
           if (reservation.opponentTeam?.players)
@@ -2102,7 +2096,7 @@ export class ReservationsService {
         );
 
         try {
-          const playersToNotify: any[] = [];
+          const playersToNotify: User[] = [];
           if (reservation.team?.players)
             playersToNotify.push(...reservation.team.players);
           if (reservation.opponentTeam?.players)
@@ -2265,10 +2259,10 @@ export class ReservationsService {
 
     // Verify User is Captain of one of the teams
     const isTeamCaptain =
-      (reservation.team?.captain as any)?.id === userId ||
+      reservation.team?.captain?.id === userId ||
       reservation.team?.captainId === userId;
     const isOpponentCaptain =
-      (reservation.opponentTeam?.captain as any)?.id === userId ||
+      reservation.opponentTeam?.captain?.id === userId ||
       reservation.opponentTeam?.captainId === userId;
 
     if (!isTeamCaptain && !isOpponentCaptain) {
@@ -2302,9 +2296,8 @@ export class ReservationsService {
         // Notify the other team's captain
         const targetCaptainId = isTeamCaptain
           ? reservation.opponentTeam?.captainId ||
-            (reservation.opponentTeam?.captain as any)?.id
-          : reservation.team?.captainId ||
-            (reservation.team?.captain as any)?.id;
+            reservation.opponentTeam?.captain?.id
+          : reservation.team?.captainId || reservation.team?.captain?.id;
 
         if (targetCaptainId) {
           await this.notificationsService.create({
@@ -2348,10 +2341,10 @@ export class ReservationsService {
       const proposerId = reservation.proposedByUserId;
 
       const isTeamCaptain =
-        (reservation.team?.captain as any)?.id === userId ||
+        reservation.team?.captain?.id === userId ||
         reservation.team?.captainId === userId;
       const isOpponentCaptain =
-        (reservation.opponentTeam?.captain as any)?.id === userId ||
+        reservation.opponentTeam?.captain?.id === userId ||
         reservation.opponentTeam?.captainId === userId;
 
       if (!isTeamCaptain && !isOpponentCaptain)
@@ -2381,7 +2374,7 @@ export class ReservationsService {
       // Apply Change
       reservation.slotTime = reservation.proposedTime;
       reservation.status = ReservationStatus.PENDING; // Back to pending for Business consideration
-      reservation.proposedTime = null as any; // Clear proposal
+      reservation.proposedTime = null as unknown as Date; // Clear proposal
       await manager.save(reservation);
 
       // Notify

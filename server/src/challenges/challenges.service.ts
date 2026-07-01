@@ -307,7 +307,7 @@ export class ChallengesService {
           teamId: match.teamId, // Host team
           opponentTeamId: challenge.fromTeamId, // Challenger team
           slotTime: matchDateTime,
-          type: 'MATCH',
+          type: 'MATCH' as const,
           matchAnnouncementId: match.id,
         };
         console.log(
