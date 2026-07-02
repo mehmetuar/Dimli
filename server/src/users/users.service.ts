@@ -96,13 +96,27 @@ export class UsersService {
     return this.usersRepository.findOne({ where: { id }, relations: ['team'] });
   }
 
-  async search(query: string): Promise<User[]> {
-    return this.usersRepository
+  // Oyuncu Ekle araması: keşfet DEĞİL. Yalnız TAM kullanıcı adı (harf duyarsız) eşleşir
+  // (username benzersiz → 0/1 sonuç). Yanıt herkese-açık alanlarla sınırlı (şifre vb. sızmaz).
+  async search(query: string): Promise<Partial<User>[]> {
+    const q = query.trim();
+    if (!q) return [];
+    const users = await this.usersRepository
       .createQueryBuilder('user')
-      .where('user.username ILIKE :query OR user.full_name ILIKE :query', {
-        query: `%${query}%`,
-      })
+      .where('LOWER(user.username) = LOWER(:q)', { q })
+      .limit(10)
       .getMany();
+    return users.map((u) => ({
+      id: u.id,
+      username: u.username,
+      full_name: u.full_name,
+      avatarUrl: u.avatarUrl,
+      position: u.position,
+      secondaryPosition: u.secondaryPosition,
+      location: u.location,
+      nationality: u.nationality,
+      rating: u.rating,
+    }));
   }
 
   async getJokers(geoFilter: {

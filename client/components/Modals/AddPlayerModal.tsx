@@ -2,7 +2,6 @@
 import React, { useState } from 'react';
 import { X, Search, UserPlus, CheckCircle, AlertCircle, Share2 } from 'lucide-react';
 import { Browser } from '@capacitor/browser';
-import { Player } from '../../types';
 
 import api from '../../services/api';
 import { KeyboardAwareModal } from './KeyboardAwareModal';
@@ -17,6 +16,16 @@ interface Props {
     teamName?: string;
 }
 
+// Arama sonucu — /users/search'ün döndürdüğü herkese-açık alanlar.
+interface SearchUser {
+    id: string;
+    name: string;
+    username: string;
+    position?: string;
+    location?: string;
+    avatarUrl: string;
+}
+
 export const AddPlayerModal: React.FC<Props> = (props) => {
     if (!props.isOpen) return null;
     return <AddPlayerModalContent {...props} />;
@@ -24,7 +33,7 @@ export const AddPlayerModal: React.FC<Props> = (props) => {
 
 const AddPlayerModalContent: React.FC<Props> = ({ isOpen, onClose, currentRosterIds, teamId, teamShortId, teamName }) => {
     const [searchTerm, setSearchTerm] = useState('');
-    const [searchResults, setSearchResults] = useState<Player[]>([]);
+    const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
     const [invitedIds, setInvitedIds] = useState<string[]>([]);
     const [showInviteLink, setShowInviteLink] = useState(false);
 
@@ -36,17 +45,20 @@ const AddPlayerModalContent: React.FC<Props> = ({ isOpen, onClose, currentRoster
         }
 
         try {
-            const response = await api.get(`/users/search?q=${term}`);
-            // Filter out already in roster
+            const response = await api.get(`/users/search?q=${encodeURIComponent(term.trim())}`);
+            // Zaten kadroda olanları ele
             const results = response.data.filter((u: any) => !currentRosterIds.includes(u.id));
 
-            // Map backend user to frontend Player type
-            const mappedResults = results.map((u: any) => ({
+            // Backend kullanıcısını karta eşle — GERÇEK avatar (yoksa baş harf), sahte fallback yok.
+            const mappedResults: SearchUser[] = results.map((u: any) => ({
                 id: u.id,
                 name: u.full_name || u.username,
-                position: u.position || 'Orta Saha',
-                location: u.location || 'İstanbul',
-                avatarUrl: 'https://picsum.photos/100/100?random=' + u.id,
+                username: u.username,
+                position: u.position || undefined,
+                location: u.location || undefined,
+                avatarUrl:
+                    u.avatarUrl ||
+                    `https://ui-avatars.com/api/?name=${encodeURIComponent(u.full_name || u.username)}&background=1e293b&color=4ade80`,
             }));
             setSearchResults(mappedResults);
         } catch (error) {
@@ -99,6 +111,7 @@ const AddPlayerModalContent: React.FC<Props> = ({ isOpen, onClose, currentRoster
     return (
         <KeyboardAwareModal
             isOpen={isOpen}
+            portalToBody
             zClassName="z-[70]"
             backdropClassName="bg-black/90 backdrop-blur-sm animate-fade-in"
             panelClassName="bg-slate-800 w-full max-w-md rounded-3xl border border-slate-700 shadow-2xl"
@@ -149,18 +162,22 @@ const AddPlayerModalContent: React.FC<Props> = ({ isOpen, onClose, currentRoster
                         {searchResults.map(user => {
                             const isInvited = invitedIds.includes(user.id);
                             return (
-                                <div key={user.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-900 border border-slate-700">
-                                    <div className="flex items-center gap-3">
-                                        <img src={user.avatarUrl} className="w-10 h-10 rounded-full bg-slate-800 object-cover" />
-                                        <div>
-                                            <div className="text-white font-bold text-sm">{user.name}</div>
-                                            <div className="text-[10px] text-slate-500 uppercase">{user.position} • {user.location}</div>
+                                <div key={user.id} className="flex items-center justify-between gap-2 p-3 rounded-xl bg-slate-900 border border-slate-700">
+                                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                                        <img src={user.avatarUrl} alt={user.name} className="w-10 h-10 rounded-full bg-slate-800 object-cover flex-shrink-0" />
+                                        <div className="min-w-0">
+                                            <div className="text-white font-bold text-sm truncate">{user.name}</div>
+                                            <div className="text-xs truncate">
+                                                <span className="text-turf-400 font-semibold">@{user.username}</span>
+                                                {user.location && <span className="text-slate-500 uppercase"> • {user.location}</span>}
+                                            </div>
+                                            {user.position && <div className="text-[10px] text-slate-500 uppercase truncate mt-0.5">{user.position}</div>}
                                         </div>
                                     </div>
                                     <button
                                         onClick={() => handleInvite(user.id)}
                                         disabled={isInvited}
-                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-colors ${isInvited
+                                        className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-colors ${isInvited
                                             ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
                                             : 'bg-turf-600 text-white hover:bg-turf-500 shadow-neon'
                                             }`}

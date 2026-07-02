@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { useKeyboardHeight } from '../../utils/useKeyboardHeight';
 import { useModalBodyClass } from '../../utils/useModalBodyClass';
 
@@ -33,6 +34,13 @@ interface KeyboardAwareModalProps {
     bodyClassName?: string;
     /** Kartın azami yüksekliği. Varsayılan "max-h-[90vh]". */
     maxHeightClassName?: string;
+    /**
+     * true ise modal `document.body`'ye portal edilir. Fixed inset-0 bir konteynerin
+     * (örn. TeamProfile `-webkit-overflow-scrolling:touch`) İÇİNDE render edilen modallarda
+     * iç scroll dış sayfayla çakışıyordu; portal modalı o katmandan çıkarır → scroll düzelir.
+     * Varsayılan false → mevcut kullanıcıların davranışı değişmez.
+     */
+    portalToBody?: boolean;
 }
 
 /**
@@ -64,6 +72,7 @@ export const KeyboardAwareModal: React.FC<KeyboardAwareModalProps> = ({
     footer,
     bodyClassName = 'p-6',
     maxHeightClassName = 'max-h-[90vh]',
+    portalToBody = false,
 }) => {
     const keyboardHeight = useKeyboardHeight();
     useModalBodyClass(isOpen);
@@ -92,7 +101,7 @@ export const KeyboardAwareModal: React.FC<KeyboardAwareModalProps> = ({
         ...(kbOpen ? { paddingBottom: keyboardHeight } : {}),
     };
 
-    return (
+    const overlay = (
         <div
             className={`fixed inset-0 ${zClassName} flex ${alignClass} px-4 ${backdropClassName}`}
             style={Object.keys(overlayStyle).length ? overlayStyle : undefined}
@@ -111,4 +120,6 @@ export const KeyboardAwareModal: React.FC<KeyboardAwareModalProps> = ({
             </div>
         </div>
     );
+
+    return portalToBody ? createPortal(overlay, document.body) : overlay;
 };
