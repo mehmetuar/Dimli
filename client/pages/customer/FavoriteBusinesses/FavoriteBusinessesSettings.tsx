@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, Building2, Search, CheckCircle, Save, MapPin } from 'lucide-react';
 import { getProfile, updateProfile, getBusinesses } from '../../../services/api';
 import { LoadingSpinner } from '../../../components/UI/LoadingSpinner';
+import { LottiePlayer } from '../../../components/UI/LottiePlayer';
 import { useLocationContext } from '../../../contexts/LocationContext';
 import { LocationFilterModal, LocationFilter } from '../../../components/Modals/LocationFilterModal';
 import { LocationAccessGate } from '../../../components/LocationAccessGate';
@@ -153,8 +154,18 @@ export const FavoriteBusinessesSettings: React.FC = () => {
                 {/* Business list */}
                 <LocationAccessGate contentLabel="işletmeleri">
                     {businesses.length === 0 ? (
-                        <div className="text-center py-12 text-slate-400 bg-slate-800/50 rounded-3xl border border-dashed border-slate-700">
-                            <MapPin className="w-8 h-8 mx-auto mb-3 text-slate-600" />
+                        <div className="text-center py-12 px-6 text-slate-400 bg-slate-800/50 rounded-3xl border border-dashed border-slate-700 flex flex-col items-center">
+                            {/* Saha çizim animasyonu (tek-sefer); reduce-motion/yüklenme → statik pin */}
+                            <div className="w-24 h-24 mb-1">
+                                <LottiePlayer
+                                    src="/animations/football-pitch.json"
+                                    loop={false}
+                                    autoplay
+                                    ariaLabel="İşletme bulunamadı"
+                                    style={{ width: '100%', height: '100%' }}
+                                    fallback={<MapPin className="w-8 h-8 mx-auto mt-8 text-slate-600" />}
+                                />
+                            </div>
                             <p className="text-sm">İşletme bulunamadı.</p>
                             <p className="text-xs text-slate-500 mt-1">Henüz kayıtlı işletme yok.</p>
                         </div>
