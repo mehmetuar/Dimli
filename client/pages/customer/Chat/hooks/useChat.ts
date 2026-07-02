@@ -259,6 +259,9 @@ export const useChat = () => {
         try {
             await api.delete(`/chat/channels/${channelId}`);
             setChannels(prev => prev.filter(c => c.id !== channelId));
+            // Silinen sohbetin okunmamışları rozetten düşsün: Navbar 'chatRead' → fetchCounts()
+            // ile /chat/unread-count'u (deletedAt IS NULL filtreli) yeniden çeker (markRead ile aynı desen).
+            window.dispatchEvent(new Event('chatRead'));
             setOptionsModalChannel(null);
             if (selectedChannelId === channelId) setSelectedChannelId(null);
             setSuccessModalMessage('Sohbet başarıyla silindi.');
