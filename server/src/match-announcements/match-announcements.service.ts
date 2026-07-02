@@ -503,11 +503,13 @@ export class MatchAnnouncementsService {
   }
 
   async findByPitch(pitchId: string): Promise<MatchAnnouncement[]> {
+    // Kart yalnız takım özetini (logo/ad/level/fairPlay) gösterir; TAM oyuncu kadrosu
+    // burada YÜKLENMEZ — takım-detay modalı açılınca GET /teams/:id ile lazy çekilir.
+    // (team + captain tekil satır; players[] koleksiyonu satır çarpımı + payload şişmesi yapıyordu.)
     const announcements = await this.matchAnnouncementsRepository
       .createQueryBuilder('announcement')
       .leftJoinAndSelect('announcement.team', 'team')
       .leftJoinAndSelect('team.captain', 'captain')
-      .leftJoinAndSelect('team.players', 'players') // Load all players for team modal
       .where('announcement.pitchId = :pitchId', { pitchId })
       .andWhere('announcement.status = :status', { status: 'PENDING' })
       .orderBy('announcement.date', 'ASC')
@@ -517,13 +519,6 @@ export class MatchAnnouncementsService {
     console.log(
       `📍 Found ${announcements.length} announcements for pitch ${pitchId}`,
     );
-    if (announcements.length > 0 && announcements[0].team) {
-      console.log('First team:', {
-        name: announcements[0].team.name,
-        playersCount: announcements[0].team.players?.length,
-        playerNames: announcements[0].team.players?.map((p) => p.username),
-      });
-    }
 
     return announcements;
   }

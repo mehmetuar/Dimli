@@ -10,6 +10,10 @@ import {
 import { Team } from '../teams/team.entity';
 import { Pitch } from '../pitches/entities/pitch.entity';
 
+// Saha bazlı ilan sorgusu (findByPitch: pitchId + status=PENDING) ve takım bazlı
+// çakışma/temizlik sorguları için index'ler (pitchId/teamId önceden indekssizdi → seq-scan).
+@Index(['pitchId', 'status'])
+@Index(['teamId'])
 @Entity('match_announcements')
 export class MatchAnnouncement {
   @PrimaryGeneratedColumn('uuid')
