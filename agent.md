@@ -936,3 +936,35 @@ doldur; Render log'unda 2 cron'un tek sefer çalıştığı teyit. Yalnız serve
 - Cihaz testi ŞART, iki uçta: **Redmi 10S (MIUI, 3-tuş/gesture) + Samsung S26 (Android 15, gesture)** →
   chat + maç-kur notu + joker daveti notu; input klavyenin ~8px üstünde, fazla boşluk yok, composer klavye
   altında değil. Server tarafı yok; RevenueCat/Render ilgisiz.
+
+---
+
+## 25. Chat liste dokunma çakışması düzeltmesi + chat veri-yükleme ölçek raporu (2026-07-02)
+
+> Belirti: Operasyon Merkezi (chat listesi) satırına dokununca bazen açılmıyor, anında "Seçenekler..."
+> çıkıyor / kaydırırken options modalı tetikleniyordu.
+
+### Mobil long-press deseni (KALICI kural — client/)
+- **Doğru desen:** native `el.addEventListener('touchstart', …, {passive})` + `touchmove` ile **hareket
+  eşiği (8px) iptali** + ~450ms timer + `touchcancel`; `touchend`'de hareketsiz/kısa dokunuş = **tap**.
+  React'in **synthetic `onTouchStart`** ile YAPILMAZ: passive olduğu için `preventDefault` çalışmaz VE
+  `onTouchMove` yoksa kaydırma long-press'i tetikler (eski ChannelItem hatası buydu).
+- **Paylaşılan hook:** `client/pages/customer/Chat/hooks/useLongPress.ts` — `{ onTap, onLongPress,
+  durationMs?, moveThreshold? }` alır, elemente bağlanan bir **ref döner** (onClick KULLANILMAZ; tap
+  touchend/mouseup ile yakalanır). Mouse fallback dokunuştan türeyen olayları 700ms yok sayar. Long-press'te
+  best-effort `navigator.vibrate(10)` (Android WebView titreşir, iOS no-op → **haptik için yeni native
+  bağımlılık gerekmez**; `@capacitor/haptics` kurulu DEĞİL). ChannelItem bunu kullanır; MessageBubble hâlâ
+  kendi native kopyasını kullanıyor (ileride hook'a taşınabilir).
+- `MessageBubble.tsx` referans doğru-uygulamadır (450ms, 8px, passive:false+preventDefault — mesaj metni
+  seçimini de engellediği için).
+
+### Chat veri-yükleme ölçeklenebilirlik raporu (2026-07-02 tespiti)
+- **Chat içi (mesajlar): ÖLÇEKLENEBİLİR ✓** — `getChannelMessages` cursor (`before`) + LIMIT(≤100) +
+  composite index `[channelId,createdAt]`; client 50'lik yukarı infinite-scroll. **Unread:** tek GROUP BY ✓.
+- **Kanal LİSTESİ: gelecekte darboğaz (henüz düzeltilmedi):** client `GET /chat/channels` **tümünü** çeker
+  (sayfalama yok, 60sn poll + socket refetch). Server `getUserChannels`: son-mesaj/unread batched (iyi) ama
+  kanal-başına rezervasyon/maç/takım + `getTeamPlayerCount` (user.teamId'de **index yok**) sorguları
+  `Promise.all` içinde **N+1** → 100+ kanalda bağlantı havuzu tükenir. Real-time thread: her mesajda 50'lik
+  sayfa tümüyle refetch (append değil).
+- **Ayrı task (ertelendi):** kanal listesi client-pagination + server enrichment batching + `user.teamId`
+  index + thread real-time append. (chat.service 1812-satır split 3/3 ile birlikte ele alınabilir.)
