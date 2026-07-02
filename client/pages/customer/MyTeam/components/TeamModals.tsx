@@ -37,11 +37,11 @@ export const TeamModals: React.FC<TeamModalsProps> = ({
                 isOpen={!!successMessage && successType === 'TEAM_CREATED'}
                 teamName={myTeam?.name}
                 onDone={() => {
+                    // Reload YOK: handleCreateTeam myTeam+bio+roster'ı zaten doldurdu (create yanıtı findOne
+                    // → players+description dahil) ve kullanıcı TAKIMIM tab'ında → kutlamayı kapatmak yeterli.
+                    // Böylece ilk-açılış Takım Ruhu/Kadro boş-kalma bug'ı + reload yarışı tamamen giderilir.
                     setSuccessMessage('');
                     setSuccessType(null);
-                    // Reload sonrası TeamProfile'ın TAKIMIM (Profilim değil) tab'ıyla açılması için bayrak.
-                    sessionStorage.setItem('tp_active_tab', 'TEAM');
-                    window.location.reload();
                 }}
             />
 

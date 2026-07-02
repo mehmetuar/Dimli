@@ -10,12 +10,13 @@ interface TeamCreatedCelebrationProps {
     onDone: () => void;
 }
 
-// Kullanıcı isteği: kutlama ~8sn ekranda kalsın (World Cup animasyonu ~2.3s, sonra son kare tutulur).
-const AUTO_CLOSE_MS = 8000;
+// Kullanıcı isteği: animasyon DÖNGÜLÜ (tekrar etsin, son kareyi tutup durmasın) ve ~6sn
+// (World Cup ~2.3s → ≈2-3 tekrar) ekranda kalsın.
+const AUTO_CLOSE_MS = 6000;
 
 /**
  * Takım kurulunca (TEAM_CREATED) standart success modal yerine hafif kutlama görünümü:
- * World Cup Lottie (tek-sefer) + "{takım} takımını kurdun!" — başlık YOK. ~4.6s sonra otomatik
+ * World Cup Lottie (DÖNGÜLÜ) + "{takım} takımını kurdun!" — başlık YOK. ~6sn sonra otomatik
  * (reduce-motion/hata'da da timer çalışır) VEYA "Kadroyu Yönet" ile onDone → Takımım'a geçiş.
  */
 export const TeamCreatedCelebration: React.FC<TeamCreatedCelebrationProps> = ({
@@ -46,7 +47,7 @@ export const TeamCreatedCelebration: React.FC<TeamCreatedCelebrationProps> = ({
             <div className="w-64 h-64 max-w-[70vw] max-h-[70vw]">
                 <LottiePlayer
                     src="/animations/world-cup.json"
-                    loop={false}
+                    loop
                     autoplay
                     ariaLabel="Kutlama"
                     style={{ width: '100%', height: '100%' }}

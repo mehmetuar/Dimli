@@ -162,7 +162,21 @@ export const useMyTeam = (modals: any) => {
     const handleCreateTeam = async (teamData: Partial<Team>) => {
         try {
             const response = await api.post('/teams', teamData);
-            setMyTeam(response.data);
+            const created = response.data;
+            // Sunucu create() → findOne() döndürür (players + description dahil). Reload'a gerek
+            // kalmadan myTeam + bio + roster'ı DOĞRUDAN doldur → ilk açılışta Takım Ruhu/Kadro boş kalmaz
+            // (eski davranış: yalnız setMyTeam + reload → reload-fetch yarışı bio/roster'ı boş bırakabiliyordu).
+            setMyTeam(created);
+            setBio(created.description || '');
+            if (Array.isArray(created.players)) {
+                setRoster(created.players.map((p: any) => ({
+                    id: p.id,
+                    name: p.full_name || p.username,
+                    position: p.position || 'Orta Saha',
+                    avatarUrl: p.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.full_name || p.username || '?')}&background=random&size=100`,
+                    rating: p.rating || 0,
+                })));
+            }
             modals.setIsCreateTeamModalOpen(false);
             setSuccessMessage('Takım başarıyla oluşturuldu!');
             setSuccessType('TEAM_CREATED');
