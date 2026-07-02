@@ -207,17 +207,20 @@ export class TeamsService implements OnModuleInit {
 
   async addPlayer(teamId: string, userId: string): Promise<Team> {
     const team = await this.findOne(teamId);
-    if (!team) throw new Error('Team not found');
+    if (!team) throw new NotFoundException('Takım bulunamadı.');
 
     const user = await this.usersService.findById(userId);
-    if (!user) throw new Error('User not found');
+    if (!user) throw new NotFoundException('Kullanıcı bulunamadı.');
 
-    // Check if user is already in a team
-    if (user.team) throw new Error('User is already in a team');
+    // Zaten bir takımı olan oyuncu davet edilemez — istemciye düzgün mesaj dön
+    // (düz Error olursa NestJS 500 "Internal server error"e çevirir, mesaj gizlenir).
+    if (user.team) {
+      throw new ConflictException('Bu oyuncunun zaten bir takımı var.');
+    }
 
     // Check max roster size
     if (team.players && team.players.length >= 28) {
-      throw new Error('Kadro maksimum 28 kişi olabilir.');
+      throw new ConflictException('Kadro maksimum 28 kişi olabilir.');
     }
 
     // Set the team on the user (this is the ManyToOne side, which owns the foreign key)

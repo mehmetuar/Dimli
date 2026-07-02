@@ -36,9 +36,11 @@ const AddPlayerModalContent: React.FC<Props> = ({ isOpen, onClose, currentRoster
     const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
     const [invitedIds, setInvitedIds] = useState<string[]>([]);
     const [showInviteLink, setShowInviteLink] = useState(false);
+    const [inviteError, setInviteError] = useState<string | null>(null);
 
     const handleSearch = async (term: string) => {
         setSearchTerm(term);
+        setInviteError(null);
         if (!term.trim()) {
             setSearchResults([]);
             return;
@@ -68,12 +70,15 @@ const AddPlayerModalContent: React.FC<Props> = ({ isOpen, onClose, currentRoster
 
     const handleInvite = async (userId: string) => {
         if (!teamId) return;
+        setInviteError(null);
         try {
             await api.post(`/teams/${teamId}/players`, { userId });
             setInvitedIds(prev => [...prev, userId]);
             // Button will now show "Davet Gönderildi" and turn gray
         } catch (error: any) {
-            alert(error.response?.data?.message || "Davet edilemed.");
+            // Native "Internal server error" popup yerine modal-içi şık uyarı
+            // (ör. "Bu oyuncunun zaten bir takımı var.").
+            setInviteError(error.response?.data?.message || 'Davet gönderilemedi.');
         }
     };
 
@@ -143,6 +148,14 @@ const AddPlayerModalContent: React.FC<Props> = ({ isOpen, onClose, currentRoster
                         />
                         <Search className="absolute left-3 top-3 w-5 h-5 text-slate-500" />
                     </div>
+
+                    {/* Davet uyarısı (ör. oyuncunun zaten takımı var) — native error popup yerine */}
+                    {inviteError && (
+                        <div className="flex items-center gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/40 text-red-400 text-sm">
+                            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                            <span>{inviteError}</span>
+                        </div>
+                    )}
 
                     {/* Results List */}
                     <div className="space-y-2">
