@@ -45,7 +45,7 @@ export const PitchBooking: React.FC = () => {
       handleSendOffer, handleConfirmCancel, handleConfirmDeleteAd,
       handleCreateAd, handleUnauthorizedSlotClick, openSlotDetail,
       handleCancelClick, handleDeleteAdClick,
-      isLoadingBusinesses, isLoadingMore, hasMore,
+      isLoadingBusinesses, isLoadingMore,
       loadMoreBusinesses, refreshBusinesses,
       slotWarning, setSlotWarning,
       refetchReservations,
@@ -325,11 +325,6 @@ export const PitchBooking: React.FC = () => {
                            <div className="flex items-center justify-center py-4">
                               <LoadingSpinner />
                            </div>
-                        )}
-                        {!hasMore && !isLoadingMore && filteredBusinesses.length > 0 && (
-                           <p className="text-center text-[11px] text-slate-600 py-4">
-                              Bu konumdaki tüm işletmeler listelendi.
-                           </p>
                         )}
                      </>
                   )}

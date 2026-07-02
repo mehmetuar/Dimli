@@ -1,5 +1,6 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
-import { MapPin, RefreshCw, Loader2 } from 'lucide-react';
+import { MapPin, RefreshCw } from 'lucide-react';
+import { LottiePlayer } from '../../../components/UI/LottiePlayer';
 import { InviteJokerModal } from '../../../components/Modals/InviteJokerModal';
 import { JokerProfileModal } from '../../../components/Modals/JokerProfileModal';
 import { LocationFilterModal } from '../../../components/Modals/LocationFilterModal';
@@ -161,31 +162,34 @@ export const JokerPool: React.FC = () => {
                )}
             </div>
 
-            {/* Başlık — scroll'a göre kademeli kaybolur */}
-            <div className="px-4 pt-3 pb-5 pr-32" style={{ opacity: headerOpacity }}>
-               <h1
-                  className="font-sport font-black text-white uppercase italic tracking-tighter leading-none whitespace-nowrap"
-                  style={{ fontSize: 'clamp(1.75rem, 9vw, 2.75rem)' }}
-               >
-                  JOKER <span className="text-turf-500">HAVUZU</span>
-               </h1>
-               <p className="text-slate-400 font-medium text-sm mt-1">
-                  Eksik oyuncu mu var? Scout et ve çağır.
-               </p>
-            </div>
-
-            {/* Profil butonu — fixed sağ üst, başlıkla birlikte soluklaşır */}
-            <button
-               onClick={() => setIsProfileModalOpen(true)}
-               className={`fixed top-bell-safe right-4 z-50 border text-white rounded-xl font-bold transition-colors px-3 py-2 text-xs ${
-                  currentUser?.isJoker
-                     ? 'bg-slate-800/90 border-slate-600'
-                     : 'bg-turf-600 border-turf-500 shadow-neon'
-               }`}
+            {/* Başlık + profil butonu — flex satır: buton yeri otomatik ayrılır (çakışma imkânsız),
+                başlık gerekirse "JOKER"/"HAVUZU" olarak sarar; birlikte scroll'da soluklaşır. */}
+            <div
+               className="flex items-start justify-between gap-3 px-4 pt-3 pb-5"
                style={{ opacity: headerOpacity, pointerEvents: headerOpacity > 0.1 ? 'auto' : 'none' }}
             >
-               {currentUser?.isJoker ? 'Profilini Düzenle' : 'Profilini Ekle'}
-            </button>
+               <div className="min-w-0 flex-1">
+                  <h1
+                     className="font-sport font-black text-white uppercase italic tracking-tighter leading-none"
+                     style={{ fontSize: 'clamp(1.6rem, 8.5vw, 2.75rem)' }}
+                  >
+                     JOKER <span className="text-turf-500">HAVUZU</span>
+                  </h1>
+                  <p className="text-slate-400 font-medium text-sm mt-1">
+                     Eksik oyuncu mu var? Scout et ve çağır.
+                  </p>
+               </div>
+               <button
+                  onClick={() => setIsProfileModalOpen(true)}
+                  className={`flex-shrink-0 mt-1 border text-white rounded-xl font-bold transition-colors px-3 py-2 text-xs whitespace-nowrap ${
+                     currentUser?.isJoker
+                        ? 'bg-slate-800/90 border-slate-600'
+                        : 'bg-turf-600 border-turf-500 shadow-neon'
+                  }`}
+               >
+                  {currentUser?.isJoker ? 'Profilini Düzenle' : 'Profilini Ekle'}
+               </button>
+            </div>
 
             {/* Filtre — sticky, her zaman görünür */}
             <div
@@ -205,7 +209,17 @@ export const JokerPool: React.FC = () => {
                <LocationAccessGate contentLabel="joker oyuncuları">
                   {isLoading ? (
                      <div className="flex justify-center items-center py-20">
-                        <Loader2 className="w-8 h-8 text-turf-500 animate-spin" />
+                        {/* Marka loader: dönen top; reduce-motion/yüklenme → CSS ring fallback */}
+                        <div className="w-16 h-16">
+                           <LottiePlayer
+                              src="/animations/rolling-football.json"
+                              loop
+                              autoplay
+                              ariaLabel="Yükleniyor"
+                              style={{ width: '100%', height: '100%' }}
+                              fallback={<div className="w-8 h-8 mx-auto rounded-full border-4 border-slate-700 border-t-turf-500 animate-spin" />}
+                           />
+                        </div>
                      </div>
                   ) : (
                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

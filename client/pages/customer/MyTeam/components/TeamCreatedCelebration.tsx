@@ -1,19 +1,21 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { LottiePlayer } from '../../../../components/UI/LottiePlayer';
 import { useModalBodyClass } from '../../../../utils/useModalBodyClass';
 
 interface TeamCreatedCelebrationProps {
     isOpen: boolean;
     teamName?: string;
-    /** Animasyon bitince (onComplete) VEYA "Kadroyu Yönet" ile atla → Takımım'a geç */
+    /** Otomatik kapanma süresi VEYA "Kadroyu Yönet" ile atla → Takımım'a geç */
     onDone: () => void;
 }
 
+// World Cup animasyonu ~2.3s; kullanıcı isteği: otomatik kapanmayı ~2 katına çıkar.
+const AUTO_CLOSE_MS = 4600;
+
 /**
  * Takım kurulunca (TEAM_CREATED) standart success modal yerine hafif kutlama görünümü:
- * World Cup Lottie (tek-sefer) + "{takım} takımını kurdun!" — başlık YOK. Animasyon bitince
- * onDone tetiklenir (Takımım'a geçiş). reduce-motion / yüklenme / hata durumunda animasyon
- * oynamaz; kullanıcı "Kadroyu Yönet" butonuyla ilerler (güvenlik ağı).
+ * World Cup Lottie (tek-sefer) + "{takım} takımını kurdun!" — başlık YOK. ~4.6s sonra otomatik
+ * (reduce-motion/hata'da da timer çalışır) VEYA "Kadroyu Yönet" ile onDone → Takımım'a geçiş.
  */
 export const TeamCreatedCelebration: React.FC<TeamCreatedCelebrationProps> = ({
     isOpen,
@@ -21,6 +23,16 @@ export const TeamCreatedCelebration: React.FC<TeamCreatedCelebrationProps> = ({
     onDone,
 }) => {
     useModalBodyClass(isOpen);
+
+    // Otomatik kapanma timer'ı (animasyonun onComplete'ine bağlı DEĞİL → süre 2×, reduce-motion güvenli).
+    const onDoneRef = useRef(onDone);
+    onDoneRef.current = onDone;
+    useEffect(() => {
+        if (!isOpen) return;
+        const t = setTimeout(() => onDoneRef.current(), AUTO_CLOSE_MS);
+        return () => clearTimeout(t);
+    }, [isOpen]);
+
     if (!isOpen) return null;
 
     return (
@@ -35,7 +47,6 @@ export const TeamCreatedCelebration: React.FC<TeamCreatedCelebrationProps> = ({
                     autoplay
                     ariaLabel="Kutlama"
                     style={{ width: '100%', height: '100%' }}
-                    onComplete={onDone}
                     fallback={null}
                 />
             </div>

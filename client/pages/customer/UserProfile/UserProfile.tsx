@@ -33,7 +33,7 @@ export const UserProfile: React.FC = () => {
     }
 
     return (
-        <div className="min-h-full bg-pitch pt-page-top px-1 pb-6 space-y-4">
+        <div className="min-h-full bg-pitch pt-3 px-1 pb-6 space-y-4">
 
             {/* Profile Settings Menu */}
             <ProfileSettingsMenu

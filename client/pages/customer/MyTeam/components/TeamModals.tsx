@@ -39,6 +39,8 @@ export const TeamModals: React.FC<TeamModalsProps> = ({
                 onDone={() => {
                     setSuccessMessage('');
                     setSuccessType(null);
+                    // Reload sonrası TeamProfile'ın TAKIMIM (Profilim değil) tab'ıyla açılması için bayrak.
+                    sessionStorage.setItem('tp_active_tab', 'TEAM');
                     window.location.reload();
                 }}
             />
