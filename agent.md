@@ -1047,3 +1047,38 @@ doldur; Render log'unda 2 cron'un tek sefer çalıştığı teyit. Yalnız serve
 
 ### Sonraki (ayrı task)
 - Maç Pazarı sayfası aynı prensiplerle. İleride (binlerce işletme) PostGIS/Redis + `synchronize:false`/migration.
+
+## 28. Lottie animasyon altyapısı + Login/uygulama Round 1 (2026-07-02)
+
+> Login'i ve uygulama genelini 4 Lottie animasyonuyla zenginleştirme (mevcut animasyon kütüphanesi yoktu,
+> saf CSS). Format kararı: **Lottie JSON** (vektör, küçük, şeffaf, programatik). Kapsam parça parça.
+
+### Lottie deseni (KALICI kural — client/)
+- **Kütüphane:** `lottie-react` (lottie-web tabanlı). WASM'li dotlottie DEĞİL — eski MIUI/Redmi WebView'lerde
+  güvenli render için (dvh yasağıyla aynı gerekçe: eski WebView uyumu).
+- **Tek giriş noktası** `components/UI/LottiePlayer.tsx` (+ LottiePlayerInner): TÜM animasyonlar bundan geçer.
+  - **React.lazy** → lottie-web YALNIZ bir animasyon gösterilince ayrı chunk olarak iner (build'de
+    `LottiePlayerInner` ~318KB ayrı lazy chunk; ana/auth bundle şişmez). Doğrula: `npm run build` chunk listesi.
+  - **JSON'lar `public/animations/`'tan runtime fetch** (`<Lottie animationData>`'ya verilir) → JSON'lar JS
+    bundle'ına GİRMEZ. src = `/animations/<ad>.json`. Dosya adları temiz/kebab (boşluk/`!` URL'de sorunlu).
+  - **prefers-reduced-motion** (index.css:140): dış LottiePlayer bunu ölçer, açıksa lottie chunk'ını HİÇ
+    yüklemez → doğrudan `fallback`. Her kullanım anlamlı bir statik `fallback` vermeli (ikon/metin) — fetch
+    hatası/yüklenme/reduce-motion hepsinde dikişsiz düşüş.
+  - **Loop vs tek-sefer:** `loop` (dönen top/loader) sürekli; tek-sefer (success/kutlama) `loop={false}` +
+    `onComplete` (yalnız loop=false'ta tetiklenir) ile aksiyon.
+- **PageLoader (App.tsx) Lottie'ye ÇEVRİLMEZ:** o, ilk-açılış/Suspense fallback'i; Lottie lib'ini kritik açılış
+  yoluna sokmak ters (loader'ın kendisi lib yüklenene dek gösterilemez). Mevcut CSS `dimliball` kalır.
+
+### Round 1 kullanımlar
+- SuccessModal: olumlu tiplerde (MATCH_APPROVED/CHALLENGE_ACCEPTED/MESSAGE_SENT) ball-success; yıkıcı tipler
+  lucide kalır. Lottie kabı ile fallback ikon kabı AYNI boyut/margin (w-20 h-20, mb-6) → tip geçişinde kayma yok.
+- TEAM_CREATED: TeamCreatedCelebration (World Cup + "{takım} takımını kurdun!", başlık yok) → onComplete→reload
+  (Takımım). reduce-motion/hata'da onComplete oynamaz → **her zaman bir buton** olmalı (soft-lock önlemi).
+- PitchBooking boş durum: football-pitch + "Belirlediğiniz konumda işletme bulunamadı" + "Arama alanını genişlet"
+  → setIsLocationFilterOpen(true) (aksiyon alınabilir boş durum deseni).
+- Login "GİRİŞ YAP": isSubmitting (çift-gönderim koruması) + dönen top loader; başarıda navigate ile unmount
+  (isSubmitting sıfırlanmaz), hatada sıfırlanır.
+
+### Sonraki (Round 2)
+Diğer boş durumlar (JokerPool/Marketplace/ActiveMatches/Notifications/Favoriler → football-pitch), diğer
+success tipleri, İşletme login loader, fullScreen LoadingSpinner overlay'leri.
