@@ -161,6 +161,10 @@ export class BusinessOwnerService {
     const business = owner.business;
     const pitches = business.pitches || [];
     const slotsResponse: any[] = [];
+    // Batch enrichment birikimi: slot-başına değil, tüm rezervasyon referansları toplanıp
+    // takım istatistikleri (playedMatchCount/playerCount) tek seferde doldurulur (N+1 kaldırıldı).
+    const allSlotReservations: any[] = [];
+    const statTeamIds = new Set<string>();
 
     const selectedDate = new Date(dateStr);
 
@@ -168,6 +172,12 @@ export class BusinessOwnerService {
     const dayName = selectedDate.toLocaleDateString('en-US', {
       weekday: 'long',
     });
+
+    // İstanbul takvim gününün UTC sınırları — sahanın günün TÜM rezervasyonlarını
+    // TEK sorguda çekmek için. findByPitchAndDate (slot-başına ile AYNI metot/relations
+    // + CANCELLED hariç) gün aralığıyla çağrılır → birebir davranış eşitliği.
+    const dayStart = istanbulDateTimeToUtc(dateStr, '00:00');
+    const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
 
     for (const pitch of pitches) {
       // Check if pitch is passive or permanently closed on this day
@@ -188,6 +198,14 @@ export class BusinessOwnerService {
         continue;
       }
 
+      // Sahanın o güne ait TÜM rezervasyonlarını TEK sorguda çek (slot-başına sorgu yerine);
+      // aşağıda slotlara in-memory kovalanır (mevcut 60sn eşleştirme mantığı korunur).
+      const dayReservations = await this.reservationsService.findByPitchAndDate(
+        pitch.id,
+        dayStart,
+        dayEnd,
+      );
+
       const pitchSlots: any[] = [];
       const hasCustomSlots = pitch.timeSlots && pitch.timeSlots.length > 0;
 
@@ -197,33 +215,16 @@ export class BusinessOwnerService {
 
           const slotTime = istanbulDateTimeToUtc(dateStr, ts.startTime);
 
-          const reservations =
-            await this.reservationsService.findByPitchAndDate(
-              pitch.id,
-              slotTime,
-              slotTime,
-            );
-          const slotReservations = reservations.filter((r: any) => {
+          const slotReservations = dayReservations.filter((r: any) => {
             const rTime = new Date(r.slotTime as string);
             return Math.abs(rTime.getTime() - slotTime.getTime()) < 60000;
           });
 
-          // Enrich reservations with playedMatchCount and playerCount
+          // Takım istatistikleri toplu doldurulacak: id'leri topla + referansları biriktir.
           for (const res of slotReservations) {
-            if (res.teamId) {
-              (res.team as any).playedMatchCount =
-                await this.ratingsService.getTeamMatchCount(res.teamId);
-              (res.team as any).playerCount =
-                await this.ratingsService.getTeamPlayerCount(res.teamId);
-            }
-            if (res.opponentTeamId) {
-              (res.opponentTeam as any).playedMatchCount =
-                await this.ratingsService.getTeamMatchCount(res.opponentTeamId);
-              (res.opponentTeam as any).playerCount =
-                await this.ratingsService.getTeamPlayerCount(
-                  res.opponentTeamId,
-                );
-            }
+            allSlotReservations.push(res);
+            if (res.teamId) statTeamIds.add(res.teamId);
+            if (res.opponentTeamId) statTeamIds.add(res.opponentTeamId);
           }
 
           let status = 'EMPTY';
@@ -267,33 +268,16 @@ export class BusinessOwnerService {
         for (const hour of hours) {
           const slotTime = istanbulDateTimeToUtc(dateStr, `${hour}:00`);
 
-          const reservations =
-            await this.reservationsService.findByPitchAndDate(
-              pitch.id,
-              slotTime,
-              slotTime,
-            );
-          const slotReservations = reservations.filter((r: any) => {
+          const slotReservations = dayReservations.filter((r: any) => {
             const rTime = new Date(r.slotTime as string);
             return Math.abs(rTime.getTime() - slotTime.getTime()) < 60000;
           });
 
-          // Enrich reservations with playedMatchCount and playerCount
+          // Takım istatistikleri toplu doldurulacak: id'leri topla + referansları biriktir.
           for (const res of slotReservations) {
-            if (res.teamId) {
-              (res.team as any).playedMatchCount =
-                await this.ratingsService.getTeamMatchCount(res.teamId);
-              (res.team as any).playerCount =
-                await this.ratingsService.getTeamPlayerCount(res.teamId);
-            }
-            if (res.opponentTeamId) {
-              (res.opponentTeam as any).playedMatchCount =
-                await this.ratingsService.getTeamMatchCount(res.opponentTeamId);
-              (res.opponentTeam as any).playerCount =
-                await this.ratingsService.getTeamPlayerCount(
-                  res.opponentTeamId,
-                );
-            }
+            allSlotReservations.push(res);
+            if (res.teamId) statTeamIds.add(res.teamId);
+            if (res.opponentTeamId) statTeamIds.add(res.opponentTeamId);
           }
 
           let status = 'EMPTY';
@@ -329,6 +313,27 @@ export class BusinessOwnerService {
         rejectionReason: pitch.rejectionReason,
         slots: pitchSlots,
       });
+    }
+
+    // ── Toplu takım istatistiği doldurma (rezervasyon-başına ×4 sorgu yerine 3 grouped sorgu) ──
+    const teamIds = Array.from(statTeamIds);
+    if (teamIds.length) {
+      const [matchCounts, playerCounts] = await Promise.all([
+        this.ratingsService.getTeamMatchCounts(teamIds),
+        this.ratingsService.getTeamPlayerCounts(teamIds),
+      ]);
+      for (const res of allSlotReservations) {
+        if (res.teamId && res.team) {
+          (res.team as any).playedMatchCount = matchCounts.get(res.teamId) ?? 0;
+          (res.team as any).playerCount = playerCounts.get(res.teamId) ?? 0;
+        }
+        if (res.opponentTeamId && res.opponentTeam) {
+          (res.opponentTeam as any).playedMatchCount =
+            matchCounts.get(res.opponentTeamId) ?? 0;
+          (res.opponentTeam as any).playerCount =
+            playerCounts.get(res.opponentTeamId) ?? 0;
+        }
+      }
     }
 
     return {

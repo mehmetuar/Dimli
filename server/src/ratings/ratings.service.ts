@@ -338,4 +338,59 @@ export class RatingsService {
     if (!teamId) return 0;
     return this.userRepo.count({ where: { teamId } });
   }
+
+  // ── Batch: birden çok takımın oynanmış (APPROVED, geçmiş) maç sayısı — tek yerine
+  //    iki GROUP BY sorgusu (getTeamMatchCount ×N yerine). teamId VEYA opponentTeamId. ──
+  async getTeamMatchCounts(teamIds: string[]): Promise<Map<string, number>> {
+    const counts = new Map<string, number>();
+    if (!teamIds.length) return counts;
+    const now = new Date();
+    const add = (rows: { teamId: string; count: string }[]) => {
+      for (const r of rows) {
+        if (!r.teamId) continue;
+        counts.set(r.teamId, (counts.get(r.teamId) ?? 0) + Number(r.count));
+      }
+    };
+    add(
+      await this.reservationRepo
+        .createQueryBuilder('r')
+        .select('r.teamId', 'teamId')
+        .addSelect('COUNT(*)', 'count')
+        .where('r.status = :status', { status: ReservationStatus.APPROVED })
+        .andWhere('r.slotTime < :now', { now })
+        .andWhere('r.teamId IN (:...ids)', { ids: teamIds })
+        .groupBy('r.teamId')
+        .getRawMany(),
+    );
+    add(
+      await this.reservationRepo
+        .createQueryBuilder('r')
+        .select('r.opponentTeamId', 'teamId')
+        .addSelect('COUNT(*)', 'count')
+        .where('r.status = :status', { status: ReservationStatus.APPROVED })
+        .andWhere('r.slotTime < :now', { now })
+        .andWhere('r.opponentTeamId IN (:...ids)', { ids: teamIds })
+        .groupBy('r.opponentTeamId')
+        .getRawMany(),
+    );
+    return counts;
+  }
+
+  // ── Batch: birden çok takımın oyuncu sayısı — tek GROUP BY (getTeamPlayerCount ×N yerine).
+  //    user.teamId indexli (§26). ──
+  async getTeamPlayerCounts(teamIds: string[]): Promise<Map<string, number>> {
+    const counts = new Map<string, number>();
+    if (!teamIds.length) return counts;
+    const rows: { teamId: string; count: string }[] = await this.userRepo
+      .createQueryBuilder('u')
+      .select('u.teamId', 'teamId')
+      .addSelect('COUNT(*)', 'count')
+      .where('u.teamId IN (:...ids)', { ids: teamIds })
+      .groupBy('u.teamId')
+      .getRawMany();
+    for (const r of rows) {
+      if (r.teamId) counts.set(r.teamId, Number(r.count));
+    }
+    return counts;
+  }
 }
