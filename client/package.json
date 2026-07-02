@@ -28,6 +28,7 @@
     "axios": "^1.13.2",
     "capacitor-native-settings": "^6.0.6",
     "firebase": "^10.14.1",
+    "lottie-react": "^2.4.1",
     "lucide-react": "^0.554.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
