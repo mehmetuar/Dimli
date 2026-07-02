@@ -84,14 +84,14 @@ export class TeamsService implements OnModuleInit {
 
     // Fetch the managed user entity to ensure TypeORM tracks it for the relationship
     const managedUser = await this.usersService.findById(user.id);
-    if (!managedUser) throw new Error('User not found');
+    if (!managedUser) throw new NotFoundException('Kullanıcı bulunamadı.');
 
     // Preempt the TypeORM duplicate key unique constraint on OneToOne
     const existingLedTeam = await this.teamsRepository.findOne({
       where: { captainId: managedUser.id },
     });
     if (existingLedTeam) {
-      throw new Error(
+      throw new ConflictException(
         'Zaten bir takımın kaptanısınız. Yeni takım kurmak için mevcut takımı devretmeli veya silmelisiniz.',
       );
     }
@@ -282,7 +282,7 @@ export class TeamsService implements OnModuleInit {
     requesterId: string,
   ): Promise<Team> {
     const team = await this.findOne(teamId);
-    if (!team) throw new Error('Team not found');
+    if (!team) throw new NotFoundException('Takım bulunamadı.');
 
     // Only the captain or a vice-captain can remove players
     const isCaptain = team.captain.id === requesterId;
@@ -295,7 +295,7 @@ export class TeamsService implements OnModuleInit {
 
     // Cannot remove captain
     if (team.captain.id === playerId) {
-      throw new Error('Cannot remove captain from the team');
+      throw new ForbiddenException('Kaptan takımdan çıkarılamaz.');
     }
 
     team.players = team.players.filter((p) => p.id !== playerId);
@@ -319,10 +319,10 @@ export class TeamsService implements OnModuleInit {
     role: 'CAPTAIN' | 'VICE',
   ): Promise<Team> {
     const team = await this.findOne(teamId);
-    if (!team) throw new Error('Team not found');
+    if (!team) throw new NotFoundException('Takım bulunamadı.');
 
     const player = team.players.find((p) => p.id === playerId);
-    if (!player) throw new Error('Player not found in team');
+    if (!player) throw new NotFoundException('Oyuncu takımda bulunamadı.');
 
     if (role === 'CAPTAIN') {
       // Swap captain
@@ -347,7 +347,7 @@ export class TeamsService implements OnModuleInit {
     remove?: string,
   ): Promise<Team> {
     const team = await this.findOne(teamId);
-    if (!team) throw new Error('Team not found');
+    if (!team) throw new NotFoundException('Takım bulunamadı.');
 
     if (!team.viceCaptainIds) team.viceCaptainIds = [];
 
@@ -371,7 +371,7 @@ export class TeamsService implements OnModuleInit {
 
   async updateHomePitch(teamId: string, homePitchId: string): Promise<Team> {
     const team = await this.findOne(teamId);
-    if (!team) throw new Error('Team not found');
+    if (!team) throw new NotFoundException('Takım bulunamadı.');
 
     team.homePitchId = homePitchId;
     // If switching back to pitch, maybe clear business? Or keep both as preference?
@@ -384,7 +384,7 @@ export class TeamsService implements OnModuleInit {
     homeBusinessId: string,
   ): Promise<Team> {
     const team = await this.findOne(teamId);
-    if (!team) throw new Error('Team not found');
+    if (!team) throw new NotFoundException('Takım bulunamadı.');
 
     team.homeBusinessId = homeBusinessId;
     return this.teamsRepository.save(team);
@@ -392,7 +392,7 @@ export class TeamsService implements OnModuleInit {
 
   async updateDescription(teamId: string, description: string): Promise<Team> {
     const team = await this.findOne(teamId);
-    if (!team) throw new Error('Team not found');
+    if (!team) throw new NotFoundException('Takım bulunamadı.');
 
     team.description = description;
     return this.teamsRepository.save(team);
@@ -409,7 +409,7 @@ export class TeamsService implements OnModuleInit {
     },
   ): Promise<Team> {
     const team = await this.findOne(teamId);
-    if (!team) throw new Error('Team not found');
+    if (!team) throw new NotFoundException('Takım bulunamadı.');
 
     if (dto.name !== undefined) team.name = dto.name;
     if (dto.level !== undefined) team.level = dto.level;
@@ -423,7 +423,7 @@ export class TeamsService implements OnModuleInit {
 
   async leaveTeam(teamId: string, userId: string): Promise<void> {
     const team = await this.findOne(teamId);
-    if (!team) throw new Error('Team not found');
+    if (!team) throw new NotFoundException('Takım bulunamadı.');
 
     const isCaptain = team.captain && team.captain.id === userId;
 
@@ -434,11 +434,13 @@ export class TeamsService implements OnModuleInit {
     }
 
     if (isCaptain) {
-      throw new Error('Kaptan takımdan ayrılamaz. Önce kaptanlığı devredin.');
+      throw new ForbiddenException(
+        'Kaptan takımdan ayrılamaz. Önce kaptanlığı devredin.',
+      );
     }
 
     const user = await this.usersService.findById(userId);
-    if (!user) throw new Error('User not found');
+    if (!user) throw new NotFoundException('Kullanıcı bulunamadı.');
 
     // Remove from vice captains if applicable
     if (team.viceCaptainIds?.includes(userId)) {
@@ -453,11 +455,12 @@ export class TeamsService implements OnModuleInit {
 
   async deleteTeam(teamId: string, userId: string): Promise<void> {
     const team = await this.findOne(teamId);
-    if (!team) throw new Error('Team not found');
+    if (!team) throw new NotFoundException('Takım bulunamadı.');
 
     const isCaptain =
       (team.captain && team.captain.id === userId) || team.captainId === userId;
-    if (!isCaptain) throw new Error('Sadece kaptan takımı silebilir.');
+    if (!isCaptain)
+      throw new ForbiddenException('Sadece kaptan takımı silebilir.');
 
     // 1. Kesinleşmiş maç kontrolü:
     //    - rakip_araniyor: match_announcement.status = 'CONFIRMED'

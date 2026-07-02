@@ -288,7 +288,7 @@ export class ReservationLifecycleService {
 
       if (!reservation) {
         this.logger.error(`Reservation not found: ${id}`);
-        throw new Error('Reservation not found');
+        throw new NotFoundException('Rezervasyon bulunamadı.');
       }
 
       // 1.1 Allow Re-approval of REJECTED reservations if slot is free
@@ -296,7 +296,7 @@ export class ReservationLifecycleService {
         reservation.status !== ReservationStatus.PENDING &&
         reservation.status !== ReservationStatus.REJECTED
       ) {
-        throw new Error(
+        throw new BadRequestException(
           'Sadece beklemede veya reddedilmiş rezervasyonlar onaylanabilir.',
         );
       }
@@ -323,7 +323,7 @@ export class ReservationLifecycleService {
           this.logger.warn(
             `Time conflict detected for reservation ${id} with existing approved reservation ${existingApproved.id}`,
           );
-          throw new Error(
+          throw new ConflictException(
             'Bu saat dilimi için zaten onaylanmış bir maç var! (Zaman çakışması)',
           );
         }
@@ -827,11 +827,13 @@ export class ReservationLifecycleService {
       });
 
       if (!reservation) {
-        throw new Error('Reservation not found');
+        throw new NotFoundException('Rezervasyon bulunamadı.');
       }
 
       if (reservation.status !== ReservationStatus.APPROVED) {
-        throw new Error('Sadece onaylanmış maçların onayı kaldırılabilir.');
+        throw new BadRequestException(
+          'Sadece onaylanmış maçların onayı kaldırılabilir.',
+        );
       }
 
       // If it's a manual fill (no team), simply delete it and return
@@ -1045,11 +1047,13 @@ export class ReservationLifecycleService {
     });
 
     if (!reservation) {
-      throw new Error('Reservation not found');
+      throw new NotFoundException('Rezervasyon bulunamadı.');
     }
 
     if (!reservation.matchAnnouncementId) {
-      throw new Error('This reservation is not linked to a match/chat.');
+      throw new BadRequestException(
+        'Bu rezervasyon bir maça/sohbete bağlı değil.',
+      );
     }
 
     const businessName = reservation.pitch?.business?.name || 'İşletme';
@@ -1109,7 +1113,9 @@ export class ReservationLifecycleService {
       });
 
       if (!reservation) {
-        throw new Error('Reservation not found or unauthorized');
+        throw new ForbiddenException(
+          'Rezervasyon bulunamadı veya yetkiniz yok.',
+        );
       }
 
       // Allow cancelling APPROVED as well now (Captain cancellation)
@@ -1118,7 +1124,7 @@ export class ReservationLifecycleService {
         reservation.status !== ReservationStatus.REJECTED &&
         reservation.status !== ReservationStatus.APPROVED
       ) {
-        throw new Error('Bu rezervasyon iptal edilemez.');
+        throw new BadRequestException('Bu rezervasyon iptal edilemez.');
       }
 
       reservation.status = ReservationStatus.CANCELLED;
@@ -1210,17 +1216,17 @@ export class ReservationLifecycleService {
     });
 
     if (!reservation) {
-      throw new Error('Reservation not found or unauthorized');
+      throw new ForbiddenException('Rezervasyon bulunamadı veya yetkiniz yok.');
     }
 
     if (reservation.status !== ReservationStatus.APPROVED) {
-      throw new Error(
+      throw new BadRequestException(
         'Sadece onaylanmış maçlar için iptal isteği gönderilebilir.',
       );
     }
 
     if (reservation.cancelRequested) {
-      throw new Error('Zaten bir iptal isteği gönderilmiş.');
+      throw new ConflictException('Zaten bir iptal isteği gönderilmiş.');
     }
 
     // Update reservation
@@ -1318,11 +1324,11 @@ export class ReservationLifecycleService {
     });
 
     if (!reservation) {
-      throw new Error('Reservation not found or unauthorized');
+      throw new ForbiddenException('Rezervasyon bulunamadı veya yetkiniz yok.');
     }
 
     if (!reservation.cancelRequested) {
-      throw new Error('İptal isteği bulunmuyor.');
+      throw new NotFoundException('İptal isteği bulunmuyor.');
     }
 
     // Revert cancelRequested
@@ -1438,7 +1444,9 @@ export class ReservationLifecycleService {
       });
 
       if (!reservation) {
-        throw new Error('Reservation not found or no active cancel request.');
+        throw new BadRequestException(
+          'Rezervasyon bulunamadı veya aktif iptal talebi yok.',
+        );
       }
 
       reservation.status = ReservationStatus.CANCELLED;
@@ -1544,7 +1552,9 @@ export class ReservationLifecycleService {
       });
 
       if (!reservation) {
-        throw new Error('Reservation not found or no active cancel request.');
+        throw new BadRequestException(
+          'Rezervasyon bulunamadı veya aktif iptal talebi yok.',
+        );
       }
 
       reservation.cancelRequested = false;

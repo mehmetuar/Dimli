@@ -1,4 +1,11 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, DataSource, Repository } from 'typeorm';
 import { Reservation, ReservationStatus } from '../entities/reservation.entity';
@@ -30,7 +37,7 @@ export class ReservationProposalService {
       ],
     });
 
-    if (!reservation) throw new Error('Reservation not found');
+    if (!reservation) throw new NotFoundException('Rezervasyon bulunamadı.');
 
     // Verify User is Captain of one of the teams
     const isTeamCaptain =
@@ -41,7 +48,9 @@ export class ReservationProposalService {
       reservation.opponentTeam?.captainId === userId;
 
     if (!isTeamCaptain && !isOpponentCaptain) {
-      throw new Error('Only captains can propose a time change.');
+      throw new ForbiddenException(
+        'Sadece kaptanlar saat değişikliği önerebilir.',
+      );
     }
 
     reservation.proposedTime = newSlotTime;
@@ -109,8 +118,9 @@ export class ReservationProposalService {
         ],
       });
 
-      if (!reservation) throw new Error('Reservation not found');
-      if (!reservation.proposedTime) throw new Error('No time proposed.');
+      if (!reservation) throw new NotFoundException('Rezervasyon bulunamadı.');
+      if (!reservation.proposedTime)
+        throw new BadRequestException('Önerilmiş bir saat yok.');
 
       // Verify User is the OTHER captain
       const proposerId = reservation.proposedByUserId;
@@ -123,9 +133,9 @@ export class ReservationProposalService {
         reservation.opponentTeam?.captainId === userId;
 
       if (!isTeamCaptain && !isOpponentCaptain)
-        throw new Error('Not authorized.');
+        throw new ForbiddenException('Yetkiniz yok.');
       if (userId === proposerId)
-        throw new Error('You cannot accept your own proposal.');
+        throw new ForbiddenException('Kendi önerinizi kabul edemezsiniz.');
 
       // CHECK AVAILABILITY of proposed time
       const approvalTime = new Date(reservation.proposedTime);
@@ -141,7 +151,7 @@ export class ReservationProposalService {
       });
 
       if (existingApproved) {
-        throw new Error(
+        throw new ConflictException(
           'Önerilen saat maalesef dolu. Lütfen başka bir saat deneyin.',
         );
       }

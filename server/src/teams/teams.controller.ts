@@ -9,7 +9,7 @@ import {
   Delete,
   Patch,
   HttpException,
-  HttpStatus,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { TeamsService } from './teams.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -38,20 +38,12 @@ export class TeamsController {
         req.user as unknown as User,
       );
     } catch (error: unknown) {
+      // Türkçe HttpException'ları (ör. 'Zaten bir takımın kaptanısınız...') olduğu gibi ilet;
+      // beklenmeyen hatada ham/İngilizce metin veya stack SIZDIRMA → Türkçe genel mesaj.
+      if (error instanceof HttpException) throw error;
       console.error('🔥 TEAM CREATION ERROR 🔥', error);
-      const err = error as {
-        message?: string;
-        detail?: string;
-        stack?: string;
-      };
-      throw new HttpException(
-        {
-          status: HttpStatus.INTERNAL_SERVER_ERROR,
-          error: err.message,
-          detail: err.detail,
-          stack: err.stack,
-        },
-        HttpStatus.INTERNAL_SERVER_ERROR,
+      throw new InternalServerErrorException(
+        'Takım oluşturulamadı. Lütfen tekrar deneyin.',
       );
     }
   }

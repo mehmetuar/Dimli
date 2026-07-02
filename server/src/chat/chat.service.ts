@@ -721,7 +721,7 @@ export class ChatService {
     const channel = await this.chatChannelRepository.findOne({
       where: { id: channelId },
     });
-    if (!channel) throw new NotFoundException('Channel not found');
+    if (!channel) throw new NotFoundException('Sohbet bulunamadı.');
 
     // Verify participant
     const participant = await this.chatParticipantRepository.findOne({
@@ -790,7 +790,7 @@ export class ChatService {
     const channel = await this.chatChannelRepository.findOne({
       where: { id: channelId },
     });
-    if (!channel) throw new NotFoundException('Channel not found');
+    if (!channel) throw new NotFoundException('Sohbet bulunamadı.');
     if (!channel.relatedMatchId) {
       return {
         error: 'NO_MATCH',

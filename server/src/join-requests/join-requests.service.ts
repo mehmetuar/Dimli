@@ -2,6 +2,7 @@ import {
   Injectable,
   ConflictException,
   ForbiddenException,
+  NotFoundException,
   Inject,
   forwardRef,
 } from '@nestjs/common';
@@ -61,7 +62,7 @@ export class JoinRequestsService {
     const request = await this.joinRequestsRepository.findOne({
       where: { id },
     });
-    if (!request) throw new Error('Join request not found');
+    if (!request) throw new NotFoundException('Katılma isteği bulunamadı.');
     if (request.userId !== userId)
       throw new ForbiddenException('Bu isteği iptal etme yetkiniz yok.');
     await this.joinRequestsRepository.update(id, { status: 'CANCELLED' });
@@ -81,7 +82,7 @@ export class JoinRequestsService {
       relations: ['user', 'team'],
     });
     if (!request) {
-      throw new Error('Join request not found');
+      throw new NotFoundException('Katılma isteği bulunamadı.');
     }
     return request;
   }

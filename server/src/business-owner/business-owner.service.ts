@@ -155,7 +155,7 @@ export class BusinessOwnerService {
   async getDashboardSlots(ownerId: string, dateStr: string) {
     const owner = await this.findOne(ownerId);
     if (!owner || !owner.business) {
-      throw new Error('Business not found for this owner');
+      throw new NotFoundException('İşletme bulunamadı.');
     }
 
     const business = owner.business;
@@ -324,13 +324,13 @@ export class BusinessOwnerService {
       ]);
       for (const res of allSlotReservations) {
         if (res.teamId && res.team) {
-          (res.team as any).playedMatchCount = matchCounts.get(res.teamId) ?? 0;
-          (res.team as any).playerCount = playerCounts.get(res.teamId) ?? 0;
+          res.team.playedMatchCount = matchCounts.get(res.teamId) ?? 0;
+          res.team.playerCount = playerCounts.get(res.teamId) ?? 0;
         }
         if (res.opponentTeamId && res.opponentTeam) {
-          (res.opponentTeam as any).playedMatchCount =
+          res.opponentTeam.playedMatchCount =
             matchCounts.get(res.opponentTeamId) ?? 0;
-          (res.opponentTeam as any).playerCount =
+          res.opponentTeam.playerCount =
             playerCounts.get(res.opponentTeamId) ?? 0;
         }
       }
@@ -399,7 +399,7 @@ export class BusinessOwnerService {
   async getStats(ownerId: string) {
     const owner = await this.findOne(ownerId);
     if (!owner || !owner.business) {
-      throw new Error('Business not found for this owner');
+      throw new NotFoundException('İşletme bulunamadı.');
     }
 
     const business = await this.businessRepository.findOne({
@@ -407,7 +407,7 @@ export class BusinessOwnerService {
       relations: ['pitches'],
     });
 
-    if (!business) throw new Error('Business not found');
+    if (!business) throw new NotFoundException('İşletme bulunamadı.');
 
     // Tarih aralıkları — İstanbul takvim günü (process saat dilimi UTC,
     // bu yüzden process-yerel .setHours()/.getMonth() yerine sabit +3 ofsetli

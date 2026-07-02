@@ -1,4 +1,9 @@
-import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
+import {
+  Injectable,
+  HttpException,
+  HttpStatus,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule'; // Import Cron
@@ -50,7 +55,9 @@ export class MatchAnnouncementsService {
     });
 
     if (!user || !user.team) {
-      throw new Error('User must be in a team to create match announcements');
+      throw new BadRequestException(
+        'Maç ilanı oluşturmak için bir takımda olmalısınız.',
+      );
     }
 
     // Saha onaylı ve aktif olmalı

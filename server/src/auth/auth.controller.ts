@@ -137,7 +137,7 @@ export class AuthController {
       body.password,
     );
     if (!owner) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('Kullanıcı adı veya şifre hatalı.');
     }
     return this.authService.loginBusinessOwner(owner);
   }

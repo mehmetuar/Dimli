@@ -1,4 +1,9 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   Between,
@@ -53,7 +58,7 @@ export class ReservationRecurringService {
         where: { id: pitchId },
         relations: ['business'],
       });
-      if (!pitch) throw new Error('Saha bulunamadı');
+      if (!pitch) throw new NotFoundException('Saha bulunamadı.');
 
       return this.blockSlot(manager, pitchId, slotTime);
     });
@@ -83,7 +88,7 @@ export class ReservationRecurringService {
         },
       });
       if (existingApproved) {
-        throw new Error('Bu saat zaten dolu.');
+        throw new ConflictException('Bu saat zaten dolu.');
       }
 
       // 2. Reject all pending reservations

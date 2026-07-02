@@ -3,6 +3,7 @@ import {
   NotFoundException,
   UnauthorizedException,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -47,14 +48,14 @@ export class UsersService {
   async create(userData: CreateUserDto): Promise<User> {
     try {
       if (!userData.password) {
-        throw new Error('Password is required');
+        throw new BadRequestException('Şifre gerekli.');
       }
 
       const existing = await this.usersRepository.findOne({
         where: { username: userData.username },
       });
       if (existing) {
-        throw new Error('Username already exists');
+        throw new ConflictException('Bu kullanıcı adı zaten kullanılıyor.');
       }
 
       const hashedPassword = await bcrypt.hash(userData.password, 10);
@@ -266,7 +267,7 @@ export class UsersService {
   ): Promise<void> {
     const user = await this.usersRepository.findOne({ where: { id } });
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('Kullanıcı bulunamadı.');
     }
 
     const isPasswordValid = await bcrypt.compare(
@@ -274,7 +275,7 @@ export class UsersService {
       user.password,
     );
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid old password');
+      throw new UnauthorizedException('Mevcut şifre hatalı.');
     }
 
     const hashedPassword = await bcrypt.hash(changePasswordDto.newPassword, 10);

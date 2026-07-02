@@ -96,7 +96,7 @@ export class UsersController {
     @Request() req: { user: Express.User },
     @Body('token') token: string,
   ) {
-    if (!token) return { success: false, message: 'Token is required' };
+    if (!token) return { success: false, message: 'Geçersiz istek.' };
     await this.usersService.updatePushToken(req.user.id, token);
     return { success: true };
   }

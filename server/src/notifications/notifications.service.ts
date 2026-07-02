@@ -5,6 +5,8 @@ import {
   forwardRef,
   Logger,
   ForbiddenException,
+  NotFoundException,
+  ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
@@ -48,7 +50,7 @@ export class NotificationsService {
   ): Promise<Notification> {
     // Get team to find captain
     const team = await this.teamsService.findOne(teamId);
-    if (!team) throw new Error('Team not found');
+    if (!team) throw new NotFoundException('Takım bulunamadı.');
 
     const notification = this.notificationsRepository.create({
       userId: team.captainId || (team.captain as any).id, // Captain gets notification
@@ -242,7 +244,7 @@ export class NotificationsService {
       relations: ['team', 'pitch', 'pitch.business'],
     });
 
-    if (!match) throw new Error('Match not found');
+    if (!match) throw new NotFoundException('Maç bulunamadı.');
 
     // F1: Davet her zaman match.team adına gönderilir — çağıran o takımın kaptanı
     // veya yardımcı kaptanı olmalı. Aksi halde herhangi biri başka takım "adına"
@@ -268,7 +270,9 @@ export class NotificationsService {
     });
 
     if (existingInvite) {
-      throw new Error('Joker için bu maça zaten bir davet gönderilmiş.');
+      throw new ConflictException(
+        'Joker için bu maça zaten bir davet gönderilmiş.',
+      );
     }
 
     const notification = this.notificationsRepository.create({
@@ -431,7 +435,7 @@ export class NotificationsService {
     const notification = await this.notificationsRepository.findOne({
       where: { id },
     });
-    if (!notification) throw new Error('Notification not found');
+    if (!notification) throw new NotFoundException('Bildirim bulunamadı.');
     return notification;
   }
 

@@ -1,4 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Challenge } from './challenge.entity';
@@ -39,7 +43,9 @@ export class ChallengesService {
     });
 
     if (existingChallenge) {
-      throw new Error('Bu maça zaten meydan okudunuz. Cevap bekleniyor.');
+      throw new ConflictException(
+        'Bu maça zaten meydan okudunuz. Cevap bekleniyor.',
+      );
     }
 
     // 1. Fetch Match Announcement (challenge kaydından ÖNCE — slot uygunluğu için)
@@ -48,7 +54,7 @@ export class ChallengesService {
       relations: ['team', 'team.captain'],
     });
 
-    if (!match) throw new Error('Match not found');
+    if (!match) throw new NotFoundException('Maç bulunamadı.');
 
     // 1b. Slot kapalı/dolu mu? (sabit/manuel kapatma veya başka takımca onaylı maç) —
     // kapalı slottaki ilana meydan okuma gönderilmesini anında engelle (gönderen
@@ -69,7 +75,8 @@ export class ChallengesService {
 
     // 3. Fetch Challenger Team Name
     const challengerTeam = await this.teamsService.findOne(fromTeamId);
-    if (!challengerTeam) throw new Error('Challenger team not found');
+    if (!challengerTeam)
+      throw new NotFoundException('Meydan okuyan takım bulunamadı.');
 
     // 4. Create Notification for Target Team Captain
     await this.notificationsService.create({
@@ -131,7 +138,7 @@ export class ChallengesService {
     const challenge = await this.challengesRepository.findOne({
       where: { id },
     });
-    if (!challenge) throw new Error('Challenge not found');
+    if (!challenge) throw new NotFoundException('Meydan okuma bulunamadı.');
 
     // Delete related notification
     const notification = await this.notificationsService[
@@ -159,7 +166,7 @@ export class ChallengesService {
       where: { id },
     });
 
-    if (!challenge) throw new Error('Challenge not found');
+    if (!challenge) throw new NotFoundException('Meydan okuma bulunamadı.');
 
     // Delete the original challenge notification
     const notification = await this.notificationsService[
@@ -202,12 +209,13 @@ export class ChallengesService {
         ],
       });
 
-      if (!match) throw new Error('Match not found');
+      if (!match) throw new NotFoundException('Maç bulunamadı.');
 
       const challengerTeam = await this.teamsService.findOne(
         challenge.fromTeamId,
       );
-      if (!challengerTeam) throw new Error('Challenger team not found');
+      if (!challengerTeam)
+        throw new NotFoundException('Meydan okuyan takım bulunamadı.');
 
       const hostTeam = match.team;
 

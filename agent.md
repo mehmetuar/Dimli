@@ -1165,3 +1165,26 @@ PlayerDetailModal + JokerDetailModal). Dinamik hâle getirildi.
 - **Bayrak gösterimi (dinamik):** PlayerDetailModal + JokerDetailModal → `<Flag code={player.nationality || 'TR'} />`.
 - **⚠️ Deploy notu:** Sütun **server deploy/restart'ında** oluşur (synchronize). Deploy sonrası salt-okunur
   doğrulama: `SELECT nationality, count(*) FROM "user" GROUP BY 1;` (15 = TR beklenir). Client yeni native build ister.
+
+---
+
+## 32. Kullanıcıya-dönük hata mesajları HEP Türkçe (2026-07-03)
+
+Kullanıcı İngilizce/ham backend uyarıları görmemeli (ör. satın almada "purchase was cancelled",
+her yerde jenerik "Internal server error"). Kalıcı kurallar:
+
+- **Server — düz `throw new Error('...')` KULLANMA** kullanıcıya-dönük koşullarda. Uygun HttpException +
+  **Türkçe** mesaj at: `NotFoundException`/`ConflictException`/`ForbiddenException`/`BadRequestException`.
+  Düz `Error` NestJS'te **500 "Internal server error"**e döner ve mesaj gizlenir (Türkçe olsa bile). Yalnız
+  gerçekten-içsel invariant'lar (config, "unique shortId üretilemedi" gibi) düz `Error` kalabilir.
+- **Global filtre:** `server/src/common/all-exceptions.filter.ts` (`main.ts`'te `useGlobalFilters`) →
+  HttpException'lar (Türkçe mesajlar) geçer; yakalanmamış hatalar **Türkçe** genel mesaja düşer
+  (`'Sunucu hatası. Lütfen daha sonra tekrar deneyin.'`), stack/İngilizce metin **istemciye sızmaz**.
+  Yeni catch bloklarında ham `err.message`/`err.stack` döndürme (teams create'te bu düzeltildi).
+- **Client — RevenueCat/satın alma hataları:** `revenuecatService.purchaseErrorToTurkish(err)` kullan
+  (`{cancelled, message}`). Ham SDK `err.message` (İngilizce) ASLA gösterilme; **iptalde sessiz geç**.
+  `useBusinessSubscriptionSettings` + `useBusinessRegister` bunu kullanır.
+- **Client backend hataları:** `getErrorMessage(err, fallback)` (`utils/apiError.ts`) — jenerik İngilizce
+  ('internal server error'/'not found'...) gelirse Türkçe fallback'e düşer; artık server zaten Türkçe döner.
+- **Not:** Kalan içsel düz-Error listesi (chat 'Failed to create message', business 'findAll requires...',
+  teams 'unique shortId'/'after update', sms/firebase/jwt config) global filtre ile Türkçe jenerik'e döner.
