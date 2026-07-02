@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useMemo } from 'react';
-import { Send, Bot, ChevronLeft, Users, Shield, Star, Phone, ArrowDown, Swords, MoreVertical, X, ChevronRight, Trash2, XCircle, AlertTriangle, Undo2, UserMinus, UserPlus, RefreshCw, CheckCircle } from 'lucide-react';
+import { Send, Bot, ChevronLeft, Users, Shield, Star, Phone, ArrowDown, Swords, MoreVertical, X, ChevronRight, Trash2, XCircle, AlertTriangle, Undo2, UserMinus, UserPlus, RefreshCw, CheckCircle, MessageCircle } from 'lucide-react';
 import { useChat } from './hooks/useChat';
 import { useMessageActions } from './hooks/useMessageActions';
 import { ChannelItem } from './components/ChannelItem';
@@ -225,13 +225,33 @@ export const Chat: React.FC = () => {
             <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Aktif Sohbetler</h3>
 
             {isLoadingChannels ? (
-              <div className="flex flex-col items-center justify-center py-16 gap-3">
-                <div className="w-8 h-8 border-2 border-turf-500 border-t-transparent rounded-full animate-spin" />
-                <span className="text-slate-500 text-sm">Sohbetler yükleniyor...</span>
+              // Profesyonel skeleton (spinner yerine) — satır düzeni ChannelItem ile aynı hissi verir
+              <div className="space-y-2">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="bg-slate-800/60 px-4 py-3 rounded-2xl border border-slate-700/40 flex gap-3 items-center animate-pulse"
+                  >
+                    <div className="w-12 h-12 rounded-2xl bg-slate-700/60 flex-shrink-0" />
+                    <div className="flex-1 min-w-0 space-y-2">
+                      <div className="h-3.5 bg-slate-700/60 rounded w-2/5" />
+                      <div className="h-3 bg-slate-700/40 rounded w-3/5" />
+                    </div>
+                    <div className="w-8 h-3 bg-slate-700/40 rounded flex-shrink-0 self-start mt-1" />
+                  </div>
+                ))}
               </div>
             ) : channels.length === 0 ? (
-              <div className="text-center py-12 text-slate-400">
-                Henüz aktif sohbet yok.
+              <div className="flex flex-col items-center justify-center py-16 px-6 text-center gap-3">
+                <div className="w-16 h-16 rounded-full bg-slate-800/80 border border-slate-700/50 flex items-center justify-center">
+                  <MessageCircle className="w-8 h-8 text-slate-600" />
+                </div>
+                <div>
+                  <p className="text-slate-300 font-semibold">Henüz sohbetin yok</p>
+                  <p className="text-slate-500 text-sm mt-1">
+                    Bir maç kurduğunda veya bir maça katıldığında sohbetlerin burada görünür.
+                  </p>
+                </div>
               </div>
             ) : (
               channels.map(channel => (

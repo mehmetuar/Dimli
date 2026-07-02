@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React from 'react';
 import { Users, Star } from 'lucide-react';
 import { getMatchStatusInfo, formatMessageDate, teamAvatarFallback, userAvatarFallback } from '../utils/chatUtils';
 import { MatchStatusBadge } from './MatchStatusBadge';
 import { stripSystemMessageMarkers } from '../../../../components/UI/SystemMessageRenderer';
+import { useLongPress } from '../hooks/useLongPress';
 
 interface ChannelItemProps {
     channel: any;
@@ -22,29 +23,9 @@ const noCalloutStyle: React.CSSProperties = {
 export const ChannelItem: React.FC<ChannelItemProps> = ({
     channel, onClick, onLongPress, currentUserId, blockedUserIds,
 }) => {
-    const [startLongPress, setStartLongPress] = useState(false);
-    const [isLongPressTriggered, setIsLongPressTriggered] = useState(false);
-    const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-
-    useEffect(() => {
-        if (startLongPress) {
-            timerRef.current = setTimeout(() => {
-                onLongPress();
-                setIsLongPressTriggered(true);
-            }, 500);
-        } else {
-            clearTimeout(timerRef.current);
-        }
-        return () => clearTimeout(timerRef.current);
-    }, [startLongPress, onLongPress]);
-
-    const handleMouseDown = () => { setStartLongPress(true); setIsLongPressTriggered(false); };
-    const handleMouseUp = () => { setStartLongPress(false); };
-    const handleMouseLeave = () => { setStartLongPress(false); };
-    const handleClick = (e: React.MouseEvent) => {
-        if (isLongPressTriggered) { e.stopPropagation(); return; }
-        onClick();
-    };
+    // Güvenilir tap (aç) + native long-press (Seçenekler). Kaydırma long-press'i tetiklemez;
+    // dokununca "Seçenekler..." flaşı yok. onClick KULLANILMAZ — tap hook'ta touchend ile yakalanır.
+    const rowRef = useLongPress<HTMLDivElement>({ onTap: onClick, onLongPress });
 
     const statusInfo = getMatchStatusInfo(channel.reservation);
     const isJoker = channel.type === 'JOKER_NEGOTIATION';
@@ -53,8 +34,6 @@ export const ChannelItem: React.FC<ChannelItemProps> = ({
 
     // Son mesaj satırı: gönderen + içerik
     const renderLastMessage = () => {
-        if (startLongPress) return <span className="text-slate-500 italic">Seçenekler...</span>;
-
         const lm = channel.lastMessage;
         if (!lm) return <span className="text-slate-600">Sohbete girmek için tıkla</span>;
 
@@ -163,12 +142,7 @@ export const ChannelItem: React.FC<ChannelItemProps> = ({
 
     return (
         <div
-            onMouseDown={handleMouseDown}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseLeave}
-            onTouchStart={handleMouseDown}
-            onTouchEnd={handleMouseUp}
-            onClick={handleClick}
+            ref={rowRef}
             className={`bg-slate-800/60 ${bgClass} px-4 py-3 rounded-2xl border border-slate-700/40 flex gap-3 items-center active:scale-[0.98] active:bg-slate-700/60 transition-all cursor-pointer select-none`}
         >
             {/* Avatar */}
