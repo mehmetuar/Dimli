@@ -185,10 +185,12 @@ body.modal-open {
   touch-action: none;
 }
 
-/* Modal açıkken navbar ve bildirim ziline erişimi engelle */
+/* Modal açıkken navbar, bildirim zili ve Profilim/Takımım tab başlığını gizle
+   (TeamProfile fixed inset-0 → tab başlığı modalların önünde kalıyordu). */
 body.modal-open nav,
 body.modal-open .business-navbar,
-body.modal-open .fixed.top-bell-safe {
+body.modal-open .fixed.top-bell-safe,
+body.modal-open .team-profile-tabs {
   pointer-events: none;
   visibility: hidden;
 }

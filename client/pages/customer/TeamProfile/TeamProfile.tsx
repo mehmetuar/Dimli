@@ -22,8 +22,9 @@ export const TeamProfile: React.FC = () => {
             className="fixed inset-0 bg-pitch flex flex-col overflow-hidden"
             style={{ paddingTop: 'env(safe-area-inset-top)' }}
         >
-            {/* SABİT başlık: PROFİLİM / TAKIMIM tab switcher — scroll'da kaybolmaz */}
-            <div className="flex-shrink-0 px-4 pt-2 pb-3">
+            {/* SABİT başlık: PROFİLİM / TAKIMIM tab switcher — scroll'da kaybolmaz.
+                team-profile-tabs: herhangi bir modal açıkken (body.modal-open) gizlenir (navbar deseni). */}
+            <div className="team-profile-tabs flex-shrink-0 px-4 pt-2 pb-3">
                 <div className="flex p-1 bg-slate-800 rounded-xl border border-slate-700 shadow-lg max-w-3xl mx-auto">
                     <button
                         onClick={() => setActiveTab('PLAYER')}

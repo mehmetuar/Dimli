@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { LoadingSpinner } from '../../../components/UI/LoadingSpinner';
+import { useModalBodyClass } from '../../../utils/useModalBodyClass';
 import { Check, X, Shield, Crown, Trash2, ShieldX, ChevronRight, MoreVertical } from 'lucide-react';
 
 import { useTeamModals } from './hooks/useTeamModals';
@@ -48,6 +49,10 @@ export const MyTeam: React.FC = () => {
         setConfirmModal: modals.setConfirmModal,
         setSuccessMessage, setSuccessType, setErrorMessage
     });
+
+    // PlayerActionsModal inline bir overlay (ayrı bileşen değil) → modal-open set etmezdi; ekleyelim ki
+    // Profilim/Takımım başlığı bu sheet açıkken de gizlensin (diğer modallar KeyboardAwareModal/useModalBodyClass ile zaten set ediyor).
+    useModalBodyClass(modals.playerActionsModal.isOpen);
 
     if (isLoading) {
         return <LoadingSpinner fullScreen text="Takım Yükleniyor..." />;
