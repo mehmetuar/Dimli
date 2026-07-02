@@ -1,6 +1,7 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { MapPin, RefreshCw } from 'lucide-react';
 import { LoadingSpinner } from '../../../components/UI/LoadingSpinner';
+import { LottiePlayer } from '../../../components/UI/LottiePlayer';
 import { LocationAccessGate } from '../../../components/LocationAccessGate';
 
 import { usePitchBooking } from './hooks/usePitchBooking';
@@ -267,9 +268,25 @@ export const PitchBooking: React.FC = () => {
                         <p className="mt-4 text-sm font-medium">İşletmeler yükleniyor...</p>
                      </div>
                   ) : filteredBusinesses.length === 0 ? (
-                     <div className="text-center py-12 text-slate-400 bg-slate-800/50 rounded-3xl border border-dashed border-slate-700">
-                        <MapPin className="w-8 h-8 mx-auto mb-3 text-slate-600" />
-                        Seçilen konumda halı saha işletmesi bulunamadı.
+                     <div className="text-center py-12 px-6 text-slate-400 bg-slate-800/50 rounded-3xl border border-dashed border-slate-700 flex flex-col items-center">
+                        {/* Saha çizim animasyonu (tek-sefer); reduce-motion/yüklenme → statik pin */}
+                        <div className="w-28 h-28 mb-1">
+                           <LottiePlayer
+                              src="/animations/football-pitch.json"
+                              loop={false}
+                              autoplay
+                              ariaLabel="İşletme bulunamadı"
+                              style={{ width: '100%', height: '100%' }}
+                              fallback={<MapPin className="w-8 h-8 mx-auto mt-8 text-slate-600" />}
+                           />
+                        </div>
+                        <p className="mb-5">Belirlediğiniz konumda işletme bulunamadı.</p>
+                        <button
+                           onClick={() => setIsLocationFilterOpen(true)}
+                           className="bg-turf-600 hover:bg-turf-500 active:scale-[0.97] text-white font-bold text-sm py-2.5 px-5 rounded-xl transition-all shadow-lg shadow-turf-600/20"
+                        >
+                           Arama alanını genişlet
+                        </button>
                      </div>
                   ) : (
                      <>

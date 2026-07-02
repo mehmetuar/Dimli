@@ -1,6 +1,7 @@
 import React from 'react';
 import { Crown, Shield, ShieldX, Trash2, Check, CheckCircle } from 'lucide-react';
 import { useModalBodyClass } from '../../utils/useModalBodyClass';
+import { LottiePlayer } from '../UI/LottiePlayer';
 
 export type SuccessType = 'TEAM_CREATED' | 'CAPTAIN' | 'VICE' | 'ROLE_REMOVED' | 'KICK' | 'CHALLENGE_SENT' | 'CHALLENGE_ACCEPTED' | 'CHALLENGE_REJECTED' | 'MESSAGE_SENT' | 'MATCH_CANCELLED' | 'MATCH_APPROVED' | 'CREATE_AD' | 'DEFAULT';
 
@@ -100,9 +101,28 @@ export const SuccessModal: React.FC<SuccessModalProps> = ({
             <div className="bg-slate-800 rounded-3xl border border-slate-700 p-8 max-w-sm w-full text-center relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-turf-500 to-blue-500"></div>
 
-                <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 animate-bounce-slow ${getBgColor()}`}>
-                    {getIcon()}
-                </div>
+                {/* Olumlu sonuçlarda top→checkmark Lottie (tek-sefer); yıkıcı/nötr tipler lucide ikonla kalır.
+                    reduce-motion / yüklenme sırasında fallback = klasik ikon kabı (dikişsiz). */}
+                {(type === 'MATCH_APPROVED' || type === 'CHALLENGE_ACCEPTED' || type === 'MESSAGE_SENT') ? (
+                    <div className="w-20 h-20 mx-auto mb-6">
+                        <LottiePlayer
+                            src="/animations/ball-success.json"
+                            loop={false}
+                            autoplay
+                            ariaLabel="Başarılı"
+                            style={{ width: '100%', height: '100%' }}
+                            fallback={
+                                <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto animate-bounce-slow ${getBgColor()}`}>
+                                    {getIcon()}
+                                </div>
+                            }
+                        />
+                    </div>
+                ) : (
+                    <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 animate-bounce-slow ${getBgColor()}`}>
+                        {getIcon()}
+                    </div>
+                )}
 
                 <h3 className="text-2xl font-sport font-black text-white italic uppercase mb-2">
                     {getTitle()}

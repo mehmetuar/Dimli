@@ -7,6 +7,7 @@ import { MatchHistoryModal } from '../../../../components/Modals/MatchHistoryMod
 import { UpcomingMatchesModal } from '../../../../components/Modals/UpcomingMatchesModal';
 import { CreateMatchModal } from '../../../../components/Modals/CreateMatchModal';
 import { SuccessModal, SuccessType } from '../../../../components/Modals/SuccessModal';
+import { TeamCreatedCelebration } from './TeamCreatedCelebration';
 import { MatchHistoryItem } from '../../../../types';
 
 interface TeamModalsProps {
@@ -31,20 +32,29 @@ export const TeamModals: React.FC<TeamModalsProps> = ({
 }) => {
     return (
         <>
+            {/* Takım kurulunca standart modal yerine World Cup kutlaması (animasyon bitince Takımım'a). */}
+            <TeamCreatedCelebration
+                isOpen={!!successMessage && successType === 'TEAM_CREATED'}
+                teamName={myTeam?.name}
+                onDone={() => {
+                    setSuccessMessage('');
+                    setSuccessType(null);
+                    window.location.reload();
+                }}
+            />
+
             <SuccessModal
-                isOpen={!!(successMessage && successType)}
+                isOpen={!!successMessage && !!successType && successType !== 'TEAM_CREATED'}
                 onClose={() => {
                     setSuccessMessage('');
                     setSuccessType(null);
-                    if (successType === 'TEAM_CREATED') window.location.reload();
                 }}
                 message={successMessage}
                 type={successType || 'DEFAULT'}
-                confirmText={successType === 'TEAM_CREATED' ? 'KADROYU YÖNET' : 'TAMAM'}
+                confirmText="TAMAM"
                 onConfirm={() => {
                     setSuccessMessage('');
                     setSuccessType(null);
-                    if (successType === 'TEAM_CREATED') window.location.reload();
                 }}
             />
 

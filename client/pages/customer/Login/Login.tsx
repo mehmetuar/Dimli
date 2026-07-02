@@ -5,6 +5,7 @@ import api from '../../../services/api';
 import { initializePushNotifications } from '../../../services/pushNotificationService';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useKeyboardHeight } from '../../../utils/useKeyboardHeight';
+import { LottiePlayer } from '../../../components/UI/LottiePlayer';
 
 type Phase = 'entering' | 'idle' | 'exiting-left';
 
@@ -13,6 +14,7 @@ export const Login: React.FC = () => {
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
     const { token, loginAsCustomer } = useAuth();
@@ -37,13 +39,18 @@ export const Login: React.FC = () => {
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (isSubmitting) return; // çift-gönderim koruması
+        setError('');
+        setIsSubmitting(true);
         try {
             const response = await api.post('/auth/login', { username, password });
             await loginAsCustomer(response.data.access_token);
             navigate('/');
             setTimeout(() => initializePushNotifications(), 2000);
+            // başarıda navigate ile unmount → isSubmitting sıfırlanmaz (buton loader'da kalır)
         } catch (err: any) {
             setError('Giriş başarısız. Lütfen bilgilerinizi kontrol edin.');
+            setIsSubmitting(false);
         }
     };
 
@@ -202,10 +209,27 @@ export const Login: React.FC = () => {
 
                         <button
                             type="submit"
-                            className="w-full bg-turf-600 text-white rounded-2xl font-display font-bold uppercase tracking-wider shadow-lg shadow-black/30 border border-turf-400/15 active:bg-turf-700 active:scale-[0.97] transition-all"
+                            disabled={isSubmitting}
+                            className="w-full bg-turf-600 text-white rounded-2xl font-display font-bold uppercase tracking-wider shadow-lg shadow-black/30 border border-turf-400/15 active:bg-turf-700 active:scale-[0.97] transition-all disabled:opacity-80 disabled:active:scale-100 flex items-center justify-center gap-2"
                             style={{ height: 'clamp(40px, 7.5vh, 58px)', fontSize: 'clamp(0.85rem, 2.4vh, 1.125rem)' }}
                         >
-                            Giriş Yap
+                            {isSubmitting ? (
+                                <>
+                                    <span className="w-5 h-5 flex-shrink-0">
+                                        <LottiePlayer
+                                            src="/animations/rolling-football.json"
+                                            loop
+                                            autoplay
+                                            ariaLabel="Giriş yapılıyor"
+                                            style={{ width: '100%', height: '100%' }}
+                                            fallback={null}
+                                        />
+                                    </span>
+                                    Giriş Yapılıyor...
+                                </>
+                            ) : (
+                                'Giriş Yap'
+                            )}
                         </button>
 
                         <p className="text-slate-400 font-bold text-center" style={{ fontSize: 'clamp(0.8rem, 2.2vh, 0.95rem)', marginTop: 'clamp(4px, 1vh, 10px)' }}>
