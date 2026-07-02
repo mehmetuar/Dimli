@@ -1092,3 +1092,27 @@ success tipleri, İşletme login loader, fullScreen LoadingSpinner overlay'leri.
   Chat/Bildirimler'de mevcut anlamlı ikonlar (MessageCircle/Bell/Handshake) KORUNDU — jenerik sahayla değiştirme.
 - **Not:** fullScreen loader'lar artık lottie chunk'ını yükleme ekranında çeker (ring fallback ile dikişsiz);
   ilk kullanımda chunk iner, sonra cache. Kabul edilebilir (chunk lazy + küçük anim 4KB).
+
+## 29. Saat-dilimi (timezone) mimarisi + "rakip aranıyor" işletme panelinde neden görünmez (2026-07-02)
+
+> Belirti (araştırıldı, kod hatası ÇIKMADI): müşteri 2 Tem 21:00'e "rakip aranıyor" açtı, işletme panelinde
+> slot BOŞ. Kullanıcı timezone sandı. Read-only DB (Render) + kod ile incelendi.
+
+### Kök neden — timezone DEĞİL, tasarım
+- **rakip_araniyor ilanı PENDING iken rezervasyon OLUŞTURMAZ** (`match-announcements.service.ts` ~217:
+  rezervasyon yalnız `kendi_aramizda`'da anında oluşur). rakip_araniyor için rezervasyon **ancak rakip kabul
+  edince** (`challenges.service.ts` challenge-accept) oluşur → ilan CONFIRMED olur.
+- İşletme paneli `business-owner.service.ts getDashboardSlots` slotları **yalnız rezervasyonlardan** doldurur
+  (announcement'lara bakmaz) → rezervasyonsuz PENDING rakip_araniyor = panelde BOŞ. **Tasarım gereği**;
+  kullanıcı kararı: böyle kalsın.
+- DB kanıtı deseni: rakip_araniyor'ların çoğu (PENDING/EXPIRED) rezervasyonsuz; kendi_aramizda %100 rezervasyonlu.
+
+### Timezone helper haritası (İstanbul UTC+3 sabit, DST yok) — hepsi DOĞRU
+- `server/src/common/turkey-time.util.ts`: `istanbulDateTimeToUtc(date,time)` (date='YYYY-MM-DD', time='HH:mm')
+  ve `istanbulNaiveStringToUtc('YYYY-MM-DDTHH:mm[:ss]')`. 21:00 İstanbul → 18:00 UTC.
+- Rezervasyon slotTime'ı UTC saklanır (`timestamp without time zone` kolonu). Doğru yollar:
+  kendi_aramizda + challenge-accept → `istanbulDateTimeToUtc`; işletme **manuel saat kapatma** (canlı DIRECT,
+  `/reservations/manual-fill`) → controller `istanbulNaiveStringToUtc`. Panel eşleştirmesi de `istanbulDateTimeToUtc`
+  + 60sn pencere. **Yeni rezervasyon/slot kodu yazarken slotTime'ı MUTLAKA bu helper'larla üret — asla ham
+  `new Date(dateStr).setHours()` (tarayıcı-TZ) ile değil.**
+- `ReservationModal.tsx` (tarayıcı-TZ ile hesaplıyordu) **ölü koddu → silindi** (§commit 67ceb84).
