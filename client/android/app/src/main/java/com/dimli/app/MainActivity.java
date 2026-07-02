@@ -26,8 +26,11 @@ public class MainActivity extends BridgeActivity {
      * setDecorFitsSystemWindows(true) ile edge-to-edge'i geri al → çubuklar opak boyanabilir hale gelir
      * ve klavye nav-inset düzeltmesinin varsaydığı non-edge-to-edge durum korunur.
      *
-     * Ayrıca navigation bar inset'ini ölçüp WebView'e `--android-nav-inset` CSS değişkeni olarak yazıyoruz;
-     * useKeyboardHeight bu değeri keyboardHeight'tan çıkararak klavye boşluğunu kapatır.
+     * Ayrıca her inset değişiminde WebView'e iki CSS değişkeni yazıyoruz: `--android-nav-inset` (navigation
+     * bar yüksekliği) ve `--android-keyboard-inset` (WebView'in klavyeyle FİİLEN örtülen kısmı, gerçek
+     * geometriden hesaplanır — edge-to-edge/nav-bar/gesture fark etmez, cihaz-bağımsız). useKeyboardHeight
+     * Android'de klavye boşluğu için `--android-keyboard-inset`'i kaynak alır (Capacitor'ın cihaz/sürüme
+     * göre değişen belirsiz info.keyboardHeight'ı yerine).
      */
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -37,15 +40,31 @@ public class MainActivity extends BridgeActivity {
         final float density = getResources().getDisplayMetrics().density;
 
         ViewCompat.setOnApplyWindowInsetsListener(getWindow().getDecorView(), (view, insets) -> {
-            int navBottomPx = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom;
+            final int navBottomPx = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom;
             final int navDp = Math.round(navBottomPx / density);
+            // IME (klavye) inset'ini TÜKETMEDEN ÖNCE oku — WebView'in klavyeyle fiilen örtülen kısmını
+            // hesaplamak için gerekli (aşağıda tüketiliyor; listener orijinal insets'i okur).
+            final int imeBottomPx = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom;
 
             final WebView webView = (getBridge() != null) ? getBridge().getWebView() : null;
             if (webView != null) {
-                webView.post(() -> webView.evaluateJavascript(
-                    "document.documentElement.style.setProperty('--android-nav-inset','" + navDp + "px')",
-                    null
-                ));
+                // Layout sonrası ölç (post): WebView'in gerçek konumu + pencere yüksekliği + klavye tepesi.
+                // overlap = WebView alt kenarının klavye tarafından örtülen kısmı → cihaz-bağımsız DOĞRU değer.
+                webView.post(() -> {
+                    final int[] loc = new int[2];
+                    webView.getLocationInWindow(loc);
+                    final int webViewBottom = loc[1] + webView.getHeight();
+                    final int windowHeight = getWindow().getDecorView().getHeight();
+                    final int keyboardTop = windowHeight - imeBottomPx; // klavye kapalıyken imeBottomPx=0 → overlap=0
+                    final int overlapPx = Math.max(0, webViewBottom - keyboardTop);
+                    final int kbDp = Math.round(overlapPx / density);
+                    webView.evaluateJavascript(
+                        "document.documentElement.style.setProperty('--android-nav-inset','" + navDp + "px');"
+                            + "document.documentElement.style.setProperty('--android-keyboard-inset','"
+                            + kbDp + "px')",
+                        null
+                    );
+                });
             }
             // Klavye (IME) inset'ini SIFIRLA: setDecorFitsSystemWindows(true) Android 15'te (Samsung S26)
             // decor'un IME inset'ini de uygulamasına → WebView'in klavye için küçülmesine yol açıyordu.
