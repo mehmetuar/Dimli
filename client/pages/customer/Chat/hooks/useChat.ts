@@ -397,11 +397,12 @@ export const useChat = () => {
                 setSuccessModalMessage('Teklif kabul edildi! Yeni sohbet kanalı oluşturuldu.');
                 setSuccessModalType('CHALLENGE_ACCEPTED');
                 setSuccessModalOpen(true);
+                // Yenilemeyi ball-success animasyonu (~3.27s) tamamlanana kadar ertele → yarıda kesilmez.
                 setTimeout(() => {
                     if (result.data?.newChannelId) {
                         window.location.reload();
                     }
-                }, 1500);
+                }, 3400);
             } catch (error: any) {
                 console.error('Failed to accept rematch:', error);
                 setSuccessModalMessage(error.response?.data?.message || 'İşlem başarısız.');
@@ -423,13 +424,14 @@ export const useChat = () => {
                 setSuccessModalMessage('Joker maça başarıyla eklendi! Genel sohbete yönlendiriliyorsunuz.');
                 setSuccessModalType('CHALLENGE_ACCEPTED');
                 setSuccessModalOpen(true);
+                // Yönlendirmeyi ball-success animasyonu (~3.27s) tamamlanana kadar ertele → yarıda kesilmez.
                 setTimeout(() => {
                     if (result.data?.matchChannelId) {
                         setSelectedChannelId(result.data.matchChannelId);
                     } else {
                         window.location.reload();
                     }
-                }, 1500);
+                }, 3400);
             } catch (error: any) {
                 console.error('Failed to invite joker:', error);
                 alert(error.response?.data?.message || 'İşlem başarısız.');
