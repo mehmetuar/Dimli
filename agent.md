@@ -899,3 +899,40 @@ doldur; Render log'unda 2 cron'un tek sefer çalıştığı teyit. Yalnız serve
 ### Sıradaki (ayrı task)
 - **chat.service (1812)** bölme — 3/3, en zor (forwardRef döngüleri + cross-domain + transaction'sız
   çok-adımlı akışlar). Ertelenen T3 tip kalemleri.
+
+---
+
+## 24. Android klavye-kaçınma mimarisi + cihaz-bağımsız boşluk düzeltmesi (2026-07-02)
+
+> Belirti: Android'de (Redmi 10S/MIUI) klavye açılınca input klavyenin üstünde fazla/eşit boşlukla
+> kalıyordu; iOS sorunsuz. Daha önce düzeltilip Samsung S26 düzeltmesiyle tekrar bozulmuştu (flip-flop).
+
+### Klavye mimarisi (client/, mobil — kalıcı bilgi)
+- **Overlay model, JS-tabanlı boşluk:** `capacitor.config` `resize:'none'` + `AndroidManifest`
+  `windowSoftInputMode="adjustNothing"` + `MainActivity setDecorFitsSystemWindows(true)` (non-edge-to-edge,
+  opak koyu çubuklar) + **IME inset native'de tüketilir** (WebView klavye için ASLA resize olmaz). Klavye
+  WebView'in üstüne biner; boşluk `paddingBottom: keyboardHeight` ile JS'te yönetilir.
+- **`useKeyboardHeight()`** tek kaynak: tüm tüketiciler (Chat input, `KeyboardAwareModal`, maç-kur/joker
+  notları, kayıt formları) bunu kullanır → tek noktadan düzelir. `KEYBOARD_GAP_PX=8` (klavyenin ~8px üstü).
+- **`useKeyboardScroll()`** yalnız iOS (App.tsx'te mount). Android'de KAPALI — `scrollIntoView` WebView'i
+  pan'leyip sabit başlık/footer'ı bozuyor.
+
+### Kök neden + çözüm (§ commit d657cb9)
+- **Capacitor `info.keyboardHeight` Android'de GÜVENİLMEZ:** nav-bar'ı dahil edip etmediği cihaz/sürüme
+  göre değişir (edge-to-edge S26 ≠ non-edge-to-edge Redmi). Sabit formül iki cihazda birden doğru OLAMAZ →
+  "nav-inset çıkar/çıkarma" düzeltmeleri sürekli birini bozar. **CİHAZ-ÖZEL FORMÜLLE FLIP-FLOP YAPMA.**
+- **Doğru kaynak = gerçek geometri.** MainActivity inset listener'ında (IME'yi tüketmeden ÖNCE okuyarak):
+  `overlap = max(0, webViewBottom − (windowHeight − imeBottom))` = WebView'in klavyeyle fiilen örtülen
+  kısmı → `--android-keyboard-inset` CSS değişkenine yazılır (edge-to-edge/nav-bar/gesture fark etmez).
+  `webViewBottom = getLocationInWindow + getHeight`, `windowHeight = decorView.getHeight()`.
+- **`useKeyboardHeight` Android dalı:** `--android-keyboard-inset`'i `MutationObserver`(style) ile izler
+  (+8px). iOS dalı: Capacitor `keyboardWillShow.info.keyboardHeight` (aynen). native+JS `cap sync` ile
+  birlikte paketlenir → değişken hep mevcut.
+- Korunanlar: `--android-nav-inset` yazımı, IME-inset tüketimi, koyu sistem çubukları, `KEYBOARD_GAP_PX=8`.
+
+### ⚠️ Deploy/doğrulama notu
+- Native (MainActivity.java) değiştiği için **yalnız web/OTA yetmez → yeni Android build** (Android Studio,
+  `cap sync` yapıldı). iOS dokunulmadı.
+- Cihaz testi ŞART, iki uçta: **Redmi 10S (MIUI, 3-tuş/gesture) + Samsung S26 (Android 15, gesture)** →
+  chat + maç-kur notu + joker daveti notu; input klavyenin ~8px üstünde, fazla boşluk yok, composer klavye
+  altında değil. Server tarafı yok; RevenueCat/Render ilgisiz.
