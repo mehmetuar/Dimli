@@ -12,6 +12,7 @@ export const useBusinessLogin = () => {
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
@@ -33,13 +34,18 @@ export const useBusinessLogin = () => {
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (isSubmitting) return; // çift-gönderim koruması
+        setError('');
+        setIsSubmitting(true);
         try {
             const response = await api.post('/auth/business/login', { email, password });
             await loginAsBusiness(response.data.access_token, response.data.ownerId);
             initializePushNotifications();
             navigate('/business/dashboard');
+            // başarıda navigate ile unmount → isSubmitting sıfırlanmaz (buton loader'da kalır)
         } catch (err) {
             setError('Giriş başarısız. Lütfen bilgilerinizi kontrol edin.');
+            setIsSubmitting(false);
         }
     };
 
@@ -58,6 +64,7 @@ export const useBusinessLogin = () => {
         password, setPassword,
         showPassword, setShowPassword,
         error,
+        isSubmitting,
         isForgotModalOpen, setIsForgotModalOpen,
         keyboardOpen,
         animClass,

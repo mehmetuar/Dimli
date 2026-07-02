@@ -15,6 +15,7 @@ export const BusinessLogin: React.FC = () => {
         password, setPassword,
         showPassword, setShowPassword,
         error,
+        isSubmitting,
         isForgotModalOpen, setIsForgotModalOpen,
         keyboardOpen,
         animClass,
@@ -44,6 +45,7 @@ export const BusinessLogin: React.FC = () => {
                     showPassword={showPassword}
                     setShowPassword={setShowPassword}
                     error={error}
+                    isSubmitting={isSubmitting}
                     keyboardOpen={keyboardOpen}
                     onSubmit={handleLogin}
                     onForgotPassword={() => setIsForgotModalOpen(true)}

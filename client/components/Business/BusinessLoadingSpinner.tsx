@@ -1,4 +1,5 @@
 import React from 'react';
+import { LottiePlayer } from '../UI/LottiePlayer';
 
 interface BusinessLoadingSpinnerProps {
     fullScreen?: boolean;
@@ -41,9 +42,26 @@ export const BusinessLoadingSpinner: React.FC<BusinessLoadingSpinnerProps> = ({
     );
 
     if (fullScreen) {
+        // Marka loader'ı: dönen top Lottie. reduce-motion/yüklenme/hata → mevcut CSS ring (dikişsiz).
         return (
             <div className="fixed inset-0 z-[100] bg-slate-950 flex items-center justify-center">
-                {content}
+                <div className="flex flex-col items-center justify-center gap-4">
+                    <div className="w-20 h-20">
+                        <LottiePlayer
+                            src="/animations/rolling-football.json"
+                            loop
+                            autoplay
+                            ariaLabel={text || 'Yükleniyor'}
+                            style={{ width: '100%', height: '100%' }}
+                            fallback={
+                                <div className="w-20 h-20 rounded-full border-4 border-slate-700 border-t-orange-500 animate-spin" />
+                            }
+                        />
+                    </div>
+                    {text && (
+                        <span className="text-orange-500 font-bold text-sm tracking-widest uppercase animate-pulse">{text}</span>
+                    )}
+                </div>
             </div>
         );
     }

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
+import { LottiePlayer } from '../../../../components/UI/LottiePlayer';
 
 interface BusinessLoginFormProps {
     email: string;
@@ -10,6 +11,7 @@ interface BusinessLoginFormProps {
     showPassword: boolean;
     setShowPassword: (updater: (prev: boolean) => boolean) => void;
     error: string;
+    isSubmitting: boolean;
     keyboardOpen: boolean;
     onSubmit: (e: React.FormEvent) => void;
     onForgotPassword: () => void;
@@ -20,6 +22,7 @@ export const BusinessLoginForm: React.FC<BusinessLoginFormProps> = ({
     password, setPassword,
     showPassword, setShowPassword,
     error,
+    isSubmitting,
     keyboardOpen,
     onSubmit,
     onForgotPassword,
@@ -121,10 +124,27 @@ export const BusinessLoginForm: React.FC<BusinessLoginFormProps> = ({
 
                 <button
                     type="submit"
-                    className="w-full bg-orange-600 text-white rounded-2xl font-display font-bold uppercase tracking-wider shadow-lg shadow-black/30 border border-orange-400/15 active:bg-orange-700 active:scale-[0.97] transition-all"
+                    disabled={isSubmitting}
+                    className="w-full bg-orange-600 text-white rounded-2xl font-display font-bold uppercase tracking-wider shadow-lg shadow-black/30 border border-orange-400/15 active:bg-orange-700 active:scale-[0.97] transition-all disabled:opacity-80 disabled:active:scale-100 flex items-center justify-center gap-2"
                     style={{ height: 'clamp(40px, 7.5vh, 58px)', fontSize: 'clamp(0.85rem, 2.4vh, 1.125rem)' }}
                 >
-                    Giriş Yap
+                    {isSubmitting ? (
+                        <>
+                            <span className="w-5 h-5 flex-shrink-0">
+                                <LottiePlayer
+                                    src="/animations/rolling-football.json"
+                                    loop
+                                    autoplay
+                                    ariaLabel="Giriş yapılıyor"
+                                    style={{ width: '100%', height: '100%' }}
+                                    fallback={null}
+                                />
+                            </span>
+                            Giriş Yapılıyor...
+                        </>
+                    ) : (
+                        'Giriş Yap'
+                    )}
                 </button>
 
                 <p className="text-slate-400 font-bold text-center" style={{ fontSize: 'clamp(0.8rem, 2.2vh, 0.95rem)', marginTop: 'clamp(4px, 1vh, 10px)' }}>
