@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { LottiePlayer } from '../../../../components/UI/LottiePlayer';
 import { useModalBodyClass } from '../../../../utils/useModalBodyClass';
 
@@ -9,8 +10,8 @@ interface TeamCreatedCelebrationProps {
     onDone: () => void;
 }
 
-// World Cup animasyonu ~2.3s; kullanıcı isteği: otomatik kapanmayı ~2 katına çıkar.
-const AUTO_CLOSE_MS = 4600;
+// Kullanıcı isteği: kutlama ~8sn ekranda kalsın (World Cup animasyonu ~2.3s, sonra son kare tutulur).
+const AUTO_CLOSE_MS = 8000;
 
 /**
  * Takım kurulunca (TEAM_CREATED) standart success modal yerine hafif kutlama görünümü:
@@ -35,9 +36,11 @@ export const TeamCreatedCelebration: React.FC<TeamCreatedCelebrationProps> = ({
 
     if (!isOpen) return null;
 
-    return (
+    // Portal → document.body: TeamProfile'ın fixed inset-0 stacking context'inden çıkar, böylece
+    // PROFİLİM/TAKIMIM tab başlığı dahil TÜM ekranı örter (z-[9999]).
+    return createPortal(
         <div
-            className="fixed inset-0 z-[70] flex flex-col items-center justify-center bg-black/85 backdrop-blur-sm px-6 animate-fade-in select-none"
+            className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-black/85 backdrop-blur-sm px-6 animate-fade-in select-none"
             style={{ WebkitUserSelect: 'none', userSelect: 'none', WebkitTouchCallout: 'none' } as React.CSSProperties}
         >
             <div className="w-64 h-64 max-w-[70vw] max-h-[70vw]">
@@ -61,6 +64,7 @@ export const TeamCreatedCelebration: React.FC<TeamCreatedCelebrationProps> = ({
             >
                 KADROYU YÖNET
             </button>
-        </div>
+        </div>,
+        document.body
     );
 };
