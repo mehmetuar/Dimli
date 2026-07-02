@@ -1116,3 +1116,22 @@ success tipleri, İşletme login loader, fullScreen LoadingSpinner overlay'leri.
   + 60sn pencere. **Yeni rezervasyon/slot kodu yazarken slotTime'ı MUTLAKA bu helper'larla üret — asla ham
   `new Date(dateStr).setHours()` (tarayıcı-TZ) ile değil.**
 - `ReservationModal.tsx` (tarayıcı-TZ ile hesaplıyordu) **ölü koddu → silindi** (§commit 67ceb84).
+
+## 30. Customer sabit-başlık+elastic layout + başlık↔aksiyon çakışma deseni (2026-07-02)
+
+- **Sabit başlık + elastic içerik (customer sayfa, navbar'lı):** `fixed inset-0 bg-pitch flex flex-col
+  overflow-hidden` + `paddingTop: env(safe-area-inset-top)` → sabit header (`flex-shrink-0`) → içerik
+  `flex-1 overflow-y-auto overscroll-contain scrollbar-hide` + `WebkitOverflowScrolling:'touch'` +
+  `paddingBottom: calc(5rem + env(safe-area-inset-bottom))` (navbar). PitchBooking/JokerPool/işletme
+  ayar sayfaları bu desende. TeamProfile bu desene taşındı (tab switcher artık sabit, içerik elastic).
+- **Nested içerik sayfaları** (UserProfile/MyTeam gibi, sadece bir parent'ta kullanılan) içerik-only
+  olmalı (`min-h-full`, kendi scroll'u/`fixed`i YOK) → dış scroll kabında sorunsuz. Notch padding'i
+  parent (outer safe-area) hallettiğinde child'da `pt-page-top` KULLANMA (çift-notch) → `pt-3`.
+- **Global bell** `/team`, `/chat`, `/jokers`'ta gizli (Navbar.tsx:89) — bu sayfalarda header üst-boşluğu
+  için bell yeri ayırma.
+- **Başlık ↔ sağ-üst aksiyon çakışması:** `fixed right-4` buton + `whitespace-nowrap` uzun başlık dar
+  ekranda çakışır. Çözüm: `flex items-start justify-between gap-3` satırı — başlık `min-w-0 flex-1` (wrap
+  serbest, clamp font), buton `flex-shrink-0` (flow'a al). Buton yeri otomatik ayrılır → çakışma imkânsız,
+  responsive. (JokerPool başlığı bu şekilde düzeltildi.)
+- **Reload sonrası tab state:** reload state'i sıfırlar; kalıcı seçim için `sessionStorage` bayrağı set
+  et + hedef component init'te oku+temizle (TeamCreated → TeamProfile TAKIMIM tab deseni).
