@@ -968,3 +968,34 @@ doldur; Render log'unda 2 cron'un tek sefer çalıştığı teyit. Yalnız serve
   sayfa tümüyle refetch (append değil).
 - **Ayrı task (ertelendi):** kanal listesi client-pagination + server enrichment batching + `user.teamId`
   index + thread real-time append. (chat.service 1812-satır split 3/3 ile birlikte ele alınabilir.)
+  → **§26'da server batching + index yapıldı** (client pagination + thread append hâlâ ertelendi; kullanıcı
+  kararı: asıl darboğaz N+1'di, istemci sayfalama socket-refetch/pull-to-refresh riskini artırırdı).
+
+## 26. Seçenekler modalı iOS hataları + getUserChannels N+1 batching (2026-07-02)
+
+> Belirti: chat listesi basılı-tut "Seçenekler" modalı açılınca (1) başlık otomatik seçiliyor + Kopyala/Look Up
+> callout'u çıkıyor, (2) alt navbar modalın üstünde görünüyor.
+
+### iOS modal metin-seçimi / Kopyala callout'u (KALICI kural — client/)
+- Full-screen modal iç kabına **`select-none`** sınıfı + inline **`{ WebkitUserSelect:'none', userSelect:'none',
+  WebkitTouchCallout:'none' }`**. iOS long-press bitince parmak başlığın üzerindeyse WebKit metni seçip callout
+  açar; bu stil engeller. (client'ta app-geneli user-select:none YOK — index.html `selection:` izinli varsayılan;
+  ChannelItem `noCalloutStyle`'ı yalnız img'lere uyguluyordu.)
+- **Modal açıkken navbar'ı gizlemek:** yeni z-index DEĞİL — her modal **`useModalBodyClass(isOpen)`**
+  (`client/utils/useModalBodyClass.ts`) çağırmalı. Bu `body.modal-open` ekler; mevcut CSS
+  (`index.css`) `body.modal-open nav/.business-navbar/.top-bell-safe { visibility:hidden; pointer-events:none }`
+  + body scroll kilidi uygular. Hook **reference-counted** → aynı sayfada birden çok modal çağrısı çakışmaz
+  (Chat.tsx artık hem `selectedChannelId` hem `optionsModalChannel` için çağırıyor). Options modalı bunu
+  çağırmadığı için navbar görünür kalıyordu (kök neden). ConfirmModal/SuccessModal/KeyboardAwareModal zaten çağırıyor.
+
+### getUserChannels N+1 → toplu sorgu deseni (KALICI kural — server/)
+- **Kanal-başına DB sorgusu YASAK.** `getUserChannels` (chat.service.ts) MATCH_GROUP başına ~9 sorgu yapıyordu
+  (50 kanal ≈ 273 sorgu). Desen: döngü öncesi distinct `relatedMatchId` topla → `In(matchIds)` ile rezervasyon +
+  maç ilanı **tek sorgu** (maç ilanı tek sorgu fallback + `playerCount` + avatar teamId/matchType üçünü karşılar);
+  eski-maç fallback rezervasyonu team+slot **in-memory eşleştirme**; oyuncu sayısı `getTeamPlayerCount ×N` yerine
+  **tek GROUP BY** (`WHERE team_id = ANY($1)`); avatar takımları `In(teamIds)` tek sorgu. Döngü artık saf
+  in-memory map; **dönüş şekli birebir korunmalı** (client/controller değişmesin).
+- **Index'ler:** `user.team_id` (@Index) — GROUP BY + app-geneli `getTeamPlayerCount`; `chat_channels.lastActivityAt`
+  (@Index) — liste `ORDER BY lastActivityAt DESC`. `synchronize:true` → server restart'ta otomatik oluşur.
+- **ratingsService.getTeamPlayerCount** chat.service'te artık çağrılmıyor ama başka yerlerde kullanılıyor →
+  bırakıldı (parameter property, TS "unused" saymaz; kaldırmak DI wiring'i riske atardı).
