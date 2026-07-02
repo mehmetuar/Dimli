@@ -23,6 +23,9 @@ export class BusinessController {
     @Query('lng') lng?: string,
     @Query('radius') radius?: string,
     @Query('ids') ids?: string,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+    @Query('sort') sort?: string,
   ) {
     // ids: belirli işletmeleri konum kısıtlaması olmadan ID üzerinden çekmek
     // için (zaten ID'si bilinen bir kaynağı çekmek "tüm şehirleri tara" değildir).
@@ -31,9 +34,31 @@ export class BusinessController {
         ids: ids.split(',').filter(Boolean),
       });
     }
-    return this.businessService.findAll({
-      geoFilter: requireGeoFilter(lat, lng, radius),
-    });
+    const geoFilter = requireGeoFilter(lat, lng, radius);
+    // Sayfalı (hafif) yol — yalnız limit verildiğinde; müşteri Sahalar listesi.
+    // limit yoksa legacy tam-liste yolu korunur (diğer tüketiciler bozulmaz).
+    if (limit !== undefined) {
+      const allowed = [
+        'distance',
+        'price_asc',
+        'price_desc',
+        'rating',
+        'rating_count',
+      ];
+      const safeSort = allowed.includes(sort ?? '') ? sort! : 'distance';
+      return this.businessService.findNearbyPaged({
+        geoFilter,
+        limit: Math.min(Math.max(parseInt(limit, 10) || 20, 1), 50),
+        offset: Math.max(parseInt(offset ?? '0', 10) || 0, 0),
+        sort: safeSort as
+          | 'distance'
+          | 'price_asc'
+          | 'price_desc'
+          | 'rating'
+          | 'rating_count',
+      });
+    }
+    return this.businessService.findAll({ geoFilter });
   }
 
   @Get(':id')
