@@ -44,8 +44,8 @@ export const PitchBooking: React.FC = () => {
       handleSendOffer, handleConfirmCancel, handleConfirmDeleteAd,
       handleCreateAd, handleUnauthorizedSlotClick, openSlotDetail,
       handleCancelClick, handleDeleteAdClick,
-      isLoadingBusinesses,
-      requestLocation,
+      isLoadingBusinesses, isLoadingMore, hasMore,
+      loadMoreBusinesses, refreshBusinesses,
       slotWarning, setSlotWarning,
       refetchReservations,
    } = usePitchBooking();
@@ -67,12 +67,17 @@ export const PitchBooking: React.FC = () => {
    }, []);
 
    const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-      const st = e.currentTarget.scrollTop;
+      const el = e.currentTarget;
+      const st = el.scrollTop;
       const opacity = Math.max(0, 1 - st / HEADER_FADE_PX);
       setHeaderOpacity(opacity);
       document.documentElement.style.setProperty('--header-opacity', String(opacity));
       document.documentElement.style.setProperty('--header-pointer-events', opacity > 0.1 ? 'auto' : 'none');
-   }, []);
+      // Infinite-scroll: liste sonuna ~600px kala sonraki sayfayı ekle (loadMore içeride guard'lı).
+      if (el.scrollHeight - st - el.clientHeight < 600) {
+         loadMoreBusinesses();
+      }
+   }, [loadMoreBusinesses]);
 
    const handleTouchStart = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
       touchStartYRef.current = e.touches[0].clientY;
@@ -95,13 +100,13 @@ export const PitchBooking: React.FC = () => {
          hasTriggeredRefreshRef.current = true;
          setIsRefreshing(true);
          try {
-            await requestLocation();
+            await refreshBusinesses();
          } finally {
             setIsRefreshing(false);
          }
       }
       setPullDistance(0);
-   }, [pullDistance, requestLocation]);
+   }, [pullDistance, refreshBusinesses]);
 
    const pullIndicatorH = isRefreshing ? 56 : pullDistance;
 
@@ -298,6 +303,17 @@ export const PitchBooking: React.FC = () => {
                               distanceKm={business.distanceKm}
                            />
                         ))}
+                        {/* Infinite-scroll alt göstergesi */}
+                        {isLoadingMore && (
+                           <div className="flex items-center justify-center py-4">
+                              <LoadingSpinner />
+                           </div>
+                        )}
+                        {!hasMore && !isLoadingMore && filteredBusinesses.length > 0 && (
+                           <p className="text-center text-[11px] text-slate-600 py-4">
+                              Bu konumdaki tüm işletmeler listelendi.
+                           </p>
+                        )}
                      </>
                   )}
                </LocationAccessGate>

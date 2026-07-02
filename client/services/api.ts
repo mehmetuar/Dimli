@@ -102,6 +102,30 @@ export const getBusinesses = async (
     return response.data;
 };
 
+// Konum-önce + sayfalı (offset) + sunucu-taraflı sıralama — müşteri Sahalar listesi.
+// Aynı /businesses endpoint'i; `limit` verilince sunucu { items, total, hasMore } döner.
+export type BusinessSort =
+    | 'distance'
+    | 'price_asc'
+    | 'price_desc'
+    | 'rating'
+    | 'rating_count';
+
+export const getBusinessesPaged = async (params: {
+    lat: number;
+    lng: number;
+    radius?: number;
+    limit?: number;
+    offset?: number;
+    sort?: BusinessSort;
+}): Promise<{ items: any[]; total: number; hasMore: boolean }> => {
+    const { lat, lng, radius = 20, limit = 20, offset = 0, sort = 'distance' } = params;
+    const response = await api.get('/businesses', {
+        params: { lat, lng, radius, limit, offset, sort },
+    });
+    return response.data;
+};
+
 export const getFacilities = (): Promise<string[]> =>
     api.get('/facilities').then(r => r.data);
 

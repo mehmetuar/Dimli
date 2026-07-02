@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../../../../services/api';
-import { getBusinesses } from '../../../../services/api';
+import { getBusinessesPaged } from '../../../../services/api';
 import { getErrorMessage } from '../../../../utils/apiError';
 import { Business, Team } from '../../../../types';
 import { LocationFilter } from '../../../../components/Modals/LocationFilterModal';
@@ -26,6 +26,17 @@ export const usePitchBooking = () => {
     }, []);
 
     const [isLoadingBusinesses, setIsLoadingBusinesses] = useState(false);
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
+    const [hasMore, setHasMore] = useState(false);
+    // Offset hesabı ve B3 (gereksiz yeniden çekim) guard'ı için ref'ler.
+    const businessesRef = useRef<Business[]>(businesses);
+    businessesRef.current = businesses;
+    const lastFetchKeyRef = useRef<string | null>(null);
+    const isFetchingRef = useRef(false);
+    // Yarış guard'ı: her reset bir "nesil" başlatır; eski (loadMore) yanıtlar reset'ten
+    // sonra uygulanmaz (yanlış sırada ekleme olmaz).
+    const fetchGenRef = useRef(0);
+    const PAGE_SIZE = 20;
     const [expandedBusinessId, setExpandedBusinessId] = useState<string | null>(null);
     const [selectedPitchIdInBusiness, setSelectedPitchIdInBusiness] = useState<Record<string, string>>({});
 
@@ -96,27 +107,64 @@ export const usePitchBooking = () => {
         fetchUserData();
     }, []);
 
-    // Re-fetch businesses whenever coords or radius changes
-    useEffect(() => {
+    // Konum-önce + sayfalı çekim. reset=true → sayfa 0 (koordinat/yarıçap/sıralama
+    // değişince); reset=false → sonraki sayfayı ekle (infinite-scroll). force=true →
+    // guard'ı atla (pull-to-refresh). B3: aynı yuvarlanmış konum+yarıçap+sıralama için
+    // gereksiz tam yeniden çekim yapılmaz.
+    const doFetch = useCallback(async (reset: boolean, force = false) => {
         if (!coords) return;
-        let cancelled = false;
-        const fetchBusinessesWithCoords = async () => {
-            setIsLoadingBusinesses(true);
-            try {
-                const bList: Business[] = await getBusinesses({ lat: coords.lat, lng: coords.lng, radius });
-                if (!cancelled) {
-                    setBusinesses(bList);
-                    localStorage.setItem('cached_businesses', JSON.stringify(bList));
-                }
-            } catch (error) {
-                console.error('Failed to fetch businesses:', error);
-            } finally {
-                if (!cancelled) setIsLoadingBusinesses(false);
+        // loadMore, devam eden bir çekim varken tetiklenmez; reset her zaman öncelikli
+        // (yeni nesil başlatıp eski yanıtları geçersiz kılar).
+        if (!reset && isFetchingRef.current) return;
+        const round = (n: number) => n.toFixed(3);
+        const key = `${round(coords.lat)}|${round(coords.lng)}|${radius}|${sortBy}`;
+        if (reset && !force && key === lastFetchKeyRef.current && businessesRef.current.length > 0) {
+            return;
+        }
+        const gen = reset ? ++fetchGenRef.current : fetchGenRef.current;
+        const offset = reset ? 0 : businessesRef.current.length;
+        isFetchingRef.current = true;
+        if (reset) { setIsLoadingBusinesses(true); setIsLoadingMore(false); }
+        else setIsLoadingMore(true);
+        try {
+            const res = await getBusinessesPaged({
+                lat: coords.lat, lng: coords.lng, radius,
+                limit: PAGE_SIZE, offset, sort: sortBy,
+            });
+            if (gen !== fetchGenRef.current) return; // daha yeni bir reset bunu geçersiz kıldı
+            const items: Business[] = res?.items ?? [];
+            if (reset) {
+                setBusinesses(items);
+                localStorage.setItem('cached_businesses', JSON.stringify(items));
+                lastFetchKeyRef.current = key;
+            } else {
+                setBusinesses(prev => [...prev, ...items]);
             }
-        };
-        fetchBusinessesWithCoords();
-        return () => { cancelled = true; };
-    }, [coords, radius]); // eslint-disable-line react-hooks/exhaustive-deps
+            setHasMore(!!res?.hasMore);
+        } catch (error) {
+            console.error('Failed to fetch businesses:', error);
+        } finally {
+            // Yalnız güncel nesil bayrakları temizler (eski/superseded çağrılar dokunmaz).
+            if (gen === fetchGenRef.current) {
+                isFetchingRef.current = false;
+                setIsLoadingBusinesses(false);
+                setIsLoadingMore(false);
+            }
+        }
+    }, [coords, radius, sortBy]);
+
+    // Koordinat / yarıçap / sıralama değişince sayfa 0'a reset (guard içeride).
+    useEffect(() => {
+        doFetch(true, false);
+    }, [doFetch]);
+
+    const loadMoreBusinesses = useCallback(() => {
+        if (!hasMore || isFetchingRef.current) return;
+        doFetch(false, false);
+    }, [hasMore, doFetch]);
+
+    // Pull-to-refresh: konum aynı olsa da sayfa 0'ı zorla yenile.
+    const refreshBusinesses = useCallback(() => doFetch(true, true), [doFetch]);
 
     useEffect(() => {
         if (expandedBusinessId && selectedPitchIdInBusiness[expandedBusinessId]) {
@@ -172,22 +220,9 @@ export const usePitchBooking = () => {
         if (filter.radius) setRadius(filter.radius);
     };
 
-    const filteredBusinesses = useMemo(() => {
-        const sorted = [...businesses];
-        switch (sortBy) {
-            case 'price_asc':
-                return sorted.sort((a, b) => (a.pitches?.[0]?.pricePerHour ?? 0) - (b.pitches?.[0]?.pricePerHour ?? 0));
-            case 'price_desc':
-                return sorted.sort((a, b) => (b.pitches?.[0]?.pricePerHour ?? 0) - (a.pitches?.[0]?.pricePerHour ?? 0));
-            case 'rating':
-                return sorted.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
-            case 'rating_count':
-                return sorted.sort((a, b) => (b.ratingCount ?? 0) - (a.ratingCount ?? 0));
-            case 'distance':
-            default:
-                return sorted.sort((a, b) => (a.distanceKm ?? 999) - (b.distanceKm ?? 999));
-        }
-    }, [businesses, sortBy]);
+    // Sıralama artık sunucuda (sortBy değişince doFetch reset). İstemci sunucu sırasını
+    // korur — sayfalar sunucu sırasında eklenir, ekstra JS sort yok.
+    const filteredBusinesses = businesses;
 
     const handleSendOffer = async (note: string) => {
         if (!currentUser?.team || !offerMode) return;
@@ -297,7 +332,8 @@ export const usePitchBooking = () => {
         currentUser, pitchAnnouncements,
         isAuthorized, filteredBusinesses,
         applyLocationFilter,
-        isLoadingBusinesses,
+        isLoadingBusinesses, isLoadingMore, hasMore,
+        loadMoreBusinesses, refreshBusinesses,
         handleSendOffer, handleConfirmCancel, handleConfirmDeleteAd,
         handleCreateAd, handleUnauthorizedSlotClick, openSlotDetail,
         handleCancelClick, handleDeleteAdClick,
