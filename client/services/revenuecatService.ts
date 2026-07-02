@@ -23,6 +23,23 @@ export async function initRevenueCat(): Promise<void> {
 }
 
 /**
+ * RevenueCat / satın alma hatasını Türkçe kullanıcı mesajına çevirir.
+ * Ham İngilizce SDK mesajı (ör. "purchase was cancelled") ASLA kullanıcıya gösterilmez.
+ * `cancelled: true` → kullanıcı iptal etti (çağıran sessiz geçebilir).
+ */
+export function purchaseErrorToTurkish(err: any): { cancelled: boolean; message: string } {
+    const code = err?.code;
+    const msg = String(err?.message || '');
+    const cancelled =
+        err?.userCancelled === true ||
+        code === '1' ||
+        code === 'PURCHASE_CANCELLED_ERROR' ||
+        /cancel/i.test(msg);
+    if (cancelled) return { cancelled: true, message: 'Satın alma iptal edildi.' };
+    return { cancelled: false, message: 'Satın alma tamamlanamadı. Lütfen tekrar deneyin.' };
+}
+
+/**
  * Seçilen plana göre native IAP satın alma akışını başlatır.
  *
  * Başarılı olursa: anonim RC app_user_id döner.

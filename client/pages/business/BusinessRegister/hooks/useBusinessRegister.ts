@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import api from '../../../../services/api';
-import { purchasePlan, linkRevenueCatUser } from '../../../../services/revenuecatService';
+import { purchasePlan, linkRevenueCatUser, purchaseErrorToTurkish } from '../../../../services/revenuecatService';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { initializePushNotifications } from '../../../../services/pushNotificationService';
 import { isValidTurkishPhone, PHONE_INVALID_MESSAGE } from '../../../../utils/phone';
@@ -307,10 +307,17 @@ export const useBusinessRegister = () => {
 
             setCurrentStep(8); // Congratulations
         } catch (err: any) {
-            // Satın alma iptali veya doğrulama hatası
-            const msg = err?.message?.includes('cancel') || err?.code === 'PURCHASE_CANCELLED'
-                ? 'Satın alma iptal edildi. Kaydı tamamlamak için ödeme gereklidir.'
-                : getErrorMessage(err, 'Bir hata oluştu. Lütfen tekrar deneyin.');
+            // Backend hatası → sunucudan gelen Türkçe mesaj; satın alma/RevenueCat hatası → Türkçe helper
+            // (ham İngilizce SDK mesajı asla gösterilmez). İptalde kayıt-bağlamlı mesaj.
+            let msg: string;
+            if (err?.response) {
+                msg = getErrorMessage(err, 'Bir hata oluştu. Lütfen tekrar deneyin.');
+            } else {
+                const p = purchaseErrorToTurkish(err);
+                msg = p.cancelled
+                    ? 'Satın alma iptal edildi. Kaydı tamamlamak için ödeme gereklidir.'
+                    : p.message;
+            }
             setError(msg);
             // currentStep değişmez — kullanıcı PaymentStep'te kalır
         } finally {

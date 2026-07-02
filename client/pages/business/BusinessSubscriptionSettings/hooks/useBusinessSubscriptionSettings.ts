@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../../contexts/AuthContext';
 import api from '../../../../services/api';
 import { getOwnerId } from '../../../../services/authStorage';
-import { purchasePlan, linkRevenueCatUser, restoreRevenueCatPurchases } from '../../../../services/revenuecatService';
+import { purchasePlan, linkRevenueCatUser, restoreRevenueCatPurchases, purchaseErrorToTurkish } from '../../../../services/revenuecatService';
 import { SUBSCRIPTION_PLANS } from '../../BusinessRegister/hooks/useBusinessRegister';
 import { PLAN_ENTRIES } from '../utils';
 
@@ -102,7 +102,9 @@ export const useBusinessSubscriptionSettings = () => {
                 setShowNewPitchPrompt(true);
             }
         } catch (err: any) {
-            showToast(err?.message || 'Satın alma işlemi başarısız oldu.', 'error');
+            // Ham İngilizce RevenueCat mesajı yerine Türkçe; iptalde sessiz geç
+            const { cancelled, message } = purchaseErrorToTurkish(err);
+            if (!cancelled) showToast(message, 'error');
         } finally {
             setPurchaseLoading(false);
         }
@@ -163,7 +165,9 @@ export const useBusinessSubscriptionSettings = () => {
             if (downgradePurchaseRef.current) {
                 showToast('Satın alma tamamlandı ancak abonelik güncellenemedi. Lütfen "Onayla" ile tekrar deneyin.', 'error');
             } else {
-                showToast(err?.message || 'İşlem başarısız oldu.', 'error');
+                // Ham İngilizce RevenueCat mesajı yerine Türkçe; iptalde sessiz geç
+                const { cancelled, message } = purchaseErrorToTurkish(err);
+                if (!cancelled) showToast(message, 'error');
             }
         } finally {
             setDowngradeLoading(false);
