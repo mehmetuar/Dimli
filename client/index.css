@@ -185,14 +185,22 @@ body.modal-open {
   touch-action: none;
 }
 
-/* Modal açıkken navbar, bildirim zili ve Profilim/Takımım tab başlığını gizle
-   (TeamProfile fixed inset-0 → tab başlığı modalların önünde kalıyordu). */
+/* Modal açıkken navbar ve bildirim ziline erişimi engelle */
 body.modal-open nav,
 body.modal-open .business-navbar,
-body.modal-open .fixed.top-bell-safe,
-body.modal-open .team-profile-tabs {
+body.modal-open .fixed.top-bell-safe {
   pointer-events: none;
   visibility: hidden;
+}
+
+/* Modal açıkken PROFİLİM/TAKIMIM tab başlığı: YOK EDİLMEZ. Diğer arka plan içeriği gibi
+   pasifleşir — tıklanamaz olur ve kararır (visibility:hidden DEĞİL, opacity ile dim).
+   (TeamProfile içerik div'i -webkit-overflow-scrolling:touch → iOS'ta ayrı layer; modallar
+   barın arkasında kalıyordu. z-index yerine dim+disable ile güvenilir çözüm.) */
+.team-profile-tabs { transition: opacity 0.2s ease; }
+body.modal-open .team-profile-tabs {
+  pointer-events: none;
+  opacity: 0.4;
 }
 
 /* Modal overlay — Android'de çift tap zoom engelle */

@@ -50,8 +50,8 @@ export const MyTeam: React.FC = () => {
         setSuccessMessage, setSuccessType, setErrorMessage
     });
 
-    // PlayerActionsModal inline bir overlay (ayrı bileşen değil) → modal-open set etmezdi; ekleyelim ki
-    // Profilim/Takımım başlığı bu sheet açıkken de gizlensin (diğer modallar KeyboardAwareModal/useModalBodyClass ile zaten set ediyor).
+    // PlayerActions inline bir bottom sheet (ayrı bileşen değil) → kendisi modal-open set etmezdi.
+    // Ekliyoruz ki bu sheet açıkken alt navbar/bell gizlensin ve body scroll kilitlensin (diğer modallarla tutarlı).
     useModalBodyClass(modals.playerActionsModal.isOpen);
 
     if (isLoading) {
