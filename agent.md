@@ -1082,3 +1082,13 @@ doldur; Render log'unda 2 cron'un tek sefer çalıştığı teyit. Yalnız serve
 ### Sonraki (Round 2)
 Diğer boş durumlar (JokerPool/Marketplace/ActiveMatches/Notifications/Favoriler → football-pitch), diğer
 success tipleri, İşletme login loader, fullScreen LoadingSpinner overlay'leri.
+
+### Round 2 (2026-07-02) — YAPILDI
+- **fullScreen loader deseni:** paylaşılan `LoadingSpinner`/`BusinessLoadingSpinner`'ın YALNIZ `fullScreen`
+  dalı dönen-top Lottie'ye çevrildi → tek nokta değişikliğiyle ~11 yükleme ekranı markalı (per-sayfa düzenleme
+  yok). Küçük/inline (size sm) + PageLoader mevcut CSS ring'de kalır. Ball fallback = ring (boyut eşit: w-20 h-20).
+- **İşletme login** müşteri login'in turuncu ikizi (isSubmitting + dönen top). 
+- **Boş durum:** kullanıcı tercihi → animasyonu AZ/temalı kullan; yalnız FavoriteBusinesses (saha teması güçlü).
+  Chat/Bildirimler'de mevcut anlamlı ikonlar (MessageCircle/Bell/Handshake) KORUNDU — jenerik sahayla değiştirme.
+- **Not:** fullScreen loader'lar artık lottie chunk'ını yükleme ekranında çeker (ring fallback ile dikişsiz);
+  ilk kullanımda chunk iner, sonra cache. Kabul edilebilir (chunk lazy + küçük anim 4KB).
