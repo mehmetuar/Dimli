@@ -28,6 +28,7 @@ export const useProfile = () => {
         position: string;
         secondaryPosition: string;
         foot: string;
+        nationality: string;
         location: string;
         avatarUrl: string | null;
     }>({
@@ -39,6 +40,7 @@ export const useProfile = () => {
         position: '',
         secondaryPosition: '',
         foot: '',
+        nationality: 'TR',
         location: '',
         avatarUrl: null,
     });
@@ -94,6 +96,7 @@ export const useProfile = () => {
                 position: user.position || '',
                 secondaryPosition: user.secondaryPosition || '',
                 foot: user.foot || '',
+                nationality: user.nationality || 'TR',
                 location: user.location || '',
                 avatarUrl: user.avatarUrl || null,
             });
@@ -185,6 +188,7 @@ export const useProfile = () => {
             position: profileData.position,
             secondaryPosition: profileData.secondaryPosition || null,
             foot: profileData.foot,
+            nationality: profileData.nationality || 'TR',
         };
         if (profileData.birthDate) {
             payload.birthDate = profileData.birthDate;

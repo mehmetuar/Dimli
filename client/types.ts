@@ -30,6 +30,7 @@ export interface Player {
   coordinates?: { lat: number; lng: number }; // New field for geo-filtering
   birthDate?: string; // New field: YYYY-MM-DD
   foot?: string; // New field: 'Sağ', 'Sol', 'Her İkisi'
+  nationality?: string; // Uyruk — ISO 3166-1 alpha-2 (örn. 'TR'); kartta bayrak olarak gösterilir
   isJoker: boolean; // Acts as Active/Passive toggle
   sharesFee?: boolean; // New: Willing to pay their share
   avatarUrl: string;

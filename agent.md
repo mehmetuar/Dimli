@@ -1135,3 +1135,33 @@ success tipleri, İşletme login loader, fullScreen LoadingSpinner overlay'leri.
   responsive. (JokerPool başlığı bu şekilde düzeltildi.)
 - **Reload sonrası tab state:** reload state'i sıfırlar; kalıcı seçim için `sessionStorage` bayrağı set
   et + hedef component init'te oku+temizle (TeamCreated → TeamProfile TAKIMIM tab deseni).
+
+---
+
+## 31. Uyruk (nationality) — dinamik ülke bayrağı: kayıt + hesap ayarları + DB (2026-07-02)
+
+Oyuncu kartındaki bayrak eskiden **hardcoded** Türk bayrağıydı (`<img src=flagcdn.com/w40/tr.png>`,
+PlayerDetailModal + JokerDetailModal). Dinamik hâle getirildi.
+
+- **Veri modeli:** `user.nationality` = **ISO 3166-1 alpha-2 kod, uppercase** (örn. `'TR'`). Entity
+  `@Column({ default: 'TR' })` → `synchronize` deploy'da sütunu `NOT NULL DEFAULT 'TR'` oluşturur,
+  **mevcut satırlar otomatik 'TR' (backfill)**. Manuel ALTER **yapılmadı** (agent.md §9: canlı DB'ye yazma yok).
+  DTO'larda `nationality?: string` **optional** (server geri-uyumlu; zorunluluk client UI'da) —
+  `create-user.dto` + `update-user.dto`. Service/controller değişmedi (`...userData` spread + `update` +
+  `GET /users/me`/roster/joker yanıtları alanı otomatik taşır).
+- **Bayrak = gömülü/offline (KALICI karar):** `flag-icons` paketi. CSS bir kez `index.tsx`'te import
+  (`flag-icons/css/flag-icons.min.css`). Vite bayrakları CSS içine **data:image/svg (inline)** + büyükleri
+  ayrı SVG olarak gömer → **internet gerektirmez** (flagcdn kaldırıldı). Render: `components/UI/Flag.tsx`
+  → `<span className="fi fi-{code.toLowerCase()}" style={{width:1.5rem,height:1rem,backgroundSize:cover}}>`.
+- **Ülke listesi:** `client/data/countries.ts` — tam ISO listesi (~195), **Türkçe** adlar, Türkiye ilk.
+  `getCountryName(code)`, `getCountry(code)`, `DEFAULT_NATIONALITY='TR'`.
+- **Seçici:** `components/UI/CountryPickerModal.tsx` — LocationSelectionModal deseni (`KeyboardAwareModal`
+  + arama header + kaydırılır liste, `z-[100]`). Satır: `Flag` + Türkçe ad + seçili tik. Türkçe arama
+  (`toLocaleLowerCase('tr')`).
+- **Kayıt:** `useRegister` formData default `nationality:'TR'` (payload'a `...rest` ile gider);
+  `PlayerProfileStep` Mevki/Ayak yanına "Uyruk" satırı → CountryPickerModal. Default TR, boş olamaz.
+- **Hesap ayarları:** `useProfile` profileData'ya `nationality` (yükle `GET /me`, kaydet PATCH payload);
+  `ProfileSettings` "Oyuncu Bilgileri" bölümünde "Uyruk" picker satırı.
+- **Bayrak gösterimi (dinamik):** PlayerDetailModal + JokerDetailModal → `<Flag code={player.nationality || 'TR'} />`.
+- **⚠️ Deploy notu:** Sütun **server deploy/restart'ında** oluşur (synchronize). Deploy sonrası salt-okunur
+  doğrulama: `SELECT nationality, count(*) FROM "user" GROUP BY 1;` (15 = TR beklenir). Client yeni native build ister.

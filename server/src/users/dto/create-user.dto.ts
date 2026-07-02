@@ -46,4 +46,10 @@ export class CreateUserDto {
   @IsString()
   @IsOptional()
   foot?: string;
+
+  // Uyruk (ISO alpha-2, örn. 'TR'). Zorunluluk client UI'da; server default'la
+  // geri-uyumlu (boş gelirse entity default 'TR').
+  @IsString()
+  @IsOptional()
+  nationality?: string;
 }

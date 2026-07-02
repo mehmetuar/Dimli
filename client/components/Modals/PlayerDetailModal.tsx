@@ -4,6 +4,7 @@ import { Player } from '../../types';
 import { getBusinesses } from '../../services/api';
 import { calculateAge } from '../../utils/calculateAge';
 import { useModalBodyClass } from '../../utils/useModalBodyClass';
+import { Flag } from '../UI/Flag';
 
 interface PlayerDetailModalProps {
     isOpen: boolean;
@@ -74,7 +75,7 @@ const PlayerDetailModalContent: React.FC<PlayerDetailModalProps> = ({
                         <div className="flex flex-col pt-4">
                             <span className="text-[clamp(16px,5vw,22px)] font-bold text-slate-300 uppercase tracking-widest !whitespace-nowrap overflow-hidden text-ellipsis">{player.position}</span>
                             <div className="mt-2 flex items-center gap-1">
-                                <img src="https://flagcdn.com/w40/tr.png" className="w-6 h-4 rounded shadow" alt="TR" />
+                                <Flag code={player.nationality || 'TR'} />
                             </div>
                         </div>
                         <div className="w-40 h-40 relative -mr-4 -mt-2">

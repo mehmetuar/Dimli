@@ -39,6 +39,11 @@ export class UpdateUserDto {
   @IsString()
   foot?: string;
 
+  // Uyruk (ISO alpha-2, örn. 'TR') — hesap ayarlarından güncellenebilir.
+  @IsOptional()
+  @IsString()
+  nationality?: string;
+
   @IsOptional()
   favoriteBusinessIds?: string[];
 

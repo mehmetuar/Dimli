@@ -19,6 +19,7 @@ export const useRegister = () => {
         position: 'Orta Saha',
         secondaryPosition: '',
         foot: 'Sağ',
+        nationality: 'TR', // Uyruk (ISO alpha-2) — zorunlu, default Türkiye; payload'a ...rest ile gider
         avatarUrl: '', // blob: URL for local preview only — NOT sent to server
     });
     const [selectedAvatarFile, setSelectedAvatarFile] = useState<File | null>(null);

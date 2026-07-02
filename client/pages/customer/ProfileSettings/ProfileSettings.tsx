@@ -9,6 +9,9 @@ import { LoadingSpinner } from '../../../components/UI/LoadingSpinner';
 import { useProfile } from './hooks/useProfile';
 import { ProfilePhotoManager } from './components/ProfilePhotoManager';
 import { PositionPickerModal } from '../../../components/UI/PositionPickerModal';
+import { CountryPickerModal } from '../../../components/UI/CountryPickerModal';
+import { Flag } from '../../../components/UI/Flag';
+import { getCountryName } from '../../../data/countries';
 import type { UsernameStatus } from './hooks/useProfile';
 
 const inputClass = 'w-full bg-slate-900/80 text-white px-4 py-3.5 rounded-xl border border-slate-700 focus:border-turf-500/70 focus:outline-none font-semibold text-sm placeholder-slate-600 transition-colors';
@@ -65,6 +68,7 @@ export const ProfileSettings: React.FC = () => {
     const [positionPicker, setPositionPicker] = useState<{
         open: boolean; field: 'position' | 'secondaryPosition'; title: string; allowEmpty: boolean;
     }>({ open: false, field: 'position', title: '', allowEmpty: false });
+    const [countryPickerOpen, setCountryPickerOpen] = useState(false);
 
     const openPositionPicker = (field: 'position' | 'secondaryPosition') => {
         setPositionPicker({
@@ -306,6 +310,21 @@ export const ProfileSettings: React.FC = () => {
                                         ))}
                                     </div>
                                 </div>
+
+                                <div>
+                                    <label className={labelClass}>Uyruk</label>
+                                    <button
+                                        type="button"
+                                        onClick={() => setCountryPickerOpen(true)}
+                                        className="w-full bg-slate-900/80 border-2 border-slate-700 rounded-xl px-4 py-3.5 text-left text-sm font-bold text-white flex items-center justify-between hover:border-slate-600 transition-colors"
+                                    >
+                                        <span className="flex items-center gap-2 min-w-0">
+                                            <Flag code={profileData.nationality || 'TR'} />
+                                            <span className="truncate">{getCountryName(profileData.nationality || 'TR')}</span>
+                                        </span>
+                                        <ChevronRight className="w-4 h-4 text-slate-500 flex-shrink-0" />
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
@@ -332,6 +351,13 @@ export const ProfileSettings: React.FC = () => {
                 excludeKey={positionPicker.field === 'secondaryPosition' ? profileData.position : profileData.secondaryPosition || undefined}
                 onSelect={val => setProfileData({ ...profileData, [positionPicker.field]: val })}
                 onClose={() => setPositionPicker(p => ({ ...p, open: false }))}
+            />
+
+            <CountryPickerModal
+                isOpen={countryPickerOpen}
+                value={profileData.nationality || 'TR'}
+                onSelect={code => setProfileData({ ...profileData, nationality: code })}
+                onClose={() => setCountryPickerOpen(false)}
             />
         </div>
     );

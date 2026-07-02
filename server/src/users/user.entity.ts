@@ -43,6 +43,11 @@ export class User {
   @Column({ nullable: true })
   foot: string;
 
+  // Uyruk — ISO 3166-1 alpha-2 kod (uppercase, örn. 'TR'). Kayıtta zorunlu (client),
+  // default 'TR' → synchronize mevcut satırları otomatik doldurur (backfill).
+  @Column({ default: 'TR' })
+  nationality: string;
+
   @Column('simple-array', { nullable: true })
   favoriteBusinessIds: string[];
 
