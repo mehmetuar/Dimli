@@ -67,6 +67,9 @@ export const Chat: React.FC = () => {
 
   const keyboardHeight = useKeyboardHeight();
   useModalBodyClass(!!selectedChannelId);
+  // "Seçenekler" modalı açıkken de navbar/bildirim zilini gizle + body scroll kilitle
+  // (reference-counted → selectedChannelId çağrısıyla çakışmaz).
+  useModalBodyClass(!!optionsModalChannel);
 
   // Pull-to-refresh (sadece kanal listesi görünümünde)
   const listScrollRef = useRef<HTMLDivElement>(null);
@@ -295,7 +298,10 @@ export const Chat: React.FC = () => {
           const canDelete = modalStatusInfo?.type === 'played' || modalStatusInfo?.type === 'unplayed';
           return (
             <div className="fixed inset-0 z-[70] flex items-center justify-center px-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-              <div className="bg-slate-800 w-full max-w-sm rounded-3xl border border-slate-700 p-6 relative">
+              <div
+                className="bg-slate-800 w-full max-w-sm rounded-3xl border border-slate-700 p-6 relative select-none"
+                style={{ WebkitUserSelect: 'none', userSelect: 'none', WebkitTouchCallout: 'none' } as React.CSSProperties}
+              >
                 <button
                   onClick={() => setOptionsModalChannel(null)}
                   className="absolute top-4 right-4 text-slate-500 hover:text-white"
