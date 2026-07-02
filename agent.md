@@ -852,3 +852,50 @@ smoke-test önerilir (giriş/başvuru/işletme/saha/şikayet/istatistik/seed).
 - **reservations.service (2427)** bölme — facade + Query/RecurringClosure/Proposal/Lifecycle/Support.
 - **chat.service (1812)** bölme — facade + Message/Channel/Rematch/Joker/Membership (forwardRef korunur).
 - Ertelenen T3 tip kalemleri (business-owner enrichment, chat/notification metadata, auth.service login).
+
+---
+
+## 23. Tanrı-servisleri bölme — 2/3: reservations.service (facade + delegation, 2026-07-02)
+
+> Serinin 2/3'ü (§22 admin tamamlandı). `reservations.service.ts` (2427 satır) cohesive alt-servislere
+> bölündü. **SIFIR davranış değişikliği** — metot gövdeleri **`sed` ile BYTE-IDENTICAL** çıkarıldı
+> (elle yeniden yazım YOK → transcription hatası sıfır); yalnız helper referansları rewire edildi.
+
+### Desen (admin ile aynı) + reservations'a özgü incelikler
+- `ReservationsService` **facade**: 24 public metot birebir imzayla delege eder → controller + dış
+  çağıranlar (business-owner, match-announcements, challenges, chat) DEĞİŞMEDİ. **2427 → 137 satır.**
+- 5 alt-servis (`reservations/services/`), döngüsüz bağımlılık: **Support**←(Lifecycle,Proposal,Recurring);
+  **Lifecycle**←Recurring; **Query** bağımsız.
+  - `reservation-support.service.ts` — `sendSystemMessage` + `cleanupJokersOnMatchCancel` (her ikisi de
+    `manager: EntityManager` parametreli → repo enjeksiyonu yok; chatService + notificationsService).
+  - `reservation-query.service.ts` — 7 saf okuma (reservationRepository).
+  - `reservation-lifecycle.service.ts` (**1626 satır** — approve 550 satırlık transaction BÜTÜN taşındı) —
+    create/approve/cancel/iptal-akışları + assertSlotAvailable + `checkMatchReminders(@Cron EVERY_MINUTE)`.
+  - `reservation-proposal.service.ts` — proposeTime/acceptProposal.
+  - `reservation-recurring.service.ts` — closure metotları + blockSlot + `topUpRecurringClosures(@Cron
+    EVERY_DAY_AT_3AM)`; `removeRecurringClosure → lifecycle.revokeConfirmation`, `blockSlot →
+    support.sendSystemMessage`.
+- ⚠️ **@Cron facade'de YOK** — dekoratörler taşındıkları alt-serviste (provider) kalır; ScheduleModule
+  tarar → tetiklenir. Gerçek `@Cron(` dağılımı: lifecycle 1 + recurring 1 (facade 0) → **çift-fire yok**.
+- ⚠️ **Transaction'lar korundu:** 11 `dataSource.transaction` kullanan metot bulundukları alt-servise
+  bütün taşındı (parçalanmadı); `dataSource` ilgili alt-servislere enjekte.
+- ⚠️ ChatChannel/ChatParticipant/MatchAnnouncement/Notification `manager` üzerinden erişildiği için
+  ekstra `@InjectRepository` gerekmedi.
+- `reservations.module.ts`: 5 alt-servis providers'a eklendi; forFeature + ChatModule/NotificationsModule/
+  SubscriptionModule import'ları korundu; forwardRef yok.
+
+### Yöntem notu (sonraki chat split için de geçerli)
+Büyük metotlar `sed -n 'START,ENDp'` ile byte-identical çıkarılıp yeni dosyaya eklendi; header
+(import+constructor) kullanılan sembol grep'iyle (`grep -oE 'this\.[a-zA-Z]+'` + entity/typeorm token
+taraması) belirlendi; helper çağrıları `perl -0pi -e 's/this\.X\(/this.dep.X(/g'` ile rewire edildi.
+Her adımda build; sonda temiz-rebuild + `require(dist/app.module.js)`.
+
+### Doğrulama
+`npm run build` ✓ (exit 0) + `npm run lint` temiz (yalnız e2e parse). Temiz rebuild sonrası
+`require('./dist/app.module.js')` OK (DI grafiği bütün). Deploy sonrası smoke-test: rezervasyon
+oluştur/onayla/iptal, iptal-isteği/geri-al, saat teklifi/kabul, sürekli-kapatma oluştur/kaldır, manuel
+doldur; Render log'unda 2 cron'un tek sefer çalıştığı teyit. Yalnız server; client değişmez.
+
+### Sıradaki (ayrı task)
+- **chat.service (1812)** bölme — 3/3, en zor (forwardRef döngüleri + cross-domain + transaction'sız
+  çok-adımlı akışlar). Ertelenen T3 tip kalemleri.
