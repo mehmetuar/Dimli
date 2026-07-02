@@ -123,7 +123,14 @@ export const getBusinessesPaged = async (params: {
     const response = await api.get('/businesses', {
         params: { lat, lng, radius, limit, offset, sort },
     });
-    return response.data;
+    const data = response.data;
+    // Geriye dönük uyumluluk: sunucu henüz sayfalamayı desteklemiyorsa (deploy edilmemiş eski
+    // sürüm) limit/offset'i yok sayıp DÜZ DİZİ döner. Bu durumda tüm listeyi tek sayfa gibi
+    // sun (hasMore=false) → istemci boş kalmaz; sunucu deploy olunca gerçek sayfalama devreye girer.
+    if (Array.isArray(data)) {
+        return { items: data, total: data.length, hasMore: false };
+    }
+    return data ?? { items: [], total: 0, hasMore: false };
 };
 
 export const getFacilities = (): Promise<string[]> =>
