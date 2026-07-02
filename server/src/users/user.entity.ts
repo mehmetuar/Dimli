@@ -55,6 +55,7 @@ export class User {
   @Column({ nullable: true })
   pushToken: string;
 
+  @Index()
   @Column({ nullable: true, name: 'team_id' })
   teamId: string;
 

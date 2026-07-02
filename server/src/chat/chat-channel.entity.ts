@@ -4,6 +4,7 @@ import {
   PrimaryGeneratedColumn,
   CreateDateColumn,
   OneToMany,
+  Index,
 } from 'typeorm';
 import { ChatMessage } from './chat-message.entity';
 import { ChatParticipant } from './chat-participant.entity';
@@ -31,6 +32,7 @@ export class ChatChannel {
   @CreateDateColumn()
   createdAt: Date;
 
+  @Index()
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   lastActivityAt: Date;
 }

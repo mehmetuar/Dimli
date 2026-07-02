@@ -174,180 +174,229 @@ export class ChatService {
       ]),
     );
 
-    const channels = await Promise.all(
-      participations.map(async (p) => {
-        const channel = p.channel;
-        const unreadCount = unreadMap.get(p.channelId) ?? 0;
-        const lastMessage = lastMessageMap.get(p.channelId) ?? null;
-
-        let reservationData: {
-          id?: string;
-          status: string;
-          slotTime: Date;
-          cancelRequested?: boolean;
-          teamId?: string;
-          opponentTeamId?: string;
-          homeTeamPlayerCount?: number;
-          awayTeamPlayerCount?: number;
-          requiredPlayerCount?: number | null;
-        } | null = null;
-        let isJoker = false;
-        if (channel.relatedMatchId) {
-          // Find reservation linked to this match announcement
-          let reservation = await this.reservationRepository.findOne({
-            where: { matchAnnouncementId: channel.relatedMatchId },
-          });
-
-          // FALLBACK FOR OLD MATCHES: Find by relation through match
-          if (!reservation) {
-            const match = await this.matchAnnouncementRepository.findOne({
-              where: { id: channel.relatedMatchId },
-            });
-
-            if (match) {
-              try {
-                const slotDateTime = istanbulDateTimeToUtc(
-                  match.date,
-                  match.time,
-                );
-
-                reservation = await this.reservationRepository.findOne({
-                  where: {
-                    teamId: match.teamId,
-                    slotTime: slotDateTime,
-                    type: 'MATCH',
-                  },
-                });
-
-                if (!reservation) {
-                  // If no reservation, just map the match status
-                  reservationData = {
-                    status:
-                      match.status === 'CONFIRMED' ? 'APPROVED' : 'PENDING',
-                    slotTime: slotDateTime,
-                    teamId: match.teamId,
-                  } as any;
-                }
-              } catch {
-                // ignore date parse errors
-              }
-            }
-          }
-
-          if (reservation) {
-            const matchAnn = channel.relatedMatchId
-              ? await this.matchAnnouncementRepository.findOne({
-                  where: { id: channel.relatedMatchId },
-                  select: ['playerCount'] as any,
-                })
-              : null;
-
-            reservationData = {
-              id: reservation.id,
-              status: reservation.status,
-              slotTime: reservation.slotTime,
-              cancelRequested: reservation.cancelRequested,
-              teamId: reservation.teamId,
-              opponentTeamId: reservation.opponentTeamId,
-              homeTeamPlayerCount: await this.ratingsService.getTeamPlayerCount(
-                reservation.teamId,
-              ),
-              // undefined for kendi aramızda (no opponent) to avoid false warnings
-              awayTeamPlayerCount: reservation.opponentTeamId
-                ? await this.ratingsService.getTeamPlayerCount(
-                    reservation.opponentTeamId,
-                  )
-                : undefined,
-              requiredPlayerCount: matchAnn?.playerCount ?? null,
-            } as any;
-          }
-
-          // Determine if current user is a joker
-          if (channel.type === 'MATCH_GROUP') {
-            if (userTeamId && reservationData) {
-              if (
-                userTeamId !== (reservationData as any).teamId &&
-                userTeamId !== (reservationData as any).opponentTeamId
-              ) {
-                isJoker = true;
-              }
-            } else if (!userTeamId) {
-              isJoker = true; // Without a team, definitely a joker in a MATCH_GROUP
-            }
-          }
-        }
-
-        // ── Avatar data: kanal tipine göre görsel için gerekli veriler ──────
-        let avatarData: {
-          matchType?: string;
-          homeTeamLogo?: string | null;
-          homeTeamName?: string;
-          homeTeamColor?: string | null;
-          awayTeamLogo?: string | null;
-          awayTeamName?: string;
-          awayTeamColor?: string | null;
-          otherUserAvatar?: string | null;
-          otherUserName?: string;
-        } | null = null;
-
-        if (channel.type === 'MATCH_GROUP' && channel.relatedMatchId) {
-          const matchForType = await this.matchAnnouncementRepository.findOne({
-            where: { id: channel.relatedMatchId },
-            select: ['teamId', 'matchType'] as any,
-          });
-          if (matchForType) {
-            const homeTeamId =
-              (reservationData as any)?.teamId || matchForType.teamId;
-            const awayTeamId = (reservationData as any)?.opponentTeamId || null;
-
-            const [homeTeam, awayTeam] = await Promise.all([
-              homeTeamId
-                ? this.teamRepository.findOne({
-                    where: { id: homeTeamId },
-                    select: ['id', 'name', 'logoUrl', 'primaryColor'] as any,
-                  })
-                : Promise.resolve(null),
-              awayTeamId
-                ? this.teamRepository.findOne({
-                    where: { id: awayTeamId },
-                    select: ['id', 'name', 'logoUrl', 'primaryColor'] as any,
-                  })
-                : Promise.resolve(null),
-            ]);
-
-            avatarData = {
-              matchType: matchForType.matchType,
-              homeTeamLogo: homeTeam?.logoUrl ?? null,
-              homeTeamName: homeTeam?.name ?? '',
-              homeTeamColor: homeTeam?.primaryColor ?? null,
-              awayTeamLogo: awayTeam?.logoUrl ?? null,
-              awayTeamName: awayTeam?.name ?? '',
-              awayTeamColor: awayTeam?.primaryColor ?? null,
-            };
-          }
-        } else if (channel.type === 'JOKER_NEGOTIATION') {
-          // channel.participants relation ile zaten yüklü — ekstra DB sorgusu yok
-          const other = channel.participants?.find(
-            (p: any) => p.userId !== userId && !p.deletedAt,
-          );
-          if (other?.user) {
-            avatarData = {
-              otherUserAvatar: other.user.avatarUrl ?? null,
-              otherUserName: other.user.full_name || other.user.username || '',
-            };
-          }
-        }
-
-        return {
-          ...channel,
-          lastMessage,
-          unreadCount,
-          reservation: reservationData,
-          isJoker,
-          avatarData,
-        };
-      }),
+    // ── Batch enrichment (N+1 kaldırıldı): kanal-başına sorgu yerine sabit
+    //    sayıda toplu sorgu + in-memory map. Dönüş şekli birebir korunur. ──
+    const matchIds = Array.from(
+      new Set(
+        participations
+          .map((p) => p.channel?.relatedMatchId)
+          .filter((id): id is string => !!id),
+      ),
     );
+
+    // 1) matchAnnouncementId ile bağlı rezervasyonlar (primary) — tek sorgu
+    const reservationByMatchId = new Map<string, any>();
+    if (matchIds.length) {
+      const primaryReservations = await this.reservationRepository.find({
+        where: { matchAnnouncementId: In(matchIds) },
+      });
+      for (const r of primaryReservations) {
+        if (r.matchAnnouncementId)
+          reservationByMatchId.set(r.matchAnnouncementId, r);
+      }
+    }
+
+    // 2) Maç ilanları — fallback + requiredPlayerCount + avatar (teamId/matchType) tek sorguda
+    const matchById = new Map<string, any>();
+    if (matchIds.length) {
+      const matches = await this.matchAnnouncementRepository.find({
+        where: { id: In(matchIds) },
+      });
+      for (const m of matches) matchById.set(m.id, m);
+    }
+
+    // 3) Fallback rezervasyon (eski maçlar): primary bulunmayanlar için team+slot eşleştirme
+    const fallbackSpecs: { matchId: string; teamId: string; slotMs: number }[] =
+      [];
+    for (const matchId of matchIds) {
+      if (reservationByMatchId.has(matchId)) continue;
+      const m = matchById.get(matchId);
+      if (!m) continue;
+      try {
+        const slotTime = istanbulDateTimeToUtc(m.date, m.time);
+        fallbackSpecs.push({
+          matchId,
+          teamId: m.teamId,
+          slotMs: new Date(slotTime).getTime(),
+        });
+      } catch {
+        // ignore date parse errors
+      }
+    }
+    if (fallbackSpecs.length) {
+      const fallbackTeamIds = Array.from(
+        new Set(fallbackSpecs.map((s) => s.teamId)),
+      );
+      const fallbackReservations = await this.reservationRepository.find({
+        where: { teamId: In(fallbackTeamIds), type: 'MATCH' as any },
+      });
+      const fallbackByTeamSlot = new Map<string, any>();
+      for (const r of fallbackReservations) {
+        fallbackByTeamSlot.set(
+          `${r.teamId}|${new Date(r.slotTime).getTime()}`,
+          r,
+        );
+      }
+      for (const spec of fallbackSpecs) {
+        const r = fallbackByTeamSlot.get(`${spec.teamId}|${spec.slotMs}`);
+        if (r) reservationByMatchId.set(spec.matchId, r);
+      }
+    }
+
+    // 4) İlgili tüm teamId'ler (oyuncu sayısı + avatar takımları için birleşik küme)
+    const teamIdSet = new Set<string>();
+    for (const r of reservationByMatchId.values()) {
+      if (r.teamId) teamIdSet.add(r.teamId);
+      if (r.opponentTeamId) teamIdSet.add(r.opponentTeamId);
+    }
+    for (const m of matchById.values()) {
+      if (m.teamId) teamIdSet.add(m.teamId);
+    }
+    const teamIds = Array.from(teamIdSet);
+
+    // 5) Oyuncu sayıları — tek GROUP BY (getTeamPlayerCount ×N yerine)
+    const playerCountByTeam = new Map<string, number>();
+    if (teamIds.length) {
+      const countRows: any[] = await this.userRepository.manager.query(
+        `SELECT team_id, COUNT(*)::int AS count FROM "user" WHERE team_id = ANY($1) GROUP BY team_id`,
+        [teamIds],
+      );
+      for (const row of countRows)
+        playerCountByTeam.set(row.team_id, Number(row.count));
+    }
+
+    // 6) Avatar için takım kayıtları — tek sorgu
+    const teamById = new Map<string, any>();
+    if (teamIds.length) {
+      const teams = await this.teamRepository.find({
+        where: { id: In(teamIds) },
+        select: ['id', 'name', 'logoUrl', 'primaryColor'] as any,
+      });
+      for (const t of teams) teamById.set(t.id, t);
+    }
+
+    // ── Kanal-başına saf in-memory map'leme (DB'ye gitmez) ──
+    const channels = participations.map((p) => {
+      const channel = p.channel;
+      const unreadCount = unreadMap.get(p.channelId) ?? 0;
+      const lastMessage = lastMessageMap.get(p.channelId) ?? null;
+
+      let reservationData: {
+        id?: string;
+        status: string;
+        slotTime: Date;
+        cancelRequested?: boolean;
+        teamId?: string;
+        opponentTeamId?: string;
+        homeTeamPlayerCount?: number;
+        awayTeamPlayerCount?: number;
+        requiredPlayerCount?: number | null;
+      } | null = null;
+      let isJoker = false;
+
+      if (channel.relatedMatchId) {
+        const reservation = reservationByMatchId.get(channel.relatedMatchId);
+        const match = matchById.get(channel.relatedMatchId);
+
+        if (reservation) {
+          reservationData = {
+            id: reservation.id,
+            status: reservation.status,
+            slotTime: reservation.slotTime,
+            cancelRequested: reservation.cancelRequested,
+            teamId: reservation.teamId,
+            opponentTeamId: reservation.opponentTeamId,
+            homeTeamPlayerCount: playerCountByTeam.get(reservation.teamId) ?? 0,
+            // undefined for kendi aramızda (no opponent) to avoid false warnings
+            awayTeamPlayerCount: reservation.opponentTeamId
+              ? (playerCountByTeam.get(reservation.opponentTeamId) ?? 0)
+              : undefined,
+            requiredPlayerCount: match?.playerCount ?? null,
+          } as any;
+        } else if (match) {
+          // FALLBACK: rezervasyon yok → maç durumunu yansıt (eski maçlar)
+          try {
+            const slotDateTime = istanbulDateTimeToUtc(match.date, match.time);
+            reservationData = {
+              status: match.status === 'CONFIRMED' ? 'APPROVED' : 'PENDING',
+              slotTime: slotDateTime,
+              teamId: match.teamId,
+            } as any;
+          } catch {
+            // ignore date parse errors
+          }
+        }
+
+        // Determine if current user is a joker
+        if (channel.type === 'MATCH_GROUP') {
+          if (userTeamId && reservationData) {
+            if (
+              userTeamId !== (reservationData as any).teamId &&
+              userTeamId !== (reservationData as any).opponentTeamId
+            ) {
+              isJoker = true;
+            }
+          } else if (!userTeamId) {
+            isJoker = true; // Without a team, definitely a joker in a MATCH_GROUP
+          }
+        }
+      }
+
+      // ── Avatar data: kanal tipine göre görsel için gerekli veriler ──────
+      let avatarData: {
+        matchType?: string;
+        homeTeamLogo?: string | null;
+        homeTeamName?: string;
+        homeTeamColor?: string | null;
+        awayTeamLogo?: string | null;
+        awayTeamName?: string;
+        awayTeamColor?: string | null;
+        otherUserAvatar?: string | null;
+        otherUserName?: string;
+      } | null = null;
+
+      if (channel.type === 'MATCH_GROUP' && channel.relatedMatchId) {
+        const matchForType = matchById.get(channel.relatedMatchId);
+        if (matchForType) {
+          const homeTeamId =
+            (reservationData as any)?.teamId || matchForType.teamId;
+          const awayTeamId = (reservationData as any)?.opponentTeamId || null;
+
+          const homeTeam = homeTeamId ? teamById.get(homeTeamId) : null;
+          const awayTeam = awayTeamId ? teamById.get(awayTeamId) : null;
+
+          avatarData = {
+            matchType: matchForType.matchType,
+            homeTeamLogo: homeTeam?.logoUrl ?? null,
+            homeTeamName: homeTeam?.name ?? '',
+            homeTeamColor: homeTeam?.primaryColor ?? null,
+            awayTeamLogo: awayTeam?.logoUrl ?? null,
+            awayTeamName: awayTeam?.name ?? '',
+            awayTeamColor: awayTeam?.primaryColor ?? null,
+          };
+        }
+      } else if (channel.type === 'JOKER_NEGOTIATION') {
+        // channel.participants relation ile zaten yüklü — ekstra DB sorgusu yok
+        const other = channel.participants?.find(
+          (pp: any) => pp.userId !== userId && !pp.deletedAt,
+        );
+        if (other?.user) {
+          avatarData = {
+            otherUserAvatar: other.user.avatarUrl ?? null,
+            otherUserName: other.user.full_name || other.user.username || '',
+          };
+        }
+      }
+
+      return {
+        ...channel,
+        lastMessage,
+        unreadCount,
+        reservation: reservationData,
+        isJoker,
+        avatarData,
+      };
+    });
 
     // DB'den gelen lastActivityAt DESC sırası korunur — en son mesajı olan
     // kanal her zaman en üstte görünür.
