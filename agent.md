@@ -999,3 +999,51 @@ doldur; Render log'unda 2 cron'un tek sefer çalıştığı teyit. Yalnız serve
   (@Index) — liste `ORDER BY lastActivityAt DESC`. `synchronize:true` → server restart'ta otomatik oluşur.
 - **ratingsService.getTeamPlayerCount** chat.service'te artık çağrılmıyor ama başka yerlerde kullanılıyor →
   bırakıldı (parameter property, TS "unused" saymaz; kaldırmak DI wiring'i riske atardı).
+
+## 27. Sahalar sayfası ölçeklenebilirlik: konum-önce + sunucu sayfalama + N+1 temizliği (2026-07-02)
+
+> Hedef: 50 işletme aynı anda yayın, ileride 400-500; müşteri Sahalar (PitchBooking) sayfası. Gerçek üst
+> sınır: yarıçap sorgusu ~50-60 işletme (100km); saha başına ~30 bekleyen istek. 8-ajanlı read-only audit +
+> adversarial review ile doğrulandı.
+
+### Konum-önce geo liste deseni (KALICI — server/)
+- **Bounding-box ÖN-filtre + Haversine kesin filtre:** geo listede (business.service.ts) Haversine `where`'inden
+  ÖNCE `latitude/longitude BETWEEN` kutu filtresi (yarıçaptan hesap, **%10 güvenlik payı** ile çemberi kesin
+  kapsa) → mevcut tekil lat/lng index'i kullanır, tüm-tablo trig taramasını bitirir. Kesin mesafe yine Haversine
+  (sonuç birebir aynı). PostGIS gerekmez (işletme binleri bulursa yeniden değerlendir).
+- **Sunucu offset sayfalama + STABİL ikincil anahtar:** `findNearbyPaged` konum-önce aday küme → sunucu-taraflı
+  sıralama → `slice(offset, offset+limit)` → `{items,total,hasMore}`. **Eşit primary değerlerde MUTLAKA id ile
+  tie-break** (`primary(a,b) || a.id.localeCompare(b.id)`) — `IN(...)` fetch sırası deterministik değildir; tie
+  yoksa öğe sayfalar arası kayar/duplike olur (distanceKm 0.1'e yuvarlı + rating varsayılan 5.0 → eşitlik sık).
+- **Paylaşılan endpoint dönüş şeklini GLOBAL değiştirme:** `getBusinesses` (array) MyTeam/Favoriler/
+  CreateMatchModal'da kullanılıyor (biri `pitch.timeSlots` okuyor). Sayfalı `{items,...}` şekli için AYRI
+  fonksiyon (`getBusinessesPaged`) + endpoint'te `limit` verilince sayfalı, yoksa legacy array. Legacy yol korunur.
+- **QueryBuilder + eager:** entity `@OneToMany(..., { eager:true })` yalnız `find/findOne`'ı etkiler,
+  `createQueryBuilder().getMany()`'yi ETKİLEMEZ (join açıkça yapılmalı). Yani liste QueryBuilder'da timeSlots
+  JOIN'i yapılmadıkça gelmez — entity eager'ı kaldırmaya gerek yok (global regresyon riski alınmaz).
+- **Karar:** timeSlots paginated payload'da KORUNDU (slot grid = booking çekirdeği senkron kalsın); asıl ölçek
+  kazanımı sayfalama + bounding-box'tan. Lazy-timeSlots ileride (bounded ölçekte marjinal, flicker riski).
+
+### İstemci sayfalama (KALICI — client/)
+- Infinite-scroll (append) + sunucu sıralama (istemci JS sort kaldırıldı, sunucu sırası korunur). coords/radius/
+  sort değişince sayfa 0'a reset. **B3 guard:** yuvarlanmış (lat,lng,radius,sort) anahtarı aynıysa arka plan
+  konum tick'inde gereksiz tam yeniden çekim yok; pull-to-refresh `force` ile atlar.
+- **Yarış guard'ı:** her reset bir `fetchGen` başlatır; await sonrası `gen !== current` ise yanıt uygulanmaz +
+  bayraklar yalnız güncel nesilde temizlenir (sort mid-loadMore değişse eski sayfa yanlış sırada eklenmez /
+  spinner takılı kalmaz).
+
+### N+1 batching (owner paneli) + parity kuralı (KALICI — server/)
+- Slot-başına DB sorgusu YASAK: `getDashboardSlots` saha başına **tek** `findByPitchAndDate(pitch.id, dayStart,
+  dayEnd)` (İstanbul günü) + in-memory 60sn slot bucketing. Rezervasyon-başına ×4 rating → tüm teamId'ler
+  toplanıp `getTeamMatchCounts` (teamId/opponentTeamId UNION GROUP BY) + `getTeamPlayerCounts` (user GROUP BY,
+  user.teamId indexli). chat §26 In()+GROUP BY deseni.
+- **Parity kritik:** batch'lerken AYNI repo metodunu kullan. `findByPitchAndDate` (captain'lar + matchAnnouncement
+  relations + `status != CANCELLED`) ile `findByPitchAndDateRange` (bu relations YOK + tüm statüler) FARKLI →
+  yanlışını seçmek sessiz regresyon. Gün-aralığı için per-slot ile aynı metodu (findByPitchAndDate) geniş
+  aralıkla çağır → birebir davranış.
+- **match_announcements** pitchId/teamId indexlendi; `findByPitch` team.players over-fetch'i kaldırıldı (kadro
+  takım-detay modalında GET /teams/:id ile lazy — modal zaten kendi fetch'ini yapıyor).
+- **TypeORM infra:** `extra: { max:20, statement_timeout:15000 }` (havuz tavanı + kaçak sorgu koruması).
+
+### Sonraki (ayrı task)
+- Maç Pazarı sayfası aynı prensiplerle. İleride (binlerce işletme) PostGIS/Redis + `synchronize:false`/migration.
