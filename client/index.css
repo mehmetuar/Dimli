@@ -193,14 +193,29 @@ body.modal-open .fixed.top-bell-safe {
   visibility: hidden;
 }
 
-/* Modal açıkken PROFİLİM/TAKIMIM tab başlığı: YOK EDİLMEZ. Diğer arka plan içeriği gibi
-   pasifleşir — tıklanamaz olur ve kararır (visibility:hidden DEĞİL, opacity ile dim).
-   (TeamProfile içerik div'i -webkit-overflow-scrolling:touch → iOS'ta ayrı layer; modallar
-   barın arkasında kalıyordu. z-index yerine dim+disable ile güvenilir çözüm.) */
-.team-profile-tabs { transition: opacity 0.2s ease; }
+/* Modal açıkken PROFİLİM/TAKIMIM header'ı: pasif (tıklanamaz) + diğer arka plan içeriği gibi KARARIR.
+   ::after katmanı tab barı + üstteki safe-area/status-bar navy (bg-pitch) şeridini örter; rgba(0,0,0,.7)
+   backdrop (bg-black/70) ile eşleşir → header, arkadaki içerikle aynı kararır, lacivert kalmaz.
+   (Root fixed inset-0 + WebkitOverflowScrolling:touch → modal backdrop'u bu bölgeye ulaşamıyordu;
+   kendi katmanımızla karartıyoruz. Notch'suz cihazda env=0 → yalnız tab barı örter.) */
+.team-profile-tabs { position: relative; }
+.team-profile-tabs::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: calc(-1 * env(safe-area-inset-top));
+  background: rgba(0, 0, 0, 0.7);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
 body.modal-open .team-profile-tabs {
   pointer-events: none;
-  opacity: 0.4;
+}
+body.modal-open .team-profile-tabs::after {
+  opacity: 1;
 }
 
 /* Modal overlay — Android'de çift tap zoom engelle */
