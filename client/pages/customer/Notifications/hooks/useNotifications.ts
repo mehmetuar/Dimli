@@ -16,6 +16,7 @@ export interface JoinRequest {
         foot?: string;
         secondaryPosition?: string;
         location?: string;
+        nationality?: string;
         avatarUrl?: string;
     };
     teamId: string;

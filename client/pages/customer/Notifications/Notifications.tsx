@@ -120,6 +120,7 @@ export const Notifications: React.FC = () => {
                birthDate: selectedJoinRequest.user.birthDate,
                secondaryPosition: selectedJoinRequest.user.secondaryPosition,
                location: selectedJoinRequest.user.location ?? '',
+               nationality: selectedJoinRequest.user.nationality,
                avatarUrl: selectedJoinRequest.user.avatarUrl ?? ''
             } : null}
          />

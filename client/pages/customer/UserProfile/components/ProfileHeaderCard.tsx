@@ -101,6 +101,7 @@ export const ProfileHeaderCard: React.FC<ProfileHeaderCardProps> = ({
                     location: currentUser.location,
                     birthDate: currentUser.birthDate,
                     foot: currentUser.foot,
+                    nationality: currentUser.nationality,
                     isJoker: false,
                     avatarUrl: currentUser.avatarUrl || undefined,
                     favoritePitchIds: currentUser.favoriteBusinessIds || [],
