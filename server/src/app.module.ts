@@ -47,6 +47,13 @@ import { PresetNotesModule } from './preset-notes/preset-notes.module';
       entities: [__dirname + '/**/*.entity{.ts,.js}'],
       autoLoadEntities: true,
       synchronize: true, // Auto-create tables - consider disabling in production later
+      // Ölçek (50→500 işletme, tüm-kullanıcı eşzamanlı tarama): bağlantı havuzu tavanı +
+      // kaçak sorgu koruması. Varsayılan havuz ~10; statement_timeout kaçak/ağır bir sorgunun
+      // bağlantıyı süresiz tutup havuzu kilitlemesini engeller (15sn).
+      extra: {
+        max: 20,
+        statement_timeout: 15000,
+      },
     }),
     ScheduleModule.forRoot(),
     AuthModule,
