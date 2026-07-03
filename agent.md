@@ -1457,3 +1457,22 @@ uzaklık/Yol Tarifi/Sahayı Ara; Meydan Oku modalı zengin. Client değişikliğ
   modal bug'ı gerçek adla düzeldi. Öksüz fair-play rating = 0.
 - Doğrulama: server build ✓; client tsc (yalnız LocationStep) + build + cap copy ✓. Deploy: server
   Render'a (synchronize kolonu ekler); client yeni native sürüm.
+
+---
+
+## 40. KALICI KURAL: `turf` rengi TAM skala tanımlı olmalı (renk sorununa kesin çözüm) (2026-07-04)
+
+> Belirti: modallarda (özellikle `createPortal(document.body)` ile render edilenler — RatingModal,
+> MatchHistoryModal) bazı yazılar SİYAH/görünmez, bazı yeşil bg/gradyanlar boyanmıyordu.
+
+- **Kök neden:** `client/tailwind.config.js` `turf` yalnız 400/500/600 tanımlıydı; kod tabanı ise
+  92 dosyada `turf-100/200/300/700/800/900` gibi TANIMSIZ tonlar kullanıyordu. Tanımsız ton →
+  Tailwind o sınıfı ÜRETMEZ → **no-op**: metin renksiz kalır (portal modalda body default'una
+  düşer, siyah görünür), bg/gradyan tinti boyanmaz.
+- **Kesin çözüm:** `turf` TAM yeşil skalaya (50–950, Tailwind `green` ile birebir) tamamlandı.
+  Artık her `turf-XXX` gerçek renk üretir. Metin kullanımları açık tonlar (100-300 → okunur),
+  koyu tonlar (700-900) yalnız bg tinti (`bg-turf-900/XX`) olduğundan dark-on-dark riski YOK.
+- **KURAL:** Yeni renk tonu gerekiyorsa config'e ekle; **asla no-op (tanımsız) turf/pitch sınıfı
+  bırakma.** `pitch` yalnız DEFAULT+surface — numeric `pitch-<n>` kullanma.
+- Ek: MatchHistoryModal tarih bloğu arka planı yeşil tint → `bg-slate-800/60` (koyu, kullanıcı isteği).
+- Doğrulama: client tsc (yalnız LocationStep) + build + cap copy ✓. Yalnız client → yeni native sürüm.

@@ -10,10 +10,22 @@ export default {
     theme: {
         extend: {
             colors: {
+                // Tam yeşil skala (Tailwind `green` ile birebir). TÜM tonlar tanımlı olmalı —
+                // tanımsız ton (ör. turf-200/300/700/900) Tailwind'de no-op sınıf üretir:
+                // metin renksiz kalır (portal modallarda siyah/görünmez), bg/gradyan boyanmaz.
+                // Yeni ton gerekiyorsa buraya ekle; asla no-op turf sınıfı bırakma.
                 turf: {
-                    400: '#4ade80', // Example green
+                    50: '#f0fdf4',
+                    100: '#dcfce7',
+                    200: '#bbf7d0',
+                    300: '#86efac',
+                    400: '#4ade80',
                     500: '#22c55e',
                     600: '#16a34a',
+                    700: '#15803d',
+                    800: '#166534',
+                    900: '#14532d',
+                    950: '#052e16',
                 },
                 pitch: {
                     DEFAULT: '#0f172a', // Slate 900

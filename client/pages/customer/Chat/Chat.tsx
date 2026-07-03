@@ -357,7 +357,10 @@ export const Chat: React.FC = () => {
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex flex-col bg-pitch-surface"
+      // Kök #0f172a (koyu lacivert) — input footer (bg-slate-900) ve mesaj listesi (bg-pitch)
+      // ile aynı. Klavye açıkken paddingBottom:keyboardHeight boşluğu artık input'la aynı koyu
+      // tonu gösterir (eski bg-pitch-surface #1e293b açık şeridi/renk geçişini bitirir).
+      className="fixed inset-0 z-[60] flex flex-col bg-slate-900"
       style={keyboardHeight > 0 ? { paddingBottom: keyboardHeight } : undefined}
     >
       {/* Action toast */}
