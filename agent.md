@@ -1424,3 +1424,36 @@ uzaklık/Yol Tarifi/Sahayı Ara; Meydan Oku modalı zengin. Client değişikliğ
   dek döner, otomatik geçiş yok (kullanıcı kararı). ForgotPassword'daki 2.2sn otomatik geçiş kalır.
 - Doğrulama: server build ✓; client tsc (yalnız LocationStep) + build + cap copy ✓. Deploy: server
   Render'a; client yeni native sürüm ister.
+
+---
+
+## 39. Silinmiş takıma fair-play değerlendirmesi — "Bu takım artık mevcut değil" (2026-07-03)
+
+> Senaryo: iki takım maç yapar, rakip fair-play skoru verecek; bu sırada takım silinir. Silme
+> ENGELLENMEMELİ (zaten engellemiyor — ratings.targetTeamId FK değil), ama rakip artık skor
+> VEREMEMELİ ve "bu takım artık mevcut değil" diye bilgilendirilmeli.
+
+- **Kök sorun:** hard-delete FK yüzünden `reservation.teamId/opponentTeamId` NULL'lanınca rakibin
+  KİM olduğu kaybolur. Eski `getPendingRatings/getMatchHistory` `needsFairPlayRating=true` +
+  `opponentTeamName=null` döndürüp maçı "Kendi Aramızda" gösteriyordu (yanlış); `submitRating`
+  silinmiş takıma öksüz rating kaydediyordu.
+- **Çözüm (hard-delete korunur — soft-delete DEĞİL, kullanıcı kararı):**
+  - `reservation.deletedTeamName` (nullable varchar) eklendi. `purgeTeam`/`purgeTeamRaw` NULL'lamadan
+    ÖNCE silinen takımın adını bu maçlara snapshot'lar + `DELETE FROM ratings WHERE targetTeamId=id`
+    (takımın aldığı fair-play öksüzlerini temizler). **purgeTeam(teamId, teamName) imzası — iki ikiz
+    (teams.service + users.service purgeTeamRaw) SENKRON TUTULMALI.**
+  - `ratings.service.resolveOpponent(reservation, userTeamId)` ortak helper'ı: rakip = kullanıcının
+    takımı OLMAYAN taraf; o tarafın canlı ref'i yoksa `opponentTeamDeleted=true` + snapshot ad
+    (`deletedTeamName ?? 'Silinmiş takım'`). Snapshot sayesinde HER İKİ silme durumu (ev sahibi/
+    deplasman) tespit edilir. Silinmiş rakipte `needsFairPlayRating=false`. `team` relation'ı
+    getPending/getMatchHistory sorgularına eklendi (ekstra findOne kalktı).
+  - `submitRating`: FAIRPLAY'de hedef takım yoksa `NotFoundException('Bu takım artık mevcut değil.')`
+    (kayıttan ÖNCE) — bayat client submit'i temiz reddedilir.
+  - Client: `PendingRating`/`MatchHistoryItem`'a `opponentTeamDeleted`. MatchHistoryModal "vs {ad}"
+    + "Bu takım artık mevcut değil" notu; RatingModal/App.tsx zaten `opponentTeamId` guard'lı (null →
+    fair-play POST atılmaz), 404 sessiz yutulur.
+- **Canlı DB:** `reservation.deletedTeamName` kolonu ALTER ile eklendi (deploy'da synchronize uzlaşır)
+  + öksüz rezervasyon `7d91d44a` (Konyalılar vs silinmiş Mavi şimşekler) backfill'lendi → boş-isimli
+  modal bug'ı gerçek adla düzeldi. Öksüz fair-play rating = 0.
+- Doğrulama: server build ✓; client tsc (yalnız LocationStep) + build + cap copy ✓. Deploy: server
+  Render'a (synchronize kolonu ekler); client yeni native sürüm.

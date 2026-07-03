@@ -2,6 +2,7 @@ import {
   Injectable,
   ConflictException,
   BadRequestException,
+  NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In, LessThan } from 'typeorm';
@@ -26,6 +27,8 @@ export interface PendingRating {
   needsFairPlayRating: boolean;
   opponentTeamId: string | null;
   opponentTeamName: string | null;
+  /** Rakip takım silinmiş — skor verilemez, "Bu takım artık mevcut değil" gösterilir */
+  opponentTeamDeleted: boolean;
 }
 
 export interface MatchHistoryItem {
@@ -37,6 +40,7 @@ export interface MatchHistoryItem {
   businessDeleted: boolean;
   opponentTeamId: string | null;
   opponentTeamName: string | null;
+  opponentTeamDeleted: boolean;
   isBusinessRated: boolean;
   isFairPlayRated: boolean;
   businessScore: number | null;
@@ -60,6 +64,56 @@ export class RatingsService {
     private userRepo: Repository<User>,
   ) {}
 
+  /**
+   * Kullanıcının bakış açısından RAKİBİ çözer. Rakip = maçın kullanıcının takımı OLMAYAN
+   * tarafı. O taraf silindiyse (canlı ref null ama snapshot var) → opponentTeamDeleted=true
+   * ve snapshot'lanan ad ("Bu takım artık mevcut değil" bilgilendirmesi). Gerçek kendi_aramizda
+   * maçında (ikisi de yok) hadOpponent=false. `team` + `opponentTeam` relation'ları yüklü olmalı.
+   */
+  private resolveOpponent(
+    reservation: Reservation,
+    userTeamId: string,
+  ): {
+    hadOpponent: boolean;
+    opponentTeamId: string | null;
+    opponentTeamName: string | null;
+    opponentTeamDeleted: boolean;
+  } {
+    const hadOpponent =
+      !!reservation.opponentTeamId || !!reservation.deletedTeamName;
+    if (!hadOpponent) {
+      return {
+        hadOpponent: false,
+        opponentTeamId: null,
+        opponentTeamName: null,
+        opponentTeamDeleted: false,
+      };
+    }
+    // Kullanıcı opponentTeam tarafındaysa rakip = ev sahibi (team); değilse rakip = opponentTeam.
+    const userIsOpponentSide = reservation.opponentTeamId === userTeamId;
+    const liveId = userIsOpponentSide
+      ? reservation.teamId
+      : reservation.opponentTeamId;
+    const liveName = userIsOpponentSide
+      ? reservation.team?.name
+      : reservation.opponentTeam?.name;
+    if (liveId) {
+      return {
+        hadOpponent: true,
+        opponentTeamId: liveId,
+        opponentTeamName: liveName ?? null,
+        opponentTeamDeleted: false,
+      };
+    }
+    // Rakip tarafın canlı ref'i yok → silinmiş takım
+    return {
+      hadOpponent: true,
+      opponentTeamId: null,
+      opponentTeamName: reservation.deletedTeamName ?? 'Silinmiş takım',
+      opponentTeamDeleted: true,
+    };
+  }
+
   async getPendingRatings(userId: string): Promise<PendingRating[]> {
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user || !user.teamId) return [];
@@ -80,7 +134,7 @@ export class RatingsService {
           slotTime: LessThan(oneHourAgo),
         },
       ],
-      relations: ['pitch', 'pitch.business', 'opponentTeam'],
+      relations: ['pitch', 'pitch.business', 'team', 'opponentTeam'],
     });
 
     if (played.length === 0) return [];
@@ -112,34 +166,19 @@ export class RatingsService {
     for (const reservation of uniquePlayed) {
       if (!reservation.pitch?.business) continue;
 
-      // opponentTeamId being null means "kendi aramizda" — no fair play rating needed
-      const hasOpponent = !!reservation.opponentTeamId;
+      const opp = this.resolveOpponent(reservation, user.teamId);
       // İşletme hesabı silinmişse artık yeni bir işletme değerlendirmesi teklif edilmez
       const needsBusinessRating =
         !reservation.pitch.business.deletedAt &&
         !doneSet.has(`${reservation.id}_BUSINESS`);
+      // Rakip silinmişse fair-play skoru istenmez (opponentTeamDeleted) — "Bu takım artık
+      // mevcut değil" bilgisi maç geçmişinde gösterilir.
       const needsFairPlayRating =
-        hasOpponent && !doneSet.has(`${reservation.id}_FAIRPLAY`);
+        opp.hadOpponent &&
+        !opp.opponentTeamDeleted &&
+        !doneSet.has(`${reservation.id}_FAIRPLAY`);
 
       if (!needsBusinessRating && !needsFairPlayRating) continue;
-
-      // Determine which team is the "opponent" from this user's perspective
-      let opponentTeamId: string | null = null;
-      let opponentTeamName: string | null = null;
-      if (hasOpponent && needsFairPlayRating) {
-        if (reservation.opponentTeamId === user.teamId) {
-          // User is in the opponentTeam — they rate the main team
-          const mainTeam = await this.teamRepo.findOne({
-            where: { id: reservation.teamId },
-          });
-          opponentTeamId = reservation.teamId;
-          opponentTeamName = mainTeam?.name || null;
-        } else {
-          // User is in the main team — they rate the opponentTeam
-          opponentTeamId = reservation.opponentTeamId;
-          opponentTeamName = reservation.opponentTeam?.name || null;
-        }
-      }
 
       results.push({
         reservationId: reservation.id,
@@ -150,8 +189,9 @@ export class RatingsService {
         businessDeleted: !!reservation.pitch.business.deletedAt,
         needsBusinessRating,
         needsFairPlayRating,
-        opponentTeamId,
-        opponentTeamName,
+        opponentTeamId: opp.opponentTeamId,
+        opponentTeamName: opp.opponentTeamName,
+        opponentTeamDeleted: opp.opponentTeamDeleted,
       });
     }
 
@@ -176,6 +216,17 @@ export class RatingsService {
     });
     if (existing) {
       throw new ConflictException('Bu maç için zaten değerlendirme yapıldı.');
+    }
+
+    // Fair-play hedefi takım SİLİNMİŞSE değerlendirme kabul edilmez (öksüz rating oluşmasın).
+    // Rakip artık mevcut değil → bayat client submit'i temiz reddedilir.
+    if (dto.type === 'FAIRPLAY') {
+      const targetTeam = dto.targetTeamId
+        ? await this.teamRepo.findOne({ where: { id: dto.targetTeamId } })
+        : null;
+      if (!targetTeam) {
+        throw new NotFoundException('Bu takım artık mevcut değil.');
+      }
     }
 
     // Save the rating row directly (no transaction — simpler and avoids DataSource injection issues)
@@ -238,7 +289,7 @@ export class RatingsService {
           slotTime: LessThan(now),
         },
       ],
-      relations: ['pitch', 'pitch.business', 'opponentTeam'],
+      relations: ['pitch', 'pitch.business', 'team', 'opponentTeam'],
     });
 
     if (played.length === 0) return [];
@@ -272,29 +323,13 @@ export class RatingsService {
     for (const reservation of uniquePlayed) {
       if (!reservation.pitch?.business) continue;
 
-      const hasOpponent = !!reservation.opponentTeamId;
+      const opp = this.resolveOpponent(reservation, user.teamId);
       const ratings = ratingMap.get(reservation.id) || [];
       const businessRating = ratings.find((r) => r.type === 'BUSINESS');
       const fairPlayRating = ratings.find((r) => r.type === 'FAIRPLAY');
 
       const isBusinessRated = !!businessRating;
       const isFairPlayRated = !!fairPlayRating;
-
-      // Rakip perspektifini belirle
-      let opponentTeamId: string | null = null;
-      let opponentTeamName: string | null = null;
-      if (hasOpponent) {
-        if (reservation.opponentTeamId === user.teamId) {
-          const mainTeam = await this.teamRepo.findOne({
-            where: { id: reservation.teamId },
-          });
-          opponentTeamId = reservation.teamId;
-          opponentTeamName = mainTeam?.name || null;
-        } else {
-          opponentTeamId = reservation.opponentTeamId;
-          opponentTeamName = reservation.opponentTeam?.name || null;
-        }
-      }
 
       results.push({
         reservationId: reservation.id,
@@ -303,15 +338,18 @@ export class RatingsService {
         businessName: reservation.pitch.business.name,
         businessId: reservation.pitch.business.id,
         businessDeleted: !!reservation.pitch.business.deletedAt,
-        opponentTeamId,
-        opponentTeamName,
+        opponentTeamId: opp.opponentTeamId,
+        opponentTeamName: opp.opponentTeamName,
+        opponentTeamDeleted: opp.opponentTeamDeleted,
         isBusinessRated,
         isFairPlayRated,
         businessScore: businessRating?.score ?? null,
         fairPlayScore: fairPlayRating?.score ?? null,
         needsBusinessRating:
           !reservation.pitch.business.deletedAt && !isBusinessRated,
-        needsFairPlayRating: hasOpponent && !isFairPlayRated,
+        // Rakip silinmişse fair-play skoru istenmez (opponentTeamDeleted)
+        needsFairPlayRating:
+          opp.hadOpponent && !opp.opponentTeamDeleted && !isFairPlayRated,
       });
     }
 

@@ -300,8 +300,9 @@ export class UsersService {
    * Takıma bağlı tüm kayıtları koparıp takımı siler (teams.service.ts purgeTeam
    * ile aynı SQL sırası — orada değişiklik yapılırsa burası da güncellenmeli).
    * Tek transaction: yarıda kalırsa hiçbir şey değişmez.
+   * teamName: rezervasyon ad-snapshot'ı (rakip "Bu takım artık mevcut değil" bilgisi).
    */
-  private async purgeTeamRaw(teamId: string): Promise<void> {
+  private async purgeTeamRaw(teamId: string, teamName: string): Promise<void> {
     await this.usersRepository.manager.transaction(async (em) => {
       await em.query(`DELETE FROM "challenges" WHERE "fromTeamId" = $1`, [
         teamId,
@@ -312,6 +313,14 @@ export class UsersService {
       await em.query(`DELETE FROM "match_announcements" WHERE "team_id" = $1`, [
         teamId,
       ]);
+      await em.query(`DELETE FROM "ratings" WHERE "targetTeamId" = $1`, [
+        teamId,
+      ]);
+      await em.query(
+        `UPDATE "reservation" SET "deletedTeamName" = $1
+           WHERE ("teamId" = $2 OR "opponentTeamId" = $2) AND "deletedTeamName" IS NULL`,
+        [teamName, teamId],
+      );
       await em.query(
         `UPDATE "reservation" SET "teamId" = NULL WHERE "teamId" = $1`,
         [teamId],
@@ -381,7 +390,7 @@ export class UsersService {
             // vakası), bağlı kayıtları koparıp takımı sil.
             // teams.service.ts purgeTeam ile aynı SQL sırası (dairesel modül
             // bağımlılığı kurmamak için burada raw uygulanır).
-            await this.purgeTeamRaw(team.id);
+            await this.purgeTeamRaw(team.id, team.name);
           } else {
             // Raw SQL — TypeORM update() undefined değerini NULL yazmaz
             await this.teamRepository.query(

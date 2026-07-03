@@ -238,6 +238,8 @@ export interface MatchHistoryItem {
   businessDeleted: boolean;
   opponentTeamId: string | null;
   opponentTeamName: string | null;
+  /** Rakip takım silinmiş — skor verilemez, "Bu takım artık mevcut değil" gösterilir */
+  opponentTeamDeleted?: boolean;
   isBusinessRated: boolean;
   isFairPlayRated: boolean;
   businessScore: number | null;
@@ -264,4 +266,6 @@ export interface PendingRating {
   needsFairPlayRating: boolean;
   opponentTeamId: string | null;
   opponentTeamName: string | null;
+  /** Rakip takım silinmiş — skor verilemez, "Bu takım artık mevcut değil" gösterilir */
+  opponentTeamDeleted?: boolean;
 }

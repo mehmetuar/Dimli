@@ -520,7 +520,7 @@ export class TeamsService implements OnModuleInit {
     }
 
     try {
-      await this.purgeTeam(teamId);
+      await this.purgeTeam(teamId, team.name);
     } catch (err) {
       // FK ihlali gibi beklenmedik DB hataları 500 olarak sızmasın —
       // kullanıcıya anlamlı Türkçe mesaj dön.
@@ -540,8 +540,10 @@ export class TeamsService implements OnModuleInit {
    * FK envanteri: challenges.fromTeamId, join_requests.teamId,
    * match_announcements.team_id, reservation.teamId/opponentTeamId,
    * user.team_id — hiçbirinde CASCADE yok; team_bans CASCADE'li (kendiliğinden).
+   * teamName: rezervasyon ad-snapshot'ı için (rakip "Bu takım artık mevcut değil"
+   * bilgilendirmesi). users.service.ts purgeTeamRaw ile SENKRON TUTULMALI.
    */
-  async purgeTeam(teamId: string): Promise<void> {
+  async purgeTeam(teamId: string, teamName: string): Promise<void> {
     await this.teamsRepository.manager.transaction(async (em) => {
       // Meydan okumalar: takımsız anlamsız (toMatchId FK'sı zaten CASCADE)
       await em.query(`DELETE FROM "challenges" WHERE "fromTeamId" = $1`, [
@@ -556,6 +558,16 @@ export class TeamsService implements OnModuleInit {
       await em.query(`DELETE FROM "match_announcements" WHERE "team_id" = $1`, [
         teamId,
       ]);
+      // Bu takıma verilmiş fair-play değerlendirmeleri artık anlamsız (takım gidiyor)
+      await em.query(`DELETE FROM "ratings" WHERE "targetTeamId" = $1`, [
+        teamId,
+      ]);
+      // NULL'lamadan ÖNCE silinen takımın adını snapshot'la (rakip bilgilendirmesi)
+      await em.query(
+        `UPDATE "reservation" SET "deletedTeamName" = $1
+           WHERE ("teamId" = $2 OR "opponentTeamId" = $2) AND "deletedTeamName" IS NULL`,
+        [teamName, teamId],
+      );
       // Rezervasyon geçmişi işletme takviminde KALIR — yalnız takım bağı koparılır
       await em.query(
         `UPDATE "reservation" SET "teamId" = NULL WHERE "teamId" = $1`,

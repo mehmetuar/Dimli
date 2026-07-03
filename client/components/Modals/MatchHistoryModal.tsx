@@ -58,6 +58,7 @@ export const MatchHistoryModal: React.FC<MatchHistoryModalProps> = ({
             needsFairPlayRating: match.needsFairPlayRating,
             opponentTeamId: match.opponentTeamId,
             opponentTeamName: match.opponentTeamName,
+            opponentTeamDeleted: match.opponentTeamDeleted,
         };
         setSelectedForRating(pending);
     };
@@ -209,12 +210,19 @@ export const MatchHistoryModal: React.FC<MatchHistoryModalProps> = ({
 
                                             <div className="flex items-center gap-1.5 mb-2">
                                                 <Users className="w-3 h-3 text-slate-500 flex-shrink-0" />
-                                                <span className="text-slate-400 text-xs">
-                                                    {match.opponentTeamName
+                                                <span className="text-slate-400 text-xs truncate">
+                                                    {match.opponentTeamDeleted
+                                                        ? `vs ${match.opponentTeamName || 'Silinmiş takım'}`
+                                                        : match.opponentTeamName
                                                         ? `vs ${match.opponentTeamName}`
                                                         : 'Kendi Aramızda'}
                                                 </span>
                                             </div>
+                                            {match.opponentTeamDeleted && (
+                                                <p className="text-[10px] text-amber-500/80 font-medium mb-2 -mt-1">
+                                                    Bu takım artık mevcut değil
+                                                </p>
+                                            )}
 
                                             {/* Rating bilgisi - Yapıldıysa göster */}
                                             {isFullyRated && (

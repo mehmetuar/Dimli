@@ -60,6 +60,12 @@ export class Reservation {
   @JoinColumn({ name: 'opponentTeamId' })
   opponentTeam: Team;
 
+  // Bir takım silinince teamId/opponentTeamId NULL'lanır (FK) → rakibin KİM olduğu
+  // kaybolur. purgeTeam bu maçlar için silinen takımın adını buraya snapshot'lar ki
+  // maç geçmişi/fair-play akışı "Bu takım artık mevcut değil" diye bilgilendirebilsin.
+  @Column({ type: 'varchar', nullable: true })
+  deletedTeamName: string | null;
+
   @Column({
     type: 'enum',
     enum: ['DIRECT', 'MATCH'],
