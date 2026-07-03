@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { createPortal } from 'react-dom';
-import { Clock, Phone, AlertCircle, Navigation, X } from 'lucide-react';
+import { Clock, Phone, AlertCircle, Navigation } from 'lucide-react';
 import { generateSlots, isPastSlot } from '../utils/pitchUtils';
+import { DirectionsConfirmModal } from '../../../../components/Modals/DirectionsConfirmModal';
 
 interface PitchScheduleProps {
     business: any;
@@ -21,18 +21,6 @@ export const PitchSchedule: React.FC<PitchScheduleProps> = ({
 }) => {
     const [showDirectionsModal, setShowDirectionsModal] = useState(false);
 
-    const openDirections = () => {
-        const lat = business.latitude;
-        const lng = business.longitude;
-        if (!lat || !lng) return;
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-        const url = isIOS
-            ? `maps://?daddr=${lat},${lng}`
-            : `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
-        window.open(url, '_system');
-        setShowDirectionsModal(false);
-    };
-
     // Check if pitch is closed (passive or closed on this specific day)
     const dayName = new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long' });
     const isPitchClosed =
@@ -41,43 +29,13 @@ export const PitchSchedule: React.FC<PitchScheduleProps> = ({
 
     return (
         <>
-        {/* Portal → document.body: kart hiyerarşisindeki ata stacking context'leri fixed modalı
-            hapsedebiliyor (TeamDetailModal ile aynı desen). z-[90] kök bağlamda navbar (z-50) ve
-            sticky filtre barını (z-40) örter. */}
-        {showDirectionsModal && createPortal(
-            <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
-                <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-2">
-                            <Navigation className="w-5 h-5 text-turf-400" />
-                            <h3 className="text-white font-bold text-base">Yol Tarifi</h3>
-                        </div>
-                        <button onClick={() => setShowDirectionsModal(false)} className="text-slate-400 hover:text-white transition-colors">
-                            <X className="w-5 h-5" />
-                        </button>
-                    </div>
-                    <p className="text-slate-300 text-sm mb-6">
-                        <span className="font-semibold text-white">{business.name}</span> için haritalar uygulaması açılacak. Devam etmek istiyor musunuz?
-                    </p>
-                    <div className="flex gap-3">
-                        <button
-                            onClick={() => setShowDirectionsModal(false)}
-                            className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-2.5 rounded-xl font-bold text-sm transition-all"
-                        >
-                            İptal
-                        </button>
-                        <button
-                            onClick={openDirections}
-                            className="flex-1 bg-turf-600 hover:bg-turf-500 text-white py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5 transition-all"
-                        >
-                            <Navigation className="w-4 h-4" />
-                            Haritayı Aç
-                        </button>
-                    </div>
-                </div>
-            </div>,
-            document.body
-        )}
+        <DirectionsConfirmModal
+            isOpen={showDirectionsModal}
+            onClose={() => setShowDirectionsModal(false)}
+            businessName={business.name}
+            latitude={business.latitude}
+            longitude={business.longitude}
+        />
         <div className="mb-8">
             <div className="flex items-center gap-2 mb-3">
                 <h4 className="flex-1 min-w-0 text-white font-bold text-xs sm:text-sm flex items-center gap-1.5">

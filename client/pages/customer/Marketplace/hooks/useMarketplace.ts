@@ -144,6 +144,12 @@ export const useMarketplace = () => {
     fetchAnnouncements(newOff, true);
   };
 
+  // İlan yayınlandıktan hemen sonra listeyi tazele (offset başa döner)
+  const refetch = () => {
+    offsetRef.current = 0;
+    fetchAnnouncements(0, false);
+  };
+
   const applyLocationFilter = (filter: LocationFilter) => {
     if (filter.radius) setRadius(filter.radius);
   };
@@ -217,6 +223,7 @@ export const useMarketplace = () => {
     loadingMore,
     hasMore,
     loadMore,
+    refetch,
     myChallenges,
     setMyChallenges,
     isCreateModalOpen,

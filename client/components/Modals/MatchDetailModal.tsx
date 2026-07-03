@@ -1,6 +1,11 @@
-import React from 'react';
-import { X, Shield, Users, MapPin, Clock, Calendar, Phone, Star, Swords } from 'lucide-react';
+import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
+import { X, Shield, Users, MapPin, Clock, Calendar, Phone, Star, Swords, Navigation } from 'lucide-react';
 import { useModalBodyClass } from '../../utils/useModalBodyClass';
+import { useLocationContext } from '../../contexts/LocationContext';
+import { calculateDistance } from '../../utils/location';
+import { addOneHour } from '../../utils/time';
+import { DirectionsConfirmModal } from './DirectionsConfirmModal';
 
 interface TeamData {
     id: string;
@@ -45,7 +50,11 @@ interface MatchDetailData {
             id: string;
             name: string;
             phone?: string;
+            ownerPhone?: string | null; // server match-details bu alanı döndürür (phone değil)
             address?: string;
+            district?: string | null;
+            latitude?: number | null;
+            longitude?: number | null;
         };
     } | null;
 }
@@ -160,12 +169,20 @@ const formatMatchDate = (dateStr: string) => {
 
 export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({ isOpen, onClose, data, loading }) => {
     useModalBodyClass(isOpen);
+    const { coords } = useLocationContext(); // hook — erken return'den ÖNCE
+    const [showDirections, setShowDirections] = useState(false);
     if (!isOpen) return null;
 
     const statusConfig = getMatchStatusConfig(data?.reservation);
     const dateInfo = data?.match?.date ? formatMatchDate(data.match.date) : null;
+    const business = data?.pitch?.business;
+    const distanceKm = coords && business?.latitude != null && business?.longitude != null
+        ? calculateDistance(coords.lat, coords.lng, business.latitude, business.longitude)
+        : null;
+    const endTime = addOneHour(data?.match?.time);
+    const businessPhone = business?.phone || business?.ownerPhone;
 
-    return (
+    return createPortal(
         <div
             className="fixed inset-0 z-[80] flex items-end justify-center bg-black/80 backdrop-blur-sm animate-fade-in"
             onClick={onClose}
@@ -378,8 +395,8 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({ isOpen, onCl
                                             <Clock className="w-4 h-4 text-purple-400" />
                                         </div>
                                         <div>
-                                            <div className="text-sm font-bold text-white">{data.match.time}</div>
-                                            <div className="text-[10px] text-slate-400">Başlangıç saati</div>
+                                            <div className="text-sm font-bold text-white">{data.match.time}{endTime ? ` - ${endTime}` : ''}</div>
+                                            <div className="text-[10px] text-slate-400">Maç saati</div>
                                         </div>
                                     </div>
                                 )}
@@ -407,6 +424,24 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({ isOpen, onCl
                                                 {data.pitch.business?.name}{data.pitch.type ? ` • ${data.pitch.type === 'INDOOR' ? 'Kapalı' : 'Açık'}` : ''}
                                             </div>
                                         </div>
+                                        {distanceKm != null && (
+                                            <span className="text-[11px] font-bold text-turf-400 bg-turf-900/30 px-2 py-1 rounded-full flex-shrink-0 flex items-center gap-1">
+                                                <Navigation className="w-2.5 h-2.5" /> {distanceKm} km
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Location (ilçe + adres) */}
+                                {(business?.district || business?.address) && (
+                                    <div className="flex items-start gap-3">
+                                        <div className="w-8 h-8 rounded-lg bg-sky-500/10 flex items-center justify-center flex-shrink-0">
+                                            <Navigation className="w-4 h-4 text-sky-400" />
+                                        </div>
+                                        <div className="min-w-0">
+                                            {business?.district && <div className="text-sm font-bold text-white">{business.district}</div>}
+                                            {business?.address && <p className="text-[10px] text-slate-400 line-clamp-2">{business.address}</p>}
+                                        </div>
                                     </div>
                                 )}
 
@@ -425,19 +460,40 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({ isOpen, onCl
                             </div>
                         </div>
 
-                        {/* ── CALL BUSINESS BUTTON ── */}
-                        {data.pitch?.business?.phone && (
-                            <a
-                                href={`tel:${data.pitch.business.phone}`}
-                                className="w-full bg-gradient-to-r from-turf-600 to-green-500 text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-turf-600/20 active:scale-95 transition-transform"
-                            >
-                                <Phone className="w-5 h-5" />
-                                <span>Sahayı Ara</span>
-                            </a>
+                        {/* ── CALL + DIRECTIONS BUTTONS ── */}
+                        {(businessPhone || (business?.latitude != null && business?.longitude != null)) && (
+                            <div className="flex gap-3">
+                                {businessPhone && (
+                                    <a
+                                        href={`tel:${businessPhone}`}
+                                        className="flex-1 bg-gradient-to-r from-turf-600 to-green-500 text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-turf-600/20 active:scale-95 transition-transform"
+                                    >
+                                        <Phone className="w-5 h-5" />
+                                        <span>Sahayı Ara</span>
+                                    </a>
+                                )}
+                                {business?.latitude != null && business?.longitude != null && (
+                                    <button
+                                        onClick={() => setShowDirections(true)}
+                                        className="flex-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-transform"
+                                    >
+                                        <Navigation className="w-5 h-5 text-turf-400" />
+                                        <span>Yol Tarifi</span>
+                                    </button>
+                                )}
+                            </div>
                         )}
+                        <DirectionsConfirmModal
+                            isOpen={showDirections}
+                            onClose={() => setShowDirections(false)}
+                            businessName={business?.name}
+                            latitude={business?.latitude}
+                            longitude={business?.longitude}
+                        />
                     </div>
                 )}
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };

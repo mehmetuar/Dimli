@@ -80,6 +80,8 @@ export interface MatchAnnouncement {
   playerCount: number;
   description?: string;
   status: string;
+  matchType?: string; // 'rakip_araniyor' | 'kendi_aramizda'
+  distanceKm?: number; // sunucu tarafında hesaplanır (konum-filtreli listelerde)
   createdAt: string;
   team?: Team;
   pitch?: Pitch;

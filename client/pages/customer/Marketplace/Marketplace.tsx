@@ -46,6 +46,7 @@ export const Marketplace: React.FC = () => {
     loadingMore,
     hasMore,
     loadMore,
+    refetch,
     selectedDate,
     setSelectedDate,
     isDateFilterOpen,
@@ -153,6 +154,11 @@ export const Marketplace: React.FC = () => {
       <CreateMatchModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
+        onCreated={({ date }) => {
+          // Tarih filtresi yeni ilanı gizlemesin; kendi ilanları listede zaten en üstte sabitlenir.
+          if (date !== selectedDate) setSelectedDate(date);
+          refetch();
+        }}
       />
       {selectedTeamId && (
         <TeamDetailModal
@@ -233,7 +239,9 @@ export const Marketplace: React.FC = () => {
             businessName: getPitchDetails(selectedMatch.pitchId).business?.name,
             pricePerTeam: getPitchDetails(selectedMatch.pitchId).pitch?.pricePerHour
               ? getPitchDetails(selectedMatch.pitchId).pitch!.pricePerHour / 2
-              : undefined
+              : undefined,
+            distanceKm: selectedMatch.distanceKm,
+            playerCount: selectedMatch.playerCount
           }}
           onSubmit={handleSubmitChallenge}
         />

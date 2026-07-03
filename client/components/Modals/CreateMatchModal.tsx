@@ -23,6 +23,8 @@ interface Props {
     preSelectedDate?: string;
     // Slot kapalı/dolu (409) nedeniyle istek reddedilince üst slot listesini yenilemek için.
     onSlotConflict?: () => void;
+    // Başarılı rakip_araniyor ilanı sonrası üst listeyi tazelemek için — ilan tarihi geri verilir.
+    onCreated?: (info: { date: string }) => void;
 }
 
 // Wrapper: always has the same hook count regardless of isOpen.
@@ -33,7 +35,7 @@ export const CreateMatchModal: React.FC<Props> = (props) => {
     return <CreateMatchModalContent {...props} />;
 };
 
-const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelectedPitchId, preSelectedBusinessId, preSelectedStartTime, preSelectedDate, onSlotConflict }) => {
+const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelectedPitchId, preSelectedBusinessId, preSelectedStartTime, preSelectedDate, onSlotConflict, onCreated }) => {
     const { coords, radius } = useLocationContext();
     const navigate = useNavigate();
     const keyboardHeight = useKeyboardHeight();
@@ -190,6 +192,7 @@ const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelected
             if (matchType === 'kendi_aramizda') {
                 navigate('/chat', { state: { channelId: response.data.channelId || null } });
             } else {
+                onCreated?.({ date });
                 navigate('/');
             }
         } catch (error: any) {

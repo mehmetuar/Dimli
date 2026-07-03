@@ -5,21 +5,14 @@ import { Challenge } from '../../../../types';
 import { Notification } from '../hooks/useNotifications';
 import { useLocationContext } from '../../../../contexts/LocationContext';
 import { calculateDistance } from '../../../../utils/location';
+import { addOneHour } from '../../../../utils/time';
+import { LevelBadge } from '../../../../components/UI/LevelBadge';
+import { FairPlayScore } from '../../../../components/UI/FairPlayScore';
 
 // match_type → kullanıcı etiketi
 const MATCH_TYPE_LABELS: Record<string, string> = {
     kendi_aramizda: 'Kendi Aramızda',
     rakip_araniyor: 'Rakip Aranıyor',
-};
-
-// "23:00" → "00:00" — maç süresi uygulama genelinde 1 saat (chatUtils matchEndTime ile tutarlı).
-// Geçerli HH:MM parse edilemezse null döner (çağıran tek değere düşer).
-const addOneHour = (time?: string): string | null => {
-    const m = /^(\d{1,2}):(\d{2})$/.exec(time || '');
-    if (!m) return null;
-    const h = Number(m[1]);
-    if (h > 23 || Number(m[2]) > 59) return null;
-    return `${String((h + 1) % 24).padStart(2, '0')}:${m[2]}`;
 };
 
 interface MatchRequestsTabProps {
@@ -42,11 +35,9 @@ export const MatchRequestsTab: React.FC<MatchRequestsTabProps> = ({
     const navigate = useNavigate();
     const { coords } = useLocationContext();
 
-    // Joker davetinde sahanın jokere uzaklığı (km) — coords veya saha koordinatı yoksa null
-    const getJokerDistanceKm = (metadata: any): number | null => {
-        if (!coords || metadata?.businessLat == null || metadata?.businessLng == null) return null;
-        return calculateDistance(coords.lat, coords.lng, metadata.businessLat, metadata.businessLng);
-    };
+    // Sahanın kullanıcıya uzaklığı (km) — coords veya saha koordinatı yoksa null
+    const getDistanceKm = (lat?: number | null, lng?: number | null): number | null =>
+        coords && lat != null && lng != null ? calculateDistance(coords.lat, coords.lng, lat, lng) : null;
 
     if (matchRequests.length === 0 && rematchProposals.length === 0 && jokerInvites.length === 0) {
         return (
@@ -59,41 +50,90 @@ export const MatchRequestsTab: React.FC<MatchRequestsTabProps> = ({
 
     return (
         <div className="space-y-4">
-            {matchRequests.map(request => (
-                <div key={request.id} className="p-4 rounded-2xl border flex gap-4 items-center transition-all cursor-pointer group relative overflow-hidden bg-slate-800 border-slate-700 hover:border-turf-500/50 hover:bg-slate-800/80">
+            {matchRequests.map(request => {
+                const match = request.match;
+                const pitch = match?.pitch;
+                const business = pitch?.business;
+                const distanceKm = getDistanceKm(business?.latitude, business?.longitude);
+                const matchTypeLabel = match?.matchType ? (MATCH_TYPE_LABELS[match.matchType] || match.matchType) : null;
+                const endTime = addOneHour(match?.time);
+                return (
+                <div key={request.id} className="p-4 rounded-2xl border transition-all relative overflow-hidden bg-slate-800 border-slate-700 hover:border-turf-500/50">
                     <div className="absolute right-0 top-0 w-20 h-full bg-gradient-to-l from-turf-600/10 to-transparent pointer-events-none"></div>
-                    <div className="relative cursor-pointer hover:scale-105 transition-transform" onClick={(e) => { e.stopPropagation(); if (request.fromTeamId) setSelectedTeamId(request.fromTeamId); }}>
-                        <img src={request.fromTeam?.logoUrl || '/default-team-logo.png'} alt={request.fromTeam?.name || 'Rakip Takım'} className="w-16 h-16 rounded-full object-cover border-2 border-slate-600 group-hover:border-turf-500 transition-colors bg-slate-900" />
-                    </div>
-                    <div className="flex-1 min-w-0 relative z-10">
-                        <div className="flex justify-between items-start">
-                            <h3 className="font-bold text-white text-lg truncate group-hover:text-turf-400 transition-colors cursor-pointer" onClick={(e) => { e.stopPropagation(); if (request.fromTeamId) setSelectedTeamId(request.fromTeamId); }}>
-                                {request.fromTeam?.name || 'Rakip Takım'}
-                            </h3>
-                            <span className="text-[10px] font-bold text-slate-500 uppercase">{new Date(request.createdAt).toLocaleDateString('tr-TR')}</span>
+                    {/* Üst: logo + takım + rozetler + tarih */}
+                    <div className="flex gap-3 items-start relative z-10">
+                        <div className="relative flex-shrink-0 z-20 cursor-pointer hover:scale-105 transition-transform" onClick={(e) => { e.stopPropagation(); if (request.fromTeamId) setSelectedTeamId(request.fromTeamId); }}>
+                            <img src={request.fromTeam?.logoUrl || '/default-team-logo.png'} alt={request.fromTeam?.name || 'Rakip Takım'} className="w-14 h-14 rounded-full object-cover border-2 border-slate-600 bg-slate-900" />
                         </div>
-                        <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
-                            <Calendar className="w-3 h-3 text-turf-500" />
-                            <span className="text-white font-bold">{request.match ? `${new Date(request.match.date).toLocaleDateString('tr-TR')} ${request.match.time}` : 'Tarih Bilinmiyor'}</span>
-                        </div>
-                        {(request.match as any)?.pitch && (
-                            <div className="flex items-center gap-1 text-xs text-turf-400 mt-1 mb-1">
-                                <MapPin className="w-3 h-3 flex-shrink-0" />
-                                <span className="font-semibold truncate">{(request.match as any).pitch.business?.name ? `${(request.match as any).pitch.business.name} · ${(request.match as any).pitch.name}` : (request.match as any).pitch.name}</span>
+                        <div className="flex-1 min-w-0">
+                            <div className="flex justify-between items-start">
+                                <h3 className="font-bold text-white text-base truncate cursor-pointer hover:text-turf-400 transition-colors z-20" onClick={(e) => { e.stopPropagation(); if (request.fromTeamId) setSelectedTeamId(request.fromTeamId); }}>
+                                    {request.fromTeam?.name || 'Rakip Takım'}
+                                </h3>
+                                <span className="text-[10px] font-bold text-slate-500 uppercase flex-shrink-0 ml-2">{new Date(request.createdAt).toLocaleDateString('tr-TR')}</span>
                             </div>
-                        )}
-                        {request.note && <p className="text-xs text-slate-300 italic mb-1 line-clamp-1">"{request.note}"</p>}
-                        <div className="flex gap-2">
-                            <button onClick={(e) => { e.stopPropagation(); handleAcceptChallenge(request.id); }} className="flex-1 py-2 bg-turf-600 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1 hover:bg-turf-500 transition-colors shadow-lg shadow-turf-600/20">
-                                <Check className="w-3 h-3" /> Kabul Et
-                            </button>
-                            <button onClick={(e) => { e.stopPropagation(); handleRejectChallenge(request.id); }} className="flex-1 py-2 bg-slate-700 text-slate-300 rounded-lg text-xs font-bold flex items-center justify-center gap-1 hover:bg-red-900/50 hover:text-red-400 transition-colors">
-                                <X className="w-3 h-3" /> Reddet
-                            </button>
+                            <div className="flex items-center gap-2 mt-1">
+                                <LevelBadge level={request.fromTeam?.level} />
+                                {request.fromTeam?.fairPlayScore != null && (
+                                    <FairPlayScore score={request.fromTeam.fairPlayScore} count={request.fromTeam.fairPlayRatingCount} />
+                                )}
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-slate-400 mt-1">
+                                <Calendar className="w-3 h-3 text-turf-500 flex-shrink-0" />
+                                <span className="text-white font-bold">{match ? `${new Date(match.date).toLocaleDateString('tr-TR')} · ${match.time}${endTime ? ` - ${endTime}` : ''}` : 'Tarih Bilinmiyor'}</span>
+                            </div>
                         </div>
+                    </div>
+                    {/* Maç bilgi paneli: saha + konum + ücret + uzaklık (joker kartı deseni) */}
+                    {(business || pitch) && (
+                        <div className="mt-3 rounded-xl bg-slate-900/60 border border-slate-700/50 divide-y divide-slate-700/40 relative z-10">
+                            {(business?.name || pitch?.name) && (
+                                <div className="flex items-center gap-2 px-3 py-2">
+                                    <MapPin className="w-3.5 h-3.5 text-turf-400 flex-shrink-0" />
+                                    <span className="text-xs font-semibold text-white truncate">{business?.name ? `${business.name} · ` : ''}{pitch?.name}</span>
+                                    {distanceKm != null && (
+                                        <span className="ml-auto text-[11px] font-bold text-turf-400 bg-turf-900/30 px-2 py-0.5 rounded-full flex-shrink-0 flex items-center gap-1">
+                                            <Navigation className="w-2.5 h-2.5" /> {distanceKm} km
+                                        </span>
+                                    )}
+                                </div>
+                            )}
+                            {(business?.district || business?.address) && (
+                                <div className="flex items-start gap-2 px-3 py-2">
+                                    <Navigation className="w-3.5 h-3.5 text-sky-400 flex-shrink-0 mt-0.5" />
+                                    <div className="min-w-0">
+                                        {business?.district && <span className="text-xs font-semibold text-white">{business.district}</span>}
+                                        {business?.address && <p className="text-[11px] text-slate-400 line-clamp-1">{business.address}</p>}
+                                    </div>
+                                </div>
+                            )}
+                            {pitch?.pricePerHour != null && (
+                                <div className="flex items-center gap-2 px-3 py-2">
+                                    <Banknote className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+                                    <span className="text-xs font-bold text-white">₺{Number(pitch.pricePerHour).toLocaleString('tr-TR')}</span>
+                                    <span className="text-[11px] text-slate-400">/ saat (saha ücreti)</span>
+                                </div>
+                            )}
+                            {match?.playerCount && matchTypeLabel && (
+                                <div className="flex items-center gap-2 px-3 py-2">
+                                    <Users className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                                    <span className="text-xs text-slate-300"><span className="font-bold text-white">{match.playerCount}</span> Kişilik <span className="text-white">{matchTypeLabel}</span></span>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                    {request.note && <p className="text-xs text-slate-300 italic mt-2 line-clamp-1 relative z-10">"{request.note}"</p>}
+                    <div className="flex gap-2 mt-3 relative z-10">
+                        <button onClick={(e) => { e.stopPropagation(); handleAcceptChallenge(request.id); }} className="flex-1 py-2 bg-turf-600 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1 hover:bg-turf-500 transition-colors shadow-lg shadow-turf-600/20">
+                            <Check className="w-3 h-3" /> Kabul Et
+                        </button>
+                        <button onClick={(e) => { e.stopPropagation(); handleRejectChallenge(request.id); }} className="flex-1 py-2 bg-slate-700 text-slate-300 rounded-lg text-xs font-bold flex items-center justify-center gap-1 hover:bg-red-900/50 hover:text-red-400 transition-colors">
+                            <X className="w-3 h-3" /> Reddet
+                        </button>
                     </div>
                 </div>
-            ))}
+                );
+            })}
 
             {rematchProposals.length > 0 && (
                 <>
@@ -138,7 +178,7 @@ export const MatchRequestsTab: React.FC<MatchRequestsTabProps> = ({
                     </div>
                     {jokerInvites.map(notif => {
                         const meta = notif.metadata || {};
-                        const distanceKm = getJokerDistanceKm(meta);
+                        const distanceKm = getDistanceKm(meta.businessLat, meta.businessLng);
                         const matchTypeLabel = meta.matchType ? (MATCH_TYPE_LABELS[meta.matchType] || meta.matchType) : null;
                         const hasDetails = meta.businessName || meta.pitchName || meta.businessDistrict || meta.businessAddress || meta.pitchPrice != null;
                         return (

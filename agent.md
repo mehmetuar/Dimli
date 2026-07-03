@@ -1305,3 +1305,58 @@ backdrop tüm ekranı kapladığından bar diğer arka plan içeriği gibi doğa
 `body.modal-open nav … { visibility:hidden }` navbar kuralı ise app-genel mevcut davranış olarak DURUYOR.
 
 Doğrulama: `tsc --noEmit` (yalnız önceden var olan LocationStep) + `vite build` + `cap copy` ✓.
+
+---
+
+## 36. Maç Pazarı anlık ilan + meydan okuma/detay kartları zenginleştirme (2026-07-03)
+
+> İki iş: (1) ilan yayınlanınca Maç Pazarı'na anlık düşmüyordu, (2) meydan okuma bildirim kartı +
+> maç detay modalları + ChallengeModal joker daveti kartı (§34) kalitesine çıkarıldı. **Yalnız client
+> — sunucu DEĞİŞMEDİ** (tüm veri zaten payload'daydı).
+
+### Maç Pazarı anlık ilan (kök neden + desen)
+- **Kök neden:** Marketplace `/` rotasında mount'luyken CreateMatchModal POST sonrası yalnız
+  `onClose()` + `navigate('/')` yapıyordu → hiçbir refetch tetiklenmez, `matches` bayat. (PitchBooking/
+  MyTeam'den açılınca route remount taze fetch getirdiği için sorun YALNIZ pazar-içi oluşturmadaydı.)
+- **Fix:** `useMarketplace`'e `refetch()` (offset=0 + fetch); CreateMatchModal'a **opsiyonel**
+  `onCreated?: ({date}) => void` (yalnız başarılı `rakip_araniyor` dalında, navigate'ten önce);
+  Marketplace `onCreated`'da **tarih filtresini ilan tarihine hizalar** (`setSelectedDate(date)`) +
+  `refetch()`. ⚠️ FilterContext `selectedDate` default'u BUGÜN ve boş hali yok — hizalama yapılmazsa
+  farklı tarihe açılan ilan refetch'e rağmen görünmez (tuzak).
+- Socket ile diğer kullanıcılara anlık yayın bilinçli KAPSAM DIŞI (kullanıcı kararı).
+
+### Meydan okuma bildirim kartı (MAÇ İSTEKLERİ)
+- `GET /challenges/team/:id/incoming` (`findIncomingByTeamId`) zaten `fromTeam` + `match.pitch.business`
+  join'liyor → kart zenginleştirmesi için **sunucu değişikliği GEREKMEZ** (joker kartının aksine —
+  o notification metadata'sından beslenir, bu Challenge entity'den).
+- `MatchRequestsTab.tsx` challenge kartı joker kartı düzenine geçti: LevelBadge + FairPlayScore
+  (`fairPlayScore != null` guard — komponent `.toFixed` çağırır), saat aralığı, bilgi paneli
+  (saha+uzaklık rozeti / ilçe+adres / ₺ücret / N Kişilik·tip). `types.ts MatchAnnouncement`'a
+  `matchType?/distanceKm?` eklendi → `(match as any)` cast'leri kalktı.
+
+### Paylaşılan yardımcılar (yeni — tekrar kullan)
+- **`client/utils/time.ts` `addOneHour(hhmm)`** — HH:MM +1 saat (maç süresi app-geneli 1 saat).
+  Tüketiciler: MatchRequestsTab, MatchDetailModal, KendiAramizdaMatchModal, ChallengeModal.
+  (JokerDMChatInfoModal slotTime-Date aritmetiği ve MatchAnnouncementCard/CreateMatchModal'ın
+  timeSlot-bilinçli end-time varyantları AYRI semantik — birleştirme.)
+- **`client/components/Modals/DirectionsConfirmModal.tsx`** — Yol Tarifi onay modalı + `openDirectionsUrl`
+  (iOS `maps://?daddr=`, Android Google Maps URL, `_system`). Kendini `createPortal(document.body)` +
+  `z-[90]`'a basar (§35). PitchSchedule buna refactor edildi; MatchDetailModal + KendiAramizdaMatchModal
+  de kullanıyor. Yeni "yol tarifi" yüzeyi eklerken BUNU kullan.
+
+### Maç detay modalları (MatchDetailModal + KendiAramizdaMatchModal — ikiz dosyalar)
+- Saat "Maç saati 21:00 - 22:00" aralığı; saha satırına uzaklık rozeti (`useLocationContext` +
+  `calculateDistance`); yeni ilçe+adres satırı; Yol Tarifi butonu. Hook'lar (`useLocationContext`,
+  `useState`) `if (!isOpen) return null`'dan ÖNCE (hooks kuralı). İkisi de artık §35 uyumlu
+  (`createPortal(document.body)`).
+- **Bug fix:** "Sahayı Ara" butonu ölü koddu — server match-details `ownerPhone` döndürür, client
+  `business.phone` bekliyordu. Koşul/href `phone || ownerPhone` yapıldı → buton canlandı.
+  ⚠️ `getChannelMatchDetails` alan adı `ownerPhone` — yeni tüketicilerde `phone` varsayma.
+- ChallengeModal: saat aralığı + Format (`7v7`) + Uzaklık hücreleri (`selectedMatch.distanceKm/
+  playerCount` Marketplace'ten prop'la gelir — sunucu zaten hesaplıyor) + `portalToBody` (§35).
+
+### Doğrulama
+Client `tsc --noEmit` (yalnız önceden var olan LocationStep) + `vite build` ✓. Canlı DB salt-okunur
+teyit: son 5 challenge'ta level/fairPlay/saat/kişi/tip/saha/ücret/ilçe/adres/koordinat HEPSİ dolu.
+Cihaz testi: pazar-içi ilan → anında listede; bildirim kartı zengin; detay modallarında aralık/konum/
+uzaklık/Yol Tarifi/Sahayı Ara; Meydan Oku modalı zengin. Client değişikliği → **yeni native sürüm** ister.

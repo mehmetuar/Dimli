@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { X, MapPin, Calendar, Clock, Swords, Store, Banknote } from 'lucide-react';
+import { X, MapPin, Calendar, Clock, Swords, Store, Banknote, Navigation, Users } from 'lucide-react';
 import { LoadingSpinner } from '../UI/LoadingSpinner';
 import { KeyboardAwareModal } from './KeyboardAwareModal';
+import { addOneHour } from '../../utils/time';
 
 interface ChallengeModalProps {
     isOpen: boolean;
@@ -16,6 +17,8 @@ interface ChallengeModalProps {
         pitchLocation: string;
         businessName?: string;
         pricePerTeam?: number;
+        distanceKm?: number;
+        playerCount?: number;
     };
     onSubmit: (note: string) => void;
 }
@@ -23,6 +26,7 @@ interface ChallengeModalProps {
 export const ChallengeModal: React.FC<ChallengeModalProps> = ({ isOpen, onClose, match, onSubmit }) => {
     const [note, setNote] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const endTime = addOneHour(match.time);
 
     const handleSubmit = async () => {
         setIsLoading(true);
@@ -35,6 +39,7 @@ export const ChallengeModal: React.FC<ChallengeModalProps> = ({ isOpen, onClose,
     return (
         <KeyboardAwareModal
             isOpen={isOpen}
+            portalToBody
             zClassName="z-[70]"
             panelClassName="bg-slate-800 w-full max-w-md rounded-3xl border border-slate-700 shadow-2xl shadow-turf-500/20"
             bodyClassName="p-6 space-y-6"
@@ -79,8 +84,24 @@ export const ChallengeModal: React.FC<ChallengeModalProps> = ({ isOpen, onClose,
                                 <div className="flex items-center gap-1.5 text-slate-400 text-[10px] font-bold uppercase">
                                     <Clock className="w-3 h-3" /> Saat
                                 </div>
-                                <div className="text-white font-bold text-sm">{match.time}</div>
+                                <div className="text-white font-bold text-sm">{match.time}{endTime ? ` - ${endTime}` : ''}</div>
                             </div>
+                            {match.playerCount != null && (
+                                <div className="space-y-1">
+                                    <div className="flex items-center gap-1.5 text-slate-400 text-[10px] font-bold uppercase">
+                                        <Users className="w-3 h-3" /> Format
+                                    </div>
+                                    <div className="text-white font-bold text-sm">{match.playerCount}v{match.playerCount}</div>
+                                </div>
+                            )}
+                            {match.distanceKm != null && (
+                                <div className="space-y-1">
+                                    <div className="flex items-center gap-1.5 text-slate-400 text-[10px] font-bold uppercase">
+                                        <Navigation className="w-3 h-3" /> Uzaklık
+                                    </div>
+                                    <div className="text-turf-400 font-bold text-sm">{match.distanceKm} km</div>
+                                </div>
+                            )}
                             <div className="col-span-2 space-y-1 pt-2 border-t border-slate-700/30">
                                 <div className="flex items-center gap-1.5 text-slate-400 text-[10px] font-bold uppercase">
                                     <Store className="w-3 h-3" /> İşletme & Saha
