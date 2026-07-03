@@ -7,6 +7,18 @@ import {
     getRole,
 } from '../services/authStorage';
 import { unregisterPushOnLogout } from '../services/pushNotificationService';
+import { clearCurrentUserCache } from '../services/currentUserStore';
+import { JOKERS_CACHE_KEY, MATCHES_CACHE_KEY, MKT_BUSINESSES_CACHE_KEY } from '../utils/listCache';
+
+// Çıkış/oturum düşmesinde kullanıcıya-özel önbellekleri temizle. (userId zarfı
+// zaten yanlış hesaba sızmayı engeller; bu temizlik hijyen.) Sahalar'ın herkese
+// açık `cached_businesses`'ına bilinçli dokunulmaz.
+function clearCustomerCaches(): void {
+    clearCurrentUserCache();
+    [JOKERS_CACHE_KEY, MATCHES_CACHE_KEY, MKT_BUSINESSES_CACHE_KEY].forEach((k) => {
+        try { localStorage.removeItem(k); } catch { /* ignore */ }
+    });
+}
 
 interface AuthContextValue {
     isReady: boolean;
@@ -46,6 +58,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     useEffect(() => {
         const onExpired = async () => {
             await clearAuthSession();
+            clearCustomerCaches();
             setToken(null);
             setOwnerId(null);
             setRole(null);
@@ -75,6 +88,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // token yeniden kaydolmaz.
         await unregisterPushOnLogout();
         await clearAuthSession();
+        clearCustomerCaches();
         setToken(null);
         setOwnerId(null);
         setRole(null);

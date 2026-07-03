@@ -207,7 +207,7 @@ export const JokerPool: React.FC = () => {
             {/* İçerik */}
             <div className="px-4 pt-3 pb-4" style={{ minHeight: 'calc(100% + 1px)' }}>
                <LocationAccessGate contentLabel="joker oyuncuları">
-                  {isLoading ? (
+                  {isLoading && visibleJokers.length === 0 ? (
                      <div className="flex justify-center items-center py-20">
                         {/* Marka loader: dönen top; reduce-motion/yüklenme → CSS ring fallback */}
                         <div className="w-16 h-16">

@@ -1,9 +1,11 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import api from '../../../../services/api';
 import { Business } from '../../../../types';
 import { LocationFilter } from '../../../../components/Modals/LocationFilterModal';
 import { useLocationContext } from '../../../../contexts/LocationContext';
 import { useFilterContext } from '../../../../contexts/FilterContext';
+import { useCurrentUser } from '../../../../hooks/useCurrentUser';
+import { readListCache, writeListCache, MATCHES_CACHE_KEY, MKT_BUSINESSES_CACHE_KEY } from '../../../../utils/listCache';
 
 const PAGE_SIZE = 50;
 
@@ -11,14 +13,28 @@ export const useMarketplace = () => {
   const { coords, radius, setRadius, requestLocation } = useLocationContext();
   const { selectedDate, setSelectedDate, marketplaceSortBy, setMarketplaceSortBy, isDateFilterModalOpen: isDateFilterOpen, setIsDateFilterModalOpen: setIsDateFilterOpen } = useFilterContext();
 
-  const [matches, setMatches] = useState<any[]>([]);
-  const [businesses, setBusinesses] = useState<Business[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  // Ortak store — sayfa başına ayrı GET /users/me atılmaz
+  const { currentUser } = useCurrentUser();
+
+  // Sahalar deseni (stale-while-revalidate): önbellekli sayfa-0 anında basılır,
+  // taze veri arkada çekilir. İşletmeler de önbelleklenir — yoksa önbellekli
+  // kartlar 1 RTT boyunca fiyat/ilçesiz ("Konum Yok" flash'ı) kalırdı.
+  const [matches, setMatches] = useState<any[]>(() => readListCache(MATCHES_CACHE_KEY));
+  const [businesses, setBusinesses] = useState<Business[]>(() => readListCache(MKT_BUSINESSES_CACHE_KEY));
+  const [isLoading, setIsLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
-  const [currentUser, setCurrentUser] = useState<any>(null);
 
+  // DİKKAT: offset sunucu sayfalamasıyla ilerler (istemci kendi_aramizda'yı
+  // filtrelediği için matches.length offset olarak kullanılamaz).
   const offsetRef = useRef(0);
+  // Yarış korumaları (usePitchBooking referans deseni): her reset bir "nesil"
+  // başlatır; eski yanıtlar reset'ten sonra uygulanmaz.
+  const matchesRef = useRef<any[]>(matches);
+  matchesRef.current = matches;
+  const lastFetchKeyRef = useRef<string | null>(null);
+  const isFetchingRef = useRef(false);
+  const fetchGenRef = useRef(0);
 
   // Modals
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -46,44 +62,16 @@ export const useMarketplace = () => {
 
   const locationFilter: LocationFilter = { type: 'NEARBY', radius, coords: coords ?? undefined };
 
-  const fetchAnnouncements = async (off = 0, append = false) => {
-    if (!coords) return;
-    if (!append) setIsLoading(true);
-    else setLoadingMore(true);
-    try {
-      const params = { offset: off, limit: PAGE_SIZE, lat: coords.lat, lng: coords.lng, radius };
-      const res = await api.get('/match-announcements', { params });
-      const data = (res.data as any[]).filter((m: any) => m.matchType !== 'kendi_aramizda');
-      if (append) setMatches(prev => [...prev, ...data]);
-      else setMatches(data);
-      setHasMore(data.length >= PAGE_SIZE);
-    } catch (err) {
-      console.error('Failed to fetch announcements', err);
-      if (!append) setMatches([]);
-    } finally {
-      setIsLoading(false);
-      setLoadingMore(false);
-    }
-  };
-
-  // ── Initial static data ──────────────────────────────────────────────────
+  // ── Takım meydan okumaları — ortak store'daki kullanıcının takımı üzerinden ──
   useEffect(() => {
-    const fetchStaticData = async () => {
-      try {
-        const userResponse = await api.get('/users/me');
-        setCurrentUser(userResponse.data);
-
-        if (userResponse.data?.team) {
-          api.get(`/challenges/team/${userResponse.data.team.id}`)
-            .then(r => setMyChallenges(r.data))
-            .catch(() => {});
-        }
-      } catch (error) {
-        console.error('Failed to fetch marketplace static data:', error);
-      }
-    };
-    fetchStaticData();
-  }, []);
+    const teamId = currentUser?.team?.id;
+    if (!teamId) return;
+    let cancelled = false;
+    api.get(`/challenges/team/${teamId}`)
+      .then(r => { if (!cancelled) setMyChallenges(r.data); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [currentUser?.team?.id]);
 
   // Maç ilanlarına bağlı işletme/saha bilgisi — ilanlar zaten konuma göre
   // filtrelendiğinden, aynı konum/yarıçapla sınırlı tutmak yeterli.
@@ -91,63 +79,69 @@ export const useMarketplace = () => {
     if (!coords) return;
     let cancelled = false;
     api.get('/businesses', { params: { lat: coords.lat, lng: coords.lng, radius } })
-      .then(res => { if (!cancelled) setBusinesses(res.data); })
+      .then(res => {
+        if (cancelled) return;
+        setBusinesses(res.data);
+        writeListCache(MKT_BUSINESSES_CACHE_KEY, res.data);
+      })
       .catch(error => console.error('Failed to fetch businesses:', error));
     return () => { cancelled = true; };
   }, [coords, radius]);
 
-  // ── coords/radius değişince sıfırla ve yeniden yükle ────────────────────
-  useEffect(() => {
-    let cancelled = false;
-    const safetyTimer = setTimeout(() => setIsLoading(false), 12000);
-
-    const load = async () => {
-      offsetRef.current = 0;
-      setHasMore(false);
-      setIsLoading(true);
-      try {
-        if (!coords) {
-          setMatches([]);
-          return;
-        }
-        const params = { offset: 0, limit: PAGE_SIZE, lat: coords.lat, lng: coords.lng, radius };
-        const res = await api.get('/match-announcements', { params });
-        if (cancelled) return;
-        const data = (res.data as any[]).filter((m: any) => m.matchType !== 'kendi_aramizda');
+  // Konum-önce + sayfalı çekim. reset=true → sayfa 0 (koordinat/yarıçap değişince);
+  // reset=false → sonraki sayfayı ekle. Aynı konum+yarıçap için gereksiz tam
+  // yeniden çekim yapılmaz (mount'ta ref'ler sıfır → her mount bir kez tazelenir).
+  const doFetch = useCallback(async (reset: boolean, force = false) => {
+    if (!coords) return;
+    if (!reset && isFetchingRef.current) return;
+    const round = (n: number) => n.toFixed(3);
+    const key = `${round(coords.lat)}|${round(coords.lng)}|${radius}`;
+    if (reset && !force && key === lastFetchKeyRef.current && matchesRef.current.length > 0) {
+      return;
+    }
+    const gen = reset ? ++fetchGenRef.current : fetchGenRef.current;
+    const off = reset ? 0 : offsetRef.current + PAGE_SIZE;
+    isFetchingRef.current = true;
+    if (reset) { setIsLoading(true); setLoadingMore(false); }
+    else setLoadingMore(true);
+    try {
+      const params = { offset: off, limit: PAGE_SIZE, lat: coords.lat, lng: coords.lng, radius };
+      const res = await api.get('/match-announcements', { params });
+      if (gen !== fetchGenRef.current) return; // daha yeni bir reset bunu geçersiz kıldı
+      const data = (res.data as any[]).filter((m: any) => m.matchType !== 'kendi_aramizda');
+      offsetRef.current = off; // yalnız başarıda ilerlet
+      if (reset) {
         setMatches(data);
-        setHasMore(data.length >= PAGE_SIZE);
-      } catch (err) {
-        if (!cancelled) {
-          console.error('Failed to fetch announcements', err);
-          setMatches([]);
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoading(false);
-          clearTimeout(safetyTimer);
-        }
+        writeListCache(MATCHES_CACHE_KEY, data);
+        lastFetchKeyRef.current = key;
+      } else {
+        setMatches(prev => [...prev, ...data]);
       }
-    };
+      setHasMore(data.length >= PAGE_SIZE);
+    } catch (err) {
+      console.error('Failed to fetch announcements', err);
+    } finally {
+      if (gen === fetchGenRef.current) {
+        isFetchingRef.current = false;
+        setIsLoading(false);
+        setLoadingMore(false);
+      }
+    }
+  }, [coords, radius]);
 
-    load();
-    return () => {
-      cancelled = true;
-      clearTimeout(safetyTimer);
-    };
-  }, [coords, radius]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Koordinat / yarıçap değişince sayfa 0'a reset (guard içeride).
+  useEffect(() => {
+    doFetch(true, false);
+  }, [doFetch]);
 
   const loadMore = () => {
-    if (!coords) return;
-    if (loadingMore || !hasMore) return;
-    const newOff = offsetRef.current + PAGE_SIZE;
-    offsetRef.current = newOff;
-    fetchAnnouncements(newOff, true);
+    if (!hasMore || isFetchingRef.current) return;
+    doFetch(false, false);
   };
 
   // İlan yayınlandıktan hemen sonra listeyi tazele (offset başa döner)
   const refetch = () => {
-    offsetRef.current = 0;
-    fetchAnnouncements(0, false);
+    doFetch(true, true);
   };
 
   const applyLocationFilter = (filter: LocationFilter) => {

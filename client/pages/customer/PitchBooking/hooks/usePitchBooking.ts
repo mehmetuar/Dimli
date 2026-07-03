@@ -6,14 +6,17 @@ import { Business, Team } from '../../../../types';
 import { LocationFilter } from '../../../../components/Modals/LocationFilterModal';
 import { useLocationContext } from '../../../../contexts/LocationContext';
 import { useFilterContext } from '../../../../contexts/FilterContext';
+import { useCurrentUser } from '../../../../hooks/useCurrentUser';
 
 export const usePitchBooking = () => {
     const { coords, radius, setRadius, requestLocation } = useLocationContext();
     const { selectedDate, setSelectedDate, pitchSortBy, setPitchSortBy, isDateFilterModalOpen: isDateFilterOpen, setIsDateFilterModalOpen: setIsDateFilterOpen } = useFilterContext();
 
     const [businesses, setBusinesses] = useState<Business[]>(() => {
-        const cached = localStorage.getItem('cached_businesses');
-        return cached ? JSON.parse(cached) : [];
+        try {
+            const cached = localStorage.getItem('cached_businesses');
+            return cached ? JSON.parse(cached) : [];
+        } catch { return []; } // bozuk cache hook'u çökertmesin
     });
 
     // Clear potentially corrupted cache once to handle schema changes
@@ -78,7 +81,8 @@ export const usePitchBooking = () => {
         approvedReservation: undefined
     });
 
-    const [currentUser, setCurrentUser] = useState<any>(null);
+    // Ortak store — sayfa başına ayrı GET /users/me atılmaz
+    const { currentUser } = useCurrentUser();
     const [pitchAnnouncements, setPitchAnnouncements] = useState<any[]>([]);
 
     // Computed location filter (for UI components that expect LocationFilter shape)
@@ -89,23 +93,16 @@ export const usePitchBooking = () => {
         return currentUser.team.captainId === currentUser.id || currentUser.team.viceCaptainIds?.includes(currentUser.id) || false;
     };
 
-    // Fetch user + challenges once
+    // Takım meydan okumaları — ortak store'daki kullanıcının takımı üzerinden
     useEffect(() => {
-        const fetchUserData = async () => {
-            try {
-                const userRes = await api.get('/users/me');
-                setCurrentUser(userRes.data);
-
-                if (userRes.data?.team) {
-                    const challengesRes = await api.get(`/challenges/team/${userRes.data.team.id}`);
-                    setMyChallenges(challengesRes.data);
-                }
-            } catch (error) {
-                console.error('Failed to fetch user data:', error);
-            }
-        };
-        fetchUserData();
-    }, []);
+        const teamId = currentUser?.team?.id;
+        if (!teamId) return;
+        let cancelled = false;
+        api.get(`/challenges/team/${teamId}`)
+            .then(r => { if (!cancelled) setMyChallenges(r.data); })
+            .catch(error => console.error('Failed to fetch user data:', error));
+        return () => { cancelled = true; };
+    }, [currentUser?.team?.id]);
 
     // Konum-önce + sayfalı çekim. reset=true → sayfa 0 (koordinat/yarıçap/sıralama
     // değişince); reset=false → sonraki sayfayı ekle (infinite-scroll). force=true →

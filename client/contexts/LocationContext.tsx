@@ -6,6 +6,7 @@ import { LocationErrorType } from '../components/LocationPermissionSheet';
 import { calculateDistance } from '../utils/location';
 import api from '../services/api';
 import { getToken } from '../services/authStorage';
+import { seedCurrentUser } from '../services/currentUserStore';
 import { useAuth } from './AuthContext';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -34,8 +35,9 @@ interface LocationContextValue {
   setRadius: (r: number) => void;
   /** Trigger a GPS permission request + position fetch */
   requestLocation: (userInitiated?: boolean) => Promise<void>;
-  /** Kullanıcı-tetikli TAM tazeleme: GPS al → sunucuya PATCH → ilçe güncelle (hareket olmasa da) */
-  refreshLocation: () => Promise<void>;
+  /** Kullanıcı-tetikli TAM tazeleme: GPS al → sunucuya PATCH → ilçe güncelle (hareket olmasa da).
+   *  Sunucunun türettiği taze ilçe adını döner (başarısızlıkta null). */
+  refreshLocation: () => Promise<string | null>;
   /** Directly update coords (used by background watch in App.tsx) */
   updateCoords: (c: Coords) => void;
 }
@@ -111,6 +113,9 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [locationName, setLocationName] = useState<string | null>(getCachedLocationName);
   const [isSyncing, setIsSyncing] = useState(false);
   const isLocatingRef = useRef(false);
+  // Uçuştaki GPS isteğinin promise'i — eşzamanlı çağrılar yenisini başlatmak
+  // yerine bunu bekler (refreshLocation'ın bayat-koordinat PATCH'ini önler).
+  const locatePromiseRef = useRef<Promise<void> | null>(null);
   // permissionStatus'u ref'te tut: foreground handler güncel izni re-subscribe olmadan okusun
   // (mount effect [] bağımlılığıyla kalır).
   const permissionStatusRef = useRef<PermissionStatus>('unknown');
@@ -146,11 +151,12 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   // Client hiçbir harici geocoder çağırmaz: sadece koordinat PATCH'ler, ilçeyi
   // sunucu (offline point-in-polygon) türetip yanıtta `location` olarak döner.
   // >250m kapısı sunucu spam'ini önler; `force` ise manuel tazelemede kapıyı atlar.
-  const syncLocationToServer = useCallback(async (c: Coords, force = false) => {
-    if (!getToken()) return;                 // login öncesi PATCH atma
-    if (syncInFlightRef.current) return;     // uçuşta olan varsa çift atma
+  // Dönüş: sunucunun türettiği taze ilçe adı (atlanan/başarısız senkronda null).
+  const syncLocationToServer = useCallback(async (c: Coords, force = false): Promise<string | null> => {
+    if (!getToken()) return null;            // login öncesi PATCH atma
+    if (syncInFlightRef.current) return null; // uçuşta olan varsa çift atma
     const prev = lastSyncedCoordsRef.current;
-    if (!force && prev && calculateDistance(prev.lat, prev.lng, c.lat, c.lng) < 0.25) return;
+    if (!force && prev && calculateDistance(prev.lat, prev.lng, c.lat, c.lng) < 0.25) return null;
     syncInFlightRef.current = true;
     setIsSyncing(true);
     try {
@@ -161,8 +167,13 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setLocationName(name);
         try { localStorage.setItem(LOCNAME_CACHE_KEY, name); } catch { /* ignore */ }
       }
+      // PATCH yanıtı GET /users/me ile birebir aynı şekil → ortak kullanıcı
+      // store'unu SIFIR ek istekle besler (Profilim anında güncellenir).
+      if (res?.data) seedCurrentUser(res.data);
+      return name;
     } catch {
       // ağ/sunucu hatası — sessizce geç; bir sonraki tick veya hareket tekrar dener
+      return null;
     } finally {
       syncInFlightRef.current = false;
       setIsSyncing(false);
@@ -174,59 +185,69 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   //   (mount + açık "Tekrar Dene"/"Konumumu Bul"). userInitiated=false → asla yeni prompt açma;
   //   yalnızca izin zaten verilmişse konumu tazele (otomatik foreground refresh). Böylece reddedilen
   //   izinde foreground churn'ü (whole-app re-render + native bridge floodu) tamamen durur.
-  const requestLocation = useCallback(async (userInitiated: boolean = true) => {
-    if (isLocatingRef.current) return;
-    isLocatingRef.current = true;
-    setIsLocating(true);
-    setLocationError(null); // retry'da önceki hata/timeout'u temizle
-    try {
-      // checkPermissions JS timeout'la sarılır; requestPermissions kullanıcı etkileşimi olduğu için sarılmaz
-      let permStatus = await withTimeout(Geolocation.checkPermissions(), 8000);
-      if (userInitiated && (permStatus.location === 'prompt' || permStatus.location === 'prompt-with-rationale')) {
-        permStatus = await Geolocation.requestPermissions();
+  const requestLocation = useCallback(async (userInitiated: boolean = true): Promise<void> => {
+    // Uçuşta istek varsa yenisini başlatma; bitmesini BEKLE (erken-dönüş değil) —
+    // refreshLocation böylece taze fix'i görüp öyle PATCH atar. Nüans: prompt'suz
+    // bir isteğe katılan userInitiated çağrı yeni prompt açmaz (kabul edilen davranış;
+    // Profilim butonu izin ön-kontrolünü zaten kendisi yapıyor).
+    if (isLocatingRef.current) return locatePromiseRef.current ?? Promise.resolve();
+    const run = (async () => {
+      isLocatingRef.current = true;
+      setIsLocating(true);
+      setLocationError(null); // retry'da önceki hata/timeout'u temizle
+      try {
+        // checkPermissions JS timeout'la sarılır; requestPermissions kullanıcı etkileşimi olduğu için sarılmaz
+        let permStatus = await withTimeout(Geolocation.checkPermissions(), 8000);
+        if (userInitiated && (permStatus.location === 'prompt' || permStatus.location === 'prompt-with-rationale')) {
+          permStatus = await Geolocation.requestPermissions();
+        }
+        if (permStatus.location === 'denied') {
+          permissionStatusRef.current = 'denied';
+          setPermissionStatus('denied');
+          setCoords(null);
+          return;
+        }
+        // İzin verilmemiş ama promptable (userInitiated=false ile geldik): yeni dialog açma, sessizce çık.
+        // Hiçbir hata/konum state'i değiştirme → denied/promptable durumunda idle kal.
+        if (permStatus.location !== 'granted') {
+          return;
+        }
+        permissionStatusRef.current = 'granted';
+        setPermissionStatus('granted');
+        // Dayanıklı konum: düşük-doğruluk → yüksek-doğruluk, her ikisi de JS timeout'lu (asla asılı kalmaz)
+        const pos = await getPositionRobust();
+        updateCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setLocationError(null);
+      } catch (err: any) {
+        console.warn('LocationContext GPS error:', err);
+        const code = err?.code;
+        if (code === 2) {
+          setLocationError('gps_disabled');
+        } else if (code === 1) {
+          permissionStatusRef.current = 'denied';
+          setPermissionStatus('denied');
+          setCoords(null);
+        } else {
+          // code 3 (plugin veya JS timeout) ve diğer her şey → yeniden denenebilir hata
+          setLocationError('timeout');
+        }
+      } finally {
+        isLocatingRef.current = false;
+        setIsLocating(false);
       }
-      if (permStatus.location === 'denied') {
-        permissionStatusRef.current = 'denied';
-        setPermissionStatus('denied');
-        setCoords(null);
-        return;
-      }
-      // İzin verilmemiş ama promptable (userInitiated=false ile geldik): yeni dialog açma, sessizce çık.
-      // Hiçbir hata/konum state'i değiştirme → denied/promptable durumunda idle kal.
-      if (permStatus.location !== 'granted') {
-        return;
-      }
-      permissionStatusRef.current = 'granted';
-      setPermissionStatus('granted');
-      // Dayanıklı konum: düşük-doğruluk → yüksek-doğruluk, her ikisi de JS timeout'lu (asla asılı kalmaz)
-      const pos = await getPositionRobust();
-      updateCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-      setLocationError(null);
-    } catch (err: any) {
-      console.warn('LocationContext GPS error:', err);
-      const code = err?.code;
-      if (code === 2) {
-        setLocationError('gps_disabled');
-      } else if (code === 1) {
-        permissionStatusRef.current = 'denied';
-        setPermissionStatus('denied');
-        setCoords(null);
-      } else {
-        // code 3 (plugin veya JS timeout) ve diğer her şey → yeniden denenebilir hata
-        setLocationError('timeout');
-      }
-    } finally {
-      isLocatingRef.current = false;
-      setIsLocating(false);
-    }
+    })();
+    locatePromiseRef.current = run.finally(() => { locatePromiseRef.current = null; });
+    return locatePromiseRef.current;
   }, [updateCoords]);
 
   // Kullanıcı-tetikli tam tazeleme (Profilim "Konumu Güncelle" butonu): taze GPS al,
   // sonra hareket olmasa da (force) sunucuya PATCH'le ve ilçeyi güncelle.
-  const refreshLocation = useCallback(async () => {
+  // Sunucunun döndürdüğü taze ilçe adını döner (toast'lar için).
+  const refreshLocation = useCallback(async (): Promise<string | null> => {
     await requestLocation(true);
     const c = coordsRef.current;
-    if (c) await syncLocationToServer(c, true);
+    if (c) return syncLocationToServer(c, true);
+    return null;
   }, [requestLocation, syncLocationToServer]);
 
   // Mount: zorunlu konum — izin promptable ise sistem dialogunu göster (userInitiated=true).

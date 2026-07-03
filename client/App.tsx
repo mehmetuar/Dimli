@@ -17,6 +17,7 @@ import { FilterProvider } from './contexts/FilterContext';
 import { SocketProvider } from './contexts/SocketContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { getToken, getRole } from './services/authStorage';
+import { fetchCurrentUser } from './services/currentUserStore';
 import { useKeyboardScroll } from './utils/useKeyboardScroll';
 import { savePendingInvite, getPendingInvite, clearPendingInvite } from './services/pendingInvite';
 import { BusinessInviteNoticeModal } from './components/Modals/BusinessInviteNoticeModal';
@@ -210,10 +211,11 @@ function AppContent() {
     return () => window.removeEventListener('auth:sessionExpired', handleExpired);
   }, [navigate]);
 
-  // Render free tier'ı uyanık tut — 8 dk < Render'ın 15 dk uyku timeout'u
+  // Render free tier'ı uyanık tut — 8 dk < Render'ın 15 dk uyku timeout'u.
+  // Aynı istek ortak kullanıcı store'unu da tazeler (bedava senkron).
   useEffect(() => {
     const id = setInterval(() => {
-      if (getToken()) api.get('/users/me').catch(() => {});
+      if (getToken()) void fetchCurrentUser({ force: true });
     }, 8 * 60 * 1000);
     return () => clearInterval(id);
   }, []);

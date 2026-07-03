@@ -1,7 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { LocationFilter } from '../../../../components/Modals/LocationFilterModal';
 import api from '../../../../services/api';
 import { useLocationContext } from '../../../../contexts/LocationContext';
+import { useCurrentUser } from '../../../../hooks/useCurrentUser';
+import { seedCurrentUser } from '../../../../services/currentUserStore';
+import { readListCache, writeListCache, JOKERS_CACHE_KEY } from '../../../../utils/listCache';
 
 const PAGE_SIZE = 50;
 const POSITION_KEYS = ['kaleci', 'orta_saha', 'forvet', 'defans'];
@@ -9,12 +12,15 @@ const POSITION_KEYS = ['kaleci', 'orta_saha', 'forvet', 'defans'];
 export const useJokerPool = () => {
     const { coords, radius, setRadius, requestLocation } = useLocationContext();
 
-    const [jokers, setJokers] = useState<any[]>([]);
-    const [currentUser, setCurrentUser] = useState<any>(null);
+    // Ortak store: kendi profil pinlemesi (visibleJokers) sıcak cache'te anında çalışır
+    const { currentUser } = useCurrentUser();
+
+    // Sahalar deseni (stale-while-revalidate): önbellekli sayfa-0 anında basılır,
+    // taze veri arkada çekilir — soğuk açılışta boş liste + spinner beklenmez.
+    const [jokers, setJokers] = useState<any[]>(() => readListCache(JOKERS_CACHE_KEY));
     const [isLoading, setIsLoading] = useState(false);
     const [loadingMore, setLoadingMore] = useState(false);
     const [hasMore, setHasMore] = useState(false);
-    const [offset, setOffset] = useState(0);
     const [selectedJoker, setSelectedJoker] = useState<any | null>(null);
     const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
     const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -22,68 +28,81 @@ export const useJokerPool = () => {
     const [sortBy, setSortBy] = useState<string>('distance');
     const [isSortOpen, setIsSortOpen] = useState(false);
 
+    // Offset hesabı + yarış korumaları (usePitchBooking referans deseni):
+    // her reset bir "nesil" başlatır; eski yanıtlar reset'ten sonra uygulanmaz.
+    const jokersRef = useRef<any[]>(jokers);
+    jokersRef.current = jokers;
+    const lastFetchKeyRef = useRef<string | null>(null);
+    const isFetchingRef = useRef(false);
+    const fetchGenRef = useRef(0);
+
     const locationFilter: LocationFilter = { type: 'NEARBY', radius, coords: coords ?? undefined };
 
-    useEffect(() => {
-        api.get('/users/me').then(res => setCurrentUser(res.data)).catch(console.error);
-    }, []);
-
-    const buildParams = (sort: string, off: number, lat?: number, lng?: number, r?: number) => {
+    const buildParams = (off: number) => {
         const params: Record<string, any> = { offset: off, limit: PAGE_SIZE };
-        if (lat !== undefined && lng !== undefined && r !== undefined) {
-            params.lat = lat;
-            params.lng = lng;
-            params.radius = r;
+        if (coords) {
+            params.lat = coords.lat;
+            params.lng = coords.lng;
+            params.radius = radius;
         }
-        if (POSITION_KEYS.includes(sort)) params.position = sort;
-        if (sort === 'ucreteOrtak') params.sharesFee = true;
-        if (sort === 'ucreteOrtakDegil') params.sharesFee = false;
+        if (POSITION_KEYS.includes(sortBy)) params.position = sortBy;
+        if (sortBy === 'ucreteOrtak') params.sharesFee = true;
+        if (sortBy === 'ucreteOrtakDegil') params.sharesFee = false;
         return params;
     };
 
-    const fetchJokers = async (sort: string, off: number, append = false, lat?: number, lng?: number, r?: number) => {
-        if (off === 0) setIsLoading(true);
+    // Konum-önce + sayfalı çekim. reset=true → sayfa 0 (koordinat/yarıçap/sıralama
+    // değişince); reset=false → sonraki sayfayı ekle. Aynı konum+yarıçap+sıralama
+    // için gereksiz tam yeniden çekim yapılmaz (mount'ta ref'ler sıfır → her mount
+    // yine de bir kez tazelenir).
+    const doFetch = useCallback(async (reset: boolean, force = false) => {
+        if (!coords) return; // LocationAccessGate coords yokken içeriği zaten gizliyor
+        if (!reset && isFetchingRef.current) return;
+        const round = (n: number) => n.toFixed(3);
+        const key = `${round(coords.lat)}|${round(coords.lng)}|${radius}|${sortBy}`;
+        if (reset && !force && key === lastFetchKeyRef.current && jokersRef.current.length > 0) {
+            return;
+        }
+        const gen = reset ? ++fetchGenRef.current : fetchGenRef.current;
+        const offset = reset ? 0 : jokersRef.current.length;
+        isFetchingRef.current = true;
+        if (reset) { setIsLoading(true); setLoadingMore(false); }
         else setLoadingMore(true);
         try {
-            const res = await api.get('/users/jokers', { params: buildParams(sort, off, lat, lng, r) });
+            const res = await api.get('/users/jokers', { params: buildParams(offset) });
+            if (gen !== fetchGenRef.current) return; // daha yeni bir reset bunu geçersiz kıldı
             const { jokers: data, hasMore: more } = res.data;
-            if (append) {
-                setJokers(prev => [...prev, ...data]);
-            } else {
+            if (reset) {
                 setJokers(data);
+                writeListCache(JOKERS_CACHE_KEY, data);
+                lastFetchKeyRef.current = key;
+            } else {
+                setJokers(prev => [...prev, ...data]);
             }
             setHasMore(more);
         } catch (err) {
             console.error('Failed to fetch jokers:', err);
         } finally {
-            setIsLoading(false);
-            setLoadingMore(false);
+            if (gen === fetchGenRef.current) {
+                isFetchingRef.current = false;
+                setIsLoading(false);
+                setLoadingMore(false);
+            }
         }
-    };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [coords, radius, sortBy]);
 
-    // coords veya radius değişince sıfırla ve yeniden yükle
+    // Koordinat / yarıçap / sıralama değişince sayfa 0'a reset (guard içeride).
     useEffect(() => {
-        if (!coords) { setJokers([]); return; }
-        setOffset(0);
-        fetchJokers(sortBy, 0, false, coords.lat, coords.lng, radius);
-    }, [coords, radius]); // eslint-disable-line react-hooks/exhaustive-deps
+        doFetch(true, false);
+    }, [doFetch]);
 
-    // sortBy değişince sıfırla ve yeniden yükle
-    useEffect(() => {
-        if (!coords) return;
-        setOffset(0);
-        fetchJokers(sortBy, 0, false, coords.lat, coords.lng, radius);
-    }, [sortBy]); // eslint-disable-line react-hooks/exhaustive-deps
-
-    // NOT: Koordinat→sunucu PATCH'i artık LocationContext'te merkezî yapılıyor
+    // NOT: Koordinat→sunucu PATCH'i LocationContext'te merkezî yapılıyor
     // (tek yetkili kaynak). Burada ayrıca PATCH atılmıyor.
 
     const loadMore = () => {
-        if (!coords) return;
-        if (loadingMore || !hasMore) return;
-        const newOffset = offset + PAGE_SIZE;
-        setOffset(newOffset);
-        fetchJokers(sortBy, newOffset, true, coords?.lat, coords?.lng, radius);
+        if (!hasMore || isFetchingRef.current) return;
+        doFetch(false, false);
     };
 
     const applyLocationFilter = (filter: LocationFilter) => {
@@ -98,12 +117,9 @@ export const useJokerPool = () => {
     const handleSaveProfile = async (data: any) => {
         try {
             const res = await api.patch('/users/me', data);
-            setCurrentUser(res.data);
+            seedCurrentUser(res.data); // ortak store — Profilim/diğer sayfalar da güncellenir
             setIsProfileModalOpen(false);
-            if (coords) {
-                setOffset(0);
-                fetchJokers(sortBy, 0, false, coords.lat, coords.lng, radius);
-            }
+            doFetch(true, true);
         } catch (err) {
             console.error('Failed to update profile:', err);
             alert('Profil güncellenemedi.');
@@ -126,7 +142,6 @@ export const useJokerPool = () => {
         applyLocationFilter,
         visibleJokers,
         handleSaveProfile,
-        fetchJokers,
         requestLocation,
     };
 };

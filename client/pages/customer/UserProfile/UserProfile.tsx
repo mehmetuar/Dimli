@@ -20,12 +20,15 @@ export const UserProfile: React.FC = () => {
         successMessage,
         locationErrorType,
         liveLocation,
+        isLocationUpdating,
         clearLocationError,
         handleUpdateLocation,
         calculateAge
     } = useUserProfile();
 
-    if (isLoading) {
+    // Tam ekran spinner yalnız GERÇEK ilk yüklemede (cache boş + ilk fetch sürüyor);
+    // sıcak cache'te sayfa anında render olur, veri arkada tazelenir.
+    if (isLoading && !currentUser) {
         return <LoadingSpinner fullScreen text="Profil Yükleniyor..." />;
     }
 
@@ -46,6 +49,7 @@ export const UserProfile: React.FC = () => {
             <ProfileHeaderCard
                 currentUser={currentUser}
                 liveLocation={liveLocation}
+                isLocationUpdating={isLocationUpdating}
                 calculateAge={calculateAge}
                 handleUpdateLocation={handleUpdateLocation}
                 isModalOpen={isModalOpen}

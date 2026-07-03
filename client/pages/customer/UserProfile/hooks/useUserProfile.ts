@@ -1,36 +1,24 @@
 import { useState, useEffect } from 'react';
 import { Geolocation } from '@capacitor/geolocation';
-import api from '../../../../services/api';
 import { useLocationContext } from '../../../../contexts/LocationContext';
+import { useCurrentUser } from '../../../../hooks/useCurrentUser';
 import { calculateAge } from '../../../../utils/calculateAge';
 import { LocationErrorType } from '../../../../components/LocationPermissionSheet';
 
 export const useUserProfile = () => {
     // Konum işi tamamen LocationContext'te merkezî: refreshLocation GPS alır, sunucuya
     // coords PATCH'ler ve ilçeyi (location) sunucudan türetip locationName'e yazar.
-    const { refreshLocation, locationName } = useLocationContext();
+    // PATCH yanıtı ortak kullanıcı store'unu da beslediğinden ayrıca GET gerekmez.
+    const { refreshLocation, locationName, isLocating, isSyncing } = useLocationContext();
 
-    const [currentUser, setCurrentUser] = useState<any>(null);
-    const [isLoading, setIsLoading] = useState(true);
+    // Ortak store: sıcak cache'te anında dolu — sayfa her girişte ağı beklemez.
+    const { currentUser, isLoading } = useCurrentUser();
+
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
     const [locationErrorType, setLocationErrorType] = useState<LocationErrorType | null>(null);
-
-    useEffect(() => {
-        const fetchUser = async () => {
-            try {
-                const response = await api.get('/users/me');
-                setCurrentUser(response.data);
-            } catch (error) {
-                console.error("Failed to fetch user profile", error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        fetchUser();
-    }, []);
 
     useEffect(() => {
         if (successMessage || errorMessage) {
@@ -44,8 +32,6 @@ export const useUserProfile = () => {
 
     const handleUpdateLocation = async (isAuto = false) => {
         try {
-            if (!isAuto) setIsLoading(true);
-
             // İzin reddi UX'i için önden kontrol (denied → ayarlar sheet'i).
             // Asıl GPS+senkron işini refreshLocation (context) yapar.
             let permission = await Geolocation.checkPermissions();
@@ -54,23 +40,15 @@ export const useUserProfile = () => {
                 permission = await Geolocation.requestPermissions();
             }
             if (permission.location === 'denied') {
-                if (!isAuto) {
-                    setLocationErrorType('permission_denied');
-                    setIsLoading(false);
-                }
+                if (!isAuto) setLocationErrorType('permission_denied');
                 return;
             }
 
-            // GPS al → sunucuya coords PATCH → sunucu ilçeyi türetir (tek yetkili kaynak)
-            await refreshLocation();
-
-            // Güncel kullanıcıyı çek (sunucu-türetilmiş `location` dahil) → yerel state tazelensin
-            const res = await api.get('/users/me');
-            setCurrentUser(res.data);
+            // GPS al → sunucuya coords PATCH → sunucu ilçeyi türetir (tek yetkili kaynak).
+            // PATCH yanıtı hem locationName'i hem ortak kullanıcı store'unu günceller.
+            const name = await refreshLocation();
             if (!isAuto) {
-                setSuccessMessage(
-                    res.data?.location ? `Konum güncellendi: ${res.data.location}` : 'Konum güncellendi',
-                );
+                setSuccessMessage(name ? `Konum güncellendi: ${name}` : 'Konum güncellendi');
             }
         } catch (error: any) {
             console.error('Location update failed:', error);
@@ -82,16 +60,8 @@ export const useUserProfile = () => {
                     setErrorMessage('Konum alınamadı. Lütfen tekrar deneyin.');
                 }
             }
-        } finally {
-            if (!isAuto) setIsLoading(false);
         }
     };
-
-    useEffect(() => {
-        if (currentUser && !currentUser.location) {
-            handleUpdateLocation(true);
-        }
-    }, [currentUser?.id]);
 
     return {
         currentUser,
@@ -103,6 +73,8 @@ export const useUserProfile = () => {
         locationErrorType,
         // Sunucudan türetilen canlı ilçe — profil kartı bunu currentUser.location'a tercih eder
         liveLocation: locationName,
+        // GPS alınıyor veya sunucu senkronu sürüyor — KONUM hücresi sessiz gösterge basar
+        isLocationUpdating: isLocating || isSyncing,
         clearLocationError: () => setLocationErrorType(null),
         handleUpdateLocation,
         calculateAge
