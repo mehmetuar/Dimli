@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { AlertTriangle, X } from 'lucide-react';
 import { useModalBodyClass } from '../../utils/useModalBodyClass';
 
@@ -34,7 +35,8 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
         onClose();
     };
 
-    return (
+    // Portal → body: sarmalayan sayfaların scroll/stacking bağlamına hapsolmasın (TeamProfile fix)
+    return createPortal(
         <div className="fixed inset-0 z-[70] flex items-center justify-center px-4 bg-black/80 backdrop-blur-sm animate-fade-in">
             <div className="bg-slate-800 w-full max-w-md rounded-3xl border border-slate-700 overflow-hidden relative shadow-2xl animate-scale-in">
                 {/* Close Button */}
@@ -88,6 +90,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
                     </div>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };

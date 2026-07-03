@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Shield, Trophy, Palette, AlertCircle, Camera, Loader2 } from 'lucide-react';
 import { Team, SkillLevel } from '../../types';
 import { ColorPickerModal, TEAM_COLORS } from './ColorPickerModal';
@@ -109,7 +110,8 @@ const CreateTeamModalContent: React.FC<Props> = ({ isOpen, onClose, onCreate }) 
     const initials = name.trim().slice(0, 2).toUpperCase();
     const levelLabel = LEVELS.find(l => l.value === level)?.label ?? '';
 
-    return (
+    // Portal → body: TeamProfile scroll konteynerine hapsolmasın (backdrop tüm ekranı kaplasın)
+    return createPortal(
         <>
             {/* Tam-ekran sheet: sabit header + elastic içerik + sabit footer (safe-area/klavye uyumlu) */}
             <div
@@ -332,6 +334,7 @@ const CreateTeamModalContent: React.FC<Props> = ({ isOpen, onClose, onCreate }) 
                 onChange={setSecondaryColor}
                 title="İkincil Takım Rengi"
             />
-        </>
+        </>,
+        document.body
     );
 };

@@ -23,7 +23,9 @@ export const TeamProfile: React.FC = () => {
             style={{ paddingTop: 'env(safe-area-inset-top)' }}
         >
             {/* SABİT başlık: PROFİLİM / TAKIMIM tab switcher — scroll'da kaybolmaz.
-                team-profile-tabs: modal açıkken (body.modal-open) gizlenmez; pasifleşir (dim + tıklanamaz). */}
+                NOT: Bu ağaçtaki modallar createPortal(document.body) ile render edilir (iOS
+                WebkitOverflowScrolling scroll konteyneri fixed modalları hapsediyor) — böylece
+                modal backdrop'u bu barı da örter; bar arkada doğal karartılmış görünür. */}
             <div className="team-profile-tabs flex-shrink-0 px-4 pt-2 pb-3">
                 <div className="flex p-1 bg-slate-800 rounded-xl border border-slate-700 shadow-lg max-w-3xl mx-auto">
                     <button

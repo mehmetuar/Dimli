@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Trophy, Star, CheckCircle, Building2, Shield, MapPin, Users } from 'lucide-react';
 import { MatchHistoryItem, PendingRating } from '../../types';
 import { RatingModal } from './RatingModal';
@@ -113,7 +114,8 @@ export const MatchHistoryModal: React.FC<MatchHistoryModalProps> = ({
         setSelectedForRating(null);
     };
 
-    return (
+    // Portal → body: TeamProfile scroll konteynerine hapsolmasın (backdrop tüm ekranı kaplasın)
+    return createPortal(
         <div className="fixed inset-0 z-[70] flex items-center justify-center px-4 bg-black/80 backdrop-blur-sm animate-fade-in">
             <div className="bg-slate-800 w-full max-w-2xl max-h-[85vh] rounded-3xl border border-slate-700 overflow-hidden relative shadow-2xl animate-scale-in flex flex-col">
 
@@ -300,6 +302,7 @@ export const MatchHistoryModal: React.FC<MatchHistoryModalProps> = ({
                     onSkip={handleRatingSkip}
                 />
             )}
-        </div>
+        </div>,
+        document.body
     );
 };

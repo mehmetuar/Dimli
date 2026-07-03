@@ -193,30 +193,12 @@ body.modal-open .fixed.top-bell-safe {
   visibility: hidden;
 }
 
-/* Modal açıkken PROFİLİM/TAKIMIM header'ı: pasif (tıklanamaz) + diğer arka plan içeriği gibi KARARIR.
-   ::after katmanı tab barı + üstteki safe-area/status-bar navy (bg-pitch) şeridini örter; rgba(0,0,0,.7)
-   backdrop (bg-black/70) ile eşleşir → header, arkadaki içerikle aynı kararır, lacivert kalmaz.
-   (Root fixed inset-0 + WebkitOverflowScrolling:touch → modal backdrop'u bu bölgeye ulaşamıyordu;
-   kendi katmanımızla karartıyoruz. Notch'suz cihazda env=0 → yalnız tab barı örter.) */
-.team-profile-tabs { position: relative; }
-.team-profile-tabs::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  top: calc(-1 * env(safe-area-inset-top));
-  background: rgba(0, 0, 0, 0.7);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.2s ease;
-}
-body.modal-open .team-profile-tabs {
-  pointer-events: none;
-}
-body.modal-open .team-profile-tabs::after {
-  opacity: 1;
-}
+/* PROFİLİM/TAKIMIM sekme barı için modal-open kuralı YOK (bilinçli):
+   TeamProfile ağacındaki modallar createPortal(document.body) ile render edilir — backdrop
+   gerçek viewport'u (safe-area + sekme barı dahil) kaplar, bar diğer arka plan içeriği gibi
+   backdrop arkasında doğal karartılır/blurlanır; tıklamayı backdrop yakalar. Eski ::after
+   karartma / visibility:hidden yaklaşımları kaldırıldı (iOS scroll konteyneri fixed modalları
+   hapsettiği için maskelemeydi; kök çözüm portal). */
 
 /* Modal overlay — Android'de çift tap zoom engelle */
 .modal-overlay {

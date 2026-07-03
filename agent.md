@@ -1270,3 +1270,38 @@ Profil canlı ilçe; Sahalar/maç pazarı tutarlı; 2-3dk tazeleme; izin-reddi; 
   ÖNCE çağrılır (hooks kuralı).
 - Doğrulama: server build ✓; client `tsc` (yalnız LocationStep) + build + `cap copy` ✓. Deploy sonrası yeni
   JOKER_INVITE metadata'sı DB'de salt-okunur SELECT ile doğrulanabilir (bağlantı dizesi repoda TUTULMAZ, §9).
+- **Ek (aynı gün):** maç saati her iki yüzeyde **aralık** gösterilir ("23:00 - 00:00"; maç süresi uygulama
+  geneli 1 saat — kart `addOneHour` HH:MM helper'ı, modal slotTime+1h). Sahalar **Yol Tarifi onay modalı**
+  `z-50 → z-[90]` + `createPortal(document.body)` (aşağıdaki §35 kuralı).
+
+---
+
+## 35. KALICI KURAL: Modal overlay'ler `createPortal(document.body)` ile render edilir (2026-07-03)
+
+> Belirti: TeamProfile'da (PROFİLİM/TAKIMIM) açılan modallar sekme barının ALTINDA kalıyor, backdrop
+> üst şeride (safe-area + bar) hiç boyanamıyordu; bar modal başlıklarını kesiyordu.
+
+**Kök neden:** TeamProfile layout'u = root `fixed inset-0` + içte `overflow-y-auto` +
+`WebkitOverflowScrolling:'touch'` scroll konteyneri (§30 elastic desen). iOS WebKit'te bu konteyner
+kendi compositing/containing bağlamını yaratır → **içindeki `fixed inset-0` modallar viewport'a değil
+konteynere hapsolur** (backdrop üst şeridi kaplayamaz; z-index kaç olursa olsun kurtarmaz). Eski
+`.team-profile-tabs::after` karartma katmanı bu sorunun MASKESİydi (ayrıca ::after çocuk kutunun
+altında boyandığından butonları karartmıyordu bile) — kaldırıldı.
+
+**Çözüm/kural:** `fixed inset-0` overlay döndüren HER modal bileşeni JSX'ini
+**`createPortal(<overlay/>, document.body)`** ile sarar (TeamDetailModal deseni). `KeyboardAwareModal`
+kullananlar **`portalToBody`** prop'unu geçer. Yeni modal yazarken de bu kural geçerli — sayfa
+ağacının derinliğinde `fixed` overlay bırakma.
+
+**Bu turda portal'lanan dosyalar:** SuccessModal, ConfirmModal, MatchHistoryModal,
+UpcomingMatchesModal, CreateMatchModal, CreateTeamModal, PlayerDetailModal, LocationPermissionSheet,
+TeamSettingsMenu, ProfileSettingsMenu, MyTeam.tsx inline playerActions sheet, JoinTeamModal
+(portalToBody), PitchSchedule Yol Tarifi modalı. (Zaten portal'lı: TeamDetailModal,
+ActiveMatchesList, ImageCropModal, FacilitiesModal, TimeSlotsModal, TeamCreatedCelebration.)
+
+**UX kararı:** PROFİLİM/TAKIMIM barı modal açıkken GİZLENMEZ ve ekstra karartılmaz — portal sayesinde
+backdrop tüm ekranı kapladığından bar diğer arka plan içeriği gibi doğal karartılır/blurlanır
+(kullanıcı tercihi). index.css'teki `.team-profile-tabs` modal-open kuralları tamamen kaldırıldı;
+`body.modal-open nav … { visibility:hidden }` navbar kuralı ise app-genel mevcut davranış olarak DURUYOR.
+
+Doğrulama: `tsc --noEmit` (yalnız önceden var olan LocationStep) + `vite build` + `cap copy` ✓.

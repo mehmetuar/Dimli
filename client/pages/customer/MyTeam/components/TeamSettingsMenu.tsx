@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Shield, Settings, ChevronRight } from 'lucide-react';
 import { useModalBodyClass } from '../../../../utils/useModalBodyClass';
@@ -17,7 +18,8 @@ export const TeamSettingsMenu: React.FC<TeamSettingsMenuProps> = ({
 
     if (!isOpen) return null;
 
-    return (
+    // Portal → body: TeamProfile scroll konteynerine hapsolmasın (backdrop tüm ekranı kaplasın)
+    return createPortal(
         <div className="fixed inset-0 z-[60] flex items-end justify-center">
             <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setIsOpen(false)}></div>
             <div className="bg-slate-800 w-full max-w-md rounded-t-3xl border-t border-slate-700 shadow-2xl z-[70] animate-slide-up pb-safe-bottom">
@@ -50,6 +52,7 @@ export const TeamSettingsMenu: React.FC<TeamSettingsMenuProps> = ({
                     <button onClick={() => setIsOpen(false)} className="w-full py-4 text-center text-slate-500 font-bold hover:text-white transition-colors">Vazgeç</button>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };

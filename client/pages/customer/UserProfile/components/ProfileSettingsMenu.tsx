@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { User, Settings, LogOut, ChevronRight, Building2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useModalBodyClass } from '../../../../utils/useModalBodyClass';
@@ -16,7 +17,8 @@ export const ProfileSettingsMenu: React.FC<ProfileSettingsMenuProps> = ({ isMenu
 
     if (!isMenuOpen) return null;
 
-    return (
+    // Portal → body: TeamProfile scroll konteynerine hapsolmasın (backdrop tüm ekranı kaplasın)
+    return createPortal(
         <div className="fixed inset-0 z-[60] flex items-end justify-center">
             <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setIsMenuOpen(false)}></div>
             <div className="bg-slate-800 w-full max-w-md rounded-t-3xl border-t border-slate-700 shadow-2xl z-[70] animate-slide-up pb-safe-bottom">
@@ -78,6 +80,7 @@ export const ProfileSettingsMenu: React.FC<ProfileSettingsMenuProps> = ({ isMenu
                     </button>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };

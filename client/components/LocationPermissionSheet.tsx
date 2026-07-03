@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { MapPin, Settings, X, WifiOff } from 'lucide-react';
 import { openLocationSettings } from '../utils/openLocationSettings';
 
@@ -35,7 +36,8 @@ export const LocationPermissionSheet: React.FC<Props> = ({ errorType, onClose })
         await openLocationSettings();
     };
 
-    return (
+    // Portal → body: sayfa scroll/stacking bağlamına hapsolmasın (backdrop tüm ekranı kaplasın)
+    return createPortal(
         <>
             {/* Overlay */}
             <div
@@ -84,6 +86,7 @@ export const LocationPermissionSheet: React.FC<Props> = ({ errorType, onClose })
                     </button>
                 </div>
             </div>
-        </>
+        </>,
+        document.body
     );
 };

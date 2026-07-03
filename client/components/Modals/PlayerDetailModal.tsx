@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { X, MapPin, Star, MessageCircle, UserPlus, Edit } from 'lucide-react';
 import { Player } from '../../types';
 import { getBusinesses } from '../../services/api';
@@ -52,7 +53,8 @@ const PlayerDetailModalContent: React.FC<PlayerDetailModalProps> = ({
         businesses.find(b => b.id === id)
     ).filter(Boolean);
 
-    return (
+    // Portal → body: TeamProfile scroll konteynerine hapsolmasın (backdrop tüm ekranı kaplasın)
+    return createPortal(
         <div className="fixed inset-0 z-[60] flex items-center justify-center px-4 bg-black/95 backdrop-blur-md animate-fade-in overflow-y-auto py-10">
             {/* Close Button */}
             <button
@@ -200,6 +202,7 @@ const PlayerDetailModalContent: React.FC<PlayerDetailModalProps> = ({
                     </div>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };

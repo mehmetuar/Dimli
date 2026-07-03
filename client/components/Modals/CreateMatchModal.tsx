@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { X, MapPin, Calendar, Clock, Shield, ChevronRight, CheckCircle, Trophy, Store, Info, Search } from 'lucide-react';
 import { LoadingSpinner } from '../UI/LoadingSpinner';
@@ -265,7 +266,8 @@ const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelected
             );
     }, [businesses, searchQuery, date]);
 
-    return (
+    // Portal → body: TeamProfile scroll konteynerine hapsolmasın (backdrop tüm ekranı kaplasın)
+    return createPortal(
         <>
             <div
                 className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-black/90 backdrop-blur-sm animate-fade-in"
@@ -583,6 +585,7 @@ const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelected
                 selectedDate={date}
                 bookedHours={bookedTimes}
             />
-        </>
+        </>,
+        document.body
     );
 };

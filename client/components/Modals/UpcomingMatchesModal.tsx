@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { X, Calendar, Clock, MapPin, Users, CheckCircle } from 'lucide-react';
 import { useModalBodyClass } from '../../utils/useModalBodyClass';
 
@@ -61,7 +62,8 @@ export const UpcomingMatchesModal: React.FC<UpcomingMatchesModalProps> = ({
         return match.team?.name || null;
     };
 
-    return (
+    // Portal → body: TeamProfile scroll konteynerine hapsolmasın (backdrop tüm ekranı kaplasın)
+    return createPortal(
         <div className="fixed inset-0 z-[70] flex items-center justify-center px-4 bg-black/80 backdrop-blur-sm animate-fade-in">
             {/* Modal Container */}
             <div className="bg-slate-800 w-full max-w-lg max-h-[80vh] rounded-3xl border border-slate-700 overflow-hidden relative shadow-2xl animate-scale-in flex flex-col">
@@ -179,6 +181,7 @@ export const UpcomingMatchesModal: React.FC<UpcomingMatchesModalProps> = ({
                     </button>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };

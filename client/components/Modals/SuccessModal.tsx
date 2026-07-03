@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { Crown, Shield, ShieldX, Trash2, Check, CheckCircle } from 'lucide-react';
 import { useModalBodyClass } from '../../utils/useModalBodyClass';
 import { LottiePlayer } from '../UI/LottiePlayer';
@@ -96,7 +97,8 @@ export const SuccessModal: React.FC<SuccessModalProps> = ({
         }
     };
 
-    return (
+    // Portal → body: sarmalayan sayfaların scroll/stacking bağlamına hapsolmasın (TeamProfile fix)
+    return createPortal(
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[60] p-4 animate-fade-in">
             <div className="bg-slate-800 rounded-3xl border border-slate-700 p-8 max-w-sm w-full text-center relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-turf-500 to-blue-500"></div>
@@ -137,6 +139,7 @@ export const SuccessModal: React.FC<SuccessModalProps> = ({
                     {confirmText}
                 </button>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };

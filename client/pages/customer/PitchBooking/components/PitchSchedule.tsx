@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Clock, Phone, AlertCircle, Navigation, X } from 'lucide-react';
 import { generateSlots, isPastSlot } from '../utils/pitchUtils';
 
@@ -40,8 +41,11 @@ export const PitchSchedule: React.FC<PitchScheduleProps> = ({
 
     return (
         <>
-        {showDirectionsModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
+        {/* Portal → document.body: kart hiyerarşisindeki ata stacking context'leri fixed modalı
+            hapsedebiliyor (TeamDetailModal ile aynı desen). z-[90] kök bağlamda navbar (z-50) ve
+            sticky filtre barını (z-40) örter. */}
+        {showDirectionsModal && createPortal(
+            <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
                 <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
                     <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-2">
@@ -71,7 +75,8 @@ export const PitchSchedule: React.FC<PitchScheduleProps> = ({
                         </button>
                     </div>
                 </div>
-            </div>
+            </div>,
+            document.body
         )}
         <div className="mb-8">
             <div className="flex items-center gap-2 mb-3">

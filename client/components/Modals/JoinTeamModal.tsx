@@ -91,6 +91,7 @@ const JoinTeamModalContent: React.FC<Props> = ({ isOpen, onClose }) => {
   return (
     <KeyboardAwareModal
       isOpen={isOpen}
+      portalToBody
       zClassName="z-[70]"
       backdropClassName="animate-fade-in"
       backdropStyle={{ backgroundColor: 'rgba(0,0,0,0.82)', backdropFilter: 'blur(6px)' }}
