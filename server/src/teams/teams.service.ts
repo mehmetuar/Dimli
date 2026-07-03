@@ -10,7 +10,7 @@ import {
   forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { MoreThan, MoreThanOrEqual, Repository } from 'typeorm';
 import { Team } from './team.entity';
 import { CreateTeamDto } from './dto/create-team.dto';
 import { User } from '../users/user.entity';
@@ -462,17 +462,33 @@ export class TeamsService implements OnModuleInit {
     if (!isCaptain)
       throw new ForbiddenException('Sadece kaptan takımı silebilir.');
 
-    // 1. Kesinleşmiş maç kontrolü:
-    //    - rakip_araniyor: match_announcement.status = 'CONFIRMED'
-    //    - kendi_aramizda: reservation.status = 'APPROVED'
+    // Engel kontrolleri TARİH-BİLİNÇLİ: yalnız GELECEK maçlar silmeyi engeller.
+    // Geçmişte kalmış (oynanmış/kaçmış) ama statüsü CONFIRMED/PENDING kalan kayıtlar
+    // takımı kilitlemesin ("Mavi şimşekler" vakası — kullanıcı UI'da maç görmüyordu
+    // ama geçmiş kayıtlar silmeyi engelliyordu). Sunucu UTC, uygulama TR: gün sınırı
+    // toleransı kabul (en fazla ~3 saat geç serbest bırakır, asla erken bırakmaz).
+    const now = new Date();
+    const todayStr = now.toISOString().slice(0, 10); // YYYY-MM-DD
+
+    // 1. Kesinleşmiş GELECEK maç kontrolü:
+    //    - rakip_araniyor: match_announcement.status = 'CONFIRMED' ve tarihi bugün/ileri
+    //    - kendi_aramizda: reservation.status = 'APPROVED' ve slot zamanı ileride
     const confirmedAnnouncementCount =
       await this.matchAnnouncementsRepository.count({
-        where: { teamId, status: 'CONFIRMED' },
+        where: { teamId, status: 'CONFIRMED', date: MoreThanOrEqual(todayStr) },
       });
     const approvedReservationCount = await this.reservationsRepository.count({
       where: [
-        { teamId, status: ReservationStatus.APPROVED },
-        { opponentTeamId: teamId, status: ReservationStatus.APPROVED },
+        {
+          teamId,
+          status: ReservationStatus.APPROVED,
+          slotTime: MoreThan(now),
+        },
+        {
+          opponentTeamId: teamId,
+          status: ReservationStatus.APPROVED,
+          slotTime: MoreThan(now),
+        },
       ],
     });
     const totalConfirmed =
@@ -484,12 +500,16 @@ export class TeamsService implements OnModuleInit {
       );
     }
 
-    // 2. Onay bekleyen maç kontrolü:
-    //    - kendi_aramizda: reservation.status = 'PENDING'
+    // 2. Onay bekleyen GELECEK maç kontrolü:
+    //    - kendi_aramizda: reservation.status = 'PENDING' ve slot zamanı ileride
     const pendingReservationCount = await this.reservationsRepository.count({
       where: [
-        { teamId, status: ReservationStatus.PENDING },
-        { opponentTeamId: teamId, status: ReservationStatus.PENDING },
+        { teamId, status: ReservationStatus.PENDING, slotTime: MoreThan(now) },
+        {
+          opponentTeamId: teamId,
+          status: ReservationStatus.PENDING,
+          slotTime: MoreThan(now),
+        },
       ],
     });
     if (pendingReservationCount > 0) {
@@ -499,20 +519,57 @@ export class TeamsService implements OnModuleInit {
       );
     }
 
-    // Aktif "Rakip Aranıyor" ilanlarını otomatik sil
-    await this.matchAnnouncementsRepository.delete({
-      teamId,
-      matchType: 'rakip_araniyor',
-      status: 'PENDING',
-    });
-
-    if (team.players && team.players.length > 0) {
-      for (const player of team.players) {
-        player.team = null as any;
-        await this.usersService['usersRepository'].save(player);
-      }
+    try {
+      await this.purgeTeam(teamId);
+    } catch (err) {
+      // FK ihlali gibi beklenmedik DB hataları 500 olarak sızmasın —
+      // kullanıcıya anlamlı Türkçe mesaj dön.
+      console.error('purgeTeam failed:', err);
+      throw new HttpException(
+        'Takım silinirken bağlı kayıtlar nedeniyle bir sorun oluştu. Lütfen tekrar deneyin.',
+        HttpStatus.BAD_REQUEST,
+      );
     }
+  }
 
-    await this.teamsRepository.delete(teamId);
+  /**
+   * Takıma bağlı TÜM kayıtları koparıp takımı siler — GUARD'SIZ iç temizlik.
+   * deleteTeam (guard'lardan sonra) çağırır; hesap silme akışındaki tek üyeli
+   * takım temizliği de aynı SQL sırasını uygular (users.service.ts).
+   * Tek transaction: yarıda kalırsa hiçbir şey değişmez.
+   * FK envanteri: challenges.fromTeamId, join_requests.teamId,
+   * match_announcements.team_id, reservation.teamId/opponentTeamId,
+   * user.team_id — hiçbirinde CASCADE yok; team_bans CASCADE'li (kendiliğinden).
+   */
+  async purgeTeam(teamId: string): Promise<void> {
+    await this.teamsRepository.manager.transaction(async (em) => {
+      // Meydan okumalar: takımsız anlamsız (toMatchId FK'sı zaten CASCADE)
+      await em.query(`DELETE FROM "challenges" WHERE "fromTeamId" = $1`, [
+        teamId,
+      ]);
+      // Katılma istekleri
+      await em.query(`DELETE FROM "join_requests" WHERE "teamId" = $1`, [
+        teamId,
+      ]);
+      // Maç ilanları: TÜM statüler (geçmiş/iptal dahil) —
+      // reservation.matchAnnouncementId FK'sı ON DELETE SET NULL, güvenli
+      await em.query(`DELETE FROM "match_announcements" WHERE "team_id" = $1`, [
+        teamId,
+      ]);
+      // Rezervasyon geçmişi işletme takviminde KALIR — yalnız takım bağı koparılır
+      await em.query(
+        `UPDATE "reservation" SET "teamId" = NULL WHERE "teamId" = $1`,
+        [teamId],
+      );
+      await em.query(
+        `UPDATE "reservation" SET "opponentTeamId" = NULL WHERE "opponentTeamId" = $1`,
+        [teamId],
+      );
+      // Üyeleri takımdan çıkar
+      await em.query(`UPDATE "user" SET "team_id" = NULL WHERE "team_id" = $1`, [
+        teamId,
+      ]);
+      await em.query(`DELETE FROM "team" WHERE "id" = $1`, [teamId]);
+    });
   }
 }

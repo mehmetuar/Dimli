@@ -296,6 +296,38 @@ export class UsersService {
     await this.usersRepository.update(id, { password: hashedPassword });
   }
 
+  /**
+   * Takıma bağlı tüm kayıtları koparıp takımı siler (teams.service.ts purgeTeam
+   * ile aynı SQL sırası — orada değişiklik yapılırsa burası da güncellenmeli).
+   * Tek transaction: yarıda kalırsa hiçbir şey değişmez.
+   */
+  private async purgeTeamRaw(teamId: string): Promise<void> {
+    await this.usersRepository.manager.transaction(async (em) => {
+      await em.query(`DELETE FROM "challenges" WHERE "fromTeamId" = $1`, [
+        teamId,
+      ]);
+      await em.query(`DELETE FROM "join_requests" WHERE "teamId" = $1`, [
+        teamId,
+      ]);
+      await em.query(`DELETE FROM "match_announcements" WHERE "team_id" = $1`, [
+        teamId,
+      ]);
+      await em.query(
+        `UPDATE "reservation" SET "teamId" = NULL WHERE "teamId" = $1`,
+        [teamId],
+      );
+      await em.query(
+        `UPDATE "reservation" SET "opponentTeamId" = NULL WHERE "opponentTeamId" = $1`,
+        [teamId],
+      );
+      await em.query(
+        `UPDATE "user" SET "team_id" = NULL WHERE "team_id" = $1`,
+        [teamId],
+      );
+      await em.query(`DELETE FROM "team" WHERE "id" = $1`, [teamId]);
+    });
+  }
+
   async deleteAccount(
     userId: string,
     data: { reason: string; note?: string; password: string },
@@ -343,15 +375,24 @@ export class UsersService {
             viceCaptainIds[0] ??
             team.players?.find((p) => p.id !== userId)?.id ??
             null;
-          // Raw SQL — TypeORM update() undefined değerini NULL yazmaz
-          await this.teamRepository.query(
-            `UPDATE "team" SET "captainId" = $1, "viceCaptainIds" = $2 WHERE id = $3`,
-            [
-              newCaptainId,
-              viceCaptainIds.filter((id) => id !== newCaptainId).join(','),
-              team.id,
-            ],
-          );
+          if (newCaptainId === null) {
+            // Devredilecek kimse yok (tek kişilik takım): takımı ÖKSÜZ bırakma
+            // (captainId=NULL kalırsa artık hiç kimse silemez — "Mavi şimşekler"
+            // vakası), bağlı kayıtları koparıp takımı sil.
+            // teams.service.ts purgeTeam ile aynı SQL sırası (dairesel modül
+            // bağımlılığı kurmamak için burada raw uygulanır).
+            await this.purgeTeamRaw(team.id);
+          } else {
+            // Raw SQL — TypeORM update() undefined değerini NULL yazmaz
+            await this.teamRepository.query(
+              `UPDATE "team" SET "captainId" = $1, "viceCaptainIds" = $2 WHERE id = $3`,
+              [
+                newCaptainId,
+                viceCaptainIds.filter((id) => id !== newCaptainId).join(','),
+                team.id,
+              ],
+            );
+          }
         } else {
           const cleaned = (team.viceCaptainIds || []).filter(
             (id) => id !== userId,
