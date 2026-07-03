@@ -17,6 +17,7 @@ import { AccountDeletion } from '../account-deletions/account-deletion.entity';
 import { JoinRequest } from '../join-requests/join-request.entity';
 import { Notification } from '../notifications/notification.entity';
 import { Team } from '../teams/team.entity';
+import { ReverseGeocodeService } from '../geo/reverse-geocode.service';
 
 @Injectable()
 export class UsersService {
@@ -31,6 +32,7 @@ export class UsersService {
     private notificationRepository: Repository<Notification>,
     @InjectRepository(Team)
     private teamRepository: Repository<Team>,
+    private reverseGeocode: ReverseGeocodeService,
   ) {}
 
   normalizePhone(phone: string): string {
@@ -220,6 +222,18 @@ export class UsersService {
       const taken = await this.isUsernameTaken(updateUserDto.username, id);
       if (taken) {
         throw new ConflictException('Bu kullanıcı adı zaten kullanılıyor.');
+      }
+    }
+    // Koordinat güncellendiğinde ilçeyi (location) SUNUCU türetir — tek yetkili kaynak.
+    // Offline point-in-polygon; harici geocoder/ücret yok. Türkiye dışında/eşleşme
+    // yoksa location'a dokunulmaz (mevcut/son bilinen ilçe korunur).
+    if (updateUserDto.latitude != null && updateUserDto.longitude != null) {
+      const hit = this.reverseGeocode.lookup(
+        updateUserDto.latitude,
+        updateUserDto.longitude,
+      );
+      if (hit) {
+        updateUserDto.location = hit.district;
       }
     }
     await this.usersRepository.update(id, updateUserDto);

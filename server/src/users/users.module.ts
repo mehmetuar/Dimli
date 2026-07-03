@@ -7,6 +7,7 @@ import { AccountDeletion } from '../account-deletions/account-deletion.entity';
 import { JoinRequest } from '../join-requests/join-request.entity';
 import { Notification } from '../notifications/notification.entity';
 import { Team } from '../teams/team.entity';
+import { GeoModule } from '../geo/geo.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { Team } from '../teams/team.entity';
       Notification,
       Team,
     ]),
+    GeoModule,
   ],
   providers: [UsersService],
   controllers: [UsersController],

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { LocationFilter } from '../../../../components/Modals/LocationFilterModal';
 import api from '../../../../services/api';
 import { useLocationContext } from '../../../../contexts/LocationContext';
@@ -23,8 +23,6 @@ export const useJokerPool = () => {
     const [isSortOpen, setIsSortOpen] = useState(false);
 
     const locationFilter: LocationFilter = { type: 'NEARBY', radius, coords: coords ?? undefined };
-
-    const lastPatchedKey = useRef<string | null>(null);
 
     useEffect(() => {
         api.get('/users/me').then(res => setCurrentUser(res.data)).catch(console.error);
@@ -77,14 +75,8 @@ export const useJokerPool = () => {
         fetchJokers(sortBy, 0, false, coords.lat, coords.lng, radius);
     }, [sortBy]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Konum güncellemesi
-    useEffect(() => {
-        if (!coords) return;
-        const key = `${coords.lat},${coords.lng}`;
-        if (lastPatchedKey.current === key) return;
-        lastPatchedKey.current = key;
-        api.patch('/users/me', { latitude: coords.lat, longitude: coords.lng }).catch(() => {});
-    }, [coords]);
+    // NOT: Koordinat→sunucu PATCH'i artık LocationContext'te merkezî yapılıyor
+    // (tek yetkili kaynak). Burada ayrıca PATCH atılmıyor.
 
     const loadMore = () => {
         if (!coords) return;

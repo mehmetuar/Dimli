@@ -29,6 +29,7 @@
     "@nestjs/schedule": "^6.1.0",
     "@nestjs/typeorm": "^11.0.0",
     "@nestjs/websockets": "^11.1.19",
+    "@turf/boolean-point-in-polygon": "^7.3.5",
     "@types/bcrypt": "^6.0.0",
     "@types/cron": "^2.0.1",
     "@types/passport-jwt": "^4.0.1",

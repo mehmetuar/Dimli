@@ -19,6 +19,7 @@ export const UserProfile: React.FC = () => {
         errorMessage,
         successMessage,
         locationErrorType,
+        liveLocation,
         clearLocationError,
         handleUpdateLocation,
         calculateAge
@@ -44,6 +45,7 @@ export const UserProfile: React.FC = () => {
             {/* Main Profile Card (Avatar, Name, Stats) */}
             <ProfileHeaderCard
                 currentUser={currentUser}
+                liveLocation={liveLocation}
                 calculateAge={calculateAge}
                 handleUpdateLocation={handleUpdateLocation}
                 isModalOpen={isModalOpen}

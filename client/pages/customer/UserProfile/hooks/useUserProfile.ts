@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Geolocation } from '@capacitor/geolocation';
-import axios from 'axios';
 import api from '../../../../services/api';
 import { useLocationContext } from '../../../../contexts/LocationContext';
 import { calculateAge } from '../../../../utils/calculateAge';
 import { LocationErrorType } from '../../../../components/LocationPermissionSheet';
 
 export const useUserProfile = () => {
-    const { coords: contextCoords, updateCoords } = useLocationContext();
+    // Konum işi tamamen LocationContext'te merkezî: refreshLocation GPS alır, sunucuya
+    // coords PATCH'ler ve ilçeyi (location) sunucudan türetip locationName'e yazar.
+    const { refreshLocation, locationName } = useLocationContext();
 
     const [currentUser, setCurrentUser] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -45,51 +46,40 @@ export const useUserProfile = () => {
         try {
             if (!isAuto) setIsLoading(true);
 
+            // İzin reddi UX'i için önden kontrol (denied → ayarlar sheet'i).
+            // Asıl GPS+senkron işini refreshLocation (context) yapar.
             let permission = await Geolocation.checkPermissions();
-
             if (isAuto && permission.location === 'denied') return;
-
             if (permission.location === 'prompt' || permission.location === 'prompt-with-rationale') {
                 permission = await Geolocation.requestPermissions();
             }
-
             if (permission.location === 'denied') {
-                if (!isAuto) setLocationErrorType('permission_denied');
-                if (!isAuto) setIsLoading(false);
+                if (!isAuto) {
+                    setLocationErrorType('permission_denied');
+                    setIsLoading(false);
+                }
                 return;
             }
 
-            // maximumAge: 0 → OS GPS cache'ini hiç kullanma, taze konum al
-            const position = await Geolocation.getCurrentPosition({
-                enableHighAccuracy: false,
-                timeout: 15000,
-                maximumAge: 0
-            });
+            // GPS al → sunucuya coords PATCH → sunucu ilçeyi türetir (tek yetkili kaynak)
+            await refreshLocation();
 
-            const { latitude, longitude } = position.coords;
-
-            // Context koordinatlarını da güncelle (tüm sayfalar anlık konumu görsün)
-            updateCoords({ lat: latitude, lng: longitude });
-
-            const response = await axios.get(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
-            const address = response.data.address;
-            const locationName = address.district || address.city || address.town || address.state || 'Bilinmeyen Konum';
-
-            const updateRes = await api.patch('/users/me', { location: locationName, latitude, longitude });
-            setCurrentUser(updateRes.data);
-            setSuccessMessage(`Konum güncellendi: ${locationName}`);
+            // Güncel kullanıcıyı çek (sunucu-türetilmiş `location` dahil) → yerel state tazelensin
+            const res = await api.get('/users/me');
+            setCurrentUser(res.data);
+            if (!isAuto) {
+                setSuccessMessage(
+                    res.data?.location ? `Konum güncellendi: ${res.data.location}` : 'Konum güncellendi',
+                );
+            }
         } catch (error: any) {
             console.error('Location update failed:', error);
             if (!isAuto) {
                 const code = error?.code;
-                if (code === 1) {
-                    setLocationErrorType('permission_denied');
-                } else if (code === 2) {
+                if (code === 2) {
                     setLocationErrorType('gps_disabled');
-                } else if (code === 3) {
-                    setErrorMessage('Konum alınamadı. Lütfen tekrar deneyin.');
                 } else {
-                    setErrorMessage('Konum alınamadı.');
+                    setErrorMessage('Konum alınamadı. Lütfen tekrar deneyin.');
                 }
             }
         } finally {
@@ -111,6 +101,8 @@ export const useUserProfile = () => {
         errorMessage,
         successMessage,
         locationErrorType,
+        // Sunucudan türetilen canlı ilçe — profil kartı bunu currentUser.location'a tercih eder
+        liveLocation: locationName,
         clearLocationError: () => setLocationErrorType(null),
         handleUpdateLocation,
         calculateAge

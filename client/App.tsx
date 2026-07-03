@@ -1,11 +1,9 @@
 import React, { useEffect, useRef, useState, lazy, Suspense } from 'react';
 import { HashRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
-import { Geolocation } from '@capacitor/geolocation';
 import { Capacitor } from '@capacitor/core';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { SplashScreen } from '@capacitor/splash-screen';
 import { App as CapApp } from '@capacitor/app';
-import axios from 'axios';
 import api from './services/api';
 import { Navbar } from './components/Layout/Navbar';
 import { ProtectedRoute } from './components/Layout/ProtectedRoute';
@@ -14,7 +12,7 @@ import { RatingModal } from './components/Modals/RatingModal';
 import { PendingRating } from './types';
 import { initializePushNotifications, syncPushToken, clearBadge } from './services/pushNotificationService';
 import { initRevenueCat } from './services/revenuecatService';
-import { LocationProvider, useLocationContext } from './contexts/LocationContext';
+import { LocationProvider } from './contexts/LocationContext';
 import { FilterProvider } from './contexts/FilterContext';
 import { SocketProvider } from './contexts/SocketContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -22,15 +20,6 @@ import { getToken, getRole } from './services/authStorage';
 import { useKeyboardScroll } from './utils/useKeyboardScroll';
 import { savePendingInvite, getPendingInvite, clearPendingInvite } from './services/pendingInvite';
 import { BusinessInviteNoticeModal } from './components/Modals/BusinessInviteNoticeModal';
-
-// Haversine — iki koordinat arası km mesafe
-function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLng = (lng2 - lng1) * Math.PI / 180;
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
 
 // ── Lazy page imports (code splitting — reduces initial bundle from ~1.17MB → ~200KB) ──
 const Marketplace = lazy(() => import('./pages/customer/Marketplace/Marketplace').then(m => ({ default: m.Marketplace })));
@@ -114,10 +103,6 @@ function AppContent() {
     location.pathname.startsWith('/settings');
   const [pendingRatings, setPendingRatings] = useState<PendingRating[]>([]);
   const [businessInviteNotice, setBusinessInviteNotice] = useState(false);
-  const { updateCoords } = useLocationContext();
-  const prevGpsRef = useRef<{ lat: number; lng: number } | null>(null);
-  const prevLocationNameRef = useRef<string | null>(null);
-  const locationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -286,56 +271,7 @@ function AppContent() {
 
   useEffect(() => {
     let initTimer: ReturnType<typeof setTimeout>;
-    let watchTimer: ReturnType<typeof setTimeout>;
     let stateListener: { remove: () => void } | null = null;
-
-    // iOS: 3 dk, Android: 2 dk — GPS modülü aralarında kapalı kalır
-    const LOCATION_INTERVAL_MS = Capacitor.getPlatform() === 'ios'
-      ? 3 * 60 * 1000
-      : 2 * 60 * 1000;
-
-    const poll = async () => {
-      try {
-        const position = await Geolocation.getCurrentPosition({
-          enableHighAccuracy: false,
-          timeout: 10000,
-          maximumAge: 60000,
-        });
-        const { latitude, longitude } = position.coords;
-        updateCoords({ lat: latitude, lng: longitude });
-
-        // 250 metreden az hareket ettiyse backend'e PATCH atma
-        const prev = prevGpsRef.current;
-        if (prev && haversineKm(prev.lat, prev.lng, latitude, longitude) < 0.25) return;
-        prevGpsRef.current = { lat: latitude, lng: longitude };
-
-        const response = await axios.get(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
-        if (response.data && response.data.address) {
-          const address = response.data.address;
-          const locationName = address.district || address.city || address.town || address.state;
-          if (locationName && locationName !== prevLocationNameRef.current) {
-            prevLocationNameRef.current = locationName;
-            await api.patch('/users/me', { location: locationName });
-          }
-        }
-      } catch {
-        // GPS hatası veya konum izni yok — sessizce geç
-      }
-    };
-
-    const startLocationTracking = () => {
-      if (!getToken() || isAuthPage) return;
-      if (locationIntervalRef.current) clearInterval(locationIntervalRef.current);
-      poll();
-      locationIntervalRef.current = setInterval(poll, LOCATION_INTERVAL_MS);
-    };
-
-    const stopLocationTracking = () => {
-      if (locationIntervalRef.current) {
-        clearInterval(locationIntervalRef.current);
-        locationIntervalRef.current = null;
-      }
-    };
 
     const initServices = async () => {
       if (!getToken() || isAuthPage) return;
@@ -361,23 +297,12 @@ function AppContent() {
           // Non-blocking
         }
       }, 3000); // 3 saniye bekle
-
-      // Konum takibini daha da geciktir
-      watchTimer = setTimeout(async () => {
-        try {
-          const permission = await Geolocation.checkPermissions();
-          if (permission.location !== 'granted') return;
-          startLocationTracking();
-        } catch {
-          // İzin yoksa sessizce geç
-        }
-      }, 5000);
     };
 
-    // Uygulama arka plana alınınca interval dur, ön plana gelince yeniden başla
-    CapApp.addListener('appStateChange', async (state) => {
-      // Presence: uygulama ön plandayken sunucu OS push'larını baskılar (uygulama-içi
-      // websocket bildirimi yeterli), arka plana alınınca tekrar push gönderir.
+    // Presence: uygulama ön plandayken sunucu OS push'larını baskılar (uygulama-içi
+    // websocket bildirimi yeterli), arka plana alınınca tekrar push gönderir.
+    // NOT: Konum takibi (GPS + ilçe PATCH) artık LocationContext'te merkezî yönetiliyor.
+    CapApp.addListener('appStateChange', (state) => {
       const sock = (window as any).__socket;
       if (state.isActive) {
         // iOS arka planda socket'i askıya alır → ön plana gelince ölü socket'i hemen
@@ -385,18 +310,9 @@ function AppContent() {
         if (sock && !sock.connected) sock.connect();
         if (sock?.connected) sock.emit('presence:active');
         clearBadge();
-        // Konum takibini SADECE izin verilmişse başlat. İzin yoksa poll() (getCurrentPosition)
-        // her foreground'da native bridge'i yorar ve reddedilen izinde kasmaya katkı sağlar.
-        try {
-          const permission = await Geolocation.checkPermissions();
-          if (permission.location === 'granted') startLocationTracking();
-        } catch {
-          // İzin okunamadı → poll başlatma
-        }
       } else {
         // İlk satırda (await'siz): iOS askıya almadan önce flush şansı en yüksek.
         if (sock?.connected) sock.emit('presence:inactive');
-        stopLocationTracking();
       }
     }).then(h => { stateListener = h; });
 
@@ -404,8 +320,6 @@ function AppContent() {
 
     return () => {
       clearTimeout(initTimer);
-      clearTimeout(watchTimer);
-      stopLocationTracking();
       if (stateListener) stateListener.remove();
     };
   }, [isAuthPage]);
@@ -478,18 +392,21 @@ function AppContent() {
 }
 
 function App() {
+  // LocationProvider, AuthProvider'ın İÇİNDE olmalı: konum senkronu (ilk giriş +
+  // periyodik PATCH) yalnız oturum/rol belirlendikten sonra ve sadece müşteri için
+  // çalışsın diye useAuth()'a erişmesi gerekiyor. SocketProvider da Auth'a bağımlı.
   return (
-    <LocationProvider>
-      <FilterProvider>
-        <AuthProvider>
-          <SocketProvider>
+    <AuthProvider>
+      <SocketProvider>
+        <LocationProvider>
+          <FilterProvider>
             <HashRouter>
               <AppContent />
             </HashRouter>
-          </SocketProvider>
-        </AuthProvider>
-      </FilterProvider>
-    </LocationProvider>
+          </FilterProvider>
+        </LocationProvider>
+      </SocketProvider>
+    </AuthProvider>
   );
 }
 

@@ -5,6 +5,8 @@ import { useNavigate } from 'react-router-dom';
 
 interface ProfileHeaderCardProps {
     currentUser: any;
+    /** Sunucudan türetilen canlı ilçe (LocationContext.locationName) — currentUser.location'a tercih edilir */
+    liveLocation?: string | null;
     calculateAge: (birthDate: string | Date) => number | string;
     handleUpdateLocation: (isAuto?: boolean) => void;
     isModalOpen: boolean;
@@ -14,6 +16,7 @@ interface ProfileHeaderCardProps {
 
 export const ProfileHeaderCard: React.FC<ProfileHeaderCardProps> = ({
     currentUser,
+    liveLocation,
     calculateAge,
     handleUpdateLocation,
     isModalOpen,
@@ -68,7 +71,7 @@ export const ProfileHeaderCard: React.FC<ProfileHeaderCardProps> = ({
                             </div>
                             <div className="bg-slate-800/50 p-2 sm:p-3 rounded-xl border border-slate-700 flex flex-col items-center justify-center gap-0.5 sm:gap-1 relative group">
                                 <span className="text-slate-400 text-[9px] xs:text-[10px] sm:text-xs font-bold uppercase tracking-wider">KONUM</span>
-                                <span className="text-white font-sport text-base sm:text-lg font-bold truncate max-w-[100px] xs:max-w-[120px] sm:max-w-full text-center">{currentUser.location || 'İstanbul'}</span>
+                                <span className="text-white font-sport text-base sm:text-lg font-bold truncate max-w-[100px] xs:max-w-[120px] sm:max-w-full text-center">{liveLocation || currentUser.location || 'İstanbul'}</span>
                                 <button onClick={() => handleUpdateLocation(false)} className="absolute top-1 right-1 text-turf-500 hover:text-white transition-colors">
                                     <MapPin className="w-3 h-3" />
                                 </button>
@@ -98,7 +101,7 @@ export const ProfileHeaderCard: React.FC<ProfileHeaderCardProps> = ({
                     name: currentUser.full_name || currentUser.username,
                     position: currentUser.position || '-',
                     secondaryPosition: currentUser.secondaryPosition,
-                    location: currentUser.location,
+                    location: liveLocation || currentUser.location,
                     birthDate: currentUser.birthDate,
                     foot: currentUser.foot,
                     nationality: currentUser.nationality,

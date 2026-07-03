@@ -1,8 +1,12 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Geolocation } from '@capacitor/geolocation';
 import { App as CapApp } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
 import { LocationErrorType } from '../components/LocationPermissionSheet';
 import { calculateDistance } from '../utils/location';
+import api from '../services/api';
+import { getToken } from '../services/authStorage';
+import { useAuth } from './AuthContext';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -20,12 +24,18 @@ interface LocationContextValue {
   isLocating: boolean;
   /** Set when a location error occurs that requires user action */
   locationError: LocationErrorType | null;
+  /** Türetilmiş ilçe (örn. "Kâğıthane") — sunucudan gelir, uygulama geneli TEK değer */
+  locationName: string | null;
+  /** True while the coords→server sync (PATCH) is in flight */
+  isSyncing: boolean;
   /** Clear the location error */
   clearLocationError: () => void;
   /** Update the global radius and persist to localStorage */
   setRadius: (r: number) => void;
   /** Trigger a GPS permission request + position fetch */
-  requestLocation: () => Promise<void>;
+  requestLocation: (userInitiated?: boolean) => Promise<void>;
+  /** Kullanıcı-tetikli TAM tazeleme: GPS al → sunucuya PATCH → ilçe güncelle (hareket olmasa da) */
+  refreshLocation: () => Promise<void>;
   /** Directly update coords (used by background watch in App.tsx) */
   updateCoords: (c: Coords) => void;
 }
@@ -34,12 +44,17 @@ interface LocationContextValue {
 // Storage helpers
 // ─────────────────────────────────────────────────────────────────────────────
 const COORD_CACHE_KEY = 'marketplace_user_coords';
+const LOCNAME_CACHE_KEY = 'marketplace_user_location_name';
 const RADIUS_KEY = 'location_radius';
 const DEFAULT_RADIUS = 20;
 
 const getCachedCoords = (): Coords | null => {
   try { const r = localStorage.getItem(COORD_CACHE_KEY); return r ? JSON.parse(r) : null; }
   catch { return null; }
+};
+
+const getCachedLocationName = (): string | null => {
+  try { return localStorage.getItem(LOCNAME_CACHE_KEY); } catch { return null; }
 };
 
 const getSavedRadius = (): number => {
@@ -86,17 +101,29 @@ async function getPositionRobust() {
 const LocationContext = createContext<LocationContextValue | undefined>(undefined);
 
 export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isReady, token, isCustomer } = useAuth();
+
   const [coords, setCoords] = useState<Coords | null>(getCachedCoords);
   const [radius, setRadiusState] = useState<number>(getSavedRadius);
   const [permissionStatus, setPermissionStatus] = useState<PermissionStatus>('unknown');
   const [isLocating, setIsLocating] = useState(false);
   const [locationError, setLocationError] = useState<LocationErrorType | null>(null);
+  const [locationName, setLocationName] = useState<string | null>(getCachedLocationName);
+  const [isSyncing, setIsSyncing] = useState(false);
   const isLocatingRef = useRef(false);
   // permissionStatus'u ref'te tut: foreground handler güncel izni re-subscribe olmadan okusun
   // (mount effect [] bağımlılığıyla kalır).
   const permissionStatusRef = useRef<PermissionStatus>('unknown');
 
-  // Persist coords to sessionStorage and update state — only if moved >250m
+  // Konum→sunucu senkron durumu (tek PATCH yeri için)
+  const coordsRef = useRef<Coords | null>(coords);           // async akışlarda bayat-closure önlemi
+  const syncInFlightRef = useRef(false);                     // eşzamanlı çift PATCH'i engelle
+  const lastSyncedCoordsRef = useRef<Coords | null>(null);   // >250m kapısının referansı
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => { coordsRef.current = coords; }, [coords]);
+
+  // Persist coords to localStorage and update state — only if moved >250m
   const updateCoords = useCallback((newCoords: Coords) => {
     setCoords(prev => {
       if (prev && calculateDistance(prev.lat, prev.lng, newCoords.lat, newCoords.lng) < 0.25) {
@@ -114,6 +141,33 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, []);
 
   const clearLocationError = useCallback(() => setLocationError(null), []);
+
+  // ── Koordinatları sunucuya senkronla — İLÇE TÜRETMENİN TEK YERİ ──────────────
+  // Client hiçbir harici geocoder çağırmaz: sadece koordinat PATCH'ler, ilçeyi
+  // sunucu (offline point-in-polygon) türetip yanıtta `location` olarak döner.
+  // >250m kapısı sunucu spam'ini önler; `force` ise manuel tazelemede kapıyı atlar.
+  const syncLocationToServer = useCallback(async (c: Coords, force = false) => {
+    if (!getToken()) return;                 // login öncesi PATCH atma
+    if (syncInFlightRef.current) return;     // uçuşta olan varsa çift atma
+    const prev = lastSyncedCoordsRef.current;
+    if (!force && prev && calculateDistance(prev.lat, prev.lng, c.lat, c.lng) < 0.25) return;
+    syncInFlightRef.current = true;
+    setIsSyncing(true);
+    try {
+      const res = await api.patch('/users/me', { latitude: c.lat, longitude: c.lng });
+      lastSyncedCoordsRef.current = c;       // yalnız başarıda güncelle → hata olursa tekrar denenir
+      const name: string | null = res?.data?.location ?? null;
+      if (name) {
+        setLocationName(name);
+        try { localStorage.setItem(LOCNAME_CACHE_KEY, name); } catch { /* ignore */ }
+      }
+    } catch {
+      // ağ/sunucu hatası — sessizce geç; bir sonraki tick veya hareket tekrar dener
+    } finally {
+      syncInFlightRef.current = false;
+      setIsSyncing(false);
+    }
+  }, []);
 
   // Request GPS permission + get position.
   // userInitiated=true → izin 'prompt'/'prompt-with-rationale' ise sistem dialogunu göster
@@ -167,6 +221,14 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   }, [updateCoords]);
 
+  // Kullanıcı-tetikli tam tazeleme (Profilim "Konumu Güncelle" butonu): taze GPS al,
+  // sonra hareket olmasa da (force) sunucuya PATCH'le ve ilçeyi güncelle.
+  const refreshLocation = useCallback(async () => {
+    await requestLocation(true);
+    const c = coordsRef.current;
+    if (c) await syncLocationToServer(c, true);
+  }, [requestLocation, syncLocationToServer]);
+
   // Mount: zorunlu konum — izin promptable ise sistem dialogunu göster (userInitiated=true).
   // Foreground: SADECE izin zaten verilmişse konumu tazele. İzin verilmemişse hafif bir
   // checkPermissions yap (prompt yok, isLocating toggle yok, setState yok) ve yalnızca izin
@@ -195,11 +257,44 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Koordinat değişince sunucuya senkronla (yalnız müşteri). `updateCoords`'un >250m
+  // dedup'u sayesinde `coords` kimliği yalnız gerçek harekette değişir → burada gereksiz
+  // churn olmaz. İlk giriş de bu efektle karşılanır: coords ilk geldiğinde
+  // lastSyncedCoordsRef null olduğundan >250m kapısı atlanmaz, tek PATCH atılır.
+  useEffect(() => {
+    if (!coords || !isCustomer) return;
+    void syncLocationToServer(coords, false);
+  }, [coords, isCustomer, syncLocationToServer]);
+
+  // Periyodik tazeleme (iOS 3 dk / Android 2 dk): yalnız koordinatı yeniler; hareket
+  // >250m ise `updateCoords` yeni coords commit eder → yukarıdaki efekt PATCH'ler.
+  // Hareket yoksa hiçbir şey kımıldamaz (kapı tutar). Yalnız müşteri + izin granted.
+  useEffect(() => {
+    if (!isReady || !token || !isCustomer) return;
+    const INTERVAL = Capacitor.getPlatform() === 'ios' ? 3 * 60 * 1000 : 2 * 60 * 1000;
+    const tick = () => {
+      if (permissionStatusRef.current !== 'granted') return; // reddedilen izinde native bridge'i yorma
+      void requestLocation(false);
+    };
+    intervalRef.current = setInterval(tick, INTERVAL);
+    return () => {
+      if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
+    };
+  }, [isReady, token, isCustomer, requestLocation]);
+
+  // Çıkış / hesap değişimi: senkron referanslarını sıfırla ki yeni hesap kendi ilk
+  // PATCH'ini alsın (aksi halde >250m kapısı yeni hesabın ilk yazımını yutabilir).
+  useEffect(() => {
+    if (!token) {
+      lastSyncedCoordsRef.current = null;
+    }
+  }, [token]);
+
   const contextValue = useMemo<LocationContextValue>(() => ({
-    coords, radius, permissionStatus, isLocating, locationError,
-    clearLocationError, setRadius, requestLocation, updateCoords,
-  }), [coords, radius, permissionStatus, isLocating, locationError,
-       clearLocationError, setRadius, requestLocation, updateCoords]);
+    coords, radius, permissionStatus, isLocating, locationError, locationName, isSyncing,
+    clearLocationError, setRadius, requestLocation, refreshLocation, updateCoords,
+  }), [coords, radius, permissionStatus, isLocating, locationError, locationName, isSyncing,
+       clearLocationError, setRadius, requestLocation, refreshLocation, updateCoords]);
 
   return (
     <LocationContext.Provider value={contextValue}>

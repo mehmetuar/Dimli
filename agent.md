@@ -1188,3 +1188,56 @@ her yerde jenerik "Internal server error"). Kalıcı kurallar:
   ('internal server error'/'not found'...) gelirse Türkçe fallback'e düşer; artık server zaten Türkçe döner.
 - **Not:** Kalan içsel düz-Error listesi (chat 'Failed to create message', business 'findAll requires...',
   teams 'unique shortId'/'after update', sms/firebase/jwt config) global filtre ile Türkçe jenerik'e döner.
+
+---
+
+## 33. GPS konum yönetimi merkezileştirme + ÜCRETSİZ offline il/ilçe türetme (2026-07-03)
+
+> Sorun: konum her sayfada farklı davranıyordu (Sahalar güncelleniyor, Joker'de eski konum);
+> ilçe bayat kalıyordu ("Beşiktaş"). Eski yapı: 2 paralel GPS sistemi (LocationContext coords +
+> App.tsx gecikmeli poll) + 3 kopuk PATCH noktası, ilçe **ham Nominatim** ile (mobilde sık başarısız).
+
+### Maliyet kararı (KALICI): kullanıcı ilçesi = SUNUCU-TARAFI OFFLINE, geocoder ÜCRETİ YOK
+- Google Geocoding kullanıcı tarafında 10-20bin kullanıcıda ~$850–$9.000/ay (aylık ilk 10k ücretsiz,
+  sonrası ~$5/1000; $200 evrensel kredi Mart 2025'te kaldırıldı). Sadece **il/ilçe** gerektiği için
+  (açık adres değil) ücretli geocoder'a gerek YOK.
+- **İşletme tarafı Google'da KALIR** (`services/locationService.ts` reverseGeocode + `@vis.gl/react-google-maps`
+  haritası) — hacim küçük (birkaç kayıt), ücretsiz eşikte. Kullanıcı tarafı Google/Nominatim ARTIK YOK.
+
+### Sunucu — offline point-in-polygon (`server/src/geo/`)
+- **`ReverseGeocodeService`** (`reverse-geocode.service.ts`): boot'ta `turkey-districts.geojson`'u belleğe
+  yükler (974 ilçe poligonu, OSM admin_level=6, **ODbL** — atıf gerekir), her feature için bbox precompute.
+  `lookup(lat,lng) → {province, district} | null`: bbox ön-filtre + `@turf/boolean-point-in-polygon`.
+  ~mikrosaniye; **çağrı başına $0, sınırsız ölçek, offline**. Türkiye dışı/deniz/geçersiz → null.
+- **Veri seti**: `izzetkalic/geojsons-of-turkey` (git-lfs 45MB) → node ile temizlendi (Point'ler atıldı,
+  çeviri props'ları çıkarıldı, il plaka kodundan türetildi, 5 ondalık) → **11MB** `src/geo/turkey-districts.geojson`.
+  ⚠️ OSM yazımı: **"Kağıthane"** (şapkasız). Coğrafi sadeleştirme YAPILMADI (sınır doğruluğu korunsun).
+- **`nest-cli.json` `assets: ["geo/*.geojson"]`** → build'de `dist/geo/`'ya kopyalanır; servis `__dirname`
+  ile okur (dev src/geo, prod dist/geo, jest src/geo — hepsi çalışır).
+- **`UsersService.update`**: `latitude/longitude` gelince `reverseGeocode.lookup` → `dto.location = district`
+  (SUNUCU yetkili kaynak). Eşleşme yoksa location'a dokunma (son bilinen korunur). Server şeması değişmez
+  (`user.location` tek alan; district/city kolonu YOK). Test: `reverse-geocode.service.spec.ts` (Beşiktaş/
+  Kağıthane/Kadıköy/Çankaya/Konak + yurt dışı null).
+
+### Client — LocationContext TEK OTORİTE (harici geocoder YOK)
+- `contexts/LocationContext.tsx` artık coords + ilçe + sunucu senkronunun tek yeri. Client **hiç** geocoder
+  çağırmaz: sadece `PATCH /users/me {latitude,longitude}` atar, ilçeyi **yanıttaki `location`'dan** okur →
+  yeni `locationName` (uygulama geneli tek değer, `LOCNAME_CACHE_KEY` ile soğuk-açılış cache'i).
+- **Tek senkron fonksiyonu `syncLocationToServer(c,{force})`**: `getToken()` yoksa çık, `syncInFlightRef`
+  çift-uçuş engeli, **>250m kapısı** (`calculateDistance`; force atlar). İlk giriş: coords ilk geldiğinde
+  `lastSyncedCoordsRef` null → kapı atlanmaz → tek PATCH (ayrı first-entry effect'e gerek yok).
+- Efektler: `[coords,isCustomer]` → sync; **interval** (iOS 3dk/Android 2dk) → `requestLocation(false)` (coords
+  değişirse coords-effect senkronlar); logout'ta `lastSyncedCoordsRef` reset. **Yalnız `isCustomer`** (işletme
+  hesabında koşmaz). `refreshLocation()` = manuel tam tazeleme (force). `coordsRef` bayat-closure önlemi.
+- **Provider sırası DEĞİŞTİ** (`App.tsx`): `AuthProvider > SocketProvider > LocationProvider > FilterProvider`
+  (LocationContext'in `useAuth()` okuması için — CLAUDE.md sırası). 
+- **App.tsx**: tüm GPS poll/interval/Nominatim/foreground-konum SİLİNDİ (push/presence/ratings/badge KORUNDU).
+  `useJokerPool` coords-PATCH'i SİLİNDİ. `useUserProfile.handleUpdateLocation` → `refreshLocation()` + re-fetch
+  (izin-reddi ön-kontrolü kaldı); `ProfileHeaderCard` `liveLocation ?? currentUser.location` gösterir.
+
+### Doğrulama
+Sunucu `npm run build` ✓ + asset dist'e kopyalandı + jest spec ✓ (derlenmiş dist servisi 974 poligon, 2ms).
+Client `vite build` ✓ + `tsc --noEmit` (yalnız önceden var olan `LocationStep` window.google) + `npx cap copy` ✓
+(iOS `pod install` yerel CocoaPods/Ruby 3.4 unicode bug'ı — kod dışı, native değişiklik yok). **Deploy:** server
+Render'a (GeoModule), client **yeni native sürüm** ister. Cihaz testi: soğuk açılış→Joker doğru ilçe+mesafe;
+Profil canlı ilçe; Sahalar/maç pazarı tutarlı; 2-3dk tazeleme; izin-reddi; hesap değişimi.
