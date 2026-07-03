@@ -27,8 +27,11 @@ export const ChannelItem: React.FC<ChannelItemProps> = ({
     // dokununca "Seçenekler..." flaşı yok. onClick KULLANILMAZ — tap hook'ta touchend ile yakalanır.
     const rowRef = useLongPress<HTMLDivElement>({ onTap: onClick, onLongPress });
 
-    const statusInfo = getMatchStatusInfo(channel.reservation);
     const isJoker = channel.type === 'JOKER_NEGOTIATION';
+    // Joker DM'de listede maç durumu ("Onay Bekliyor" vb.) GÖSTERİLMEZ — davet edilen
+    // maçın rezervasyon durumu jokeri yanıltıyor. Yerine sabit "Müzakere Odası" etiketi
+    // (başlıktaki Chat.tsx stiliyle aynı); maçın gerçek durumu Sohbet Detayları'nda.
+    const statusInfo = isJoker ? null : getMatchStatusInfo(channel.reservation);
     const isGroup = channel.type === 'MATCH_GROUP';
     const bgClass = isJoker ? 'bg-yellow-500/5' : (statusInfo?.bgTint ?? '');
 
@@ -167,7 +170,7 @@ export const ChannelItem: React.FC<ChannelItemProps> = ({
                     >
                         {channel.name}
                     </span>
-                    <MatchStatusBadge reservation={channel.reservation} />
+                    {!isJoker && <MatchStatusBadge reservation={channel.reservation} />}
                 </div>
 
                 {/* Satır 2: Gönderen adı + son mesaj içeriği */}
@@ -178,8 +181,15 @@ export const ChannelItem: React.FC<ChannelItemProps> = ({
                     {renderLastMessage()}
                 </p>
 
-                {/* Satır 3: Maç durumu etiketi (opsiyonel) */}
-                {statusInfo && (
+                {/* Satır 3: Maç durumu etiketi (opsiyonel) — joker DM'de "Müzakere Odası" */}
+                {isJoker ? (
+                    <span
+                        className="flex items-center gap-1 text-yellow-500 font-semibold"
+                        style={{ fontSize: 'clamp(10px, 2.6vw, 12px)' }}
+                    >
+                        <Star className="w-2.5 h-2.5 fill-yellow-500" /> Müzakere Odası
+                    </span>
+                ) : statusInfo && (
                     <span
                         className={`${statusInfo.textColor} font-semibold`}
                         style={{ fontSize: 'clamp(10px, 2.6vw, 12px)' }}

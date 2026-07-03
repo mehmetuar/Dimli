@@ -917,6 +917,10 @@ export class ChatService {
                   name: match.pitch.business.name,
                   ownerPhone: match.pitch.business.owner?.phone ?? null,
                   address: match.pitch.business.address,
+                  // Joker DM detay modalı: konum + jokere uzaklık gösterimi için
+                  district: match.pitch.business.district ?? null,
+                  latitude: match.pitch.business.latitude ?? null,
+                  longitude: match.pitch.business.longitude ?? null,
                   isDeleted: !!match.pitch.business.deletedAt,
                 }
               : null,

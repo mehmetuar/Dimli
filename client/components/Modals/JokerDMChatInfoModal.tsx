@@ -1,8 +1,19 @@
 import React from 'react';
-import { X, Calendar, MapPin, Map, Phone, Users, User, Shield, Handshake, ChevronRight } from 'lucide-react';
+import { X, Calendar, MapPin, Map, Phone, Users, User, Shield, Handshake, ChevronRight, Banknote, Navigation } from 'lucide-react';
 import { getTacticalAdvice } from '../../services/geminiService';
 import { calculateAge } from '../../utils/calculateAge';
 import { useModalBodyClass } from '../../utils/useModalBodyClass';
+import { getMatchStatusInfo } from '../../pages/customer/Chat/utils/chatUtils';
+import { useLocationContext } from '../../contexts/LocationContext';
+import { calculateDistance } from '../../utils/location';
+
+// Maç durumu → joker için kısa açıklama
+const STATUS_DESCRIPTIONS: Record<string, string> = {
+    pending: 'Maç şu an işletme onayı bekliyor.',
+    confirmed: 'Maç kesinleşti — saha rezervasyonu onaylandı.',
+    played: 'Bu maç oynandı.',
+    unplayed: 'Bu maç oynanmadı / iptal edildi.',
+};
 
 interface Props {
     isOpen: boolean;
@@ -14,6 +25,7 @@ interface Props {
 
 export const JokerDMChatInfoModal: React.FC<Props> = ({ isOpen, onClose, channel, matchData, currentUser }) => {
     useModalBodyClass(isOpen);
+    const { coords } = useLocationContext(); // hook — erken return'den ÖNCE çağrılmalı
     if (!isOpen) return null;
 
     // Identify Joker
@@ -56,6 +68,16 @@ export const JokerDMChatInfoModal: React.FC<Props> = ({ isOpen, onClose, channel
         : '--:--';
 
     const matchType = matchData?.match?.matchType === 'kendi_aramizda' ? 'Kendi Aramızda' : 'Normal Maç';
+
+    // Maç durumu (chat listesindeki etiketle aynı mantık — joker burada görür)
+    const statusInfo = getMatchStatusInfo(reservation);
+    const statusDescription = statusInfo ? STATUS_DESCRIPTIONS[statusInfo.type] : null;
+
+    // Sahanın jokere uzaklığı (km) — konum izni veya saha koordinatı yoksa gizli
+    const distanceKm =
+        coords && business?.latitude != null && business?.longitude != null
+            ? calculateDistance(coords.lat, coords.lng, business.latitude, business.longitude)
+            : null;
 
     return (
         <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in p-0 sm:p-4">
@@ -125,15 +147,43 @@ export const JokerDMChatInfoModal: React.FC<Props> = ({ isOpen, onClose, channel
                         </h4>
 
                         <div className="space-y-4">
+                            {/* Maç Durumu — joker davet edildiği maçın nerede olduğunu bilsin */}
+                            {statusInfo && (
+                                <div className={`flex items-start gap-3 p-3 rounded-xl border ${statusInfo.borderColor} ${statusInfo.bgTint}`}>
+                                    <span
+                                        className={`w-2.5 h-2.5 rounded-full mt-1 flex-shrink-0 ${statusInfo.type === 'pending' ? 'animate-pulse' : ''}`}
+                                        style={{ backgroundColor: statusInfo.badgeColor }}
+                                    />
+                                    <div className="min-w-0">
+                                        <div className={`text-sm font-bold ${statusInfo.textColor}`}>Maç Durumu: {statusInfo.label}</div>
+                                        {statusDescription && <div className="text-xs text-slate-400 mt-0.5">{statusDescription}</div>}
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Pitch Info */}
                             <div className="flex items-start gap-3">
                                 <div className="bg-slate-900 p-2.5 rounded-xl border border-slate-700 text-turf-500">
                                     <Map className="w-5 h-5" />
                                 </div>
-                                <div className="flex-1">
+                                <div className="flex-1 min-w-0">
                                     <div className="text-white font-bold text-sm leading-tight">{finalPitchName}</div>
                                     <div className="text-slate-400 text-xs mt-0.5">{finalBusinessName}</div>
+                                    {(business?.district || business?.address) && (
+                                        <div className="flex items-start gap-1 mt-1.5">
+                                            <Navigation className="w-3 h-3 text-sky-400 flex-shrink-0 mt-0.5" />
+                                            <div className="min-w-0 text-xs">
+                                                {business?.district && <span className="text-white font-semibold">{business.district}</span>}
+                                                {business?.address && <p className="text-slate-400 line-clamp-2">{business.address}</p>}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
+                                {distanceKm != null && (
+                                    <span className="text-[11px] font-bold text-turf-400 bg-turf-900/30 px-2 py-1 rounded-full flex-shrink-0 flex items-center gap-1 self-start">
+                                        <Navigation className="w-2.5 h-2.5" /> {distanceKm} km
+                                    </span>
+                                )}
                             </div>
 
                             {/* Date & Time */}
@@ -148,6 +198,18 @@ export const JokerDMChatInfoModal: React.FC<Props> = ({ isOpen, onClose, channel
                                     </div>
                                 </div>
                             </div>
+
+                            {/* Saha Ücreti */}
+                            {pitch?.pricePerHour != null && (
+                                <div className="flex items-center gap-3 bg-slate-900/50 p-3 rounded-xl border border-slate-700/50">
+                                    <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center border border-slate-700 text-amber-400">
+                                        <Banknote className="w-4 h-4" />
+                                    </div>
+                                    <div className="text-sm font-medium text-slate-300">
+                                        Saha ücreti: <span className="text-white font-bold">₺{Number(pitch.pricePerHour).toLocaleString('tr-TR')}</span> <span className="text-slate-400 text-xs">/ saat</span>
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Match Type Details */}
                             <div className="flex items-center gap-3 bg-slate-900/50 p-3 rounded-xl border border-slate-700/50">

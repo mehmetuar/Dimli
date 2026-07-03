@@ -1241,3 +1241,32 @@ Client `vite build` ✓ + `tsc --noEmit` (yalnız önceden var olan `LocationSte
 (iOS `pod install` yerel CocoaPods/Ruby 3.4 unicode bug'ı — kod dışı, native değişiklik yok). **Deploy:** server
 Render'a (GeoModule), client **yeni native sürüm** ister. Cihaz testi: soğuk açılış→Joker doğru ilçe+mesafe;
 Profil canlı ilçe; Sahalar/maç pazarı tutarlı; 2-3dk tazeleme; izin-reddi; hesap değişimi.
+
+> **Not (2026-07-03):** Kullanıcı ilçe yazımındaki şapka farkını ("Kâğıthane" eski Nominatim verisi vs
+> OSM "Kağıthane") normalize etme fikrinden **vazgeçti** — mevcut haliyle kalacak, dokunma.
+
+---
+
+## 34. Joker daveti kartı + Joker DM durum/detay zenginleştirme (2026-07-03)
+
+> Joker davet bildirimi kartı zayıftı (yalnız takım/tarih/saha adı) ve joker DM'i chat listesinde
+> maçın rezervasyon durumunu ("Onay Bekliyor") gösterip jokeri yanıltıyordu.
+
+- **Server `sendJokerInvite` metadata genişledi** (`notifications.service.ts`): + `pitchPrice, playerCount,
+  matchType, businessDistrict, businessAddress, businessLat, businessLng` (match zaten `pitch.business`
+  ilişkileriyle yüklü — ek sorgu yok). Eski bildirimlerde bu alanlar yok → client alan yoksa satırı gizler.
+- **Server `getChannelMatchDetails`** (`chat.service.ts`): `pitch.business`'a + `district, latitude, longitude`
+  (canlı endpoint — eski joker kanalları da otomatik zenginleşir, backfill gerekmez).
+- **Client joker daveti kartı** (`Notifications/components/MatchRequestsTab.tsx`): yeniden tasarım — üstte
+  takım+tarih(+N Kişilik), altında bilgi paneli: saha satırı + **uzaklık rozeti** (`useLocationContext().coords`
+  + `calculateDistance` → "X km"), konum satırı (ilçe kalın + adres), **₺ücret/saat** satırı, maç tipi satırı.
+  `MATCH_TYPE_LABELS` map'i (kendi_aramizda/rakip_araniyor).
+- **Client chat listesi** (`Chat/components/ChannelItem.tsx`): JOKER_NEGOTIATION'da `statusInfo = null` →
+  rezervasyon durum etiketi ve `MatchStatusBadge` GÖSTERİLMEZ; yerine sabit sarı **"Müzakere Odası"** (+Star,
+  Chat.tsx başlık stiliyle aynı). Maçın gerçek durumu artık yalnız Sohbet Detayları'nda.
+- **Client `JokerDMChatInfoModal`**: İLGİLİ MAÇ başına **maç durumu chip'i** (`getMatchStatusInfo(reservation)`
+  yeniden kullanıldı: Onay Bekliyor/Kesinleşti/Oynanmış/Oynanmamış + kısa açıklama; pending'de pulse) + saha
+  satırına ilçe/adres + uzaklık rozeti + **saha ücreti** satırı. `useLocationContext` hook'u erken-return'den
+  ÖNCE çağrılır (hooks kuralı).
+- Doğrulama: server build ✓; client `tsc` (yalnız LocationStep) + build + `cap copy` ✓. Deploy sonrası yeni
+  JOKER_INVITE metadata'sı DB'de salt-okunur SELECT ile doğrulanabilir (bağlantı dizesi repoda TUTULMAZ, §9).

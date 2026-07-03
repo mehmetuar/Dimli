@@ -290,6 +290,16 @@ export class NotificationsService {
         pitchName: match.pitch?.name,
         businessName: match.pitch?.business?.name,
         note: note,
+        // Joker karar verirken görsün diye maç/saha detayları (kart zenginleştirme).
+        // match zaten pitch.business ilişkileriyle yüklü — ek sorgu yok. Eski
+        // bildirimlerde bu alanlar olmadığından client alan yoksa satırı gizler.
+        pitchPrice: match.pitch?.pricePerHour ?? null,
+        playerCount: match.playerCount ?? null,
+        matchType: match.matchType ?? null,
+        businessDistrict: match.pitch?.business?.district ?? null,
+        businessAddress: match.pitch?.business?.address ?? null,
+        businessLat: match.pitch?.business?.latitude ?? null,
+        businessLng: match.pitch?.business?.longitude ?? null,
       },
     });
 
