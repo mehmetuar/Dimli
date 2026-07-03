@@ -7,15 +7,19 @@ import {
   ForbiddenException,
   NotFoundException,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { In, IsNull, Repository } from 'typeorm';
 import { Notification } from './notification.entity';
 import { Challenge } from '../challenges/challenge.entity';
 import { ChatChannel } from '../chat/chat-channel.entity';
+import { ChatParticipant } from '../chat/chat-participant.entity';
 import { MatchAnnouncement } from '../match-announcements/match-announcement.entity';
 import { BusinessOwner } from '../business-owner/entities/business-owner.entity';
 import { User } from '../users/user.entity';
+import { Reservation } from '../reservations/entities/reservation.entity';
+import { istanbulDateTimeToUtc } from '../common/turkey-time.util';
 import { TeamsService } from '../teams/teams.service';
 import { AppGateway } from '../gateway/app.gateway';
 import { FirebaseService } from '../firebase/firebase.service';
@@ -37,6 +41,10 @@ export class NotificationsService {
     private businessOwnerRepository: Repository<BusinessOwner>,
     @InjectRepository(User)
     private usersRepository: Repository<User>,
+    @InjectRepository(ChatParticipant)
+    private chatParticipantsRepository: Repository<ChatParticipant>,
+    @InjectRepository(Reservation)
+    private reservationsRepository: Repository<Reservation>,
     @Inject(forwardRef(() => TeamsService))
     private teamsService: TeamsService,
     @Optional() private gateway: AppGateway,
@@ -233,6 +241,29 @@ export class NotificationsService {
     return saved;
   }
 
+  // Maçın rakip takımını çöz: önce matchAnnouncementId bağlı rezervasyon, yoksa
+  // eski-maç fallback'i (teamId + slotTime + type MATCH — getChannelMatchDetails
+  // deseni; chat.service.ts'te aynı helper'ın bir kopyası var). kendi_aramizda'da
+  // opponentTeamId null döner.
+  private async resolveOpponentTeamId(
+    match: MatchAnnouncement,
+  ): Promise<string | null> {
+    let reservation = await this.reservationsRepository.findOne({
+      where: { matchAnnouncementId: match.id },
+    });
+    if (!reservation) {
+      try {
+        const slotTime = istanbulDateTimeToUtc(match.date, match.time);
+        reservation = await this.reservationsRepository.findOne({
+          where: { teamId: match.teamId, slotTime, type: 'MATCH' },
+        });
+      } catch {
+        // tarih parse hatası → fallback atlanır
+      }
+    }
+    return reservation?.opponentTeamId ?? null;
+  }
+
   async sendJokerInvite(
     jokerId: string,
     matchId: string,
@@ -246,32 +277,86 @@ export class NotificationsService {
 
     if (!match) throw new NotFoundException('Maç bulunamadı.');
 
-    // F1: Davet her zaman match.team adına gönderilir — çağıran o takımın kaptanı
-    // veya yardımcı kaptanı olmalı. Aksi halde herhangi biri başka takım "adına"
-    // joker daveti gönderebilirdi.
-    const invitingTeam = match.team;
+    const opponentTeamId = await this.resolveOpponentTeamId(match);
+    const matchTeamIds = [match.teamId, opponentTeamId].filter(
+      Boolean,
+    ) as string[];
+
+    // F1 (2026-07-03 revizyonu): davet, maçtaki İKİ takımdan birinin kaptanı /
+    // yardımcı kaptanı tarafından KENDİ takımı adına gönderilir (eskiden yalnız
+    // ilan sahibi takım davet edebiliyordu; F2 gruba-ekleme kuralıyla hizalandı).
+    const inviter = await this.usersRepository.findOne({
+      where: { id: inviterId },
+      relations: ['team'],
+    });
+    const inviterTeam = inviter?.team;
     const isTeamLeader =
-      !!invitingTeam &&
-      (invitingTeam.captainId === inviterId ||
-        (invitingTeam.viceCaptainIds || []).includes(inviterId));
-    if (!isTeamLeader) {
+      !!inviterTeam &&
+      (inviterTeam.captainId === inviterId ||
+        (inviterTeam.viceCaptainIds || []).includes(inviterId));
+    if (!isTeamLeader || !matchTeamIds.includes(inviterTeam.id)) {
       throw new ForbiddenException(
-        'Bu takım adına joker daveti gönderme yetkiniz yok.',
+        'Bu maça joker daveti göndermek için iki takımdan birinin kaptanı veya yardımcı kaptanı olmalısınız.',
       );
     }
 
-    // Prevent duplicate invites
-    const existingInvite = await this.notificationsRepository.findOne({
+    // Davetli kuralları: maçın kadrolarındaki oyuncular ve zaten maç sohbetinde
+    // olanlar joker olarak davet edilemez.
+    if (jokerId === inviterId) {
+      throw new BadRequestException(
+        'Kendinizi joker olarak davet edemezsiniz.',
+      );
+    }
+    const joker = await this.usersRepository.findOne({
+      where: { id: jokerId },
+    });
+    if (!joker) {
+      throw new NotFoundException('Davet edilecek oyuncu bulunamadı.');
+    }
+    const jokerName = joker.full_name || joker.username;
+    if (joker.teamId && matchTeamIds.includes(joker.teamId)) {
+      throw new BadRequestException(
+        joker.teamId === inviterTeam.id
+          ? `${jokerName} zaten takımınızın oyuncusu — joker olarak davet edilemez.`
+          : `${jokerName} bu maçtaki rakip takımın oyuncusu — joker olarak davet edilemez.`,
+      );
+    }
+    const matchGroup = await this.chatChannelsRepository.findOne({
+      where: { relatedMatchId: matchId, type: 'MATCH_GROUP' },
+    });
+    if (matchGroup) {
+      const activeParticipant = await this.chatParticipantsRepository.findOne({
+        where: {
+          channelId: matchGroup.id,
+          userId: jokerId,
+          deletedAt: IsNull(),
+        },
+      });
+      if (activeParticipant) {
+        throw new ConflictException(
+          `${jokerName} zaten bu maçın sohbetine dahil.`,
+        );
+      }
+    }
+
+    // Duplicate koruması TAKIM kapsamlı (F7): aynı takım aynı jokere aynı maç
+    // için ikinci davet atamaz; RAKİP takımın daveti serbest. inviterId OR-dalı
+    // teamId'siz eski kayıtları da yakalar.
+    const existingInvites = await this.notificationsRepository.find({
       where: {
         userId: jokerId,
         type: 'JOKER_INVITE',
         relatedId: matchId,
       },
     });
-
-    if (existingInvite) {
+    const teamAlreadyInvited = existingInvites.some(
+      (n) =>
+        n.metadata?.teamId === inviterTeam.id ||
+        n.metadata?.inviterId === inviterId,
+    );
+    if (teamAlreadyInvited) {
       throw new ConflictException(
-        'Joker için bu maça zaten bir davet gönderilmiş.',
+        'Takımınız bu joker için bu maça zaten davet göndermiş.',
       );
     }
 
@@ -280,11 +365,11 @@ export class NotificationsService {
       type: 'JOKER_INVITE',
       relatedId: matchId,
       read: false,
-      message: `${match.team?.name} seni maça joker olarak davet ediyor!`,
+      message: `${inviterTeam.name} seni maça joker olarak davet ediyor!`,
       metadata: {
         inviterId,
-        teamId: match.teamId,
-        teamName: match.team?.name,
+        teamId: inviterTeam.id,
+        teamName: inviterTeam.name,
         matchDate: match.date,
         matchTime: match.time,
         pitchName: match.pitch?.name,
@@ -329,15 +414,23 @@ export class NotificationsService {
     inviterId: string,
     jokerId: string,
   ): Promise<string[]> {
-    // Find all JOKER_INVITE notifications sent to jokerId where metadata.inviterId matches
-    // It's a bit tricky to query JSONB directly for inviterId in TypeORM without exact Postgres syntax,
-    // so we'll fetch notifications for the joker and filter by inviterId.
+    // TAKIM kapsamlı: yardımcı kaptan, kaptanın gönderdiği daveti de "gönderilmiş"
+    // görür (metadata.teamId eşleşmesi); inviterId OR-dalı teamId'siz eski
+    // kayıtları ve takımsız çağıranı kapsar. JSONB'yi TypeORM ile sorgulamak
+    // yerine jokerin davetleri çekilip bellekte filtrelenir.
+    const inviter = await this.usersRepository.findOne({
+      where: { id: inviterId },
+    });
     const invites = await this.notificationsRepository.find({
       where: { userId: jokerId, type: 'JOKER_INVITE' },
     });
 
-    const sentByMe = invites.filter((n) => n.metadata?.inviterId === inviterId);
-    return sentByMe.map((n) => n.relatedId).filter(Boolean);
+    const sentByMyTeam = invites.filter(
+      (n) =>
+        (inviter?.teamId && n.metadata?.teamId === inviter.teamId) ||
+        n.metadata?.inviterId === inviterId,
+    );
+    return sentByMyTeam.map((n) => n.relatedId).filter(Boolean);
   }
 
   async cancelJokerInvite(
@@ -345,11 +438,28 @@ export class NotificationsService {
     jokerId: string,
     matchId: string,
   ): Promise<void> {
+    const inviter = await this.usersRepository.findOne({
+      where: { id: inviterId },
+      relations: ['team'],
+    });
+    const inviterTeam = inviter?.team;
+    const isLeader =
+      !!inviterTeam &&
+      (inviterTeam.captainId === inviterId ||
+        (inviterTeam.viceCaptainIds || []).includes(inviterId));
+
     const invites = await this.notificationsRepository.find({
       where: { userId: jokerId, type: 'JOKER_INVITE', relatedId: matchId },
     });
 
-    const toCancel = invites.find((n) => n.metadata?.inviterId === inviterId);
+    // Kendi gönderdiğin daveti her zaman, takımının davetini yalnız kaptan/
+    // yardımcı kaptansan iptal edebilirsin. Diğer takımın daveti dokunulmaz;
+    // eşleşme yoksa sessiz no-op (idempotent DELETE).
+    const toCancel = invites.find(
+      (n) =>
+        n.metadata?.inviterId === inviterId ||
+        (isLeader && n.metadata?.teamId === inviterTeam.id),
+    );
     if (toCancel) {
       await this.notificationsRepository.delete(toCancel.id);
     }
@@ -451,6 +561,30 @@ export class NotificationsService {
 
   async delete(id: string): Promise<void> {
     await this.notificationsRepository.delete(id);
+  }
+
+  // Sahiplik-kontrollü joker daveti silme: yalnız ilgili kullanıcıya ait bir
+  // JOKER_INVITE bildirimi silinir (keyfî bildirim silmeyi engeller). Hatalar
+  // yutulur — bayat davet temizliği best-effort'tur.
+  async deleteOwnJokerInvite(
+    notificationId: string | undefined | null,
+    userId: string,
+  ): Promise<void> {
+    if (!notificationId) return;
+    try {
+      const notification = await this.notificationsRepository.findOne({
+        where: { id: notificationId },
+      });
+      if (
+        notification &&
+        notification.userId === userId &&
+        notification.type === 'JOKER_INVITE'
+      ) {
+        await this.notificationsRepository.delete(notification.id);
+      }
+    } catch (e) {
+      this.logger.error('deleteOwnJokerInvite başarısız:', e);
+    }
   }
 
   async getUnreadCount(userId: string): Promise<number> {

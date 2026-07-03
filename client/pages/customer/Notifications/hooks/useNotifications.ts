@@ -220,6 +220,8 @@ export const useNotifications = () => {
         } catch (error: any) {
             console.error('Joker daveti kabul edilemedi:', error);
             setErrorMessage(error.response?.data?.message || 'Kabul edilemedi.');
+            // Sunucu geçersiz/bayat daveti sildiyse listeden anında düşür.
+            await fetchData();
         }
     };
 

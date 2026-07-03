@@ -388,8 +388,17 @@ export class ChatService {
         }
       }
 
+      // Katılımcı user nesnelerinden hassas alanları ayıkla (yanıt şekli korunur;
+      // client participants[].userId/deletedAt/user avatar alanlarını kullanır).
+      const sanitizedParticipants = channel.participants?.map((p: any) => {
+        if (!p.user) return p;
+        const { password: _pw, pushToken: _pt, ...safeUser } = p.user;
+        return { ...p, user: safeUser };
+      });
+
       return {
         ...channel,
+        participants: sanitizedParticipants,
         lastMessage,
         unreadCount,
         reservation: reservationData,
@@ -1358,6 +1367,40 @@ export class ChatService {
       throw new NotFoundException('Maç ilanı bulunamadı.');
     }
 
+    // 2b. Geçersiz/bayat davet kalkanı: davetli iki takımdan birinin oyuncusuysa
+    // veya zaten maç sohbetindeyse anlaşma kanalı AÇILMAZ; ölü davet bildirimi
+    // sahiplik-kontrollü silinir. (Kaynak engel sendJokerInvite'ta.)
+    const opponentTeamId = await this.resolveOpponentTeamIdForMatch(match);
+    const matchTeamIds = [match.teamId, opponentTeamId].filter(
+      Boolean,
+    ) as string[];
+    if (joker.teamId && matchTeamIds.includes(joker.teamId)) {
+      await this.notificationsService.deleteOwnJokerInvite(
+        data.notificationId,
+        userId,
+      );
+      throw new BadRequestException(
+        'Bu maçtaki takımlardan birinin oyuncususunuz — bu joker daveti geçersiz.',
+      );
+    }
+    const matchGroup = await this.chatChannelRepository.findOne({
+      where: { relatedMatchId: data.matchId, type: 'MATCH_GROUP' },
+    });
+    if (matchGroup) {
+      const activeParticipant = await this.chatParticipantRepository.findOne({
+        where: { channelId: matchGroup.id, userId, deletedAt: IsNull() },
+      });
+      if (activeParticipant) {
+        await this.notificationsService.deleteOwnJokerInvite(
+          data.notificationId,
+          userId,
+        );
+        throw new BadRequestException(
+          'Bu maçın sohbetine zaten dahilsiniz — bu joker daveti geçersiz.',
+        );
+      }
+    }
+
     // 3. Create a JOKER_NEGOTIATION channel
     const newChannel = await this.createChannel(
       'JOKER_NEGOTIATION',
@@ -1395,14 +1438,37 @@ export class ChatService {
       },
     );
 
-    // 5. Delete the notification
-    try {
-      await this.notificationsService.delete(data.notificationId);
-    } catch (e) {
-      logger.error(`Failed to delete Joker invite notification:`, e);
-    }
+    // 5. Delete the notification (sahiplik-kontrollü — yalnız jokerin kendi daveti)
+    await this.notificationsService.deleteOwnJokerInvite(
+      data.notificationId,
+      userId,
+    );
 
     return newChannel;
+  }
+
+  // Maçın rakip takımını çöz: önce matchAnnouncementId bağlı rezervasyon, yoksa
+  // eski-maç fallback'i (teamId + slotTime + type MATCH). kendi_aramizda'da
+  // opponentTeamId null döner. (notifications.service.ts resolveOpponentTeamId'in
+  // birebir kopyası — karşılıklı forwardRef'ten kaçınmak için; chat split 3/3'te
+  // ortak yardımcıya taşınabilir.)
+  private async resolveOpponentTeamIdForMatch(
+    match: MatchAnnouncement,
+  ): Promise<string | null> {
+    let reservation = await this.reservationRepository.findOne({
+      where: { matchAnnouncementId: match.id },
+    });
+    if (!reservation) {
+      try {
+        const slotTime = istanbulDateTimeToUtc(match.date, match.time);
+        reservation = await this.reservationRepository.findOne({
+          where: { teamId: match.teamId, slotTime, type: 'MATCH' },
+        });
+      } catch {
+        // tarih parse hatası → fallback atlanır
+      }
+    }
+    return reservation?.opponentTeamId ?? null;
   }
 
   /**
@@ -1474,6 +1540,18 @@ export class ChatService {
     ) {
       throw new ForbiddenException(
         'Joker eklemek için kaptan veya yardımcı kaptan olmalısınız.',
+      );
+    }
+
+    // Davetli kuralı (savunma katmanı): maçtaki iki takımdan birinin kadrosundaki
+    // oyuncu joker olarak gruba EKLENEMEZ (bayat/geçersiz davetlerin gruba
+    // dönüştürülmesini keser). Kaynak engel sendJokerInvite'ta; bu ikinci hat.
+    const jokerName = joker.full_name || joker.username;
+    if (joker.teamId && validTeamIds.includes(joker.teamId)) {
+      throw new BadRequestException(
+        joker.teamId === inviterTeamId
+          ? `${jokerName} zaten takımınızın oyuncusu — joker olarak eklenemez.`
+          : `${jokerName} bu maçtaki rakip takımın oyuncusu — joker olarak eklenemez.`,
       );
     }
 
@@ -1556,7 +1634,7 @@ export class ChatService {
     }
 
     // 5. Send system messages
-    const jokerName = joker.full_name || joker.username;
+    // (jokerName yukarıda davetli kuralı kontrolünde tanımlandı)
     // In the main match group
     await this.sendMessage(
       matchChannel.id,

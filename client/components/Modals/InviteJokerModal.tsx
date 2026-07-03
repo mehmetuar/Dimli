@@ -1,9 +1,11 @@
 
 
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, MapPin, Send, CheckCircle, Loader2 } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { X, Calendar, MapPin, Send, CheckCircle, Loader2, AlertTriangle } from 'lucide-react';
 import api from '../../services/api';
 import { KeyboardAwareModal } from './KeyboardAwareModal';
+import { getErrorMessage } from '../../utils/apiError';
 
 interface Props {
    isOpen: boolean;
@@ -24,6 +26,8 @@ const InviteJokerModalContent: React.FC<Props> = ({ isOpen, onClose, joker }) =>
    const [myMatches, setMyMatches] = useState<any[]>([]);
    const [isLoading, setIsLoading] = useState(true);
    const [sentMatchIds, setSentMatchIds] = useState<Set<string>>(new Set());
+   const [me, setMe] = useState<any>(null);
+   const [errorMessage, setErrorMessage] = useState('');
 
    // Confirmation Modal State
    const [showCancelConfirm, setShowCancelConfirm] = useState(false);
@@ -31,13 +35,26 @@ const InviteJokerModalContent: React.FC<Props> = ({ isOpen, onClose, joker }) =>
    useEffect(() => {
       if (!isOpen || !joker) return;
       setIsLoading(true);
+      setErrorMessage('');
+      setSelectedMatchId(null);
 
       Promise.all([
          api.get('/chat/channels'),
-         api.get(`/notifications/sent-joker-invites/${joker.id}`)
+         api.get(`/notifications/sent-joker-invites/${joker.id}`),
+         api.get('/users/me')
       ])
-         .then(([channelsRes, invitesRes]) => {
+         .then(([channelsRes, invitesRes, meRes]) => {
             const channels: any[] = channelsRes.data || [];
+            const meData = meRes.data;
+            setMe(meData);
+            const myTeam = meData?.team;
+            // Yalnız kaptanı/yardımcı kaptanı olduğum takımın maçları davet
+            // gönderme yetkisi verir. Joker olarak katıldığım maçlar (isJoker) ve
+            // yetkisi olmadığım maçlar listeden tamamen çıkarılır.
+            const iAmLeader =
+               !!myTeam &&
+               (myTeam.captainId === meData?.id ||
+                  (myTeam.viceCaptainIds || []).includes(meData?.id));
             const now = new Date();
             // Filter MATCH_GROUP channels where reservation is APPROVED (Kesinleşti) or PENDING
             // and the match date is in the future
@@ -51,7 +68,13 @@ const InviteJokerModalContent: React.FC<Props> = ({ isOpen, onClose, joker }) =>
                const isStatusValid = c.reservation.status === 'APPROVED' || c.reservation.status === 'PENDING';
                const isFutureMatch = new Date(c.reservation.slotTime) > now;
 
-               return isStatusValid && isFutureMatch;
+               const iLeadOneTeam =
+                  !c.isJoker &&
+                  iAmLeader &&
+                  (myTeam.id === c.reservation.teamId ||
+                     myTeam.id === c.reservation.opponentTeamId);
+
+               return isStatusValid && isFutureMatch && iLeadOneTeam;
             });
             setMyMatches(matchChannels);
 
@@ -61,6 +84,28 @@ const InviteJokerModalContent: React.FC<Props> = ({ isOpen, onClose, joker }) =>
          .catch(console.error)
          .finally(() => setIsLoading(false));
    }, [isOpen, joker]);
+
+   // Seçili joker maçın iki takımından birinin oyuncusuysa veya zaten maç
+   // sohbetindeyse o maça davet edilemez → satır soluk + neden etiketi.
+   const getIneligibleReason = (channel: any): string | null => {
+      const res = channel.reservation;
+      if (
+         joker?.teamId &&
+         (joker.teamId === res?.teamId || joker.teamId === res?.opponentTeamId)
+      ) {
+         return joker.teamId === me?.team?.id
+            ? 'Zaten takımının oyuncusu'
+            : 'Rakip takımın oyuncusu';
+      }
+      if (
+         channel.participants?.some(
+            (p: any) => p.userId === joker?.id && !p.deletedAt
+         )
+      ) {
+         return 'Zaten maç sohbetinde';
+      }
+      return null;
+   };
 
    const executeCancelInvite = async () => {
       if (!selectedMatchId) return;
@@ -75,7 +120,8 @@ const InviteJokerModalContent: React.FC<Props> = ({ isOpen, onClose, joker }) =>
          setShowCancelConfirm(false);
       } catch (error: any) {
          console.error('Failed to cancel joker invite:', error);
-         alert(error.response?.data?.message || 'İptal işlemi başarısız.');
+         setShowCancelConfirm(false);
+         setErrorMessage(getErrorMessage(error, 'İptal işlemi başarısız.'));
       } finally {
          setIsSending(false);
       }
@@ -84,6 +130,7 @@ const InviteJokerModalContent: React.FC<Props> = ({ isOpen, onClose, joker }) =>
    const executeSendInvite = async () => {
       if (!selectedMatchId) return;
       setIsSending(true);
+      setErrorMessage('');
       try {
          await api.post('/notifications/joker-invite', {
             jokerId: joker?.id,
@@ -100,7 +147,7 @@ const InviteJokerModalContent: React.FC<Props> = ({ isOpen, onClose, joker }) =>
          }, 2000);
       } catch (error: any) {
          console.error('Failed to toggle joker invite:', error);
-         alert(error.response?.data?.message || 'İşlem başarısız.');
+         setErrorMessage(getErrorMessage(error, 'İşlem başarısız.'));
       } finally {
          setIsSending(false);
       }
@@ -126,6 +173,7 @@ const InviteJokerModalContent: React.FC<Props> = ({ isOpen, onClose, joker }) =>
       <>
       <KeyboardAwareModal
          isOpen={isOpen}
+         portalToBody
          zClassName="z-[80]"
          panelClassName="bg-slate-800 w-full max-w-md rounded-3xl border border-slate-700 shadow-2xl"
          header={
@@ -161,6 +209,13 @@ const InviteJokerModalContent: React.FC<Props> = ({ isOpen, onClose, joker }) =>
                      <p className="text-xs text-slate-400 mt-1">Hangi maç için desteğe ihtiyacın var?</p>
                   </div>
 
+                  {errorMessage && (
+                     <div className="mb-4 px-4 py-3 rounded-xl bg-red-900/40 border border-red-500/40 text-red-300 text-sm flex items-start gap-2">
+                        <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                        <span>{errorMessage}</span>
+                     </div>
+                  )}
+
                   <div className="space-y-3 max-h-60 overflow-y-auto mb-6 pr-1">
                      {isLoading ? (
                         <div className="flex justify-center py-4">
@@ -176,25 +231,39 @@ const InviteJokerModalContent: React.FC<Props> = ({ isOpen, onClose, joker }) =>
                               ? new Date(res.slotTime).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
                               : '';
                            const pitchName = channel.pitch?.name || channel.name || 'Maç';
+                           const ineligibleReason = getIneligibleReason(channel);
+                           const isDisabled = !!ineligibleReason;
+                           const isSelected = selectedMatchId === channel.relatedMatchId;
                            return (
                               <div
                                  key={channel.id}
-                                 onClick={() => setSelectedMatchId(channel.relatedMatchId)}
-                                 className={`p-3 rounded-xl border cursor-pointer transition-all flex items-center gap-3 ${selectedMatchId === channel.relatedMatchId
-                                    ? 'bg-turf-900/30 border-turf-500'
-                                    : 'bg-slate-900 border-slate-700 hover:border-slate-500'
+                                 onClick={() => {
+                                    if (isDisabled) return;
+                                    setErrorMessage('');
+                                    setSelectedMatchId(channel.relatedMatchId);
+                                 }}
+                                 className={`p-3 rounded-xl border transition-all flex items-center gap-3 ${isDisabled
+                                    ? 'bg-slate-900 border-slate-800 opacity-50 cursor-not-allowed'
+                                    : isSelected
+                                       ? 'bg-turf-900/30 border-turf-500 cursor-pointer'
+                                       : 'bg-slate-900 border-slate-700 hover:border-slate-500 cursor-pointer'
                                     }`}
                               >
                                  <div className="bg-slate-800 p-2 rounded-lg">
-                                    <Calendar className={`w-5 h-5 ${selectedMatchId === channel.relatedMatchId ? 'text-turf-500' : 'text-slate-400'}`} />
+                                    <Calendar className={`w-5 h-5 ${isSelected && !isDisabled ? 'text-turf-500' : 'text-slate-400'}`} />
                                  </div>
-                                 <div className="flex-1">
+                                 <div className="flex-1 min-w-0">
                                     <div className="text-white font-bold text-sm">{dateStr}</div>
                                     <div className="text-xs text-slate-500 flex items-center gap-1">
-                                       <MapPin className="w-3 h-3" /> {pitchName}
+                                       <MapPin className="w-3 h-3 flex-shrink-0" /> <span className="truncate">{pitchName}</span>
                                     </div>
+                                    {ineligibleReason && (
+                                       <div className="text-[11px] text-amber-500/90 mt-0.5 flex items-center gap-1">
+                                          <AlertTriangle className="w-3 h-3 flex-shrink-0" /> {ineligibleReason}
+                                       </div>
+                                    )}
                                  </div>
-                                 <div className="text-xs font-bold text-slate-400 bg-slate-800 px-2 py-1 rounded">
+                                 <div className="text-xs font-bold text-slate-400 bg-slate-800 px-2 py-1 rounded flex-shrink-0">
                                     {timeStr}
                                  </div>
                               </div>
@@ -202,7 +271,7 @@ const InviteJokerModalContent: React.FC<Props> = ({ isOpen, onClose, joker }) =>
                         })
                      ) : (
                         <div className="text-center py-4 bg-slate-900 rounded-xl border border-dashed border-slate-700">
-                           <p className="text-slate-500 text-sm">Aktif maç ilanınız bulunmuyor.</p>
+                           <p className="text-slate-500 text-sm">Kaptanı veya yardımcı kaptanı olduğun takımın yaklaşan maçı yok.</p>
                         </div>
                      )}
                   </div>
@@ -237,9 +306,9 @@ const InviteJokerModalContent: React.FC<Props> = ({ isOpen, onClose, joker }) =>
             )}
       </KeyboardAwareModal>
 
-         {/* Cancel Confirmation Modal */}
-         {showCancelConfirm && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+         {/* Cancel Confirmation Modal — §35: fixed overlay createPortal(document.body) */}
+         {showCancelConfirm && createPortal(
+            <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
                <div className="bg-slate-800 rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-slate-700">
                   <h3 className="text-xl font-bold text-white text-center mb-2">Daveti İptal Et</h3>
                   <p className="text-slate-400 text-center text-sm mb-6">
@@ -263,7 +332,8 @@ const InviteJokerModalContent: React.FC<Props> = ({ isOpen, onClose, joker }) =>
                      </button>
                   </div>
                </div>
-            </div>
+            </div>,
+            document.body
          )}
       </>
    );
