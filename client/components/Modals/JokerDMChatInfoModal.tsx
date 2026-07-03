@@ -66,6 +66,10 @@ export const JokerDMChatInfoModal: React.FC<Props> = ({ isOpen, onClose, channel
     const timeStr = reservation?.slotTime
         ? new Date(reservation.slotTime).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
         : '--:--';
+    // Maç bitişi = başlangıç + 1 saat (uygulama geneli maç süresi; chatUtils ile tutarlı)
+    const endTimeStr = reservation?.slotTime
+        ? new Date(new Date(reservation.slotTime).getTime() + 60 * 60 * 1000).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+        : null;
 
     const matchType = matchData?.match?.matchType === 'kendi_aramizda' ? 'Kendi Aramızda' : 'Normal Maç';
 
@@ -193,8 +197,8 @@ export const JokerDMChatInfoModal: React.FC<Props> = ({ isOpen, onClose, channel
                                 </div>
                                 <div className="flex-1 flex justify-between items-center bg-slate-900 p-3 rounded-xl border border-slate-700">
                                     <div className="text-white font-bold text-sm">{dateStr}</div>
-                                    <div className="text-blue-400 font-black tracking-wider bg-blue-500/10 px-2 py-1 rounded-lg text-sm">
-                                        {timeStr}
+                                    <div className="text-blue-400 font-black tracking-wider bg-blue-500/10 px-2 py-1 rounded-lg text-sm whitespace-nowrap">
+                                        {timeStr}{endTimeStr ? ` - ${endTimeStr}` : ''}
                                     </div>
                                 </div>
                             </div>

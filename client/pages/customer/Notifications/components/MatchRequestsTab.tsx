@@ -12,6 +12,16 @@ const MATCH_TYPE_LABELS: Record<string, string> = {
     rakip_araniyor: 'Rakip Aranıyor',
 };
 
+// "23:00" → "00:00" — maç süresi uygulama genelinde 1 saat (chatUtils matchEndTime ile tutarlı).
+// Geçerli HH:MM parse edilemezse null döner (çağıran tek değere düşer).
+const addOneHour = (time?: string): string | null => {
+    const m = /^(\d{1,2}):(\d{2})$/.exec(time || '');
+    if (!m) return null;
+    const h = Number(m[1]);
+    if (h > 23 || Number(m[2]) > 59) return null;
+    return `${String((h + 1) % 24).padStart(2, '0')}:${m[2]}`;
+};
+
 interface MatchRequestsTabProps {
     matchRequests: Challenge[];
     rematchProposals: Notification[];
@@ -150,7 +160,7 @@ export const MatchRequestsTab: React.FC<MatchRequestsTabProps> = ({
                                     </div>
                                     <div className="flex items-center gap-2 text-xs text-slate-400 mt-1">
                                         <Calendar className="w-3 h-3 text-turf-500 flex-shrink-0" />
-                                        <span className="text-white font-bold">{meta.matchDate && meta.matchTime ? `${new Date(meta.matchDate).toLocaleDateString('tr-TR')} · ${meta.matchTime}` : 'Tarih Bilinmiyor'}</span>
+                                        <span className="text-white font-bold">{meta.matchDate && meta.matchTime ? `${new Date(meta.matchDate).toLocaleDateString('tr-TR')} · ${meta.matchTime}${addOneHour(meta.matchTime) ? ` - ${addOneHour(meta.matchTime)}` : ''}` : 'Tarih Bilinmiyor'}</span>
                                         {meta.playerCount && matchTypeLabel && (
                                             <span className="text-slate-400 truncate">· {meta.playerCount} Kişilik</span>
                                         )}
