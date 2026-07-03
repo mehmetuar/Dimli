@@ -1360,3 +1360,67 @@ Client `tsc --noEmit` (yalnız önceden var olan LocationStep) + `vite build` �
 teyit: son 5 challenge'ta level/fairPlay/saat/kişi/tip/saha/ücret/ilçe/adres/koordinat HEPSİ dolu.
 Cihaz testi: pazar-içi ilan → anında listede; bildirim kartı zengin; detay modallarında aralık/konum/
 uzaklık/Yol Tarifi/Sahayı Ara; Meydan Oku modalı zengin. Client değişikliği → **yeni native sürüm** ister.
+
+---
+
+## 37. Kullanıcı Giriş/Kayıt revizyonu — tam sayfa sihirbaz + kutlama ekranı (2026-07-03)
+
+> Kayıt/Şifremi Unuttum "yarım modal" (ortada yüzen max-w-md kart) görünümündeydi; adım geçişi
+> animasyonsuz, kayıt başarısında kutlama yoktu; `animate-shake` sınıfı TANIMSIZDI (hiç çalışmamış).
+> İşletme auth akışına DOKUNULMADI.
+
+- **`components/Layout/AuthWizardLayout.tsx` (YENİ):** müşteri auth sihirbazlarının ortak TAM SAYFA
+  kabuğu (Login'in fixed + negatif safe-area + gradient reçetesi). Üst: geri oku (44px) + logo +
+  `{step}/{total}` sayacı + progress bar + adım başlığı. Orta: TEK scroll konteyner (klavye kuralı).
+  Alt: akış-içi footer — `paddingBottom: keyboardHeight || max(12px, env(safe-area-inset-bottom))`
+  (capacitor `resize:'none'` → buton klavye üstünde durur). Adım içeriği `key={step}` +
+  `.animate-step-in` (kurumsal-sade geçişin TEK kaynağı — adım köküne ayrıca animasyon KOYMA).
+- **`components/UI/CelebrationScreen.tsx` (YENİ):** genel tam-ekran kutlama (portal + z-[9999],
+  opak gradient zemin, Lottie `src` prop'la değiştirilebilir, `autoCloseMs` timer'ı animasyondan
+  bağımsız → reduce-motion güvenli). Kayıt başarısı ("HOŞ GELDİN {AD}!", world-cup.json, 3.2sn →
+  `/` replace) ve Şifremi Unuttum başarısı (ball-success.json, 2.2sn → `/login` replace) kullanır.
+- **Register:** kart kalktı; 7 adım AuthWizardLayout üzerinde; `<form>` kaldırıldı (İleri/Tamamla
+  footer butonu); EULA işaretlenmeden "Kaydı Tamamla" görünür-disabled; `useRegister.handleRegister`
+  argümansız, sonda `navigate('/')` yerine `registerSuccess=true`. RegisterHeader/RegisterActions/
+  AccountStep/PersonalInfoStep (ölü) SİLİNDİ. Input reçetesi Login'le birleşti
+  (`bg-slate-800/40 border-slate-700/80 rounded-2xl focus:shadow-neon-sm`).
+- **ForgotPassword:** aynı layout (3 adım); "Farklı numara gir" artık `window.location.reload()`
+  değil `goBackToPhone()` (telefon dolu kalır, countdown sürer — SMS spam önlenir).
+- **§35 uyumu (yük taşıyıcı ön koşul):** BirthDatePickerModal + PositionPickerModal
+  `createPortal(document.body)`'ye alındı (z-[90]); CountryPickerModal'a `portalToBody` verildi —
+  aksi halde fixed sihirbaz içinde iOS'ta hapsolurlardı.
+- **index.css:** `stepIn` (0.32s, 10px yükselme) + `shake` keyframe'leri eklendi (reduce-motion
+  fallback'li). `animate-shake` bug'ı böylece kapandı; Login hata bandına da `key={errorNonce}` ile
+  bağlandı (art arda hatada yeniden titrer).
+- **Özel Lottie yuvaları** (kullanıcı animasyon bulunca tek `src` sabiti değişir):
+  (a) `REGISTER_SUCCESS_LOTTIE` (Register.tsx), (b) OTP adımı aksanı, (c) foto adımı kamera,
+  (d) ilk adım karşılama, (e) `RESET_SUCCESS_LOTTIE` (ForgotPassword.tsx — kilit açılma temalı).
+- Doğrulama: `tsc --noEmit` (yalnız önceden var olan LocationStep) + `vite build` + `cap copy` ✓.
+  Client değişikliği → **yeni native sürüm** ister.
+
+---
+
+## 38. Takım silme düzeltmesi + sihirbaz üst boşluk + kutlama davranışı (2026-07-03)
+
+> "Mavi şimşekler" vakası: geçmiş tarihli ama statüsü CONFIRMED/PENDING kalan kayıtlar takım
+> silmeyi engelliyordu; kaptan hesabı silinince takım captainId=NULL ile ÖKSÜZ kalıp artık hiç
+> silinemez hale geliyordu. Canlı DB'de kullanıcı onayıyla tek seferlik temizlik yapıldı (takım +
+> 3 challenge + 5 ilan silindi, 7 rezervasyonun takım bağı NULL'landı; başka öksüz takım yok).
+
+- **`teams.service.ts deleteTeam`:** engel kontrolleri artık TARİH-BİLİNÇLİ — yalnız GELECEK maçlar
+  engeller (ilan `date >= bugün`, rezervasyon `slotTime > now`; UTC/TR gün sınırında ~3 saat geç
+  serbest bırakma toleransı bilinçli). Silme öncesi **`purgeTeam(teamId)`** (guard'sız, tek
+  transaction): challenges + join_requests + TÜM match_announcements DELETE; reservation
+  teamId/opponentTeamId **NULL** (işletme rezervasyon geçmişi KORUNUR); üyeler team_id NULL; team
+  DELETE. QueryFailedError → Türkçe 400 (500 sızmaz).
+- **FK envanteri (takım):** challenges.fromTeamId, join_requests.teamId, match_announcements.team_id,
+  reservation.teamId/opponentTeamId, user.team_id — CASCADE YOK; yalnız team_bans CASCADE'li.
+  Yeni takım-bağlı tablo eklerken purgeTeam'e (ve users.service purgeTeamRaw'a) da ekle!
+- **`users.service.ts deleteAccount`:** kaptan silinirken devredilecek kimse yoksa (tek kişilik
+  takım) takım artık öksüz bırakılmaz — `purgeTeamRaw` (purgeTeam ile aynı SQL sırası; dairesel
+  modül bağımlılığı kurmamak için raw kopya — İKİSİ SENKRON TUTULMALI) ile takım da silinir.
+- **Client:** `AuthWizardLayout` header üst padding `clamp(20px,3.5vh,32px)` (min 10→20px — status
+  bar çakışması bitti). Register kutlamasında `autoCloseMs` KALDIRILDI: animasyon BAŞLA'ya basılana
+  dek döner, otomatik geçiş yok (kullanıcı kararı). ForgotPassword'daki 2.2sn otomatik geçiş kalır.
+- Doğrulama: server build ✓; client tsc (yalnız LocationStep) + build + cap copy ✓. Deploy: server
+  Render'a; client yeni native sürüm ister.
