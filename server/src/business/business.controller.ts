@@ -26,6 +26,7 @@ export class BusinessController {
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
     @Query('sort') sort?: string,
+    @Query('q') q?: string,
   ) {
     // ids: belirli işletmeleri konum kısıtlaması olmadan ID üzerinden çekmek
     // için (zaten ID'si bilinen bir kaynağı çekmek "tüm şehirleri tara" değildir).
@@ -46,6 +47,8 @@ export class BusinessController {
         'rating_count',
       ];
       const safeSort = allowed.includes(sort ?? '') ? sort! : 'distance';
+      // İşletme adıyla arama (Sahalar arama çubuğu) — boşsa filtre uygulanmaz.
+      const searchQ = (q ?? '').trim().slice(0, 60) || undefined;
       return this.businessService.findNearbyPaged({
         geoFilter,
         limit: Math.min(Math.max(parseInt(limit, 10) || 20, 1), 50),
@@ -56,6 +59,7 @@ export class BusinessController {
           | 'price_desc'
           | 'rating'
           | 'rating_count',
+        q: searchQ,
       });
     }
     return this.businessService.findAll({ geoFilter });

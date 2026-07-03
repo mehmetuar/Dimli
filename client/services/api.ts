@@ -118,10 +118,14 @@ export const getBusinessesPaged = async (params: {
     limit?: number;
     offset?: number;
     sort?: BusinessSort;
+    q?: string;
 }): Promise<{ items: any[]; total: number; hasMore: boolean }> => {
-    const { lat, lng, radius = 20, limit = 20, offset = 0, sort = 'distance' } = params;
+    const { lat, lng, radius = 20, limit = 20, offset = 0, sort = 'distance', q } = params;
+    const query: Record<string, any> = { lat, lng, radius, limit, offset, sort };
+    // Arama terimi yalnız doluysa gönderilir → aramasız istekler birebir aynı kalır.
+    if (q && q.trim()) query.q = q.trim();
     const response = await api.get('/businesses', {
-        params: { lat, lng, radius, limit, offset, sort },
+        params: query,
     });
     const data = response.data;
     // Geriye dönük uyumluluk: sunucu henüz sayfalamayı desteklemiyorsa (deploy edilmemiş eski

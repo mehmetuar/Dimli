@@ -38,6 +38,7 @@ export const PitchBooking: React.FC = () => {
       isDateFilterOpen, setIsDateFilterOpen,
       needTeamRoleModal, setNeedTeamRoleModal,
       sortBy, setSortBy, isSortOpen, setIsSortOpen,
+      searchQuery, setSearchQuery,
       selectedDate, setSelectedDate,
       reservations, slotDetailModal, setSlotDetailModal,
       currentUser, pitchAnnouncements,
@@ -59,6 +60,12 @@ export const PitchBooking: React.FC = () => {
    const [headerOpacity, setHeaderOpacity] = useState(1);
    const [pullDistance, setPullDistance] = useState(0);
    const [isRefreshing, setIsRefreshing] = useState(false);
+   // Arama çubuğu açık/kapalı (morph). Kapanınca terimi de temizle → liste varsayılana döner.
+   const [isSearchOpen, setIsSearchOpen] = useState(false);
+   const closeSearch = useCallback(() => {
+      setIsSearchOpen(false);
+      setSearchQuery('');
+   }, [setSearchQuery]);
 
    useEffect(() => {
       return () => {
@@ -256,6 +263,12 @@ export const PitchBooking: React.FC = () => {
                   onOpenLocationFilter={() => setIsLocationFilterOpen(true)}
                   onOpenDateFilter={() => setIsDateFilterOpen(true)}
                   onOpenSort={() => setIsSortOpen(true)}
+                  searchQuery={searchQuery}
+                  onSearchChange={setSearchQuery}
+                  isSearchOpen={isSearchOpen}
+                  onOpenSearch={() => setIsSearchOpen(true)}
+                  onCloseSearch={closeSearch}
+                  isSearching={isLoadingBusinesses && !!searchQuery}
                />
             </div>
 
@@ -280,13 +293,27 @@ export const PitchBooking: React.FC = () => {
                               fallback={<MapPin className="w-8 h-8 mx-auto mt-8 text-slate-600" />}
                            />
                         </div>
-                        <p className="mb-5">Belirlediğiniz konumda işletme bulunamadı.</p>
-                        <button
-                           onClick={() => setIsLocationFilterOpen(true)}
-                           className="bg-turf-600 hover:bg-turf-500 active:scale-[0.97] text-white font-bold text-sm py-2.5 px-5 rounded-xl transition-all shadow-lg shadow-turf-600/20"
-                        >
-                           Arama alanını genişlet
-                        </button>
+                        {searchQuery ? (
+                           <>
+                              <p className="mb-5">"<span className="text-slate-200 font-semibold">{searchQuery}</span>" için saha bulunamadı.</p>
+                              <button
+                                 onClick={() => setSearchQuery('')}
+                                 className="bg-turf-600 hover:bg-turf-500 active:scale-[0.97] text-white font-bold text-sm py-2.5 px-5 rounded-xl transition-all shadow-lg shadow-turf-600/20"
+                              >
+                                 Aramayı temizle
+                              </button>
+                           </>
+                        ) : (
+                           <>
+                              <p className="mb-5">Belirlediğiniz konumda işletme bulunamadı.</p>
+                              <button
+                                 onClick={() => setIsLocationFilterOpen(true)}
+                                 className="bg-turf-600 hover:bg-turf-500 active:scale-[0.97] text-white font-bold text-sm py-2.5 px-5 rounded-xl transition-all shadow-lg shadow-turf-600/20"
+                              >
+                                 Arama alanını genişlet
+                              </button>
+                           </>
+                        )}
                      </div>
                   ) : (
                      <>

@@ -31,6 +31,20 @@ export const usePitchBooking = () => {
     const [isLoadingBusinesses, setIsLoadingBusinesses] = useState(false);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [hasMore, setHasMore] = useState(false);
+
+    // İşletme adıyla arama (Sahalar arama çubuğu). searchQuery anlık input; debouncedQuery
+    // ~350ms sonra sunucuya gider (aşırı istek olmasın). Arama SERVER-SIDE: sunucu tüm
+    // yarıçap-adayında isim filtresini uygular → sonuç eksiksiz + sayfalı kalır.
+    const [searchQuery, setSearchQueryRaw] = useState('');
+    const [debouncedQuery, setDebouncedQuery] = useState('');
+    const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const setSearchQuery = useCallback((v: string) => {
+        setSearchQueryRaw(v);
+        if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+        searchDebounceRef.current = setTimeout(() => setDebouncedQuery(v.trim()), 350);
+    }, []);
+    useEffect(() => () => { if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current); }, []);
+
     // Offset hesabı ve B3 (gereksiz yeniden çekim) guard'ı için ref'ler.
     const businessesRef = useRef<Business[]>(businesses);
     businessesRef.current = businesses;
@@ -114,7 +128,7 @@ export const usePitchBooking = () => {
         // (yeni nesil başlatıp eski yanıtları geçersiz kılar).
         if (!reset && isFetchingRef.current) return;
         const round = (n: number) => n.toFixed(3);
-        const key = `${round(coords.lat)}|${round(coords.lng)}|${radius}|${sortBy}`;
+        const key = `${round(coords.lat)}|${round(coords.lng)}|${radius}|${sortBy}|${debouncedQuery}`;
         if (reset && !force && key === lastFetchKeyRef.current && businessesRef.current.length > 0) {
             return;
         }
@@ -127,12 +141,18 @@ export const usePitchBooking = () => {
             const res = await getBusinessesPaged({
                 lat: coords.lat, lng: coords.lng, radius,
                 limit: PAGE_SIZE, offset, sort: sortBy,
+                q: debouncedQuery || undefined,
             });
             if (gen !== fetchGenRef.current) return; // daha yeni bir reset bunu geçersiz kıldı
             const items: Business[] = res?.items ?? [];
             if (reset) {
                 setBusinesses(items);
-                localStorage.setItem('cached_businesses', JSON.stringify(items));
+                // Yalnız aramasız page-0 "anında Sahalar" önbelleğine yazılır — arama
+                // sonuçları soğuk-açılış cache'ini KİRLETMESİN. q temizlenince reset yine
+                // varsayılan page-0'ı çekip cache'ler.
+                if (!debouncedQuery) {
+                    localStorage.setItem('cached_businesses', JSON.stringify(items));
+                }
                 lastFetchKeyRef.current = key;
             } else {
                 setBusinesses(prev => [...prev, ...items]);
@@ -148,7 +168,7 @@ export const usePitchBooking = () => {
                 setIsLoadingMore(false);
             }
         }
-    }, [coords, radius, sortBy]);
+    }, [coords, radius, sortBy, debouncedQuery]);
 
     // Koordinat / yarıçap / sıralama değişince sayfa 0'a reset (guard içeride).
     useEffect(() => {
@@ -324,6 +344,7 @@ export const usePitchBooking = () => {
         isDateFilterOpen, setIsDateFilterOpen,
         needTeamRoleModal, setNeedTeamRoleModal,
         sortBy, setSortBy, isSortOpen, setIsSortOpen,
+        searchQuery, setSearchQuery,
         selectedDate, setSelectedDate,
         reservations, slotDetailModal, setSlotDetailModal,
         currentUser, pitchAnnouncements,

@@ -222,8 +222,9 @@ export class BusinessService {
     limit: number;
     offset: number;
     sort: 'distance' | 'price_asc' | 'price_desc' | 'rating' | 'rating_count';
+    q?: string;
   }): Promise<{ items: any[]; total: number; hasMore: boolean }> {
-    const { geoFilter, limit, offset, sort } = params;
+    const { geoFilter, limit, offset, sort, q } = params;
     const candidates = await this.geoCandidates(geoFilter);
     if (candidates.length === 0) return { items: [], total: 0, hasMore: false };
 
@@ -253,6 +254,18 @@ export class BusinessService {
         };
       });
 
+    // İşletme adıyla arama filtresi — sıralama/dilimlemeden ÖNCE uygulanır ki
+    // total/hasMore filtreli sayıyı yansıtsın (sayfalama doğru kalsın). Aday küme
+    // yarıçapla sınırlı olduğundan in-memory filtre yeterli (DB index gerekmez).
+    // Türkçe-duyarlı küçük harf: "İstanbul"/"istanbul", "Iğdır"/"ığdır" doğru eşleşsin.
+    const filtered = q
+      ? mapped.filter((b) =>
+          (b.name ?? '')
+            .toLocaleLowerCase('tr')
+            .includes(q.toLocaleLowerCase('tr')),
+        )
+      : mapped;
+
     const price = (b: any) => b.pitches?.[0]?.pricePerHour ?? 0;
     const primary = (a: any, b: any) => {
       switch (sort) {
@@ -272,14 +285,14 @@ export class BusinessService {
     // Eşit değerlerde STABİL ikincil anahtar (id): sayfalar arası öğe kayması/duplikasyonu
     // olmasın. fetchBusinessesByIds (IN) sırası deterministik değil → tek başına primary yetmez;
     // özellikle distanceKm 0.1'e yuvarlı ve rating varsayılan 5.0 olduğundan eşitlik sık.
-    const sorted = mapped.sort(
+    const sorted = filtered.sort(
       (a, b) => primary(a, b) || String(a.id).localeCompare(String(b.id)),
     );
 
     const total = sorted.length;
     const items = sorted.slice(offset, offset + limit);
     console.log(
-      `🏟️ Paged nearby: ${total} aday, sayfa=${offset}-${offset + limit} (sort=${sort})`,
+      `🏟️ Paged nearby: ${total} aday, sayfa=${offset}-${offset + limit} (sort=${sort}${q ? `, q="${q}"` : ''})`,
     );
     return { items, total, hasMore: offset + limit < total };
   }
