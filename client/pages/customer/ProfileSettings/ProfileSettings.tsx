@@ -12,6 +12,7 @@ import { PositionPickerModal } from '../../../components/UI/PositionPickerModal'
 import { CountryPickerModal } from '../../../components/UI/CountryPickerModal';
 import { Flag } from '../../../components/UI/Flag';
 import { getCountryName } from '../../../data/countries';
+import { sanitizeUsernameInput } from '../../../utils/username';
 import type { UsernameStatus } from './hooks/useProfile';
 
 const inputClass = 'w-full bg-slate-900/80 text-white px-4 py-3.5 rounded-xl border border-slate-700 focus:border-turf-500/70 focus:outline-none font-semibold text-sm placeholder-slate-600 transition-colors';
@@ -201,10 +202,15 @@ export const ProfileSettings: React.FC = () => {
                                             <input
                                                 type="text"
                                                 value={profileData.username}
-                                                onChange={e => setProfileData({ ...profileData, username: e.target.value })}
+                                                onChange={e => setProfileData({ ...profileData, username: sanitizeUsernameInput(e.target.value) })}
                                                 onFocus={scrollToInput}
                                                 className={`${inputClass} pr-10 ${usernameBorderClass}`}
                                                 placeholder="kullaniciadi"
+                                                maxLength={30}
+                                                autoComplete="username"
+                                                autoCapitalize="none"
+                                                autoCorrect="off"
+                                                spellCheck={false}
                                             />
                                             <span className="absolute right-3 top-1/2 -translate-y-1/2">
                                                 <UsernameStatusIcon status={usernameStatus} />

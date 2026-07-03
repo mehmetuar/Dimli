@@ -4,6 +4,7 @@ import api from '../../../../services/api';
 import { initializePushNotifications } from '../../../../services/pushNotificationService';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { isValidTurkishPhone, sanitizePhoneInput, PHONE_INVALID_MESSAGE } from '../../../../utils/phone';
+import { sanitizeUsernameInput, isValidUsername, normalizeUsername, USERNAME_INVALID_MESSAGE } from '../../../../utils/username';
 import { getErrorMessage } from '../../../../utils/apiError';
 
 export const useRegister = () => {
@@ -58,7 +59,10 @@ export const useRegister = () => {
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name } = e.target;
-        const value = name === 'phone' ? sanitizePhoneInput(e.target.value) : e.target.value;
+        const value =
+            name === 'phone' ? sanitizePhoneInput(e.target.value)
+            : name === 'username' ? sanitizeUsernameInput(e.target.value)
+            : e.target.value;
         setFormData({ ...formData, [name]: value });
         
         // Alan doldurulduğunda hatayı temizle
@@ -131,12 +135,14 @@ export const useRegister = () => {
                 errors.username = 'Kullanıcı adı zorunludur';
             } else if (formData.username.trim().length < 3) {
                 errors.username = 'En az 3 karakter olmalıdır';
+            } else if (!isValidUsername(normalizeUsername(formData.username))) {
+                errors.username = USERNAME_INVALID_MESSAGE;
             } else {
                 // Kullanıcı adı müsait mi kontrol et
                 setLoading(true);
                 try {
                     const res = await api.get('/users/check-username', {
-                        params: { username: formData.username.trim() },
+                        params: { username: normalizeUsername(formData.username) },
                     });
                     if (!res.data.available) {
                         errors.username = 'Bu kullanıcı adı zaten alınmış';
@@ -217,6 +223,7 @@ export const useRegister = () => {
             // boş email gönderilmez (class-validator @IsEmail() hatasını önler)
             const { avatarUrl, confirmPassword, email, ...rest } = formData;
             const payload: Record<string, any> = { ...rest };
+            payload.username = normalizeUsername(formData.username);
             if (email && email.trim() !== '') {
                 payload.email = email.trim();
             }
@@ -226,7 +233,7 @@ export const useRegister = () => {
 
             // Adım 2: Giriş → JWT al
             const loginResponse = await api.post('/auth/login', {
-                username: formData.username,
+                username: payload.username,
                 password: formData.password,
             });
 

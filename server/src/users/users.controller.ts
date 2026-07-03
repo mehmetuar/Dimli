@@ -16,6 +16,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { requireGeoFilter } from '../common/validate-geo.util';
+import { normalizeUsername, USERNAME_REGEX } from './username.util';
 
 @Controller('users')
 export class UsersController {
@@ -26,11 +27,12 @@ export class UsersController {
     @Query('username') username: string,
     @Query('excludeId') excludeId?: string,
   ): Promise<{ available: boolean }> {
-    if (!username || username.trim().length < 3) {
+    const normalized = username ? normalizeUsername(username) : '';
+    if (!USERNAME_REGEX.test(normalized)) {
       return { available: false };
     }
     const taken = await this.usersService.isUsernameTaken(
-      username.trim(),
+      normalized,
       excludeId,
     );
     return { available: !taken };

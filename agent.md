@@ -1476,3 +1476,40 @@ uzaklık/Yol Tarifi/Sahayı Ara; Meydan Oku modalı zengin. Client değişikliğ
   bırakma.** `pitch` yalnız DEFAULT+surface — numeric `pitch-<n>` kullanma.
 - Ek: MatchHistoryModal tarih bloğu arka planı yeşil tint → `bg-slate-800/60` (koyu, kullanıcı isteği).
 - Doğrulama: client tsc (yalnız LocationStep) + build + cap copy ✓. Yalnız client → yeni native sürüm.
+
+---
+
+## 41. KALICI KURAL: Kullanıcı adı normalizasyonu — Instagram-stili küçük harf (2026-07-04)
+
+### Kural
+- Kullanıcı adları **her zaman** `^[a-z0-9._]{3,30}$` — yalnız küçük harf, rakam, nokta, alt çizgi.
+- Türkçe girdi otomatik dönüştürülür: önce `toLocaleLowerCase('tr-TR')` (I→ı, İ→i), sonra
+  transliterasyon ç→c ğ→g ı→i ö→o ş→s ü→u. Örn: `IŞIK` → `isik`. â/î/û gibi şapkalı harfler
+  haritada **bilinçli olarak yok** — regex reddeder.
+- Tek kaynak util'ler: `server/src/users/username.util.ts` ve `client/utils/username.ts`
+  (birebir aynı mantık; birinde değişiklik → diğeri de güncellenir. Regex/haritayı ASLA kopyalama).
+
+### Sunucu nerede normalize eder
+- DTO katmanı: `CreateUserDto`/`UpdateUserDto` username alanında `@Transform(normalizeUsername)` +
+  `@Matches(USERNAME_REGEX)` (Türkçe hata mesajı) — global `ValidationPipe(transform:true)` sayesinde
+  Transform doğrulamadan önce çalışır; eski uygulama sürümlerinden gelen ham girdiye karşı asıl güvence.
+- `users.service.ts`: `findOne` (login buradan geçer) ve `isUsernameTaken` girdiyi normalize edip
+  `LOWER(user.username)` ile karşılaştırır — DB'de büyük harfli eski kayıt kalsa bile çalışır (bilinçli
+  tasarım: deploy/veri sıralamasından bağımsız). `create` benzersizliği `isUsernameTaken` ile kontrol
+  eder; `search` girdiyi normalize eder ("Işık" araması "isik"i bulur).
+- `users.controller.ts checkUsername`: normalize + regex geçmeyen aday `{available:false}`.
+
+### İstemci nerede normalize eder
+- `sanitizeUsernameInput` (yazarken canlı: küçült + translitere + izinsiz karakteri at + 30 kes):
+  kayıt `useRegister.handleChange`, profil `ProfileSettings` username inputu, `Login` username inputu.
+- `normalizeUsername` (API öncesi): register/login payload, check-username paramı (+`excludeId`),
+  profil PATCH payload'ı, `AddPlayerModal` arama terimi (görünen input değişmez).
+- `ProfileSettings/components/ProfileForm.tsx` ölü koddu → silindi.
+
+### Tek seferlik canlı DB işlemi (2026-07-04, kullanıcı onayıyla — §9 istisnası)
+- Tek transaction: `"Emre Aydoğdu "` (id `57e0c623-...`, boşluklu geçersiz ad) kullanıcısı **kullanıcının
+  açık talimatıyla** silindi; KANARYA takımı (tek üye, kaptan; id `eace80c9-...`) purge edildi
+  (deleteAccount + purgeTeamRaw SQL sırası). `account_deletions`'a `reason='ADMIN_MANUAL'` audit kaydı yazıldı.
+- Ardından `UPDATE "user" SET username = lower(username)` (10 satır). Sonuç: 14 kullanıcı, tamamı
+  regex'e uygun, sıfır duplicate (transaction içi DO-blok doğrulamalarıyla teyit edildi).
+- Mevcut JWT'lerdeki eski büyük harfli `username` payload'ı zararsız (her yerde `id` kullanılır).

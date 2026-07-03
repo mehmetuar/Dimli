@@ -125,7 +125,8 @@ export class BusinessService {
     const margin = 1.1;
     const latDelta = (radiusKm * margin) / 111.32; // ~km/derece (enlem)
     const cosLat = Math.cos((lat * Math.PI) / 180);
-    const lngDelta = (radiusKm * margin) / (111.32 * Math.max(0.01, Math.abs(cosLat)));
+    const lngDelta =
+      (radiusKm * margin) / (111.32 * Math.max(0.01, Math.abs(cosLat)));
     return {
       minLat: lat - latDelta,
       maxLat: lat + latDelta,

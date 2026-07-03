@@ -578,9 +578,10 @@ export class TeamsService implements OnModuleInit {
         [teamId],
       );
       // Üyeleri takımdan çıkar
-      await em.query(`UPDATE "user" SET "team_id" = NULL WHERE "team_id" = $1`, [
-        teamId,
-      ]);
+      await em.query(
+        `UPDATE "user" SET "team_id" = NULL WHERE "team_id" = $1`,
+        [teamId],
+      );
       await em.query(`DELETE FROM "team" WHERE "id" = $1`, [teamId]);
     });
   }

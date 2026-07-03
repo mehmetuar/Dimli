@@ -4,7 +4,14 @@ import {
   IsDateString,
   IsBoolean,
   IsNumber,
+  Matches,
 } from 'class-validator';
+import { Transform } from 'class-transformer';
+import {
+  normalizeUsername,
+  USERNAME_REGEX,
+  USERNAME_INVALID_MESSAGE,
+} from '../username.util';
 
 export class UpdateUserDto {
   @IsOptional()
@@ -12,7 +19,11 @@ export class UpdateUserDto {
   full_name?: string;
 
   @IsOptional()
+  @Transform(({ value }) =>
+    typeof value === 'string' ? normalizeUsername(value) : value,
+  )
   @IsString()
+  @Matches(USERNAME_REGEX, { message: USERNAME_INVALID_MESSAGE })
   username?: string;
 
   @IsOptional()

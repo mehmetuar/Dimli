@@ -5,6 +5,7 @@ import api from '../../../services/api';
 import { initializePushNotifications } from '../../../services/pushNotificationService';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useKeyboardHeight } from '../../../utils/useKeyboardHeight';
+import { sanitizeUsernameInput } from '../../../utils/username';
 import { LottiePlayer } from '../../../components/UI/LottiePlayer';
 
 type Phase = 'entering' | 'idle' | 'exiting-left';
@@ -160,7 +161,7 @@ export const Login: React.FC = () => {
                                     type="text"
                                     placeholder="Kullanıcı adınız"
                                     value={username}
-                                    onChange={(e) => setUsername(e.target.value)}
+                                    onChange={(e) => setUsername(sanitizeUsernameInput(e.target.value))}
                                     autoComplete="username"
                                     autoCapitalize="none"
                                     autoCorrect="off"

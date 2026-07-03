@@ -18,6 +18,7 @@ import { JoinRequest } from '../join-requests/join-request.entity';
 import { Notification } from '../notifications/notification.entity';
 import { Team } from '../teams/team.entity';
 import { ReverseGeocodeService } from '../geo/reverse-geocode.service';
+import { normalizeUsername } from './username.util';
 
 @Injectable()
 export class UsersService {
@@ -53,10 +54,11 @@ export class UsersService {
         throw new BadRequestException('Şifre gerekli.');
       }
 
-      const existing = await this.usersRepository.findOne({
-        where: { username: userData.username },
-      });
-      if (existing) {
+      // Harf duyarsız kontrol: DB'de eski büyük harfli kayıt kalmış olsa bile
+      // ("Hakam" varken "hakam") mükerrer kaydı engeller. Unique constraint
+      // yarış durumu sigortası olarak kalır.
+      const taken = await this.isUsernameTaken(userData.username);
+      if (taken) {
         throw new ConflictException('Bu kullanıcı adı zaten kullanılıyor.');
       }
 
@@ -74,11 +76,15 @@ export class UsersService {
     }
   }
 
+  // Username-anahtarlı TEK lookup ilkeli (login buradan geçer). Girdi normalize
+  // edilir ve LOWER() ile karşılaştırılır — eski uygulama sürümlerinden gelen
+  // "Hakam" gibi büyük harfli girişler de doğru kullanıcıyı bulur.
   async findOne(username: string): Promise<User | null> {
-    return this.usersRepository.findOne({
-      where: { username },
-      relations: ['team'],
-    });
+    return this.usersRepository
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.team', 'team')
+      .where('LOWER(user.username) = :u', { u: normalizeUsername(username) })
+      .getOne();
   }
 
   async isUsernameTaken(
@@ -87,7 +93,7 @@ export class UsersService {
   ): Promise<boolean> {
     const qb = this.usersRepository
       .createQueryBuilder('user')
-      .where('user.username = :username', { username });
+      .where('LOWER(user.username) = :u', { u: normalizeUsername(username) });
     if (excludeId) {
       qb.andWhere('user.id != :excludeId', { excludeId });
     }
@@ -102,7 +108,8 @@ export class UsersService {
   // Oyuncu Ekle araması: keşfet DEĞİL. Yalnız TAM kullanıcı adı (harf duyarsız) eşleşir
   // (username benzersiz → 0/1 sonuç). Yanıt herkese-açık alanlarla sınırlı (şifre vb. sızmaz).
   async search(query: string): Promise<Partial<User>[]> {
-    const q = query.trim();
+    // normalize: transliterasyon sayesinde "Işık" araması "isik"i bulur
+    const q = normalizeUsername(query);
     if (!q) return [];
     const users = await this.usersRepository
       .createQueryBuilder('user')

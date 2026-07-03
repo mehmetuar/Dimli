@@ -55,6 +55,7 @@ NestJS feature modules under `server/src/`. Each module follows entity → servi
 - `synchronize: true` in TypeORM config — new entity columns auto-create on server restart, no migrations needed
 - Entities auto-loaded via `autoLoadEntities: true`
 - `ValidationPipe(whitelist: true, transform: true)` applied globally in `main.ts`
+- Usernames are Instagram-style lowercase: `^[a-z0-9._]{3,30}$`, Turkish chars auto-transliterated. Single-source utils: `server/src/users/username.util.ts` + `client/utils/username.ts` (identical logic — never duplicate the regex/map elsewhere; see agent.md §41)
 
 ### Chat system
 - WebSocket gateway at `server/src/gateway/app.gateway.ts`; clients authenticate via `socket.handshake.auth.token`

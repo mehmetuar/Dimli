@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api, { getProfile, updateProfile, changePassword } from '../../../../services/api';
 import { useAuth } from '../../../../contexts/AuthContext';
+import { normalizeUsername, isValidUsername, USERNAME_INVALID_MESSAGE } from '../../../../utils/username';
 
 export type UsernameStatus = null | 'checking' | 'available' | 'taken';
 
@@ -55,18 +56,23 @@ export const useProfile = () => {
         loadProfile();
     }, []);
 
-    const checkUsernameAvailability = useCallback((username: string, original: string) => {
+    const checkUsernameAvailability = useCallback((username: string, original: string, selfId: string) => {
         if (usernameTimerRef.current) {
             clearTimeout(usernameTimerRef.current);
         }
-        if (username === original || username.length < 3) {
+        // original da normalize edilir: DB'de eski büyük harfli ad kalmışsa
+        // ("Hakam") değişmemiş alan "alınmış" sanılmasın
+        const normalized = normalizeUsername(username);
+        if (normalized === normalizeUsername(original) || normalized.length < 3) {
             setUsernameStatus(null);
             return;
         }
         setUsernameStatus('checking');
         usernameTimerRef.current = setTimeout(async () => {
             try {
-                const res = await api.get('/users/check-username', { params: { username } });
+                const res = await api.get('/users/check-username', {
+                    params: { username: normalized, ...(selfId ? { excludeId: selfId } : {}) },
+                });
                 setUsernameStatus(res.data.available ? 'available' : 'taken');
             } catch {
                 setUsernameStatus(null);
@@ -76,7 +82,7 @@ export const useProfile = () => {
 
     // Trigger username check whenever username field changes
     useEffect(() => {
-        checkUsernameAvailability(profileData.username, originalUsername);
+        checkUsernameAvailability(profileData.username, originalUsername, profileData.id);
     }, [profileData.username]);
 
     const loadProfile = async () => {
@@ -178,13 +184,18 @@ export const useProfile = () => {
             showError('Kullanıcı adı kontrol ediliyor, lütfen bekleyin.');
             return;
         }
+        const normalizedUsername = normalizeUsername(profileData.username);
+        if (normalizedUsername !== normalizeUsername(originalUsername) && !isValidUsername(normalizedUsername)) {
+            showError(USERNAME_INVALID_MESSAGE);
+            return;
+        }
 
         setSaving(true);
         setMessage(null);
 
         const payload: any = {
             full_name: profileData.full_name,
-            username: profileData.username,
+            username: normalizedUsername,
             position: profileData.position,
             secondaryPosition: profileData.secondaryPosition || null,
             foot: profileData.foot,
@@ -196,7 +207,8 @@ export const useProfile = () => {
 
         try {
             await updateProfile(payload);
-            setOriginalUsername(profileData.username);
+            setProfileData(prev => ({ ...prev, username: normalizedUsername }));
+            setOriginalUsername(normalizedUsername);
             setUsernameStatus(null);
             showSuccess('Profil başarıyla güncellendi.');
         } catch (error: any) {

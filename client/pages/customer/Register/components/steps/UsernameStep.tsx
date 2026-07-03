@@ -39,11 +39,16 @@ export const UsernameStep: React.FC<UsernameStepProps> = ({ formData, handleChan
                         autoCapitalize="none"
                         autoCorrect="off"
                         spellCheck={false}
+                        maxLength={30}
                         required
                     />
                 </div>
-                {error && (
+                {error ? (
                     <p className="text-red-400 text-xs font-bold ml-1 mt-1 animate-fade-in">{error}</p>
+                ) : (
+                    <p className="text-slate-500 text-xs ml-1 mt-1">
+                        Yalnızca küçük harf, rakam, nokta ve alt çizgi kullanılabilir.
+                    </p>
                 )}
             </div>
         </div>

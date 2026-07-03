@@ -5,11 +5,22 @@ import {
   IsOptional,
   MinLength,
   IsDateString,
+  Matches,
 } from 'class-validator';
+import { Transform } from 'class-transformer';
+import {
+  normalizeUsername,
+  USERNAME_REGEX,
+  USERNAME_INVALID_MESSAGE,
+} from '../username.util';
 
 export class CreateUserDto {
+  @Transform(({ value }) =>
+    typeof value === 'string' ? normalizeUsername(value) : value,
+  )
   @IsString()
   @IsNotEmpty()
+  @Matches(USERNAME_REGEX, { message: USERNAME_INVALID_MESSAGE })
   username: string;
 
   @IsString()
@@ -37,8 +48,6 @@ export class CreateUserDto {
   @IsNotEmpty()
   position: string;
 
-  @IsString()
-  @IsOptional()
   @IsString()
   @IsOptional()
   secondaryPosition?: string;

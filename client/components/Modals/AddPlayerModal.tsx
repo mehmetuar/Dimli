@@ -6,6 +6,7 @@ import { Browser } from '@capacitor/browser';
 import api from '../../services/api';
 import { KeyboardAwareModal } from './KeyboardAwareModal';
 import { getToken, decodeTokenPayload } from '../../services/authStorage';
+import { normalizeUsername } from '../../utils/username';
 
 interface Props {
     isOpen: boolean;
@@ -41,13 +42,15 @@ const AddPlayerModalContent: React.FC<Props> = ({ isOpen, onClose, currentRoster
     const handleSearch = async (term: string) => {
         setSearchTerm(term);
         setInviteError(null);
-        if (!term.trim()) {
+        // Görünen inputa dokunmadan normalize et — "IŞIK34" araması "isik34"ü bulur
+        const normalized = normalizeUsername(term);
+        if (!normalized) {
             setSearchResults([]);
             return;
         }
 
         try {
-            const response = await api.get(`/users/search?q=${encodeURIComponent(term.trim())}`);
+            const response = await api.get(`/users/search?q=${encodeURIComponent(normalized)}`);
             // Zaten kadroda olanları ele
             const results = response.data.filter((u: any) => !currentRosterIds.includes(u.id));
 
