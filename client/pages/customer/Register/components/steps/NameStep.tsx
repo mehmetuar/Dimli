@@ -15,12 +15,9 @@ interface NameStepProps {
 
 export const NameStep: React.FC<NameStepProps> = ({ formData, handleChange, fieldErrors }) => {
     const error = fieldErrors.full_name;
+    // Başlık layout header'ında; kök animasyonu layout'un keyed animate-step-in'i üstlenir.
     return (
-        <div className="space-y-4 animate-fade-in">
-            <div className="text-center mb-6">
-                <h2 className="text-xl font-bold text-white">Adın Nedir?</h2>
-                <p className="text-slate-400 text-sm">Diğer oyuncuların seni tanıması için gerçek adını gir</p>
-            </div>
+        <div className="space-y-4">
             <div>
                 <label className={`block text-xs font-bold uppercase mb-1 ${error ? 'text-red-400' : 'text-slate-400'}`}>
                     Ad Soyad
@@ -33,8 +30,8 @@ export const NameStep: React.FC<NameStepProps> = ({ formData, handleChange, fiel
                         value={formData.full_name}
                         onChange={handleChange}
                         onFocus={scrollInputIntoView}
-                        className={`w-full bg-slate-900 text-white pl-12 pr-4 py-4 rounded-xl border transition-colors focus:outline-none font-bold ${
-                            error ? 'border-red-500 focus:border-red-400' : 'border-slate-700 focus:border-turf-500'
+                        className={`w-full bg-slate-800/40 text-white pl-12 pr-4 py-4 rounded-2xl border transition-colors focus:outline-none font-bold ${
+                            error ? 'border-red-500 focus:border-red-400' : 'border-slate-700/80 focus:border-turf-500 focus:shadow-neon-sm'
                         }`}
                         placeholder="Adınız Soyadınız"
                         autoComplete="name"

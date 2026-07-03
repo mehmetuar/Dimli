@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import api from '../../../../services/api';
 
 export const useForgotPassword = () => {
@@ -13,8 +12,6 @@ export const useForgotPassword = () => {
     const [otpSent, setOtpSent] = useState(false);
     const [resendCountdown, setResendCountdown] = useState(0);
     const [success, setSuccess] = useState(false);
-
-    const navigate = useNavigate();
 
     // Geri sayım timer'ı
     useEffect(() => {
@@ -78,6 +75,15 @@ export const useForgotPassword = () => {
         }
     };
 
+    // "Farklı numara gir": reload'suz adım 1'e dön. Telefon dolu kalır;
+    // resendCountdown bilinçli sıfırlanmaz (SMS spam'ini önler).
+    const goBackToPhone = () => {
+        setStep(1);
+        setOtpSent(false);
+        setOtpCode('');
+        setError('');
+    };
+
     const resetPassword = async () => {
         setError('');
 
@@ -97,8 +103,8 @@ export const useForgotPassword = () => {
         setLoading(true);
         try {
             await api.post('/auth/forgot-password/reset', { phone, newPassword });
+            // Yönlendirme zamanlamasını kutlama ekranı (CelebrationScreen) üstlenir
             setSuccess(true);
-            setTimeout(() => navigate('/login'), 2000);
         } catch (err: any) {
             setError(err.response?.data?.message || 'Şifre güncellenemedi. Lütfen tekrar deneyin.');
         } finally {
@@ -123,6 +129,7 @@ export const useForgotPassword = () => {
         success,
         sendOtp,
         resendOtp,
+        goBackToPhone,
         resetPassword,
     };
 };

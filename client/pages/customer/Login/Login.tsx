@@ -14,6 +14,8 @@ export const Login: React.FC = () => {
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
+    // Art arda aynı hata gelse de shake yeniden oynasın diye key olarak kullanılır
+    const [errorNonce, setErrorNonce] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
@@ -50,6 +52,7 @@ export const Login: React.FC = () => {
             // başarıda navigate ile unmount → isSubmitting sıfırlanmaz (buton loader'da kalır)
         } catch (err: any) {
             setError('Giriş başarısız. Lütfen bilgilerinizi kontrol edin.');
+            setErrorNonce(n => n + 1);
             setIsSubmitting(false);
         }
     };
@@ -124,7 +127,8 @@ export const Login: React.FC = () => {
                 >
                     {error && (
                         <div
-                            className="bg-red-500/10 border border-red-500/50 text-red-400 rounded-xl text-center font-bold"
+                            key={errorNonce}
+                            className="bg-red-500/10 border border-red-500/50 text-red-400 rounded-xl text-center font-bold animate-shake"
                             style={{ padding: 'clamp(8px, 1.5vh, 12px)', fontSize: 'clamp(0.75rem, 2vh, 0.875rem)' }}
                         >
                             {error}
@@ -157,6 +161,10 @@ export const Login: React.FC = () => {
                                     placeholder="Kullanıcı adınız"
                                     value={username}
                                     onChange={(e) => setUsername(e.target.value)}
+                                    autoComplete="username"
+                                    autoCapitalize="none"
+                                    autoCorrect="off"
+                                    spellCheck={false}
                                     required
                                 />
                             </div>
@@ -180,6 +188,7 @@ export const Login: React.FC = () => {
                                     type={showPassword ? 'text' : 'password'}
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
+                                    autoComplete="current-password"
                                     className="w-full pl-11 pr-12 rounded-2xl bg-slate-800/40 border border-slate-700/80 text-white focus:outline-none focus:border-turf-500 focus:shadow-neon-sm transition-colors font-bold"
                                     style={{ height: 'clamp(36px, 6.5vh, 56px)', fontSize: 'clamp(0.85rem, 2.2vh, 1rem)' }}
                                     placeholder="••••••••"
@@ -199,7 +208,7 @@ export const Login: React.FC = () => {
                             <div className="flex justify-end" style={{ marginTop: 'clamp(2px, 0.6vh, 6px)' }}>
                                 <Link
                                     to="/forgot-password"
-                                    className="text-slate-400 font-bold hover:text-turf-400 transition-colors"
+                                    className="text-slate-400 font-bold hover:text-turf-400 transition-colors py-2 -my-2 px-1 -mx-1"
                                     style={{ fontSize: 'clamp(0.7rem, 1.8vh, 0.8rem)' }}
                                 >
                                     Şifremi Unuttum

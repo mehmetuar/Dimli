@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { X, Check, Shield, ShieldOff, Zap, Flame, Minus } from 'lucide-react';
 
 interface PositionOption {
@@ -72,9 +73,11 @@ export const PositionPickerModal: React.FC<PositionPickerModalProps> = ({
     const base = allowEmpty ? [EMPTY_OPTION, ...POSITION_OPTIONS] : POSITION_OPTIONS;
     const options = excludeKey ? base.filter(o => o.key !== excludeKey) : base;
 
-    return (
+    // §35: fixed overlay'ler document.body'ye portal'lanır — sabit/scroll konteyner
+    // içinde (ör. tam-sayfa kayıt sihirbazı) hapsolmasın.
+    return createPortal(
         <div
-            className="fixed inset-0 z-50 flex items-center justify-center px-5 bg-black/70 backdrop-blur-sm"
+            className="fixed inset-0 z-[90] flex items-center justify-center px-5 bg-black/70 backdrop-blur-sm"
             onClick={onClose}
         >
             <div
@@ -131,6 +134,7 @@ export const PositionPickerModal: React.FC<PositionPickerModalProps> = ({
                 {/* Bottom padding */}
                 <div className="pb-3" />
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };

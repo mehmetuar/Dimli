@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Camera, Check, ChevronRight } from 'lucide-react';
+import { Camera } from 'lucide-react';
 import { LoadingSpinner } from '../../../../../components/UI/LoadingSpinner';
 import { ImageCropModal } from '../../../../../components/Modals/ImageCropModal';
 
@@ -7,7 +7,6 @@ interface PhotoUploadStepProps {
     fullName: string;
     avatarUrl: string;
     uploadLoading: boolean;
-    registerLoading: boolean;
     onUpload: (file: File) => void;
 }
 
@@ -15,7 +14,6 @@ export const PhotoUploadStep: React.FC<PhotoUploadStepProps> = ({
     fullName,
     avatarUrl,
     uploadLoading,
-    registerLoading,
     onUpload,
 }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -36,13 +34,10 @@ export const PhotoUploadStep: React.FC<PhotoUploadStepProps> = ({
         onUpload(croppedFile);
     };
 
+    // Başlık layout header'ında; "Kaydı Tamamla" aksiyonu layout footer'ında
+    // (foto opsiyonel — fotolu/fotosuz aynı buton tamamlar, ayrı Atla gerekmez).
     return (
         <div className="space-y-6">
-            <div className="text-center">
-                <h2 className="text-white font-sport font-black text-2xl italic mb-1">FOTOĞRAF EKLE</h2>
-                <p className="text-slate-400 text-sm">İsteğe bağlı — daha sonra da ekleyebilirsin.</p>
-            </div>
-
             <div className="flex flex-col items-center gap-5 py-4">
                 {/* Avatar önizleme */}
                 <div
@@ -101,27 +96,6 @@ export const PhotoUploadStep: React.FC<PhotoUploadStepProps> = ({
                     onCancel={() => setCropFile(null)}
                 />
             )}
-
-            {/* Aksiyon butonları */}
-            <div className="flex gap-3 mt-6">
-                <button
-                    type="submit"
-                    disabled={registerLoading || uploadLoading}
-                    className="flex-1 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-white py-4 rounded-xl font-bold transition-colors flex items-center justify-center gap-2"
-                >
-                    Atla <ChevronRight className="w-4 h-4" />
-                </button>
-
-                {avatarUrl && (
-                    <button
-                        type="submit"
-                        disabled={registerLoading || uploadLoading}
-                        className="flex-1 bg-turf-600 hover:bg-turf-500 disabled:opacity-50 text-white py-4 rounded-xl font-bold shadow-lg shadow-turf-600/20 transition-colors flex items-center justify-center gap-2"
-                    >
-                        {registerLoading ? <LoadingSpinner size="sm" text="" /> : <><Check className="w-4 h-4" /> Tamamla</>}
-                    </button>
-                )}
-            </div>
         </div>
     );
 };

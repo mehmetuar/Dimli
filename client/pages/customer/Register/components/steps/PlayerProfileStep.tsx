@@ -25,20 +25,16 @@ export const PlayerProfileStep: React.FC<PlayerProfileStepProps> = ({ formData, 
         handleChange({ target: { name: picker.field, value: val } } as any);
     };
 
+    // Başlık layout header'ında; kök animasyonu layout'un keyed animate-step-in'i üstlenir.
     return (
-        <div className="space-y-4 animate-fade-in">
-            <div className="text-center mb-6">
-                <h2 className="text-xl font-bold text-white">Oyuncu Profili</h2>
-                <p className="text-slate-400 text-sm">Saha içindeki özelliklerin</p>
-            </div>
-
+        <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
                 <div>
                     <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Mevki</label>
                     <button
                         type="button"
                         onClick={() => openPicker('position')}
-                        className="w-full bg-slate-900 border-2 border-slate-700 rounded-xl px-4 py-4 text-left font-bold text-white flex items-center justify-between hover:border-slate-600 transition-colors"
+                        className="w-full bg-slate-800/40 border border-slate-700/80 rounded-2xl px-4 py-4 text-left font-bold text-white flex items-center justify-between hover:border-turf-500 transition-colors"
                     >
                         <span className="text-sm">{formData.position || 'Seç...'}</span>
                         <ChevronRight className="w-4 h-4 text-slate-500" />
@@ -49,7 +45,7 @@ export const PlayerProfileStep: React.FC<PlayerProfileStepProps> = ({ formData, 
                     <button
                         type="button"
                         onClick={() => openPicker('secondaryPosition')}
-                        className="w-full bg-slate-900 border-2 border-slate-700 rounded-xl px-4 py-4 text-left font-bold flex items-center justify-between hover:border-slate-600 transition-colors"
+                        className="w-full bg-slate-800/40 border border-slate-700/80 rounded-2xl px-4 py-4 text-left font-bold flex items-center justify-between hover:border-turf-500 transition-colors"
                     >
                         <span className={`text-sm ${formData.secondaryPosition ? 'text-white' : 'text-slate-500'}`}>
                             {formData.secondaryPosition || 'Seçiniz'}
@@ -66,10 +62,10 @@ export const PlayerProfileStep: React.FC<PlayerProfileStepProps> = ({ formData, 
                                 key={opt}
                                 type="button"
                                 onClick={() => handleChange({ target: { name: 'foot', value: opt } } as any)}
-                                className={`py-3 rounded-xl font-bold text-sm transition-all ${
+                                className={`py-3 rounded-2xl font-bold text-sm transition-all active:scale-[0.97] ${
                                     formData.foot === opt
-                                        ? 'bg-turf-600 text-white shadow-lg'
-                                        : 'bg-slate-900 text-slate-400 border-2 border-slate-700 hover:border-slate-500'
+                                        ? 'bg-turf-600 text-white shadow-lg shadow-turf-600/20'
+                                        : 'bg-slate-800/40 text-slate-400 border border-slate-700/80 hover:border-turf-500'
                                 }`}
                             >
                                 {opt}
@@ -83,7 +79,7 @@ export const PlayerProfileStep: React.FC<PlayerProfileStepProps> = ({ formData, 
                     <button
                         type="button"
                         onClick={() => setCountryPickerOpen(true)}
-                        className="w-full bg-slate-900 border-2 border-slate-700 rounded-xl px-4 py-4 text-left font-bold text-white flex items-center justify-between hover:border-slate-600 transition-colors"
+                        className="w-full bg-slate-800/40 border border-slate-700/80 rounded-2xl px-4 py-4 text-left font-bold text-white flex items-center justify-between hover:border-turf-500 transition-colors"
                     >
                         <span className="flex items-center gap-2 min-w-0">
                             <Flag code={nationality} />

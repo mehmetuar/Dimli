@@ -35,16 +35,15 @@ export const PhoneVerificationStep: React.FC<PhoneVerificationStepProps> = ({
 }) => {
     const error = fieldErrors.phone;
 
+    // Başlık layout header'ında; kök animasyonu layout'un keyed animate-step-in'i üstlenir.
+    // Dinamik yardımcı metin gövdede kalır (otpSent'e göre değişir).
     return (
-        <div className="space-y-4 animate-fade-in">
-            <div className="text-center mb-6">
-                <h2 className="text-xl font-bold text-white">Telefon Doğrulama</h2>
-                <p className="text-slate-400 text-sm">
-                    {otpSent
-                        ? 'SMS ile gönderilen 6 haneli kodu gir'
-                        : 'Telefon numaranı doğrulamak için kod gönderilecek'}
-                </p>
-            </div>
+        <div className="space-y-4">
+            <p className="text-slate-400 text-sm">
+                {otpSent
+                    ? 'SMS ile gönderilen 6 haneli kodu gir'
+                    : 'Telefon numaranı doğrulamak için kod gönderilecek'}
+            </p>
 
             {/* Telefon girişi */}
             <div>
@@ -61,8 +60,8 @@ export const PhoneVerificationStep: React.FC<PhoneVerificationStepProps> = ({
                             onChange={handleChange}
                             onFocus={scrollInputIntoView}
                             disabled={otpSent}
-                            className={`w-full bg-slate-900 text-white pl-12 pr-4 py-4 rounded-xl border focus:outline-none font-bold transition-colors
-                                ${otpSent ? 'border-slate-600 opacity-60 cursor-not-allowed' : error ? 'border-red-500 focus:border-red-400' : 'border-slate-700 focus:border-turf-500'}`}
+                            className={`w-full bg-slate-800/40 text-white pl-12 pr-4 py-4 rounded-2xl border focus:outline-none font-bold transition-colors
+                                ${otpSent ? 'border-slate-600 opacity-60 cursor-not-allowed' : error ? 'border-red-500 focus:border-red-400' : 'border-slate-700/80 focus:border-turf-500 focus:shadow-neon-sm'}`}
                             placeholder="0555 555 55 55"
                         />
                     </div>
@@ -70,7 +69,7 @@ export const PhoneVerificationStep: React.FC<PhoneVerificationStepProps> = ({
                         type="button"
                         onClick={sendOtp}
                         disabled={otpLoading || (otpSent && resendCountdown > 0) || !formData.phone}
-                        className={`px-4 py-4 rounded-xl font-bold text-sm whitespace-nowrap transition-all
+                        className={`px-4 py-4 rounded-2xl font-bold text-sm whitespace-nowrap transition-all
                             ${otpSent && resendCountdown > 0
                                 ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
                                 : 'bg-turf-500 hover:bg-turf-400 text-white active:scale-95'

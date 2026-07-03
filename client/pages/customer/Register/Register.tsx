@@ -1,13 +1,14 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { ChevronRight, Check } from 'lucide-react';
 
 // Hooks
 import { useRegister } from './hooks/useRegister';
-import { useKeyboardHeight } from '../../../utils/useKeyboardHeight';
 
 // Components
-import { RegisterHeader } from './components/RegisterHeader';
-import { RegisterActions } from './components/RegisterActions';
+import { AuthWizardLayout } from '../../../components/Layout/AuthWizardLayout';
+import { CelebrationScreen } from '../../../components/UI/CelebrationScreen';
+import { LottiePlayer } from '../../../components/UI/LottiePlayer';
 import { UsernameStep } from './components/steps/UsernameStep';
 import { PasswordStep } from './components/steps/PasswordStep';
 import { NameStep } from './components/steps/NameStep';
@@ -18,8 +19,22 @@ import { PhotoUploadStep } from './components/steps/PhotoUploadStep';
 
 const TOTAL_STEPS = 7;
 
+// Kayıt kutlaması Lottie'si — özel bir animasyon bulununca yalnız bu satır değişir
+const REGISTER_SUCCESS_LOTTIE = '/animations/world-cup.json';
+
+// Adım başlıkları layout header'ında gösterilir (adım bileşenlerinde büyük başlık YOK)
+const STEP_META: { title: string; subtitle?: string }[] = [
+    { title: 'Kullanıcı Adı', subtitle: 'Sana özel bir kullanıcı adı seç' },
+    { title: 'Şifre', subtitle: 'Hesabın için güçlü bir şifre belirle' },
+    { title: 'Ad Soyad', subtitle: 'Sahada görünecek adın' },
+    { title: 'Telefon Doğrulama', subtitle: 'SMS ile 6 haneli kod göndereceğiz' },
+    { title: 'Doğum Tarihi', subtitle: 'E-posta eklemek isteğe bağlı' },
+    { title: 'Oyuncu Profili', subtitle: 'Mevki, ayak ve uyruk bilgin' },
+    { title: 'Profil Fotoğrafı', subtitle: 'İsteğe bağlı — sonra da ekleyebilirsin' },
+];
+
 export const Register: React.FC = () => {
-    const keyboardHeight = useKeyboardHeight();
+    const navigate = useNavigate();
     const {
         step,
         formData,
@@ -33,6 +48,7 @@ export const Register: React.FC = () => {
         setOtpCode,
         resendCountdown,
         uploadLoading,
+        registerSuccess,
         handleChange,
         sendOtp,
         uploadAvatar,
@@ -43,116 +59,133 @@ export const Register: React.FC = () => {
 
     const [eulaAccepted, setEulaAccepted] = React.useState(false);
 
-    const handleFormSubmit = (e: React.FormEvent) => {
-        if (step === 7 && !eulaAccepted) {
-            e.preventDefault();
-            return;
-        }
-        handleRegister(e);
-    };
+    // Adım 4'te İleri, telefon doğrulanana dek gizli (OTP zaten otomatik ilerletiyor)
+    const showPrimary = step !== 4 || otpVerified;
+    const isFinalStep = step === TOTAL_STEPS;
+    const busy = loading || uploadLoading;
 
     return (
-        <div
-            className="min-h-screen bg-pitch flex flex-col items-center justify-start px-4 pt-10 pb-16"
-            style={{ paddingBottom: keyboardHeight > 0 ? keyboardHeight + 16 : undefined }}
-        >
-            <div className="w-full max-w-md bg-slate-800 p-8 rounded-3xl border border-slate-700 shadow-2xl relative overflow-hidden">
-
-                <RegisterHeader step={step} totalSteps={TOTAL_STEPS} />
-
-                {error && (
-                    <div className="bg-red-500/10 border border-red-500/50 text-red-400 p-3 rounded-xl mb-6 text-sm font-bold text-center animate-shake">
-                        {error}
-                    </div>
-                )}
-
-                <form onSubmit={handleFormSubmit}>
-                    {step === 1 && <UsernameStep formData={formData} handleChange={handleChange} fieldErrors={fieldErrors} />}
-                    {step === 2 && <PasswordStep formData={formData} handleChange={handleChange} fieldErrors={fieldErrors} />}
-                    {step === 3 && <NameStep formData={formData} handleChange={handleChange} fieldErrors={fieldErrors} />}
-                    {step === 4 && (
-                        <PhoneVerificationStep
-                            formData={formData}
-                            handleChange={handleChange}
-                            otpSent={otpSent}
-                            otpVerified={otpVerified}
-                            otpLoading={otpLoading}
-                            otpCode={otpCode}
-                            setOtpCode={setOtpCode}
-                            resendCountdown={resendCountdown}
-                            sendOtp={sendOtp}
-                            fieldErrors={fieldErrors}
-                        />
-                    )}
-                    {step === 5 && <BirthDateEmailStep formData={formData} handleChange={handleChange} fieldErrors={fieldErrors} />}
-                    {step === 6 && <PlayerProfileStep formData={formData} handleChange={handleChange} fieldErrors={fieldErrors} />}
-                    {step === 7 && (
-                        <>
-                            <PhotoUploadStep
-                                fullName={formData.full_name}
-                                avatarUrl={formData.avatarUrl}
-                                uploadLoading={uploadLoading}
-                                registerLoading={loading}
-                                onUpload={uploadAvatar}
-                            />
-
-                            {/* Apple 1.2 — EULA onayı kayıt öncesi zorunlu */}
-                            <label className="flex items-start gap-3 mt-5 cursor-pointer select-none">
-                                <input
-                                    type="checkbox"
-                                    checked={eulaAccepted}
-                                    onChange={e => setEulaAccepted(e.target.checked)}
-                                    className="mt-0.5 w-4 h-4 accent-turf-500 shrink-0"
-                                />
-                                <span className="text-slate-400 text-xs leading-relaxed">
-                                    <button
-                                        type="button"
-                                        onClick={() => window.open('https://dimli.com.tr/kullanim-sartlari', '_system')}
-                                        className="text-turf-500 underline underline-offset-2"
-                                    >
-                                        Kullanım Şartları
-                                    </button>'nı ve{' '}
-                                    <button
-                                        type="button"
-                                        onClick={() => window.open('https://dimli.com.tr/kvkk', '_system')}
-                                        className="text-turf-500 underline underline-offset-2"
-                                    >
-                                        Gizlilik Politikası
-                                    </button>'nı okudum, kabul ediyorum.
-                                </span>
-                            </label>
-
+        <>
+            <AuthWizardLayout
+                step={step}
+                totalSteps={TOTAL_STEPS}
+                title={STEP_META[step - 1].title}
+                subtitle={STEP_META[step - 1].subtitle}
+                onBack={step === 1 ? () => navigate('/login') : prevStep}
+                error={error}
+                footer={
+                    <>
+                        {showPrimary && (
                             <button
                                 type="button"
-                                onClick={prevStep}
-                                className="w-full mt-3 text-slate-500 hover:text-slate-300 text-sm font-bold transition-colors py-2"
+                                onClick={isFinalStep ? handleRegister : nextStep}
+                                disabled={busy || (isFinalStep && !eulaAccepted)}
+                                className="w-full bg-turf-600 text-white rounded-2xl font-display font-bold uppercase tracking-wider shadow-lg shadow-black/30 border border-turf-400/15 active:bg-turf-700 active:scale-[0.97] transition-all disabled:opacity-50 disabled:active:scale-100 flex items-center justify-center gap-2"
+                                style={{ height: 'clamp(48px, 7vh, 58px)', fontSize: 'clamp(0.9rem, 2.4vh, 1.1rem)' }}
                             >
-                                ← Geri dön
+                                {busy ? (
+                                    <>
+                                        <span className="w-5 h-5 flex-shrink-0">
+                                            <LottiePlayer
+                                                src="/animations/rolling-football.json"
+                                                loop
+                                                autoplay
+                                                ariaLabel="Yükleniyor"
+                                                style={{ width: '100%', height: '100%' }}
+                                                fallback={null}
+                                            />
+                                        </span>
+                                        {isFinalStep ? 'Kaydediliyor...' : 'Kontrol ediliyor...'}
+                                    </>
+                                ) : isFinalStep ? (
+                                    <>Kaydı Tamamla <Check className="w-5 h-5" /></>
+                                ) : (
+                                    <>İleri <ChevronRight className="w-5 h-5" /></>
+                                )}
                             </button>
-                        </>
-                    )}
-
-                    {step !== 7 && (
-                        <RegisterActions
-                            step={step}
-                            totalSteps={TOTAL_STEPS}
-                            loading={loading}
-                            otpVerified={otpVerified}
-                            nextStep={nextStep}
-                            prevStep={prevStep}
+                        )}
+                        {step === 1 && (
+                            <p className="text-center text-slate-400 text-sm mt-3">
+                                Zaten hesabın var mı?{' '}
+                                <Link to="/login" className="text-turf-500 font-bold hover:underline">
+                                    Giriş Yap
+                                </Link>
+                            </p>
+                        )}
+                    </>
+                }
+            >
+                {step === 1 && <UsernameStep formData={formData} handleChange={handleChange} fieldErrors={fieldErrors} />}
+                {step === 2 && <PasswordStep formData={formData} handleChange={handleChange} fieldErrors={fieldErrors} />}
+                {step === 3 && <NameStep formData={formData} handleChange={handleChange} fieldErrors={fieldErrors} />}
+                {step === 4 && (
+                    <PhoneVerificationStep
+                        formData={formData}
+                        handleChange={handleChange}
+                        otpSent={otpSent}
+                        otpVerified={otpVerified}
+                        otpLoading={otpLoading}
+                        otpCode={otpCode}
+                        setOtpCode={setOtpCode}
+                        resendCountdown={resendCountdown}
+                        sendOtp={sendOtp}
+                        fieldErrors={fieldErrors}
+                    />
+                )}
+                {step === 5 && <BirthDateEmailStep formData={formData} handleChange={handleChange} fieldErrors={fieldErrors} />}
+                {step === 6 && <PlayerProfileStep formData={formData} handleChange={handleChange} fieldErrors={fieldErrors} />}
+                {step === 7 && (
+                    <>
+                        <PhotoUploadStep
+                            fullName={formData.full_name}
+                            avatarUrl={formData.avatarUrl}
+                            uploadLoading={uploadLoading}
+                            onUpload={uploadAvatar}
                         />
-                    )}
-                </form>
 
-                <div className="mt-6 text-center">
-                    <p className="text-slate-400 text-sm">
-                        Zaten hesabın var mı?{' '}
-                        <Link to="/login" className="text-turf-500 font-bold hover:underline">
-                            Giriş Yap
-                        </Link>
-                    </p>
-                </div>
-            </div>
-        </div>
+                        {/* Apple 1.2 — EULA onayı kayıt öncesi zorunlu; işaretlenmeden
+                            footer'daki "Kaydı Tamamla" görünür-disabled kalır */}
+                        <label className="flex items-start gap-3 mt-5 cursor-pointer select-none">
+                            <input
+                                type="checkbox"
+                                checked={eulaAccepted}
+                                onChange={e => setEulaAccepted(e.target.checked)}
+                                className="mt-0.5 w-4 h-4 accent-turf-500 shrink-0"
+                            />
+                            <span className="text-slate-400 text-xs leading-relaxed">
+                                <button
+                                    type="button"
+                                    onClick={() => window.open('https://dimli.com.tr/kullanim-sartlari', '_system')}
+                                    className="text-turf-500 underline underline-offset-2"
+                                >
+                                    Kullanım Şartları
+                                </button>'nı ve{' '}
+                                <button
+                                    type="button"
+                                    onClick={() => window.open('https://dimli.com.tr/kvkk', '_system')}
+                                    className="text-turf-500 underline underline-offset-2"
+                                >
+                                    Gizlilik Politikası
+                                </button>'nı okudum, kabul ediyorum.
+                            </span>
+                        </label>
+                    </>
+                )}
+            </AuthWizardLayout>
+
+            {/* Kayıt başarı kutlaması — otomatik geçiş YOK (kullanıcı kararı): animasyon
+                BAŞLA'ya basılana kadar döner; ana sayfaya geçiş yalnız butonla (replace:
+                geri tuşu sihirbaza dönmesin) */}
+            <CelebrationScreen
+                isOpen={registerSuccess}
+                lottieSrc={REGISTER_SUCCESS_LOTTIE}
+                lottieLoop
+                fallback={<img src="/icon.png" alt="DİMLİ" style={{ height: 80 }} />}
+                title={`HOŞ GELDİN ${(formData.full_name.trim() || formData.username).toLocaleUpperCase('tr')}!`}
+                subtitle="Hesabın hazır. İyi maçlar!"
+                buttonLabel="BAŞLA"
+                onDone={() => navigate('/', { replace: true })}
+            />
+        </>
     );
 };

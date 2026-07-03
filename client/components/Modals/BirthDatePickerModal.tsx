@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useModalBodyClass } from '../../utils/useModalBodyClass';
 
@@ -74,7 +75,9 @@ export const BirthDatePickerModal: React.FC<BirthDatePickerModalProps> = ({
         onClose();
     };
 
-    return (
+    // §35: fixed overlay'ler document.body'ye portal'lanır — sabit/scroll konteyner
+    // içinde (ör. tam-sayfa kayıt sihirbazı) hapsolmasın.
+    return createPortal(
         <div
             className="fixed inset-0 z-[90] flex items-end sm:items-center justify-center bg-black/90 backdrop-blur-sm animate-fade-in"
             onClick={onClose}
@@ -183,6 +186,7 @@ export const BirthDatePickerModal: React.FC<BirthDatePickerModalProps> = ({
                     </button>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };

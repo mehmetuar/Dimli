@@ -1,11 +1,26 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { Phone, Lock, CheckCircle, ChevronLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Phone, Lock, CheckCircle } from 'lucide-react';
 import { LoadingSpinner } from '../../../components/UI/LoadingSpinner';
+import { LottiePlayer } from '../../../components/UI/LottiePlayer';
 import { OtpInput } from '../../../components/UI/OtpInput';
+import { AuthWizardLayout } from '../../../components/Layout/AuthWizardLayout';
+import { CelebrationScreen } from '../../../components/UI/CelebrationScreen';
 import { useForgotPassword } from './hooks/useForgotPassword';
 
+const TOTAL_STEPS = 3;
+
+// Başarı Lottie'si — kilit açılma temalı özel animasyon bulununca yalnız bu satır değişir
+const RESET_SUCCESS_LOTTIE = '/animations/ball-success.json';
+
+const STEP_META: { title: string; subtitle: (phone: string) => string }[] = [
+    { title: 'Şifremi Unuttum', subtitle: () => 'Kayıtlı numaranı gir, SMS ile kod gönderelim' },
+    { title: 'Doğrulama Kodu', subtitle: (phone) => `${phone} numarasına gönderilen kodu gir` },
+    { title: 'Yeni Şifre', subtitle: () => 'Hesabın için yeni şifreni belirle' },
+];
+
 export const ForgotPassword: React.FC = () => {
+    const navigate = useNavigate();
     const {
         step,
         phone,
@@ -22,173 +37,163 @@ export const ForgotPassword: React.FC = () => {
         success,
         sendOtp,
         resendOtp,
+        goBackToPhone,
         resetPassword,
     } = useForgotPassword();
 
+    // Adım 3'te geri yok (OTP tüketildi — geri dönmek anlamsız)
+    const onBack =
+        step === 1 ? () => navigate('/login')
+        : step === 2 ? goBackToPhone
+        : undefined;
+
+    const inputClass =
+        'w-full bg-slate-800/40 text-white pl-12 pr-4 py-4 rounded-2xl border border-slate-700/80 focus:border-turf-500 focus:shadow-neon-sm focus:outline-none font-bold transition-colors';
+
+    const primaryButton = (label: string, onClick: () => void, disabled: boolean) => (
+        <button
+            type="button"
+            onClick={onClick}
+            disabled={disabled}
+            className="w-full bg-turf-600 text-white rounded-2xl font-display font-bold uppercase tracking-wider shadow-lg shadow-black/30 border border-turf-400/15 active:bg-turf-700 active:scale-[0.97] transition-all disabled:opacity-50 disabled:active:scale-100 flex items-center justify-center gap-2"
+            style={{ height: 'clamp(48px, 7vh, 58px)', fontSize: 'clamp(0.9rem, 2.4vh, 1.1rem)' }}
+        >
+            {loading ? (
+                <>
+                    <span className="w-5 h-5 flex-shrink-0">
+                        <LottiePlayer
+                            src="/animations/rolling-football.json"
+                            loop
+                            autoplay
+                            ariaLabel="Yükleniyor"
+                            style={{ width: '100%', height: '100%' }}
+                            fallback={null}
+                        />
+                    </span>
+                    Lütfen bekle...
+                </>
+            ) : label}
+        </button>
+    );
+
     return (
-        <div className="min-h-screen bg-pitch flex flex-col items-center justify-center px-4 pt-20 pb-28">
-            <div className="w-full max-w-md bg-slate-800 p-8 rounded-3xl border border-slate-700 shadow-2xl">
-
-                {/* Başarı ekranı */}
-                {success ? (
-                    <div className="flex flex-col items-center gap-4 py-6 text-center">
-                        <CheckCircle className="w-16 h-16 text-turf-400" />
-                        <h2 className="text-white font-sport font-black text-2xl italic">ŞİFRE GÜNCELLENDİ!</h2>
-                        <p className="text-slate-400 text-sm">Giriş ekranına yönlendiriliyorsun...</p>
-                    </div>
-                ) : (
-                    <>
-                        {/* Başlık */}
-                        <div className="text-center mb-8">
-                            <img src="/icon.png" alt="DİMLİ" className="h-12 w-auto object-contain mx-auto mb-4" />
-                            <h1 className="font-sport font-black text-3xl text-white italic">ŞİFREMİ UNUTTUM</h1>
-                            <p className="text-slate-400 mt-2 text-sm">
-                                {step === 1 && 'Kayıtlı telefon numaranı gir, SMS ile kod gönderelim.'}
-                                {step === 2 && `${phone} numarasına gönderilen kodu gir.`}
-                                {step === 3 && 'Yeni şifreni belirle.'}
-                            </p>
-                        </div>
-
-                        {/* Adım göstergesi */}
-                        <div className="flex gap-2 mb-6">
-                            {[1, 2, 3].map((s) => (
-                                <div
-                                    key={s}
-                                    className={`h-1 flex-1 rounded-full transition-all duration-300 ${s <= step ? 'bg-turf-500' : 'bg-slate-700'}`}
+        <>
+            <AuthWizardLayout
+                step={step}
+                totalSteps={TOTAL_STEPS}
+                title={STEP_META[step - 1].title}
+                subtitle={STEP_META[step - 1].subtitle(phone)}
+                onBack={onBack}
+                error={error}
+                footer={
+                    step === 1 ? primaryButton('Kod Gönder', sendOtp, loading || !phone.trim())
+                    : step === 3 ? primaryButton('Şifremi Güncelle', resetPassword, loading)
+                    : undefined /* adım 2: OTP 6. hanede otomatik doğrulanır */
+                }
+            >
+                {/* Adım 1: Telefon */}
+                {step === 1 && (
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-400 uppercase mb-1">
+                                Telefon Numarası
+                            </label>
+                            <div className="relative">
+                                <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 w-5 h-5" />
+                                <input
+                                    type="tel"
+                                    value={phone}
+                                    onChange={(e) => setPhone(e.target.value)}
+                                    className={inputClass}
+                                    placeholder="0555 555 55 55"
+                                    autoComplete="tel"
                                 />
-                            ))}
+                            </div>
                         </div>
-
-                        {/* Hata mesajı */}
-                        {error && (
-                            <div className="bg-red-500/10 border border-red-500/50 text-red-400 p-3 rounded-xl mb-6 text-sm font-bold text-center">
-                                {error}
-                            </div>
-                        )}
-
-                        {/* Adım 1: Telefon girişi */}
-                        {step === 1 && (
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-400 uppercase mb-1">
-                                        Telefon Numarası
-                                    </label>
-                                    <div className="relative">
-                                        <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 w-5 h-5" />
-                                        <input
-                                            type="tel"
-                                            value={phone}
-                                            onChange={(e) => setPhone(e.target.value)}
-                                            className="w-full bg-slate-900 text-white pl-12 pr-4 py-4 rounded-xl border border-slate-700 focus:border-turf-500 focus:outline-none font-bold"
-                                            placeholder="0555 555 55 55"
-                                        />
-                                    </div>
-                                </div>
-                                <button
-                                    type="button"
-                                    disabled={loading || !phone.trim()}
-                                    onClick={sendOtp}
-                                    className="w-full bg-turf-600 text-white py-4 rounded-xl font-black text-lg uppercase tracking-wider hover:bg-turf-500 transition-colors shadow-lg shadow-turf-600/20 mt-4 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                                >
-                                    {loading ? <LoadingSpinner size="sm" text="" /> : 'Kod Gönder'}
-                                </button>
-                            </div>
-                        )}
-
-                        {/* Adım 2: OTP doğrulama */}
-                        {step === 2 && (
-                            <div className="space-y-6">
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-400 uppercase mb-3 text-center">
-                                        Doğrulama Kodu
-                                    </label>
-                                    <OtpInput value={otpCode} onChange={setOtpCode} accent="turf" autoFocus disabled={loading} />
-                                </div>
-
-                                {loading && (
-                                    <div className="flex justify-center">
-                                        <LoadingSpinner size="sm" text="Doğrulanıyor..." />
-                                    </div>
-                                )}
-
-                                <div className="text-center">
-                                    <button
-                                        type="button"
-                                        disabled={resendCountdown > 0 || loading}
-                                        onClick={resendOtp}
-                                        className="text-sm text-slate-400 hover:text-turf-400 font-bold disabled:cursor-not-allowed transition-colors"
-                                    >
-                                        {resendCountdown > 0
-                                            ? `Tekrar gönder (${resendCountdown}s)`
-                                            : 'Kodu tekrar gönder'}
-                                    </button>
-                                </div>
-
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        // geri dönmek isterse adım 1'e al
-                                        window.location.reload();
-                                    }}
-                                    className="w-full flex items-center justify-center gap-2 text-slate-400 hover:text-white text-sm font-bold transition-colors"
-                                >
-                                    <ChevronLeft className="w-4 h-4" /> Farklı numara gir
-                                </button>
-                            </div>
-                        )}
-
-                        {/* Adım 3: Yeni şifre */}
-                        {step === 3 && (
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-400 uppercase mb-1">
-                                        Yeni Şifre
-                                    </label>
-                                    <div className="relative">
-                                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 w-5 h-5" />
-                                        <input
-                                            type="password"
-                                            value={newPassword}
-                                            onChange={(e) => setNewPassword(e.target.value)}
-                                            className="w-full bg-slate-900 text-white pl-12 pr-4 py-4 rounded-xl border border-slate-700 focus:border-turf-500 focus:outline-none font-bold"
-                                            placeholder="En az 6 karakter"
-                                        />
-                                    </div>
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-slate-400 uppercase mb-1">
-                                        Şifre Tekrar
-                                    </label>
-                                    <div className="relative">
-                                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 w-5 h-5" />
-                                        <input
-                                            type="password"
-                                            value={confirmPassword}
-                                            onChange={(e) => setConfirmPassword(e.target.value)}
-                                            className="w-full bg-slate-900 text-white pl-12 pr-4 py-4 rounded-xl border border-slate-700 focus:border-turf-500 focus:outline-none font-bold"
-                                            placeholder="Şifreyi tekrar gir"
-                                        />
-                                    </div>
-                                </div>
-                                <button
-                                    type="button"
-                                    disabled={loading}
-                                    onClick={resetPassword}
-                                    className="w-full bg-turf-600 text-white py-4 rounded-xl font-black text-lg uppercase tracking-wider hover:bg-turf-500 transition-colors shadow-lg shadow-turf-600/20 mt-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                                >
-                                    {loading ? <LoadingSpinner size="sm" text="" /> : 'Şifremi Güncelle'}
-                                </button>
-                            </div>
-                        )}
-                    </>
+                    </div>
                 )}
 
-                <div className="mt-6 text-center">
-                    <Link to="/login" className="text-slate-400 text-sm hover:text-turf-500 font-bold transition-colors">
-                        ← Giriş ekranına dön
-                    </Link>
-                </div>
-            </div>
-        </div>
+                {/* Adım 2: OTP */}
+                {step === 2 && (
+                    <div className="space-y-6">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-400 uppercase mb-3 text-center">
+                                Doğrulama Kodu
+                            </label>
+                            <OtpInput value={otpCode} onChange={setOtpCode} accent="turf" autoFocus disabled={loading} />
+                        </div>
+
+                        {loading && (
+                            <div className="flex justify-center">
+                                <LoadingSpinner size="sm" text="Doğrulanıyor..." />
+                            </div>
+                        )}
+
+                        <div className="text-center">
+                            <button
+                                type="button"
+                                disabled={resendCountdown > 0 || loading}
+                                onClick={resendOtp}
+                                className="text-sm text-slate-400 hover:text-turf-400 font-bold disabled:cursor-not-allowed transition-colors py-2 px-3"
+                            >
+                                {resendCountdown > 0
+                                    ? `Tekrar gönder (${resendCountdown}s)`
+                                    : 'Kodu tekrar gönder'}
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* Adım 3: Yeni şifre */}
+                {step === 3 && (
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-xs font-bold text-slate-400 uppercase mb-1">
+                                Yeni Şifre
+                            </label>
+                            <div className="relative">
+                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 w-5 h-5" />
+                                <input
+                                    type="password"
+                                    value={newPassword}
+                                    onChange={(e) => setNewPassword(e.target.value)}
+                                    className={inputClass}
+                                    placeholder="En az 6 karakter"
+                                    autoComplete="new-password"
+                                />
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-400 uppercase mb-1">
+                                Şifre Tekrar
+                            </label>
+                            <div className="relative">
+                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 w-5 h-5" />
+                                <input
+                                    type="password"
+                                    value={confirmPassword}
+                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                    className={inputClass}
+                                    placeholder="Şifreyi tekrar gir"
+                                    autoComplete="new-password"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </AuthWizardLayout>
+
+            {/* Başarı kutlaması — login'e geçiş burada */}
+            <CelebrationScreen
+                isOpen={success}
+                lottieSrc={RESET_SUCCESS_LOTTIE}
+                fallback={<CheckCircle className="w-20 h-20 text-turf-400" />}
+                title="ŞİFRE GÜNCELLENDİ!"
+                subtitle="Giriş ekranına yönlendiriliyorsun..."
+                buttonLabel="GİRİŞ YAP"
+                autoCloseMs={2200}
+                onDone={() => navigate('/login', { replace: true })}
+            />
+        </>
     );
 };

@@ -41,6 +41,7 @@ export const CountryPickerModal: React.FC<Props> = ({ isOpen, onClose, value, on
         <KeyboardAwareModal
             isOpen={isOpen}
             onClose={onClose}
+            portalToBody
             zClassName="z-[100]"
             backdropClassName="bg-black/90"
             panelClassName="bg-slate-900 w-full max-w-sm rounded-3xl border border-slate-700 shadow-2xl"

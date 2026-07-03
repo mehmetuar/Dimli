@@ -26,6 +26,8 @@ export const useRegister = () => {
     const [error, setError] = useState('');
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
     const [loading, setLoading] = useState(false);
+    // Kayıt tamamlandı → tam ekran kutlama (CelebrationScreen) gösterilir; navigate onDone'da
+    const [registerSuccess, setRegisterSuccess] = useState(false);
 
     // OTP state
     const [otpSent, setOtpSent] = useState(false);
@@ -204,9 +206,8 @@ export const useRegister = () => {
         setStep((s) => s - 1);
     };
 
-    const handleRegister = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (step !== 7) return;
+    const handleRegister = async () => {
+        if (step !== 7) return; // güvenlik kontrolü
 
         setLoading(true);
         setError('');
@@ -263,8 +264,8 @@ export const useRegister = () => {
                 }
             }
 
-            // Adım 5: Ana sayfaya yönlendir
-            navigate('/');
+            // Adım 5: Kutlama ekranını göster — ana sayfaya geçiş CelebrationScreen.onDone'da
+            setRegisterSuccess(true);
         } catch (err: any) {
             console.error(err);
             setError(getErrorMessage(err, 'Kayıt başarısız. Lütfen tekrar deneyin.'));
@@ -286,6 +287,7 @@ export const useRegister = () => {
         setOtpCode,
         resendCountdown,
         uploadLoading,
+        registerSuccess,
         handleChange,
         sendOtp,
         uploadAvatar,

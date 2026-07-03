@@ -177,6 +177,42 @@
   animation: pulseGlow 4s ease-in-out infinite;
 }
 
+/* ── Auth sihirbazı: kurumsal-sade adım geçişi + hata sarsıntısı ───────── */
+
+@keyframes stepIn {
+  from { opacity: 0; transform: translateY(10px) translateZ(0); }
+  to   { opacity: 1; transform: translateY(0) translateZ(0); }
+}
+
+.animate-step-in {
+  animation: stepIn 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: transform, opacity; /* Android WebView GPU */
+}
+
+/* animate-shake: Register hata bandı bunu kullanıyordu ama keyframe tanımsızdı */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+}
+
+.animate-shake {
+  animation: shake 0.4s ease-in-out;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-step-in {
+    animation: fadeIn 0.2s ease-out both;
+    transform: none !important;
+  }
+  .animate-shake {
+    animation: none;
+  }
+}
+
 /* ── Android WebView Modal Düzeltmeleri ────────────────────────────────── */
 
 /* Modal açıkken body scroll kilitle */

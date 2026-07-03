@@ -15,12 +15,10 @@ interface UsernameStepProps {
 
 export const UsernameStep: React.FC<UsernameStepProps> = ({ formData, handleChange, fieldErrors }) => {
     const error = fieldErrors.username;
+    // Başlık layout header'ında (AuthWizardLayout); kök animasyonu da layout'un
+    // keyed animate-step-in sarmalayıcısı üstlenir — burada tekrar etme (çift animasyon).
     return (
-        <div className="space-y-4 animate-fade-in">
-            <div className="text-center mb-6">
-                <h2 className="text-xl font-bold text-white">Kullanıcı Adı</h2>
-                <p className="text-slate-400 text-sm">Giriş yapmak için kullanacağın kullanıcı adın</p>
-            </div>
+        <div className="space-y-4">
             <div>
                 <label className={`block text-xs font-bold uppercase mb-1 ${error ? 'text-red-400' : 'text-slate-400'}`}>
                     Kullanıcı Adı
@@ -33,11 +31,14 @@ export const UsernameStep: React.FC<UsernameStepProps> = ({ formData, handleChan
                         value={formData.username}
                         onChange={handleChange}
                         onFocus={scrollInputIntoView}
-                        className={`w-full bg-slate-900 text-white pl-12 pr-4 py-4 rounded-xl border transition-colors focus:outline-none font-bold ${
-                            error ? 'border-red-500 focus:border-red-400' : 'border-slate-700 focus:border-turf-500'
+                        className={`w-full bg-slate-800/40 text-white pl-12 pr-4 py-4 rounded-2xl border transition-colors focus:outline-none font-bold ${
+                            error ? 'border-red-500 focus:border-red-400' : 'border-slate-700/80 focus:border-turf-500 focus:shadow-neon-sm'
                         }`}
                         placeholder="kullaniciadi"
                         autoComplete="username"
+                        autoCapitalize="none"
+                        autoCorrect="off"
+                        spellCheck={false}
                         required
                     />
                 </div>

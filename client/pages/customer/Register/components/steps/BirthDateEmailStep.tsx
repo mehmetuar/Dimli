@@ -36,13 +36,9 @@ export const BirthDateEmailStep: React.FC<BirthDateEmailStepProps> = ({ formData
         } as React.ChangeEvent<HTMLInputElement>);
     };
 
+    // Başlık layout header'ında; kök animasyonu layout'un keyed animate-step-in'i üstlenir.
     return (
-        <div className="space-y-4 animate-fade-in">
-            <div className="text-center mb-6">
-                <h2 className="text-xl font-bold text-white">Doğum Tarihi & E-posta</h2>
-                <p className="text-slate-400 text-sm">Doğum tarihin zorunlu, e-posta isteğe bağlıdır</p>
-            </div>
-
+        <div className="space-y-4">
             <div>
                 <label className={`block text-xs font-bold uppercase mb-1 ${error ? 'text-red-400' : 'text-slate-400'}`}>
                     Doğum Tarihi
@@ -50,12 +46,12 @@ export const BirthDateEmailStep: React.FC<BirthDateEmailStepProps> = ({ formData
                 <button
                     type="button"
                     onClick={() => setIsDatePickerOpen(true)}
-                    className={`w-full flex items-center gap-3 bg-slate-900 pl-4 pr-4 py-4 rounded-xl border transition-colors text-left
-                        ${error 
-                            ? 'border-red-500 hover:border-red-400' 
+                    className={`w-full flex items-center gap-3 bg-slate-800/40 pl-4 pr-4 py-4 rounded-2xl border transition-colors text-left
+                        ${error
+                            ? 'border-red-500 hover:border-red-400'
                             : formData.birthDate
-                                ? 'border-slate-700 hover:border-turf-500'
-                                : 'border-slate-700 hover:border-turf-500 border-dashed'
+                                ? 'border-slate-700/80 hover:border-turf-500'
+                                : 'border-slate-700/80 hover:border-turf-500 border-dashed'
                         }`}
                 >
                     <Calendar className={`w-5 h-5 shrink-0 ${error ? 'text-red-400' : formData.birthDate ? 'text-turf-500' : 'text-slate-500'}`} />
@@ -78,7 +74,7 @@ export const BirthDateEmailStep: React.FC<BirthDateEmailStepProps> = ({ formData
                         value={formData.email}
                         onChange={handleChange}
                         onFocus={scrollInputIntoView}
-                        className="w-full bg-slate-900 text-white pl-12 pr-4 py-4 rounded-xl border border-slate-700 focus:border-turf-500 focus:outline-none font-bold"
+                        className="w-full bg-slate-800/40 text-white pl-12 pr-4 py-4 rounded-2xl border border-slate-700/80 focus:border-turf-500 focus:shadow-neon-sm focus:outline-none font-bold"
                         placeholder="ornek@email.com"
                         autoComplete="email"
                     />
