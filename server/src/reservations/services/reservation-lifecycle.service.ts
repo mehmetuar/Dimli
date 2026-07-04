@@ -37,6 +37,21 @@ import {
   toIstanbulParts,
 } from '../../common/turkey-time.util';
 
+// Takım → RESERVATION_REQUEST bildirim metadata projeksiyonu.
+// notifications.service.ts findByOwner self-heal'i ile AYNI şekli üretir —
+// alan eklenirse/değişirse iki dosya birlikte güncellenmeli.
+const toTeamMeta = (t: Team | null) =>
+  t
+    ? {
+        id: t.id,
+        name: t.name,
+        logo: t.logoUrl ?? null,
+        level: t.level ?? null,
+        fairPlay: t.fairPlayScore ?? null,
+        ratingCount: t.fairPlayRatingCount ?? 0,
+      }
+    : null;
+
 // Rezervasyon yaşam döngüsü: oluşturma, onay, iptal akışları, saat müsaitlik guard'ı ve
 // maç hatırlatma cron'u. Transaction'lar (approve/cancel/…) bu servis içinde korunur.
 // sendSystemMessage / cleanupJokersOnMatchCancel için ReservationSupportService kullanılır.
@@ -250,6 +265,13 @@ export class ReservationLifecycleService {
                 .getRepository(Team)
                 .findOne({ where: { id: savedReservation.teamId } })
             : null;
+          // Rakipli maç (rakip_araniyor kabulü): opponentTeamId create'ten önce
+          // set edilir (challenges.service) — iki takım da bildirimde gösterilir.
+          const opponentTeam = savedReservation.opponentTeamId
+            ? await this.reservationRepository.manager
+                .getRepository(Team)
+                .findOne({ where: { id: savedReservation.opponentTeamId } })
+            : null;
           let matchType: string | null = null;
           if (savedReservation.matchAnnouncementId) {
             const ann = await this.reservationRepository.manager
@@ -273,7 +295,7 @@ export class ReservationLifecycleService {
               time: timeStr,
               role: 'BUSINESS_OWNER',
               // --- zenginleştirme alanları ---
-              metaV: 2, // zenginleştirme sürümü — self-heal guard'ı (bkz. findByOwner)
+              metaV: 3, // zenginleştirme sürümü — self-heal guard'ı (bkz. findByOwner)
               pitchId: pitch.id, // "Rezervasyon İsteğine Git" slot auto-open için
               slotDateIso, // 'YYYY-MM-DD' — dashboard tarih formatı
               slotTimeIso: slotTime.toISOString(),
@@ -282,16 +304,8 @@ export class ReservationLifecycleService {
               endTime,
               matchType, // 'kendi_aramizda' | 'rakip_araniyor' | null (DIRECT)
               reservationType: savedReservation.type,
-              team: team
-                ? {
-                    id: team.id,
-                    name: team.name,
-                    logo: team.logoUrl ?? null,
-                    level: team.level ?? null,
-                    fairPlay: team.fairPlayScore ?? null,
-                    ratingCount: team.fairPlayRatingCount ?? 0,
-                  }
-                : null,
+              team: toTeamMeta(team),
+              opponentTeam: toTeamMeta(opponentTeam),
             },
           });
           this.logger.log(

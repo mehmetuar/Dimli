@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, Users, Star, MapPin, CalendarDays, Clock, ArrowRight, History } from 'lucide-react';
 import { useModalBodyClass } from '../../../../utils/useModalBodyClass';
-import { BusinessNotification, levelLabel, matchTypeLabel } from '../types';
+import { BusinessNotification, ReservationRequestTeam, levelLabel, matchTypeLabel } from '../types';
 
 interface ReservationRequestDetailModalProps {
     notification: BusinessNotification | null; // null → kapalı
@@ -20,9 +20,9 @@ export const ReservationRequestDetailModal: React.FC<ReservationRequestDetailMod
 
     const m = notification.metadata ?? {};
     const team = m.team ?? null;
+    const opponent = m.opponentTeam ?? null;
     const badge = matchTypeLabel(m.matchType);
     const isKendiAramizda = m.matchType === 'kendi_aramizda';
-    const lvl = levelLabel(team?.level);
 
     // Saat aralığı: startTime–endTime; yoksa legacy time'a düş.
     const timeRange = m.startTime
@@ -35,6 +35,53 @@ export const ReservationRequestDetailModal: React.FC<ReservationRequestDetailMod
     const requestedAt = createdAtDate
         ? `${createdAtDate.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' })} ${createdAtDate.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}`
         : '';
+
+    // Tek takım kartı — rakipli maçta iki kez (VS ayırıcıyla) kullanılır.
+    const renderTeamCard = (t: ReservationRequestTeam, label: string | null) => {
+        const lvl = levelLabel(t.level);
+        return (
+            <div className="bg-slate-900/50 rounded-2xl border border-slate-700/60 p-4">
+                <div className="flex items-center gap-3">
+                    <div className="w-14 h-14 bg-slate-900 rounded-full border-2 border-slate-600 flex items-center justify-center overflow-hidden shrink-0">
+                        {t.logo ? (
+                            <img src={t.logo} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                            <Users className="w-6 h-6 text-slate-500" />
+                        )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        {label && (
+                            <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-0.5">{label}</div>
+                        )}
+                        <div className="font-sport font-black text-[clamp(1rem,4.5vw,1.15rem)] text-white italic truncate">
+                            {t.name || 'Bilinmeyen Takım'}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 mt-2">
+                            {lvl && (
+                                <span className="px-2 py-0.5 rounded-md bg-slate-700/60 border border-slate-600/50 text-[11px] font-bold text-slate-200">
+                                    {lvl}
+                                </span>
+                            )}
+                            {t.fairPlay != null && (
+                                <span
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-green-500/10 border border-green-500/20"
+                                    title={t.ratingCount ? `${t.ratingCount} değerlendirme` : 'Fair Play Skoru'}
+                                >
+                                    <Star className="w-3 h-3 text-green-500 fill-green-500/30" />
+                                    <span className="text-[11px] font-bold text-slate-200">
+                                        {Number(t.fairPlay).toFixed(1)}
+                                    </span>
+                                    {t.ratingCount ? (
+                                        <span className="text-[10px] text-slate-500 font-semibold">({t.ratingCount})</span>
+                                    ) : null}
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
 
     // Doğrudan dashboard'daki slot detay modalını açar (Onayla/Reddet orada);
     // openSlot metadata'sı yoksa yalnız ilgili tarihe gider.
@@ -90,49 +137,7 @@ export const ReservationRequestDetailModal: React.FC<ReservationRequestDetailMod
                     className="flex-1 overflow-y-auto p-[clamp(1rem,4vw,1.375rem)] space-y-4"
                     style={{ overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
                 >
-                    {/* Takım kartı — takım verisi yoksa hiç gösterilmez */}
-                    {team && (
-                        <div className="bg-slate-900/50 rounded-2xl border border-slate-700/60 p-4">
-                            <div className="flex items-center gap-3">
-                                <div className="w-14 h-14 bg-slate-900 rounded-full border-2 border-slate-600 flex items-center justify-center overflow-hidden shrink-0">
-                                    {team.logo ? (
-                                        <img src={team.logo} alt="" className="w-full h-full object-cover" />
-                                    ) : (
-                                        <Users className="w-6 h-6 text-slate-500" />
-                                    )}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-0.5">İsteği Gönderen Takım</div>
-                                    <div className="font-sport font-black text-[clamp(1rem,4.5vw,1.15rem)] text-white italic truncate">
-                                        {team.name || 'Bilinmeyen Takım'}
-                                    </div>
-                                    <div className="flex flex-wrap items-center gap-2 mt-2">
-                                        {lvl && (
-                                            <span className="px-2 py-0.5 rounded-md bg-slate-700/60 border border-slate-600/50 text-[11px] font-bold text-slate-200">
-                                                {lvl}
-                                            </span>
-                                        )}
-                                        {team.fairPlay != null && (
-                                            <span
-                                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-green-500/10 border border-green-500/20"
-                                                title={team.ratingCount ? `${team.ratingCount} değerlendirme` : 'Fair Play Skoru'}
-                                            >
-                                                <Star className="w-3 h-3 text-green-500 fill-green-500/30" />
-                                                <span className="text-[11px] font-bold text-slate-200">
-                                                    {Number(team.fairPlay).toFixed(1)}
-                                                </span>
-                                                {team.ratingCount ? (
-                                                    <span className="text-[10px] text-slate-500 font-semibold">({team.ratingCount})</span>
-                                                ) : null}
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Detaylar */}
+                    {/* Detaylar — en önemli bilgiler önce: saha, tarih, saat */}
                     <div className="bg-slate-900/50 rounded-2xl border border-slate-700/60 divide-y divide-slate-700/50">
                         {m.pitchName && (
                             <div className="flex items-center gap-3 p-4">
@@ -179,6 +184,23 @@ export const ReservationRequestDetailModal: React.FC<ReservationRequestDetailMod
                             </div>
                         )}
                     </div>
+
+                    {/* Takım(lar) — rakipli maçta iki kart + VS, tek takımda etiketli kart */}
+                    {team && opponent ? (
+                        <div>
+                            <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest px-1 mb-2">Takımlar</div>
+                            {renderTeamCard(team, null)}
+                            <div className="relative flex items-center justify-center py-2">
+                                <div className="absolute inset-0 flex items-center">
+                                    <div className="w-full border-t border-slate-700/50"></div>
+                                </div>
+                                <div className="relative bg-slate-800 px-3 text-slate-500 font-black italic text-sm">VS</div>
+                            </div>
+                            {renderTeamCard(opponent, null)}
+                        </div>
+                    ) : team ? (
+                        renderTeamCard(team, 'İsteği Gönderen Takım')
+                    ) : null}
                 </div>
 
                 {/* Footer */}

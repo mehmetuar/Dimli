@@ -1126,11 +1126,18 @@ success tipleri, İşletme login loader, fullScreen LoadingSpinner overlay'leri.
 - **Çözüm:** `turkey-time.util.ts`'e `istanbulDisplayParts(date)` eklendi → `{ dateStr'YYYY-MM-DD', time'HH:mm',
   dayName'Cumartesi', displayDate'4 Temmuz', displayDateWithYear }` (sabit +3 ofset, Intl'siz/deterministik).
   **Kullanıcıya gösterilecek her slotTime formatlaması BU helper'la yapılmalı** — asla çıplak `toLocale*`.
-- **RESERVATION_REQUEST metadata v2:** create() + `findByOwner` self-heal artık `metaV:2`, `pitchId`, `slotDateIso`,
-  `dayName`, `startTime/endTime` (İstanbul), `team{...}`, `matchType` yazar. Self-heal guard'ı `metadata.metaV !== 2`
-  (yanlış saatle zenginleşmiş eski satırları da bir kez onarır); rezervasyon silinmişse yalnız `metaV:2` işaretlenir.
+- **RESERVATION_REQUEST metadata v3:** create() + `findByOwner` self-heal artık `metaV:3`, `pitchId`, `slotDateIso`,
+  `dayName`, `startTime/endTime` (İstanbul), `team{...}`, `opponentTeam{...}` (rakip_araniyor kabulünde iki takım;
+  `toTeamMeta` projeksiyonu iki dosyada aynı — birlikte güncellenir), `matchType` yazar. Self-heal guard'ı
+  `metadata.metaV !== 3` (eski/yanlış satırları bir kez onarır); rezervasyon silinmişse yalnız `metaV:3` işaretlenir.
   İstemci: bildirim detay modalındaki "Rezervasyon İsteğine Git" → dashboard `location.state{selectedDate, openSlot}`
   ile ilgili SlotDetailModal'ı otomatik açar (`useBusinessDashboard` tarih-guard'lı pending ref + PitchGrid `focusPitchId`).
+- **Geçmiş slot yapısı (2026-07-04):** PitchGrid'de geçmiş slotlar artık TIKLANABİLİR; SlotDetailModal `isSlotPast`
+  ile pasif moda geçer: boş → "Bu Saat Boş Geçti", APPROVED → "Oynandı" (aksiyonsuz), PENDING/EXPIRED → "Süresi
+  Geçti" (Onayla/Not/Reddet gizli), kapatma/boşa-çıkarma butonları geçmişte render edilmez. Grid etiketi geçmiş
+  FULL → "OYNANDI". Rozet adı: rakip_araniyor → **"Rakipli Maç"** (`matchTypeLabel`). Kaptan hızlı arama:
+  `telHref` util'i `client/utils/phone.ts`'te (çıplak `tel:${...}` yazma). Tarih seçici sınırı −90/+30 gün
+  (BusinessDateFilterModal — zaten vardı, alt başlık metni günceli yansıtır).
 
 ## 30. Customer sabit-başlık+elastic layout + başlık↔aksiyon çakışma deseni (2026-07-02)
 

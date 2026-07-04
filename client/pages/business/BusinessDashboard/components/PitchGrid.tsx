@@ -169,16 +169,17 @@ export const PitchGrid: React.FC<PitchGridProps> = ({
                                 <button
                                     key={slotIdx}
                                     onClick={() => {
-                                        if (!isPast) {
-                                            setSelectedSlot({ ...slot, pitchId: activePitch.pitchId });
-                                        }
+                                        // Geçmiş slotlar da açılır — modal geçmiş modunda
+                                        // (boş geçti / oynandı / süresi geçmiş istek) pasif gösterir.
+                                        setSelectedSlot({ ...slot, pitchId: activePitch.pitchId });
                                     }}
-                                    disabled={isPast}
                                     className={`
-                                        aspect-[1.1] p-2 rounded-2xl flex flex-col items-center justify-center border-2 transition-all relative overflow-hidden
-                                        ${isPast
-                                            ? 'bg-slate-800/60 border-slate-700/40 cursor-not-allowed'
-                                            : ''}
+                                        aspect-[1.1] p-2 rounded-2xl flex flex-col items-center justify-center border-2 transition-all relative overflow-hidden active:scale-95
+                                        ${isPast && slot.status === 'FULL'
+                                            ? 'bg-emerald-900/20 border-emerald-800/40'
+                                            : isPast
+                                                ? 'bg-slate-800/60 border-slate-700/40'
+                                                : ''}
                                         ${!isPast && slot.status === 'EMPTY'
                                             ? 'bg-[#131f35] border-slate-700/50 hover:border-slate-500 hover:bg-[#1a2844]'
                                             : ''}
@@ -200,12 +201,14 @@ export const PitchGrid: React.FC<PitchGridProps> = ({
 
                                     <span className={`
                                         text-[clamp(8px,2.2vw,10px)] font-bold uppercase mt-1.5 tracking-widest !whitespace-nowrap overflow-hidden text-ellipsis
-                                        ${isPast ? 'text-slate-600'
+                                        ${isPast
+                                            ? slot.status === 'FULL' ? 'text-emerald-600' : 'text-slate-600'
                                             : slot.status === 'EMPTY' ? 'text-slate-400'
                                                 : slot.status === 'PENDING' ? 'text-orange-400'
                                                     : 'text-red-400'}
                                     `}>
-                                        {isPast ? 'GEÇTİ'
+                                        {isPast
+                                            ? slot.status === 'FULL' ? 'OYNANDI' : 'GEÇTİ'
                                             : slot.status === 'EMPTY' ? 'BOŞ'
                                                 : slot.status === 'PENDING' ? 'ONAY BEKLİYOR'
                                                     : 'DOLU'}

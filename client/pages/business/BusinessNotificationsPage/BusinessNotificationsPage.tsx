@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Bell, Calendar, Clock, ChevronRight, Users, Star } from 'lucide-react';
+import { ArrowLeft, Bell, Calendar, Clock, ChevronRight, Users, Star, MapPin } from 'lucide-react';
 import api from '../../../services/api';
 import { getOwnerId } from '../../../services/authStorage';
 import { BusinessNavbar } from '../../../components/Business/BusinessNavbar';
@@ -47,10 +47,12 @@ export const BusinessNotificationsPage: React.FC = () => {
 
     // Zengin rezervasyon-isteği kartı — yalnız metadata.team varsa. Yoksa null döner
     // ve varsayılan (title/message) kart render edilir (graceful fallback).
+    // Bilgi önceliği: 1) SAHA, 2) tarih + saat, 3) maç tipi + takım(lar).
     const renderReservationCard = (notif: BusinessNotification) => {
         const m = notif.metadata;
         if (!m?.team) return null;
         const team = m.team;
+        const opponent = m.opponentTeam ?? null;
         const badge = matchTypeLabel(m.matchType);
         const isKendiAramizda = m.matchType === 'kendi_aramizda';
         const lvl = levelLabel(team.level);
@@ -59,13 +61,48 @@ export const BusinessNotificationsPage: React.FC = () => {
             : m.time || '';
         const dateLine = [m.dayName, m.date].filter(Boolean).join(', ');
 
+        const teamLogo = (t: { logo?: string | null }) => (
+            <div className="w-6 h-6 rounded-full bg-slate-900 border border-slate-600 flex items-center justify-center overflow-hidden shrink-0">
+                {t.logo ? (
+                    <img src={t.logo} alt="" className="w-full h-full object-cover" />
+                ) : (
+                    <Users className="w-3 h-3 text-slate-500" />
+                )}
+            </div>
+        );
+
         return (
             <div className="flex-1 min-w-0">
-                {/* Satır 1: maç tipi rozeti + tarih pill */}
-                <div className="flex justify-between items-start gap-2 mb-1.5">
-                    {badge ? (
+                {/* Satır 1: SAHA (en önemli bilgi) + tarih pill */}
+                <div className="flex justify-between items-start gap-2 mb-1">
+                    <span className="inline-flex items-center gap-1.5 min-w-0">
+                        <MapPin className="w-3.5 h-3.5 shrink-0 text-orange-500" />
+                        <span className="font-black text-white truncate" style={{ fontSize: 'clamp(0.85rem, 3.8vw, 1rem)' }}>
+                            {m.pitchName || 'Saha'}
+                        </span>
+                    </span>
+                    <span className="text-[10px] text-slate-500 font-bold whitespace-nowrap shrink-0">
+                        {new Date(notif.createdAt).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })}
+                    </span>
+                </div>
+
+                {/* Satır 2: gün + tarih + saat aralığı */}
+                {(dateLine || timeRange) && (
+                    <div className="flex items-center gap-1.5 mb-1.5 text-slate-300" style={{ fontSize: 'clamp(0.75rem, 3.2vw, 0.85rem)' }}>
+                        <Clock className="w-3 h-3 shrink-0 text-slate-500" />
+                        <span className="truncate capitalize font-semibold">
+                            {dateLine}
+                            {dateLine && timeRange ? ' • ' : ''}
+                            {timeRange}
+                        </span>
+                    </div>
+                )}
+
+                {/* Satır 3: maç tipi rozeti + takım(lar) */}
+                <div className="flex items-center gap-2 min-w-0">
+                    {badge && (
                         <span
-                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide ${
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide shrink-0 ${
                                 isKendiAramizda
                                     ? 'bg-orange-500/15 text-orange-400 border border-orange-500/30'
                                     : 'bg-sky-500/15 text-sky-300 border border-sky-500/30'
@@ -74,50 +111,34 @@ export const BusinessNotificationsPage: React.FC = () => {
                             <Users className="w-2.5 h-2.5" />
                             {badge}
                         </span>
+                    )}
+                    {opponent ? (
+                        /* Rakipli maç: iki takım kompakt — logo Ad vs logo Ad */
+                        <span className="flex items-center gap-1.5 min-w-0" style={{ fontSize: 'clamp(0.72rem, 3vw, 0.82rem)' }}>
+                            {teamLogo(team)}
+                            <span className="font-bold text-slate-200 truncate max-w-[80px]">{team.name}</span>
+                            <span className="text-[9px] font-black text-slate-500 italic shrink-0">VS</span>
+                            {teamLogo(opponent)}
+                            <span className="font-bold text-slate-200 truncate max-w-[80px]">{opponent.name}</span>
+                        </span>
                     ) : (
-                        <span className="text-[11px] font-black text-orange-400 uppercase tracking-wide">Rezervasyon İsteği</span>
-                    )}
-                    <span className="text-[10px] text-slate-500 font-bold whitespace-nowrap shrink-0">
-                        {new Date(notif.createdAt).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })}
-                    </span>
-                </div>
-
-                {/* Satır 2: takım logo + ad + seviye/fair-play */}
-                <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-full bg-slate-900 border border-slate-600 flex items-center justify-center overflow-hidden shrink-0">
-                        {team.logo ? (
-                            <img src={team.logo} alt="" className="w-full h-full object-cover" />
-                        ) : (
-                            <Users className="w-3.5 h-3.5 text-slate-500" />
-                        )}
-                    </div>
-                    <span className="font-black text-white truncate" style={{ fontSize: 'clamp(0.8rem, 3.5vw, 0.95rem)' }}>
-                        {team.name || 'Bilinmeyen Takım'}
-                    </span>
-                    {lvl && (
-                        <span className="px-1.5 py-0.5 rounded-md bg-slate-700/60 border border-slate-600/50 text-[10px] font-bold text-slate-300 shrink-0">
-                            {lvl}
-                        </span>
-                    )}
-                    {team.fairPlay != null && (
-                        <span className="inline-flex items-center gap-0.5 shrink-0">
-                            <Star className="w-3 h-3 text-green-500 fill-green-500/30" />
-                            <span className="text-[10px] font-bold text-slate-300">{Number(team.fairPlay).toFixed(1)}</span>
+                        <span className="flex items-center gap-1.5 min-w-0" style={{ fontSize: 'clamp(0.72rem, 3vw, 0.82rem)' }}>
+                            {teamLogo(team)}
+                            <span className="font-bold text-slate-200 truncate">{team.name || 'Bilinmeyen Takım'}</span>
+                            {lvl && (
+                                <span className="px-1.5 py-0.5 rounded-md bg-slate-700/60 border border-slate-600/50 text-[10px] font-bold text-slate-300 shrink-0">
+                                    {lvl}
+                                </span>
+                            )}
+                            {team.fairPlay != null && (
+                                <span className="inline-flex items-center gap-0.5 shrink-0">
+                                    <Star className="w-3 h-3 text-green-500 fill-green-500/30" />
+                                    <span className="text-[10px] font-bold text-slate-300">{Number(team.fairPlay).toFixed(1)}</span>
+                                </span>
+                            )}
                         </span>
                     )}
                 </div>
-
-                {/* Satır 3: gün + saat aralığı */}
-                {(dateLine || timeRange) && (
-                    <div className="flex items-center gap-1.5 mt-1.5 text-slate-400" style={{ fontSize: 'clamp(0.7rem, 3vw, 0.8rem)' }}>
-                        <Clock className="w-3 h-3 shrink-0 text-slate-500" />
-                        <span className="truncate capitalize">
-                            {dateLine}
-                            {dateLine && timeRange ? ' • ' : ''}
-                            {timeRange}
-                        </span>
-                    </div>
-                )}
             </div>
         );
     };

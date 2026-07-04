@@ -1,7 +1,15 @@
 import React from 'react';
-import { X, Users, Phone, AlertTriangle, Check, MessageSquare, Star, Trophy, Repeat } from 'lucide-react';
+import { X, Users, Phone, AlertTriangle, Check, MessageSquare, Star, Trophy, Repeat, History, PhoneCall } from 'lucide-react';
 import { Clock } from 'lucide-react';
 import { useModalBodyClass } from '../../../../utils/useModalBodyClass';
+import { telHref } from '../../../../utils/phone';
+
+// İsteğin geliş zamanı — kart sağ üstünde küçük gösterim ("3 Tem 15:16").
+const formatRequestTime = (createdAt?: string): string => {
+    if (!createdAt) return '';
+    const d = new Date(createdAt);
+    return `${d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })} ${d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}`;
+};
 
 interface SlotDetailModalProps {
     selectedDate: string;
@@ -52,11 +60,15 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                     <div>
                         <h3 className="text-[clamp(1.25rem,6vw,1.5rem)] font-black text-white leading-tight">{selectedSlot.startTime} - {selectedSlot.endTime}</h3>
                         <p className="text-slate-400 text-[clamp(0.75rem,3.5vw,0.875rem)] font-medium">
-                            {selectedSlot.status === 'FULL'
-                                ? 'Kesinleşmiş Maç'
-                                : selectedSlot.reservations?.[0]?.matchAnnouncement?.matchType === 'kendi_aramizda'
-                                    ? 'Kendi Aramızda İstekleri'
-                                    : 'Rezervasyon İstekleri'}
+                            {isSlotPast
+                                ? selectedSlot.status === 'FULL'
+                                    ? 'Oynanmış Maç'
+                                    : 'Geçmiş Saat'
+                                : selectedSlot.status === 'FULL'
+                                    ? 'Kesinleşmiş Maç'
+                                    : selectedSlot.reservations?.[0]?.matchAnnouncement?.matchType === 'kendi_aramizda'
+                                        ? 'Kendi Aramızda İstekleri'
+                                        : 'Rezervasyon İstekleri'}
                         </p>
                     </div>
                     <button onClick={() => setSelectedSlot(null)} className="p-2 bg-slate-700/50 rounded-full hover:bg-slate-600 text-slate-300 hover:text-white transition-colors">
@@ -73,6 +85,16 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                                     ? 'bg-slate-800/50 border-red-900/30 opacity-75'
                                     : 'bg-slate-800 border-slate-700'
                                 }`}>
+
+                                {/* İsteğin geliş zamanı — sağ üstte küçük (kapatma kartlarında yok) */}
+                                {res.createdAt && res.team && (
+                                    <div className="flex justify-end -mt-2 mb-2">
+                                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-500">
+                                            <History className="w-3 h-3" />
+                                            İstek: {formatRequestTime(res.createdAt)}
+                                        </span>
+                                    </div>
+                                )}
 
                                 {res.type === 'DIRECT' && !res.team ? (
                                     <div className="flex flex-col items-center justify-center py-4">
@@ -91,7 +113,8 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                                                 ? 'Bu saat sürekli kapatma kuralı nedeniyle her hafta otomatik olarak kapatılıyor.'
                                                 : 'Bu saat işletme tarafından manuel olarak kapatılmıştır.'}
                                         </p>
-                                        {res.recurringClosureId ? (
+                                        {/* Geçmiş saatte boşa çıkarma/kaldırma anlamsız → butonlar gizli */}
+                                        {!isSlotPast && (res.recurringClosureId ? (
                                             <div className="flex flex-col gap-2 w-full px-4">
                                                 <button
                                                     onClick={() => handleCancelClick(res.id)}
@@ -118,7 +141,7 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                                                     <span>Saati Boşa Çıkar</span>
                                                 </button>
                                             </div>
-                                        )}
+                                        ))}
                                     </div>
                                 ) : (
                                     <>
@@ -134,11 +157,25 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                                             <div className="flex-1 min-w-0">
                                                 <div className="font-sport font-black text-[clamp(0.95rem,4.5vw,1.125rem)] text-white italic truncate">{res.team?.name || 'Bilinmeyen Takım'}</div>
                                                 <div className="bg-slate-900/50 rounded-lg p-[clamp(0.5rem,2vw,0.625rem)] mt-1 border border-slate-700/50">
-                                                    <div className="text-[10px] text-slate-500 font-bold uppercase mb-0.5">Kaptan</div>
-                                                    <div className="text-sm font-bold text-slate-200 truncate">{res.team?.captain?.full_name || 'Bilinmiyor'}</div>
-                                                    <div className="text-xs text-slate-400 font-mono mt-0.5 flex items-center gap-1">
-                                                        <Phone className="w-3 h-3" />
-                                                        {res.team?.captain?.phone || 'Tel Yok'}
+                                                    <div className="flex items-start justify-between gap-2">
+                                                        <div className="min-w-0 flex-1">
+                                                            <div className="text-[10px] text-slate-500 font-bold uppercase mb-0.5">Kaptan</div>
+                                                            <div className="text-sm font-bold text-slate-200 truncate">{res.team?.captain?.full_name || 'Bilinmiyor'}</div>
+                                                            <div className="text-xs text-slate-400 font-mono mt-0.5 flex items-center gap-1">
+                                                                <Phone className="w-3 h-3" />
+                                                                {res.team?.captain?.phone || 'Tel Yok'}
+                                                            </div>
+                                                        </div>
+                                                        {res.team?.captain?.phone && (
+                                                            <a
+                                                                href={telHref(res.team.captain.phone)}
+                                                                onClick={(e) => e.stopPropagation()}
+                                                                className="w-10 h-10 rounded-full bg-orange-500/15 border border-orange-500/30 text-orange-400 flex items-center justify-center shrink-0 active:scale-95 transition-all"
+                                                                title="Kaptanı Ara"
+                                                            >
+                                                                <PhoneCall className="w-4 h-4" />
+                                                            </a>
+                                                        )}
                                                     </div>
                                                     <div className="flex gap-3 mt-2 pt-2 border-t border-slate-700/50">
                                                         <div className="flex items-center gap-1" title="Fair Play Skoru">
@@ -187,11 +224,25 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                                                 <div className="flex-1 min-w-0">
                                                     <div className="font-sport font-black text-[clamp(0.95rem,4.5vw,1.125rem)] text-white italic truncate">{res.opponentTeam?.name}</div>
                                                     <div className="bg-slate-900/50 rounded-lg p-[clamp(0.5rem,2vw,0.625rem)] mt-1 border border-slate-700/50">
-                                                        <div className="text-[10px] text-slate-500 font-bold uppercase mb-0.5">Kaptan</div>
-                                                        <div className="text-sm font-bold text-slate-200 truncate">{res.opponentTeam?.captain?.full_name || 'Bilinmiyor'}</div>
-                                                        <div className="text-xs text-slate-400 font-mono mt-0.5 flex items-center gap-1">
-                                                            <Phone className="w-3 h-3" />
-                                                            {res.opponentTeam?.captain?.phone || 'Tel Yok'}
+                                                        <div className="flex items-start justify-between gap-2">
+                                                            <div className="min-w-0 flex-1">
+                                                                <div className="text-[10px] text-slate-500 font-bold uppercase mb-0.5">Kaptan</div>
+                                                                <div className="text-sm font-bold text-slate-200 truncate">{res.opponentTeam?.captain?.full_name || 'Bilinmiyor'}</div>
+                                                                <div className="text-xs text-slate-400 font-mono mt-0.5 flex items-center gap-1">
+                                                                    <Phone className="w-3 h-3" />
+                                                                    {res.opponentTeam?.captain?.phone || 'Tel Yok'}
+                                                                </div>
+                                                            </div>
+                                                            {res.opponentTeam?.captain?.phone && (
+                                                                <a
+                                                                    href={telHref(res.opponentTeam.captain.phone)}
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                    className="w-10 h-10 rounded-full bg-orange-500/15 border border-orange-500/30 text-orange-400 flex items-center justify-center shrink-0 active:scale-95 transition-all"
+                                                                    title="Kaptanı Ara"
+                                                                >
+                                                                    <PhoneCall className="w-4 h-4" />
+                                                                </a>
+                                                            )}
                                                         </div>
                                                         <div className="flex gap-3 mt-2 pt-2 border-t border-slate-700/50">
                                                             <div className="flex items-center gap-1" title="Fair Play Skoru">
@@ -210,7 +261,22 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
 
                                         {/* STATUS & ACTIONS */}
                                         <div className="mt-4 pt-4 border-t border-slate-700/50">
-                                            {res.status === 'APPROVED' ? (
+                                            {isSlotPast && res.status === 'APPROVED' ? (
+                                                /* Geçmiş + onaylı = oynanmış maç — yalnız görüntüleme */
+                                                <div className="flex items-center justify-center gap-2 text-emerald-400 font-bold bg-emerald-500/10 py-3 rounded-xl border border-emerald-500/20">
+                                                    <Trophy className="w-5 h-5" />
+                                                    <span>Oynandı</span>
+                                                </div>
+                                            ) : isSlotPast && res.status !== 'REJECTED' ? (
+                                                /* Geçmiş + onaylanmamış (PENDING/EXPIRED) = süresi geçmiş istek — pasif */
+                                                <div className="flex flex-col items-center gap-1 text-slate-400 font-bold bg-slate-700/20 py-3 rounded-xl border border-slate-600/30">
+                                                    <div className="flex items-center gap-2">
+                                                        <History className="w-5 h-5" />
+                                                        <span>Süresi Geçti</span>
+                                                    </div>
+                                                    <span className="text-[11px] font-semibold text-slate-500">Onaylanmamış rezervasyon isteği</span>
+                                                </div>
+                                            ) : res.status === 'APPROVED' ? (
                                                 <div className="space-y-2">
                                                     {res.cancelRequested ? (
                                                         <div className="flex flex-col gap-3 p-4 bg-orange-500/10 border border-orange-500/30 rounded-xl relative overflow-hidden">
@@ -267,11 +333,6 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                                                 <div className="flex flex-col gap-2">
                                                     <button
                                                         onClick={() => {
-                                                            if (isSlotPast) {
-                                                                openActionModal('APPROVE', res.id);
-                                                                return;
-                                                            }
-
                                                             const required = res.matchAnnouncement?.playerCount;
                                                             const homeCount = res.team?.playerCount;
                                                             const isKendiAramizda = !res.opponentTeam;
@@ -340,6 +401,15 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                                 )}
                             </div>
                         ))
+                    ) : isSlotPast ? (
+                        /* Geçmiş + boş: bu saat rezervasyonsuz geçti — pasif bilgi */
+                        <div className="text-center py-[clamp(2rem,10vw,3rem)] px-4 flex flex-col items-center bg-slate-900/30 rounded-2xl border border-dashed border-slate-700/50">
+                            <div className="w-[clamp(3.5rem,15vw,4.5rem)] h-[clamp(3.5rem,15vw,4.5rem)] bg-slate-800/80 rounded-full flex items-center justify-center mb-4 border border-slate-700 shadow-inner">
+                                <History className="w-[40%] h-[40%] text-slate-500" />
+                            </div>
+                            <p className="text-slate-300 text-[clamp(0.95rem,4.5vw,1.1rem)] font-black uppercase tracking-wide mb-1">Bu Saat Boş Geçti</p>
+                            <p className="text-slate-500 text-[clamp(0.75rem,3.5vw,0.85rem)] font-medium max-w-[220px] leading-relaxed">Bu saat diliminde rezervasyon yapılmadı.</p>
+                        </div>
                     ) : (
                         <div className="text-center py-[clamp(2rem,10vw,3rem)] px-4 flex flex-col items-center bg-slate-900/30 rounded-2xl border border-dashed border-slate-700/50">
                             <div className="w-[clamp(3.5rem,15vw,4.5rem)] h-[clamp(3.5rem,15vw,4.5rem)] bg-slate-800/80 rounded-full flex items-center justify-center mb-4 border border-slate-700 shadow-inner">
@@ -349,7 +419,7 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                         </div>
                     )}
 
-                    {selectedSlot.status !== 'FULL' && (
+                    {selectedSlot.status !== 'FULL' && !isSlotPast && (
                         <div className="mt-4 border-t border-slate-700 pt-4 space-y-2">
                                 <button
                                     onClick={() => {

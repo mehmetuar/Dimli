@@ -19,6 +19,7 @@ import { MatchAnnouncement } from '../match-announcements/match-announcement.ent
 import { BusinessOwner } from '../business-owner/entities/business-owner.entity';
 import { User } from '../users/user.entity';
 import { Reservation } from '../reservations/entities/reservation.entity';
+import { Team } from '../teams/team.entity';
 import {
   istanbulDateTimeToUtc,
   istanbulDisplayParts,
@@ -26,6 +27,21 @@ import {
 import { TeamsService } from '../teams/teams.service';
 import { AppGateway } from '../gateway/app.gateway';
 import { FirebaseService } from '../firebase/firebase.service';
+
+// Takım → RESERVATION_REQUEST bildirim metadata projeksiyonu.
+// reservation-lifecycle.service.ts create() ile AYNI şekli üretir —
+// alan eklenirse/değişirse iki dosya birlikte güncellenmeli.
+const toTeamMeta = (t: Team | null | undefined) =>
+  t
+    ? {
+        id: t.id,
+        name: t.name,
+        logo: t.logoUrl ?? null,
+        level: t.level ?? null,
+        fairPlay: t.fairPlayScore ?? null,
+        ratingCount: t.fairPlayRatingCount ?? 0,
+      }
+    : null;
 
 @Injectable()
 export class NotificationsService {
@@ -604,28 +620,34 @@ export class NotificationsService {
     });
 
     // Self-heal: eski RESERVATION_REQUEST bildirimleri ya minimal metadata
-    // içeriyor ya da metaV:2 öncesi yanlış saatle (UTC formatı, İstanbul değil)
-    // zenginleştirilmiş olabilir. Okuma sırasında metaV !== 2 olanlar ilgili
-    // rezervasyondan yeniden doldurulur + kalıcılaştırılır (tek yazım garantisi:
-    // metaV=2 işlendikten sonra guard bir daha girmez). Rezervasyon silinmişse
-    // metaV=2 işaretlenir (team null kalır) → sonsuz yeniden deneme olmaz,
-    // istemci title/message fallback'ini gösterir.
+    // içeriyor ya da eski sürümle (v2: opponentTeam yok; v2 öncesi: yanlış/UTC
+    // saat) zenginleştirilmiş olabilir. Okuma sırasında metaV !== 3 olanlar
+    // ilgili rezervasyondan yeniden doldurulur + kalıcılaştırılır (tek yazım
+    // garantisi: metaV=3 işlendikten sonra guard bir daha girmez). Rezervasyon
+    // silinmişse metaV=3 işaretlenir (team null kalır) → sonsuz yeniden deneme
+    // olmaz, istemci title/message fallback'ini gösterir.
     return Promise.all(
       notifications.map(async (n) => {
         if (
           n.type === 'RESERVATION_REQUEST' &&
           n.metadata &&
-          n.metadata.metaV !== 2
+          n.metadata.metaV !== 3
         ) {
           try {
             const resId = n.metadata.reservationId || n.relatedId;
             if (!resId) return n;
             const res = await this.reservationsRepository.findOne({
               where: { id: resId },
-              relations: ['team', 'matchAnnouncement', 'pitch', 'pitch.timeSlots'],
+              relations: [
+                'team',
+                'opponentTeam',
+                'matchAnnouncement',
+                'pitch',
+                'pitch.timeSlots',
+              ],
             });
             if (!res) {
-              n.metadata = { ...n.metadata, metaV: 2 };
+              n.metadata = { ...n.metadata, metaV: 3 };
               await this.notificationsRepository.save(n);
               return n;
             }
@@ -649,7 +671,7 @@ export class NotificationsService {
 
             n.metadata = {
               ...n.metadata,
-              metaV: 2,
+              metaV: 3,
               // Eski satırlardaki yanlış (UTC) date/time gösterim alanlarını da düzelt.
               date: slotParts.displayDate,
               time: slotParts.time,
@@ -661,16 +683,8 @@ export class NotificationsService {
               endTime,
               matchType: res.matchAnnouncement?.matchType ?? null,
               reservationType: res.type,
-              team: res.team
-                ? {
-                    id: res.team.id,
-                    name: res.team.name,
-                    logo: res.team.logoUrl ?? null,
-                    level: res.team.level ?? null,
-                    fairPlay: res.team.fairPlayScore ?? null,
-                    ratingCount: res.team.fairPlayRatingCount ?? 0,
-                  }
-                : null,
+              team: toTeamMeta(res.team),
+              opponentTeam: toTeamMeta(res.opponentTeam),
             };
             await this.notificationsRepository.save(n);
           } catch (e) {

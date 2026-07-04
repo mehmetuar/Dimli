@@ -45,7 +45,7 @@ export const BusinessDateFilterModal: React.FC<BusinessDateFilterModalProps> = (
                             TARİH <span className="text-orange-500">SEÇ</span>
                         </h2>
                         <p className="text-blue-300/60 text-xs font-bold uppercase tracking-tighter">
-                            Geçmiş ve ileriye dönük tarihler aktif
+                            Son 3 ay – gelecek 1 ay arası seçilebilir
                         </p>
                     </div>
                     <button
