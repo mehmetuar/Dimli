@@ -55,7 +55,7 @@ export const MatchAnnouncementCard: React.FC<MatchAnnouncementCardProps> = ({
     const existingChallenge = myChallenges.find(
         c => c.toMatchId === announcement.id && c.status === 'PENDING'
     );
-    // İnce takım-rengi aksanı: yalnız sol şerit + logo halkası (kurumsal görünüm
+    // İnce takım-rengi aksanı: yalnız logo halkası (kurumsal görünüm
     // bozulmasın diye düşük yoğunluk; kart zemini nötr kalır).
     const accent = toHex(announcement.team?.primaryColor);
     const postedAgo = timeAgo(announcement.createdAt);
@@ -67,7 +67,6 @@ export const MatchAnnouncementCard: React.FC<MatchAnnouncementCardProps> = ({
                 ? 'bg-turf-900/20 border-turf-500/50'
                 : 'bg-slate-800 border-slate-700'
                 }`}
-            style={{ borderLeft: `3px solid ${accent}99` }}
         >
             {/* Ambient glow */}
             <div className={`absolute -right-10 -top-10 w-40 h-40 rounded-full blur-2xl pointer-events-none ${isOwnTeam ? 'bg-turf-600/20' : 'bg-slate-700/20'}`} />
