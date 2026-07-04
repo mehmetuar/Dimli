@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 import { useModalBodyClass } from '../../utils/useModalBodyClass';
+import { weekdayNameFromDateStr } from '../../utils/pitchClosed';
 
 interface DateSelectionModalProps {
     isOpen: boolean;
@@ -9,6 +10,10 @@ interface DateSelectionModalProps {
     selectedDate: string;
     allowPastDates?: boolean;
     maxMonthsAhead?: number;
+    // Sabitlenmiş sahanın kapalı olduğu haftanın günleri (İngilizce, ör.
+    // ['Sunday']) — bu günler takvimde pasifleştirilir. Sadece tek saha
+    // sabitken anlamlı; belirtilmezse hiçbir gün gün-adına göre kapatılmaz.
+    closedWeekdays?: string[];
 }
 
 export const DateSelectionModal: React.FC<DateSelectionModalProps> = ({
@@ -18,6 +23,7 @@ export const DateSelectionModal: React.FC<DateSelectionModalProps> = ({
     selectedDate,
     allowPastDates = false,
     maxMonthsAhead,
+    closedWeekdays,
 }) => {
     const [currentMonth, setCurrentMonth] = useState(new Date());
 
@@ -75,12 +81,22 @@ export const DateSelectionModal: React.FC<DateSelectionModalProps> = ({
         setCurrentMonth(newDate);
     };
 
+    // Sabitlenmiş sahanın kapalı olduğu haftanın günü mü? (İngilizce gün adı,
+    // Pitch.closedDays ile aynı konvansiyon; UTC-güvenli hesaplama.)
+    const isClosedWeekday = (day: number): boolean => {
+        if (!closedWeekdays?.length) return false;
+        const dateStr = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        return closedWeekdays.includes(weekdayNameFromDateStr(dateStr));
+    };
+
     const handleDateClick = (day: number) => {
         const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
         // Check if past date (only block if allowPastDates is false)
         if (!allowPastDates && date < today) return;
         // Check if beyond max date
         if (maxDate && date > maxDate) return;
+        // Kapalı gün seçilemez
+        if (isClosedWeekday(day)) return;
 
         const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         onSelect(dateStr);
@@ -174,7 +190,7 @@ export const DateSelectionModal: React.FC<DateSelectionModalProps> = ({
                         {/* Days */}
                         {Array.from({ length: days }).map((_, i) => {
                             const day = i + 1;
-                            const disabled = isPast(day);
+                            const disabled = isPast(day) || isClosedWeekday(day);
                             const selected = isSelected(day);
                             const current = isToday(day);
 

@@ -8,6 +8,7 @@ import { SkillLevel, Business, ReservationStatus } from '../../types';
 import api, { getReservationsByPitch, getBusinesses } from '../../services/api';
 import { useLocationContext } from '../../contexts/LocationContext';
 import { useKeyboardHeight } from '../../utils/useKeyboardHeight';
+import { isPitchClosedOnDate, closedDayMessage } from '../../utils/pitchClosed';
 import { LocationAccessGate } from '../LocationAccessGate';
 
 import { DateSelectionModal } from './DateSelectionModal';
@@ -176,6 +177,12 @@ const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelected
             setErrorMessage('Lütfen tüm alanları doldurun');
             return;
         }
+        // Kapalı gün ön-kontrolü: API'ye gitmeden, gün-adlı net uyarı ver
+        // (sunucu da 403 ile reddeder — bu, kullanıcı deneyimi için erken engel).
+        if (selectedPitch && isPitchClosedOnDate(selectedPitch, date)) {
+            setErrorMessage(closedDayMessage(selectedPitch, date) ?? 'Bu saha seçili tarihte kapalı.');
+            return;
+        }
         setIsLoading(true);
         setErrorMessage('');
         try {
@@ -224,6 +231,12 @@ const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelected
     };
     const selectedPitch = getSelectedPitch();
 
+    // Sabitlenmiş saha (preSelectedPitchId) akışı browse filtresine takılmaz —
+    // seçili sahanın seçili tarihte kapalı olup olmadığını burada türetip hem
+    // "İLANI YAYINLA" butonunu pasifleştiriyor hem gün-adlı uyarı gösteriyoruz.
+    const selectedPitchClosed = selectedPitch ? isPitchClosedOnDate(selectedPitch, date) : false;
+    const selectedPitchClosedMsg = selectedPitch ? closedDayMessage(selectedPitch, date) : null;
+
     const getSelectedBusiness = () => {
         if (selectedBusinessId) return businesses.find(b => b.id === selectedBusinessId);
         if (selectedPitchId) return businesses.find(b => b.pitches?.some(p => p.id === selectedPitchId));
@@ -241,25 +254,15 @@ const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelected
     };
     const endTime = time ? getEndTime(time) : null;
 
-    // Seçili tarihte (haftalık sürekli kapatma veya genel pasiflik nedeniyle)
-    // kapalı olan sahalar — PitchSchedule.tsx'teki müşteri tarafı kontrolün
-    // burada da uygulanması: kapalı bir sahaya ilan açılamaz, bu yüzden
-    // formda hiç gösterilmez.
-    const isPitchClosedOnSelectedDate = (pitch: { isActive?: boolean; closedDays?: string[] }): boolean => {
-        if (pitch.isActive === false) return true;
-        if (!pitch.closedDays?.length) return false;
-        const dayName = new Date(date).toLocaleDateString('en-US', { weekday: 'long' });
-        return pitch.closedDays.includes(dayName);
-    };
-
     // Seçili tarihte açık sahası olmayan işletmeler listede hiç görünmez;
-    // arama da sadece o tarihte açık sahalar üzerinden eşleşir.
+    // arama da sadece o tarihte açık sahalar üzerinden eşleşir. Kapalı-gün
+    // kontrolü tek kaynak: utils/pitchClosed (sunucu turkey-time.util ile aynı).
     const filteredBusinesses = useMemo(() => {
         const q = searchQuery.trim().toLocaleLowerCase('tr');
         return businesses
             .map(b => ({
                 ...b,
-                pitches: b.pitches?.filter(p => !isPitchClosedOnSelectedDate(p)),
+                pitches: b.pitches?.filter(p => !isPitchClosedOnDate(p, date)),
             }))
             .filter(b =>
                 (b.pitches?.length ?? 0) > 0 &&
@@ -558,9 +561,16 @@ const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelected
                             )}
                         </div>
 
+                        {selectedPitchClosed && (
+                            <div className="mb-3 flex items-center gap-2 bg-red-950/40 border border-red-900/50 text-red-400 px-4 py-2.5 rounded-xl">
+                                <Info className="w-4 h-4 shrink-0" />
+                                <p className="text-sm font-bold">{selectedPitchClosedMsg ?? 'Bu saha seçili tarihte kapalı.'}</p>
+                            </div>
+                        )}
+
                         <button
                             onClick={handleSubmit}
-                            disabled={!selectedPitchId || !date || !time || isLoading}
+                            disabled={!selectedPitchId || !date || !time || isLoading || selectedPitchClosed}
                             className="w-full bg-turf-600 disabled:bg-slate-700 disabled:text-slate-500 text-white font-black uppercase italic py-4 rounded-xl text-lg shadow-lg shadow-turf-600/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2"
                         >
                             {isLoading ? <LoadingSpinner size="sm" /> : <><Trophy className="w-5 h-5" /> İlanı Yayınla</>}
@@ -576,6 +586,10 @@ const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelected
                 onSelect={setDate}
                 selectedDate={date}
                 maxMonthsAhead={1}
+                // Saha sabitken (İlk ilanı sen aç akışı) o sahanın kapalı günleri
+                // takvimde pasif — browse'da farklı sahaların farklı kapalı günleri
+                // olacağından yalnızca tek saha sabitken uygulanır.
+                closedWeekdays={preSelectedPitchId && selectedPitch?.isActive !== false ? selectedPitch?.closedDays : undefined}
             />
 
             <TimeSelectionModal

@@ -19,6 +19,8 @@ interface ActiveMatchesListProps {
     handleCancelClick: (challengeId: string) => void;
     selectedPitch: any;
     handleCreateAd: (pitchId: string) => void;
+    isPitchClosed?: boolean;
+    closedMessage?: string | null;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -346,7 +348,7 @@ const AllMatchesModal: React.FC<AllMatchesModalProps> = ({
 export const ActiveMatchesList: React.FC<ActiveMatchesListProps> = ({
     activeMatches, currentUser, myChallenges, isAuthorized,
     setViewingTeam, setOfferMode, handleDeleteAdClick, handleCancelClick,
-    selectedPitch, handleCreateAd
+    selectedPitch, handleCreateAd, isPitchClosed, closedMessage
 }) => {
     const [showAllModal, setShowAllModal] = useState(false);
 
@@ -413,6 +415,12 @@ export const ActiveMatchesList: React.FC<ActiveMatchesListProps> = ({
 
             {activeMatches.length > 0 ? (
                 renderInlineCards(displayedMatches)
+            ) : isPitchClosed ? (
+                // Saha bu tarihte kapalı: ilan açma girişi hiç gösterilmez —
+                // yerine gün-adlı pasif uyarı (Maç Kur formuna erişim engellenir).
+                <div className="text-center py-8 border-2 border-dashed border-red-900/50 rounded-xl bg-red-950/30">
+                    <p className="text-red-400 text-sm font-bold">{closedMessage ?? 'Bu saha bugün kapalı.'}</p>
+                </div>
             ) : (
                 <div className="text-center py-8 border-2 border-dashed border-slate-700 rounded-xl bg-slate-800/50">
                     <p className="text-slate-500 text-sm mb-3">Bu sahada henüz aktif ilan yok.</p>

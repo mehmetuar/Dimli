@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Clock, Phone, AlertCircle, Navigation } from 'lucide-react';
 import { generateSlots, isPastSlot } from '../utils/pitchUtils';
 import { DirectionsConfirmModal } from './DirectionsConfirmModal';
+import { isPitchClosedOnDate } from '../../../../utils/pitchClosed';
 
 interface PitchScheduleProps {
     business: any;
@@ -21,11 +22,9 @@ export const PitchSchedule: React.FC<PitchScheduleProps> = ({
 }) => {
     const [showDirectionsModal, setShowDirectionsModal] = useState(false);
 
-    // Check if pitch is closed (passive or closed on this specific day)
-    const dayName = new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long' });
-    const isPitchClosed =
-        selectedPitch.isActive === false ||
-        (selectedPitch.closedDays && selectedPitch.closedDays.includes(dayName));
+    // Check if pitch is closed (passive or closed on this specific day) —
+    // tek kaynak: utils/pitchClosed (sunucu turkey-time.util ile aynı, UTC-güvenli)
+    const isPitchClosed = isPitchClosedOnDate(selectedPitch, selectedDate);
 
     return (
         <>

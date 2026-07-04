@@ -3,6 +3,7 @@ import { MapPin, Star, ChevronDown, Trophy, Navigation } from 'lucide-react';
 import { Business } from '../../../../types';
 import { PitchSchedule } from './PitchSchedule';
 import { ActiveMatchesList } from './ActiveMatchesList';
+import { isPitchClosedOnDate, closedDayMessage } from '../../../../utils/pitchClosed';
 
 interface BusinessListItemProps {
     business: Business;
@@ -37,6 +38,11 @@ export const BusinessListItem = React.memo<BusinessListItemProps>(({
     const displayPitch = selectedPitch || (business.pitches && business.pitches[0]);
 
     if (!business.pitches || business.pitches.length === 0) return null;
+
+    // Seçili saha bu tarihte kapalı mı? (tek kaynak util) — kapalıysa
+    // ActiveMatchesList'teki "İlk ilanı sen aç!" girişi kapatılır.
+    const isSelectedPitchClosed = selectedPitch ? isPitchClosedOnDate(selectedPitch, selectedDate) : false;
+    const selectedPitchClosedMsg = selectedPitch ? closedDayMessage(selectedPitch, selectedDate) : null;
 
     const displayName = business.name.length > 16 ? business.name.slice(0, 16) + '..' : business.name;
 
@@ -173,6 +179,8 @@ export const BusinessListItem = React.memo<BusinessListItemProps>(({
                                 handleCancelClick={handleCancelClick}
                                 selectedPitch={selectedPitch}
                                 handleCreateAd={handleCreateAd}
+                                isPitchClosed={isSelectedPitchClosed}
+                                closedMessage={selectedPitchClosedMsg}
                             />
                         </>
                     ) : (
