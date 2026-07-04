@@ -75,6 +75,57 @@ const WEEKDAY_NAMES = [
   'Saturday',
 ];
 
+const TR_MONTHS = [
+  'Ocak',
+  'Şubat',
+  'Mart',
+  'Nisan',
+  'Mayıs',
+  'Haziran',
+  'Temmuz',
+  'Ağustos',
+  'Eylül',
+  'Ekim',
+  'Kasım',
+  'Aralık',
+];
+
+const TR_WEEKDAYS = [
+  'Pazar',
+  'Pazartesi',
+  'Salı',
+  'Çarşamba',
+  'Perşembe',
+  'Cuma',
+  'Cumartesi',
+];
+
+/**
+ * Kullanıcıya gösterilecek TÜM tarih/saat parçalarını İstanbul yerel saatiyle
+ * üretir. Bildirim mesajı / sistem mesajı / metadata gibi görüntüleme amaçlı
+ * her formatlamada BU kullanılmalı — `toLocaleTimeString('tr-TR')` timeZone
+ * verilmeden çağrılırsa process TZ'sine (UTC, bkz. main.ts) göre basar ve
+ * İstanbul'dan 3 saat geri görünür. Intl/ICU'ya bağımlı değildir (deterministik).
+ */
+export function istanbulDisplayParts(date: Date): {
+  dateStr: string; // 'YYYY-MM-DD' (İstanbul takvim günü)
+  time: string; // 'HH:mm' (İstanbul)
+  dayName: string; // 'Cumartesi'
+  displayDate: string; // '4 Temmuz'
+  displayDateWithYear: string; // '4 Temmuz 2026'
+} {
+  const { dateStr, hours, minutes } = toIstanbulParts(date);
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return {
+    dateStr,
+    time: `${pad(hours)}:${pad(minutes)}`,
+    dayName: TR_WEEKDAYS[new Date(Date.UTC(year, month - 1, day)).getUTCDay()],
+    displayDate: `${day} ${TR_MONTHS[month - 1]}`,
+    displayDateWithYear: `${day} ${TR_MONTHS[month - 1]} ${year}`,
+  };
+}
+
 /**
  * "YYYY-MM-DD" tarihinin haftanın hangi gününe denk geldiğini döner
  * ('Monday'..'Sunday', Pitch.closedDays ile aynı konvansiyon). Tarih-sadece

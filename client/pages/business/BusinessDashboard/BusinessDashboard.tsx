@@ -21,6 +21,7 @@ export const BusinessDashboard: React.FC = () => {
     const {
         selectedDate,
         setSelectedDate,
+        focusPitchId,
         dashboardData,
         subscription,
         businessStatus,
@@ -237,6 +238,7 @@ export const BusinessDashboard: React.FC = () => {
                         isPastSlot={isPastSlot}
                         setSelectedSlot={setSelectedSlot}
                         isPending={isPending}
+                        focusPitchId={focusPitchId}
                     />
                 </>
             )}

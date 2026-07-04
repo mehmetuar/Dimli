@@ -33,6 +33,7 @@ import { ReservationSupportService } from './reservation-support.service';
 import {
   isPitchClosedOnDate,
   istanbulDateTimeToUtc,
+  istanbulDisplayParts,
   toIstanbulParts,
 } from '../../common/turkey-time.util';
 
@@ -101,10 +102,8 @@ export class ReservationLifecycleService {
         playersToNotify.push(...reservation.opponentTeam.players);
       }
 
-      const timeStr = reservation.slotTime.toLocaleTimeString('tr-TR', {
-        hour: '2-digit',
-        minute: '2-digit',
-      });
+      // İstanbul saatiyle formatla — process TZ=UTC, timeZone'suz toLocale* 3 saat geri basar.
+      const timeStr = istanbulDisplayParts(new Date(reservation.slotTime)).time;
       const pitchName = reservation.pitch?.name || 'Saha';
       const businessName = reservation.pitch?.business?.name || 'İşletme';
 
@@ -223,20 +222,15 @@ export class ReservationLifecycleService {
 
         if (owner) {
           const slotTime = new Date(savedReservation.slotTime);
-          const dateStr = slotTime.toLocaleDateString('tr-TR', {
-            day: 'numeric',
-            month: 'long',
-          });
-          const timeStr = slotTime.toLocaleTimeString('tr-TR', {
-            hour: '2-digit',
-            minute: '2-digit',
-          });
+          // Tüm görüntüleme parçaları İstanbul saatiyle (istanbulDisplayParts) —
+          // timeZone'suz toLocale* process TZ'sine (UTC) göre 3 saat geri basar.
+          const slotParts = istanbulDisplayParts(slotTime);
+          const dateStr = slotParts.displayDate; // '4 Temmuz'
+          const timeStr = slotParts.time; // 'HH:mm' İstanbul
 
           // Uygulama içi bildirim kartı/detayını zenginleştir: istek gönderen takım +
           // (varsa) maç tipi + gün adı + saat aralığı. Push (title/message) DEĞİŞMEZ.
-          const dayName = slotTime.toLocaleDateString('tr-TR', {
-            weekday: 'long',
-          });
+          const dayName = slotParts.dayName;
           const startTime = timeStr;
           let endTime = '';
           const slots = pitch.timeSlots;
@@ -245,10 +239,11 @@ export class ReservationLifecycleService {
             if (matchingSlot) endTime = matchingSlot.endTime;
           }
           if (!endTime) {
-            endTime = new Date(slotTime.getTime() + 60 * 60 * 1000)
-              .toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+            endTime = istanbulDisplayParts(
+              new Date(slotTime.getTime() + 60 * 60 * 1000),
+            ).time;
           }
-          const { dateStr: slotDateIso } = toIstanbulParts(slotTime); // 'YYYY-MM-DD'
+          const slotDateIso = slotParts.dateStr; // 'YYYY-MM-DD'
 
           const team = savedReservation.teamId
             ? await this.reservationRepository.manager
@@ -278,7 +273,9 @@ export class ReservationLifecycleService {
               time: timeStr,
               role: 'BUSINESS_OWNER',
               // --- zenginleştirme alanları ---
-              slotDateIso, // 'YYYY-MM-DD' — Sahaya Git için dashboard formatı
+              metaV: 2, // zenginleştirme sürümü — self-heal guard'ı (bkz. findByOwner)
+              pitchId: pitch.id, // "Rezervasyon İsteğine Git" slot auto-open için
+              slotDateIso, // 'YYYY-MM-DD' — dashboard tarih formatı
               slotTimeIso: slotTime.toISOString(),
               dayName,
               startTime,
@@ -391,19 +388,12 @@ export class ReservationLifecycleService {
         const businessName = reservation.pitch?.business?.name || 'İşletme';
         const pitchName = reservation.pitch?.name || 'Saha';
 
-        // Format Date with Day Name
-        const dayName = approvalTime.toLocaleDateString('tr-TR', {
-          weekday: 'long',
-        });
-        const dateStr = approvalTime.toLocaleDateString('tr-TR', {
-          day: 'numeric',
-          month: 'long',
-          year: 'numeric',
-        });
-        const startTimeStr = approvalTime.toLocaleTimeString('tr-TR', {
-          hour: '2-digit',
-          minute: '2-digit',
-        });
+        // Format Date with Day Name — İstanbul saatiyle (timeZone'suz toLocale*
+        // process TZ=UTC yüzünden 3 saat geri basar + time_slots eşleşmesi tutmaz).
+        const approvalParts = istanbulDisplayParts(approvalTime);
+        const dayName = approvalParts.dayName;
+        const dateStr = approvalParts.displayDateWithYear;
+        const startTimeStr = approvalParts.time;
 
         // Calculate end time from pitch time slots or default +1 hour
         let endTimeStr = '';
@@ -417,11 +407,9 @@ export class ReservationLifecycleService {
           }
         }
         if (!endTimeStr) {
-          const endTime = new Date(approvalTime.getTime() + 60 * 60 * 1000);
-          endTimeStr = endTime.toLocaleTimeString('tr-TR', {
-            hour: '2-digit',
-            minute: '2-digit',
-          });
+          endTimeStr = istanbulDisplayParts(
+            new Date(approvalTime.getTime() + 60 * 60 * 1000),
+          ).time;
         }
 
         // Construct Message with full details
@@ -459,18 +447,11 @@ export class ReservationLifecycleService {
       try {
         const businessName = reservation.pitch?.business?.name || 'İşletme';
         const pitchName = reservation.pitch?.name || 'Saha';
-        const notifDayName = approvalTime.toLocaleDateString('tr-TR', {
-          weekday: 'long',
-        });
-        const notifDateStr = approvalTime.toLocaleDateString('tr-TR', {
-          day: 'numeric',
-          month: 'long',
-          year: 'numeric',
-        });
-        const notifTimeStr = approvalTime.toLocaleTimeString('tr-TR', {
-          hour: '2-digit',
-          minute: '2-digit',
-        });
+        // İstanbul saatiyle formatla (istanbulDisplayParts) — bkz. yukarıdaki not.
+        const notifParts = istanbulDisplayParts(approvalTime);
+        const notifDayName = notifParts.dayName;
+        const notifDateStr = notifParts.displayDateWithYear;
+        const notifTimeStr = notifParts.time;
 
         const playersToNotify: User[] = [];
         if (reservation.team?.players) {
@@ -531,13 +512,11 @@ export class ReservationLifecycleService {
         for (const conflict of conflictingReservations) {
           if (conflict.id === id) continue;
 
-          const conflictTimeStr = approvalTime.toLocaleTimeString('tr-TR', {
-            hour: '2-digit',
-            minute: '2-digit',
-          });
-          const conflictEndTimeStr = new Date(
-            approvalTime.getTime() + 60 * 60000,
-          ).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+          // İstanbul saatiyle formatla (istanbulDisplayParts) — bkz. yukarıdaki not.
+          const conflictTimeStr = istanbulDisplayParts(approvalTime).time;
+          const conflictEndTimeStr = istanbulDisplayParts(
+            new Date(approvalTime.getTime() + 60 * 60000),
+          ).time;
 
           conflict.status = ReservationStatus.CANCELLED;
           await manager.save(conflict);
@@ -1190,19 +1169,14 @@ export class ReservationLifecycleService {
         );
 
         const slotTime = new Date(reservation.slotTime);
-        const dateStr = slotTime.toLocaleDateString('tr-TR', {
-          day: 'numeric',
-          month: 'long',
-          year: 'numeric',
-          weekday: 'long',
-        });
-        const timeStr = slotTime.toLocaleTimeString('tr-TR', {
-          hour: '2-digit',
-          minute: '2-digit',
-        });
-        const endTimeStr = new Date(
-          slotTime.getTime() + 60 * 60 * 1000,
-        ).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+        // İstanbul saatiyle formatla (istanbulDisplayParts) — timeZone'suz
+        // toLocale* process TZ=UTC yüzünden 3 saat geri basar.
+        const slotParts = istanbulDisplayParts(slotTime);
+        const dateStr = `${slotParts.displayDateWithYear} ${slotParts.dayName}`;
+        const timeStr = slotParts.time;
+        const endTimeStr = istanbulDisplayParts(
+          new Date(slotTime.getTime() + 60 * 60 * 1000),
+        ).time;
         const businessName = reservation.pitch?.business?.name || 'İşletme';
         const pitchName = reservation.pitch?.name || 'Saha';
 
@@ -1288,19 +1262,14 @@ export class ReservationLifecycleService {
     // Notify chat
     if (reservation.matchAnnouncementId) {
       const slotTime = new Date(reservation.slotTime);
-      const dateStr = slotTime.toLocaleDateString('tr-TR', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-        weekday: 'long',
-      });
-      const timeStr = slotTime.toLocaleTimeString('tr-TR', {
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-      const endTimeStr = new Date(
-        slotTime.getTime() + 60 * 60 * 1000,
-      ).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+      // İstanbul saatiyle formatla (istanbulDisplayParts) — timeZone'suz
+      // toLocale* process TZ=UTC yüzünden 3 saat geri basar.
+      const slotParts = istanbulDisplayParts(slotTime);
+      const dateStr = `${slotParts.displayDateWithYear} ${slotParts.dayName}`;
+      const timeStr = slotParts.time;
+      const endTimeStr = istanbulDisplayParts(
+        new Date(slotTime.getTime() + 60 * 60 * 1000),
+      ).time;
       const businessName = reservation.pitch?.business?.name || 'İşletme';
       const pitchName = reservation.pitch?.name || 'Saha';
 
@@ -1332,14 +1301,11 @@ export class ReservationLifecycleService {
 
         if (owner) {
           const slotTime = new Date(reservation.slotTime);
-          const dateStr = slotTime.toLocaleDateString('tr-TR', {
-            day: 'numeric',
-            month: 'long',
-          });
-          const timeStr = slotTime.toLocaleTimeString('tr-TR', {
-            hour: '2-digit',
-            minute: '2-digit',
-          });
+          // İstanbul saatiyle formatla (istanbulDisplayParts) — timeZone'suz
+          // toLocale* process TZ=UTC yüzünden 3 saat geri basar.
+          const slotParts = istanbulDisplayParts(slotTime);
+          const dateStr = slotParts.displayDate;
+          const timeStr = slotParts.time;
 
           await this.notificationsService.create({
             userId: owner.id,
@@ -1403,19 +1369,14 @@ export class ReservationLifecycleService {
     // Notify chat
     if (reservation.matchAnnouncementId) {
       const slotTime = new Date(reservation.slotTime);
-      const dateStr = slotTime.toLocaleDateString('tr-TR', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-        weekday: 'long',
-      });
-      const timeStr = slotTime.toLocaleTimeString('tr-TR', {
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-      const endTimeStr = new Date(
-        slotTime.getTime() + 60 * 60 * 1000,
-      ).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+      // İstanbul saatiyle formatla (istanbulDisplayParts) — timeZone'suz
+      // toLocale* process TZ=UTC yüzünden 3 saat geri basar.
+      const slotParts = istanbulDisplayParts(slotTime);
+      const dateStr = `${slotParts.displayDateWithYear} ${slotParts.dayName}`;
+      const timeStr = slotParts.time;
+      const endTimeStr = istanbulDisplayParts(
+        new Date(slotTime.getTime() + 60 * 60 * 1000),
+      ).time;
       const businessName = reservation.pitch?.business?.name || 'İşletme';
       const pitchName = reservation.pitch?.name || 'Saha';
 
@@ -1441,14 +1402,11 @@ export class ReservationLifecycleService {
 
         if (owner) {
           const slotTime = new Date(reservation.slotTime);
-          const dateStr = slotTime.toLocaleDateString('tr-TR', {
-            day: 'numeric',
-            month: 'long',
-          });
-          const timeStr = slotTime.toLocaleTimeString('tr-TR', {
-            hour: '2-digit',
-            minute: '2-digit',
-          });
+          // İstanbul saatiyle formatla (istanbulDisplayParts) — timeZone'suz
+          // toLocale* process TZ=UTC yüzünden 3 saat geri basar.
+          const slotParts = istanbulDisplayParts(slotTime);
+          const dateStr = slotParts.displayDate;
+          const timeStr = slotParts.time;
 
           await this.notificationsService.create({
             userId: owner.id,
@@ -1520,19 +1478,14 @@ export class ReservationLifecycleService {
         );
 
         const slotTime = new Date(reservation.slotTime);
-        const dateStr = slotTime.toLocaleDateString('tr-TR', {
-          day: 'numeric',
-          month: 'long',
-          year: 'numeric',
-          weekday: 'long',
-        });
-        const timeStr = slotTime.toLocaleTimeString('tr-TR', {
-          hour: '2-digit',
-          minute: '2-digit',
-        });
-        const endTimeStr = new Date(
-          slotTime.getTime() + 60 * 60 * 1000,
-        ).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+        // İstanbul saatiyle formatla (istanbulDisplayParts) — timeZone'suz
+        // toLocale* process TZ=UTC yüzünden 3 saat geri basar.
+        const slotParts = istanbulDisplayParts(slotTime);
+        const dateStr = `${slotParts.displayDateWithYear} ${slotParts.dayName}`;
+        const timeStr = slotParts.time;
+        const endTimeStr = istanbulDisplayParts(
+          new Date(slotTime.getTime() + 60 * 60 * 1000),
+        ).time;
         const businessName = reservation.pitch?.business?.name || 'İşletme';
         const pitchName = reservation.pitch?.name || 'Saha';
 
@@ -1621,19 +1574,14 @@ export class ReservationLifecycleService {
       // Notify chat
       if (reservation.matchAnnouncementId) {
         const slotTime = new Date(reservation.slotTime);
-        const dateStr = slotTime.toLocaleDateString('tr-TR', {
-          day: 'numeric',
-          month: 'long',
-          year: 'numeric',
-          weekday: 'long',
-        });
-        const timeStr = slotTime.toLocaleTimeString('tr-TR', {
-          hour: '2-digit',
-          minute: '2-digit',
-        });
-        const endTimeStr = new Date(
-          slotTime.getTime() + 60 * 60 * 1000,
-        ).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+        // İstanbul saatiyle formatla (istanbulDisplayParts) — timeZone'suz
+        // toLocale* process TZ=UTC yüzünden 3 saat geri basar.
+        const slotParts = istanbulDisplayParts(slotTime);
+        const dateStr = `${slotParts.displayDateWithYear} ${slotParts.dayName}`;
+        const timeStr = slotParts.time;
+        const endTimeStr = istanbulDisplayParts(
+          new Date(slotTime.getTime() + 60 * 60 * 1000),
+        ).time;
         const businessName = reservation.pitch?.business?.name || 'İşletme';
         const pitchName = reservation.pitch?.name || 'Saha';
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X, Users, Star, MapPin, CalendarDays, Clock, ArrowRight } from 'lucide-react';
+import { X, Users, Star, MapPin, CalendarDays, Clock, ArrowRight, History } from 'lucide-react';
 import { useModalBodyClass } from '../../../../utils/useModalBodyClass';
 import { BusinessNotification, levelLabel, matchTypeLabel } from '../types';
 
@@ -30,11 +30,25 @@ export const ReservationRequestDetailModal: React.FC<ReservationRequestDetailMod
         : m.time || '';
     // Gün + tarih: "Cuma, 4 Temmuz"; parçalar eksikse mevcut olanı göster.
     const dateLine = [m.dayName, m.date].filter(Boolean).join(', ');
+    // İstek zamanı: bildirimin oluşturulma anı (cihaz saati İstanbul).
+    const createdAtDate = notification.createdAt ? new Date(notification.createdAt) : null;
+    const requestedAt = createdAtDate
+        ? `${createdAtDate.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' })} ${createdAtDate.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}`
+        : '';
 
-    const goToSlot = () => {
-        const date = m.slotDateIso || m.date; // ISO tercih; yoksa legacy (dashboard regex ile yoksayar)
+    // Doğrudan dashboard'daki slot detay modalını açar (Onayla/Reddet orada);
+    // openSlot metadata'sı yoksa yalnız ilgili tarihe gider.
+    const goToRequest = () => {
         onClose();
-        navigate('/business/dashboard', { state: { selectedDate: date } });
+        navigate('/business/dashboard', {
+            state: {
+                selectedDate: m.slotDateIso || m.date,
+                openSlot:
+                    m.pitchId && m.startTime
+                        ? { pitchId: m.pitchId, startTime: m.startTime }
+                        : undefined,
+            },
+        });
     };
 
     return (
@@ -76,8 +90,8 @@ export const ReservationRequestDetailModal: React.FC<ReservationRequestDetailMod
                     className="flex-1 overflow-y-auto p-[clamp(1rem,4vw,1.375rem)] space-y-4"
                     style={{ overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
                 >
-                    {/* Takım kartı */}
-                    {team ? (
+                    {/* Takım kartı — takım verisi yoksa hiç gösterilmez */}
+                    {team && (
                         <div className="bg-slate-900/50 rounded-2xl border border-slate-700/60 p-4">
                             <div className="flex items-center gap-3">
                                 <div className="w-14 h-14 bg-slate-900 rounded-full border-2 border-slate-600 flex items-center justify-center overflow-hidden shrink-0">
@@ -116,13 +130,6 @@ export const ReservationRequestDetailModal: React.FC<ReservationRequestDetailMod
                                 </div>
                             </div>
                         </div>
-                    ) : (
-                        <div className="bg-slate-900/50 rounded-2xl border border-slate-700/60 p-4 flex items-center gap-3">
-                            <div className="w-12 h-12 bg-slate-900 rounded-full border-2 border-slate-600 flex items-center justify-center shrink-0">
-                                <Clock className="w-5 h-5 text-slate-400" />
-                            </div>
-                            <div className="text-slate-300 text-[clamp(0.8rem,3.5vw,0.9rem)] font-semibold">Doğrudan rezervasyon isteği</div>
-                        </div>
                     )}
 
                     {/* Detaylar */}
@@ -160,6 +167,17 @@ export const ReservationRequestDetailModal: React.FC<ReservationRequestDetailMod
                                 </div>
                             </div>
                         )}
+                        {requestedAt && (
+                            <div className="flex items-center gap-3 p-4">
+                                <div className="w-9 h-9 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-500 flex items-center justify-center shrink-0">
+                                    <History className="w-4 h-4" />
+                                </div>
+                                <div className="min-w-0">
+                                    <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">İstek Zamanı</div>
+                                    <div className="text-white font-bold text-[clamp(0.85rem,3.8vw,0.95rem)]">{requestedAt}</div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -169,10 +187,10 @@ export const ReservationRequestDetailModal: React.FC<ReservationRequestDetailMod
                     style={{ paddingBottom: 'max(clamp(0.875rem,4vw,1.25rem), env(safe-area-inset-bottom))' }}
                 >
                     <button
-                        onClick={goToSlot}
+                        onClick={goToRequest}
                         className="w-full bg-orange-500 hover:bg-orange-600 active:scale-[0.98] text-white font-black py-[clamp(0.75rem,3.5vw,0.95rem)] rounded-2xl transition-all shadow-lg shadow-orange-500/25 flex items-center justify-center gap-2"
                     >
-                        Sahaya Git
+                        Rezervasyon İsteğine Git
                         <ArrowRight className="w-5 h-5" />
                     </button>
                 </div>

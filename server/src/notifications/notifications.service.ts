@@ -21,7 +21,7 @@ import { User } from '../users/user.entity';
 import { Reservation } from '../reservations/entities/reservation.entity';
 import {
   istanbulDateTimeToUtc,
-  toIstanbulParts,
+  istanbulDisplayParts,
 } from '../common/turkey-time.util';
 import { TeamsService } from '../teams/teams.service';
 import { AppGateway } from '../gateway/app.gateway';
@@ -603,16 +603,19 @@ export class NotificationsService {
       order: { createdAt: 'DESC' },
     });
 
-    // Self-heal: eski RESERVATION_REQUEST bildirimleri yalnız minimal metadata
-    // içeriyor. Okuma sırasında (yeni 'team' alanı yoksa) ilgili rezervasyonu
-    // yükleyip zengin alanları doldur + kalıcılaştır. Yalnız bir kez yazılır
-    // (guard: !metadata.team); rezervasyon silinmişse yazma yapılmaz.
+    // Self-heal: eski RESERVATION_REQUEST bildirimleri ya minimal metadata
+    // içeriyor ya da metaV:2 öncesi yanlış saatle (UTC formatı, İstanbul değil)
+    // zenginleştirilmiş olabilir. Okuma sırasında metaV !== 2 olanlar ilgili
+    // rezervasyondan yeniden doldurulur + kalıcılaştırılır (tek yazım garantisi:
+    // metaV=2 işlendikten sonra guard bir daha girmez). Rezervasyon silinmişse
+    // metaV=2 işaretlenir (team null kalır) → sonsuz yeniden deneme olmaz,
+    // istemci title/message fallback'ini gösterir.
     return Promise.all(
       notifications.map(async (n) => {
         if (
           n.type === 'RESERVATION_REQUEST' &&
           n.metadata &&
-          !n.metadata.team
+          n.metadata.metaV !== 2
         ) {
           try {
             const resId = n.metadata.reservationId || n.relatedId;
@@ -621,16 +624,17 @@ export class NotificationsService {
               where: { id: resId },
               relations: ['team', 'matchAnnouncement', 'pitch', 'pitch.timeSlots'],
             });
-            if (!res) return n; // rezervasyon silinmiş → olduğu gibi dön
+            if (!res) {
+              n.metadata = { ...n.metadata, metaV: 2 };
+              await this.notificationsRepository.save(n);
+              return n;
+            }
 
             const slotTime = new Date(res.slotTime);
-            const dayName = slotTime.toLocaleDateString('tr-TR', {
-              weekday: 'long',
-            });
-            const startTime = slotTime.toLocaleTimeString('tr-TR', {
-              hour: '2-digit',
-              minute: '2-digit',
-            });
+            // İstanbul saatiyle formatla (istanbulDisplayParts) — timeZone'suz
+            // toLocale* process TZ=UTC yüzünden 3 saat geri basar.
+            const slotParts = istanbulDisplayParts(slotTime);
+            const startTime = slotParts.time;
             let endTime = '';
             const slots = res.pitch?.timeSlots;
             if (slots?.length) {
@@ -638,19 +642,21 @@ export class NotificationsService {
               if (m) endTime = m.endTime;
             }
             if (!endTime) {
-              endTime = new Date(slotTime.getTime() + 60 * 60 * 1000)
-                .toLocaleTimeString('tr-TR', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                });
+              endTime = istanbulDisplayParts(
+                new Date(slotTime.getTime() + 60 * 60 * 1000),
+              ).time;
             }
-            const { dateStr: slotDateIso } = toIstanbulParts(slotTime);
 
             n.metadata = {
               ...n.metadata,
-              slotDateIso,
+              metaV: 2,
+              // Eski satırlardaki yanlış (UTC) date/time gösterim alanlarını da düzelt.
+              date: slotParts.displayDate,
+              time: slotParts.time,
+              pitchId: res.pitchId ?? null,
+              slotDateIso: slotParts.dateStr,
               slotTimeIso: slotTime.toISOString(),
-              dayName,
+              dayName: slotParts.dayName,
               startTime,
               endTime,
               matchType: res.matchAnnouncement?.matchType ?? null,

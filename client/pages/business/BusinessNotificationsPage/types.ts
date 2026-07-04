@@ -17,7 +17,9 @@ export interface BusinessNotificationMetadata {
   time?: string; // 'HH:MM'
   role?: string;
   // zenginleştirme alanları (RESERVATION_REQUEST)
-  slotDateIso?: string; // 'YYYY-MM-DD' ← Sahaya Git
+  metaV?: number; // zenginleştirme sürümü (2 = İstanbul-doğru saatler)
+  pitchId?: string | null; // slot auto-open için
+  slotDateIso?: string; // 'YYYY-MM-DD' ← Rezervasyon İsteğine Git
   slotTimeIso?: string;
   dayName?: string; // 'Cuma'
   startTime?: string; // 'HH:MM'

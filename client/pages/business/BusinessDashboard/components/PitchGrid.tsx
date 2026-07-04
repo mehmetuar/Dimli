@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, CalendarX, Settings, Clock, AlertTriangle } from 'lucide-react';
 
@@ -8,6 +8,7 @@ interface PitchGridProps {
     isPastSlot: (time: string, date: string) => boolean;
     setSelectedSlot: (slot: any) => void;
     isPending?: boolean;
+    focusPitchId?: string | null;
 }
 
 export const PitchGrid: React.FC<PitchGridProps> = ({
@@ -16,9 +17,20 @@ export const PitchGrid: React.FC<PitchGridProps> = ({
     isPastSlot,
     setSelectedSlot,
     isPending = false,
+    focusPitchId = null,
 }) => {
     const [activePitchIndex, setActivePitchIndex] = useState(0);
     const navigate = useNavigate();
+
+    // Bildirimden gelinen sahanın sekmesini öne al (slot auto-open ile birlikte,
+    // modal kapanınca kullanıcı doğru sahada kalır). Kullanıcının sonraki manuel
+    // sekme seçimini ezmemek için yalnız focusPitchId değişince çalışır.
+    useEffect(() => {
+        if (!focusPitchId) return;
+        const idx = pitches.findIndex((p: any) => p.pitchId === focusPitchId);
+        if (idx >= 0) setActivePitchIndex(idx);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [focusPitchId]);
 
     const formatTimeRange = (time: string): string => {
         if (time.includes(' - ')) return time;

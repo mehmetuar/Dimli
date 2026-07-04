@@ -1117,6 +1117,21 @@ success tipleri, İşletme login loader, fullScreen LoadingSpinner overlay'leri.
   `new Date(dateStr).setHours()` (tarayıcı-TZ) ile değil.**
 - `ReservationModal.tsx` (tarayıcı-TZ ile hesaplıyordu) **ölü koddu → silindi** (§commit 67ceb84).
 
+### Görüntüleme formatlaması düzeltmesi (2026-07-04) — `istanbulDisplayParts`
+- **Bulunan hata:** `reservation-lifecycle.service.ts`'nin tamamı (rezervasyon isteği bildirimi, MATCH_REMINDER,
+  "Maçınız Kesinleşti", saat çakışması, tüm iptal akışları — ~12 nokta) `slotTime`'ı (gerçek UTC an) **timeZone'suz**
+  `toLocaleTimeString('tr-TR')` ile formatlıyordu → `main.ts` `TZ='UTC'` olduğundan **3 saat geri** gösteriyordu
+  (DB kanıtı: 20:00 slotu bildirimi "17:00"). chat/challenges/match-announcements daha önce `timeZone:'Europe/Istanbul'`
+  ile düzeltilmişti; lifecycle atlanmıştı.
+- **Çözüm:** `turkey-time.util.ts`'e `istanbulDisplayParts(date)` eklendi → `{ dateStr'YYYY-MM-DD', time'HH:mm',
+  dayName'Cumartesi', displayDate'4 Temmuz', displayDateWithYear }` (sabit +3 ofset, Intl'siz/deterministik).
+  **Kullanıcıya gösterilecek her slotTime formatlaması BU helper'la yapılmalı** — asla çıplak `toLocale*`.
+- **RESERVATION_REQUEST metadata v2:** create() + `findByOwner` self-heal artık `metaV:2`, `pitchId`, `slotDateIso`,
+  `dayName`, `startTime/endTime` (İstanbul), `team{...}`, `matchType` yazar. Self-heal guard'ı `metadata.metaV !== 2`
+  (yanlış saatle zenginleşmiş eski satırları da bir kez onarır); rezervasyon silinmişse yalnız `metaV:2` işaretlenir.
+  İstemci: bildirim detay modalındaki "Rezervasyon İsteğine Git" → dashboard `location.state{selectedDate, openSlot}`
+  ile ilgili SlotDetailModal'ı otomatik açar (`useBusinessDashboard` tarih-guard'lı pending ref + PitchGrid `focusPitchId`).
+
 ## 30. Customer sabit-başlık+elastic layout + başlık↔aksiyon çakışma deseni (2026-07-02)
 
 - **Sabit başlık + elastic içerik (customer sayfa, navbar'lı):** `fixed inset-0 bg-pitch flex flex-col

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import api from '../../../../services/api';
 import { getOwnerId } from '../../../../services/authStorage';
@@ -9,18 +9,45 @@ import { listPresetNotes, createPresetNote, PresetNote } from '../../../../servi
 export const useBusinessDashboard = () => {
     const location = useLocation();
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+    const [dashboardData, setDashboardData] = useState<any>(null);
 
-    // Bildirimden "Sahaya Git" ile gelinen tarihi uygula (YYYY-MM-DD).
+    // Bildirimden "Rezervasyon İsteğine Git" ile gelen slot hedefi: veri o TARİH
+    // için yüklendiğinde SlotDetailModal otomatik açılır (date guard'ı, bugünün
+    // verisiyle yanlış slot açılmasını önler). focusPitchId PitchGrid'in doğru
+    // saha sekmesini seçmesi için.
+    const pendingOpenSlotRef = useRef<{ pitchId: string; startTime: string; date: string } | null>(null);
+    const [focusPitchId, setFocusPitchId] = useState<string | null>(null);
+
+    const tryOpenPendingSlot = (data: any, dateForData: string) => {
+        const pending = pendingOpenSlotRef.current;
+        if (!pending || pending.date !== dateForData || !data) return;
+        pendingOpenSlotRef.current = null;
+        const pitch = (data.pitches || []).find((p: any) => p.pitchId === pending.pitchId);
+        const slot = pitch?.slots?.find((s: any) => s.startTime === pending.startTime);
+        if (slot) setSelectedSlot({ ...slot, pitchId: pending.pitchId });
+        // Slot bulunamazsa (saha/slot kaldırılmış) sessizce sadece tarihte kalınır.
+    };
+
+    // Bildirimden gelinen tarihi (+ varsa slot hedefini) uygula (YYYY-MM-DD).
     // Regex guard: legacy tr-TR stringi ('4 Temmuz') yoksayılır ki dashboard
     // sorgusu bozulmasın. setSelectedDate mevcut useEffect'i tetikleyip yeniden yükler.
     useEffect(() => {
-        const incoming = (location.state as { selectedDate?: string } | null)?.selectedDate;
+        const state = location.state as {
+            selectedDate?: string;
+            openSlot?: { pitchId: string; startTime: string };
+        } | null;
+        const incoming = state?.selectedDate;
         if (incoming && /^\d{4}-\d{2}-\d{2}$/.test(incoming)) {
+            if (state?.openSlot?.pitchId && state.openSlot.startTime) {
+                pendingOpenSlotRef.current = { ...state.openSlot, date: incoming };
+                setFocusPitchId(state.openSlot.pitchId);
+            }
             setSelectedDate(incoming);
             window.history.replaceState({}, ''); // geri/yenilemede tekrar tetiklenmesin
+            // Tarih zaten seçiliyse yeni fetch tetiklenmez → mevcut veriyle hemen aç.
+            if (incoming === selectedDate) tryOpenPendingSlot(dashboardData, incoming);
         }
     }, [location.state]);
-    const [dashboardData, setDashboardData] = useState<any>(null);
     const [subscription, setSubscription] = useState<any>(null);
     const [businessStatus, setBusinessStatus] = useState<string | null>(null);
     const [rejectionReason, setRejectionReason] = useState<string | null>(null);
@@ -121,6 +148,10 @@ export const useBusinessDashboard = () => {
             setBusinessStatus(data?.businessStatus ?? null);
             setRejectionReason(data?.rejectionReason ?? null);
             setSubscription(subRes.data);
+
+            // Bildirimden gelinen slot hedefi bu tarihin TAZE verisiyle açılır
+            // (closure'daki selectedDate = bu fetch'in sorguladığı tarih).
+            tryOpenPendingSlot(data, selectedDate);
         } catch (error) {
             console.error('Error fetching dashboard:', error);
         } finally {
@@ -394,6 +425,7 @@ export const useBusinessDashboard = () => {
     return {
         selectedDate,
         setSelectedDate,
+        focusPitchId,
         dashboardData,
         subscription,
         businessStatus,
