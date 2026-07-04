@@ -1,8 +1,9 @@
-import React from 'react';
-import { Settings, LogOut, Edit2, Save } from 'lucide-react';
+import React, { useState } from 'react';
+import { Settings, LogOut, Edit2, Save, Copy, Check } from 'lucide-react';
 import { LevelBadge } from '../../../../components/UI/LevelBadge';
 import { FairPlayScore } from '../../../../components/UI/FairPlayScore';
 import { Team } from '../../../../types';
+import { useLongPress } from '../../Chat/hooks/useLongPress';
 
 interface TeamHeaderCardProps {
     myTeam: Team;
@@ -33,6 +34,20 @@ export const TeamHeaderCard: React.FC<TeamHeaderCardProps> = ({
     handleSaveBio,
     setIsTeamMenuOpen, handleLeaveTeam
 }) => {
+    const [copied, setCopied] = useState(false);
+    // Davet linki/aramada kullanılan ham kod (shortId, ör. "YHD-960"). "#" yalnız görsel.
+    const teamCode = (myTeam as any).shortId || myTeam.id?.slice(0, 8).toUpperCase();
+    const handleCopyCode = async () => {
+        if (!teamCode) return;
+        try {
+            await navigator.clipboard.writeText(teamCode);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+        } catch { /* no-op */ }
+    };
+    // Basılı tut VE tıkla → kopyala (görünür ikon tap'i doğal kılar, long-press kullanıcı isteği)
+    const codeRef = useLongPress<HTMLButtonElement>({ onTap: handleCopyCode, onLongPress: handleCopyCode });
+
     return (
         <div
             className="rounded-2xl p-4 sm:p-6 border border-slate-700 relative overflow-hidden"
@@ -73,10 +88,18 @@ export const TeamHeaderCard: React.FC<TeamHeaderCardProps> = ({
                         <div className="flex flex-wrap items-center gap-2 mt-1">
                             <LevelBadge level={myTeam.level} />
                             <FairPlayScore score={myTeam.fairPlayScore} count={myTeam.fairPlayRatingCount} />
-                            {(myTeam.id || (myTeam as any).shortId) && (
-                                <span className="text-[10px] font-mono text-slate-500 bg-slate-900/60 px-1.5 py-0.5 rounded border border-slate-700">
-                                    #{(myTeam as any).shortId || myTeam.id?.slice(0, 8).toUpperCase()}
-                                </span>
+                            {teamCode && (
+                                <button
+                                    ref={codeRef}
+                                    type="button"
+                                    title="Kodu kopyala"
+                                    className="inline-flex items-center gap-1 text-[10px] font-mono text-slate-400 bg-slate-900/60 px-1.5 py-0.5 rounded border border-slate-700 select-none active:scale-95 transition-transform"
+                                >
+                                    #{teamCode}
+                                    {copied
+                                        ? <><Check className="w-3 h-3 text-turf-400" /><span className="text-turf-400">Kopyalandı</span></>
+                                        : <Copy className="w-3 h-3 text-slate-500" />}
+                                </button>
                             )}
                         </div>
                     </div>

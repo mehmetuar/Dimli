@@ -51,10 +51,15 @@ export const RatingModal: React.FC<RatingModalProps> = ({ pending, onSubmit, onS
     const [fairPlayScore, setFairPlayScore] = useState(0);
     const [submitting, setSubmitting] = useState(false);
 
-    const matchDate = new Date(pending.slotTime).toLocaleDateString('tr-TR', {
+    const start = new Date(pending.slotTime);
+    const matchDate = start.toLocaleDateString('tr-TR', {
         day: 'numeric', month: 'long', weekday: 'long',
     });
-    const matchTime = new Date(pending.slotTime).toLocaleTimeString('tr-TR', {
+    const matchTime = start.toLocaleTimeString('tr-TR', {
+        hour: '2-digit', minute: '2-digit',
+    });
+    // Sahalar 1 saatlik slotlarla çalışır → bitiş = başlangıç + 1 saat.
+    const matchEndTime = new Date(start.getTime() + 60 * 60 * 1000).toLocaleTimeString('tr-TR', {
         hour: '2-digit', minute: '2-digit',
     });
 
@@ -87,12 +92,12 @@ export const RatingModal: React.FC<RatingModalProps> = ({ pending, onSubmit, onS
         <div className="fixed inset-0 z-[70] flex items-center justify-center px-4 bg-black/80 backdrop-blur-sm animate-fade-in">
             <div className="w-full max-w-sm bg-slate-800 rounded-3xl border border-slate-700 shadow-2xl overflow-hidden">
                 {/* Header */}
-                <div className="bg-gradient-to-r from-turf-700 to-turf-600 px-5 py-4">
-                    <p className="text-turf-200 text-xs font-semibold uppercase tracking-widest mb-0.5">
+                <div className="bg-gradient-to-b from-slate-900 to-slate-800 px-5 py-4 border-b border-turf-600/20">
+                    <p className="text-turf-400 text-xs font-semibold uppercase tracking-widest mb-0.5">
                         Maç Değerlendirmesi
                     </p>
-                    <p className="text-white font-bold text-sm">{matchDate} · {matchTime}</p>
-                    <p className="text-turf-200 text-xs mt-0.5">{pending.pitchName} — {pending.businessName}</p>
+                    <p className="text-white font-bold text-sm">{matchDate} · {matchTime} - {matchEndTime}</p>
+                    <p className="text-slate-400 text-xs mt-0.5">{pending.pitchName} — {pending.businessName}</p>
                 </div>
 
                 {/* Clickable Tab Indicator (only when both steps needed) */}
