@@ -1564,3 +1564,78 @@ yazıldı, kullanılmayan `assets/dimliLogin.png` (666KB kopya) silindi.
 ### Doğrulama
 - `npx tsc --noEmit`: temiz (tek hata `LocationStep.tsx window.google` — önceden beri var, dokunulmadı).
 - `npm run build`: başarılı. Eski `components/Modals/<TaşınanAd>` yollarına sıfır referans (grep).
+
+## 43. KALICI KURAL: app-geneli metin seçimi + iOS callout kapalı (2026-07-04)
+
+> Belirti: herhangi bir yazıya (başlık, etiket, kart metni) basılı tutunca WebView metni seçiyor +
+> iOS "Copy / Look Up / Translate" callout'u çıkıyordu. Native uygulama standardı değil.
+
+### Kural (client/ — index.css)
+- `index.css`'te global: `* { -webkit-touch-callout:none; -webkit-user-select:none; user-select:none }`
+  + istisna `input, textarea, select, [contenteditable="true"] { -webkit-touch-callout:default;
+  user-select:text }`. Bu, §26'nın modal-bazlı çözümünü **uygulama geneline** taşır (o girdi
+  "client'ta app-geneli user-select:none YOK" diyordu — artık VAR).
+- **Neden CSS:** iOS `AppDelegate.swift` / Android `MainActivity.java` / `capacitor.config.ts`'te
+  metin-seçimi/callout ayarı yok; native tarafta seçenek bulunmuyor → global CSS doğru/standart yol.
+  Vite build → `cap sync` → WebView'de app-geneli etki eder.
+- **Özgüllük:** `*` (0,0,0) her yeri kapatır; `input/textarea/select` (0,0,1) form alanlarında
+  seçimi/imleci/yapıştır menüsünü geri açar. Kaçış kapısı gerekirse Tailwind `select-text` (0,1,0) ezer.
+- **Etkilenmez:** long-press özellikleri (`useLongPress`: kanal/mesaj menüleri, kod kopyala) olay-tabanlı;
+  kopyalama `navigator.clipboard`. Metin kopyalama artık **yalnız açık butonlarla** (ör. takım kodu rozeti).
+- Eski dağınık `select-none`'lar (TeamHeaderCard, CelebrationScreen, Chat) global kuralca kapsandığı için
+  gereksiz ama zararsız — bırakıldı. Yeni kodda ayrıca eklemeye gerek yok.
+
+## 44. Maç Pazarı ölçeklenebilirlik + kart/modal zenginleştirme (2026-07-04)
+
+> Hedef: 20 km'de 200 / 100 km'de 500 ilanda 50/50/50 sayfalamanın DOĞRU çalışması.
+> Denetim bulgusu: sayfalama zaten vardı ama sıralama/tarih/`kendi_aramizda` filtreleri
+> İSTEMCİDE yalnız yüklü sayfalara uygulanıyordu + kart verisi için sınırsız `GET /businesses` çekiliyordu.
+
+### Sunucu (`match-announcements`)
+- `findAll` yeniden yazıldı (Sahalar `findNearbyPaged` deseni): bounding-box ön-filtre →
+  kelepçeli Haversine (`GREATEST/LEAST` — acos NaN fix) aday SQL'i (LIMIT'siz) → **in-memory
+  whitelisted sıralama** (`distance|date_desc|date_asc|price_asc|price_desc|fair_play`, stabil
+  ikincil anahtar `id`) → `slice(offset, offset+limit)` → sayfa id'leri kırpılmış hydrate.
+- SQL'e taşınan filtreler: `match_type <> 'kendi_aramizda'` (istemci filtresi `hasMore`'u bozuyordu),
+  `date`, işletme paritesi (`b.status='active'` + aktif/trial subscription join — askıdaki işletmenin
+  ilanı artık listelenmez; eskiden kırık kart olarak görünüyordu).
+- **Payload kırpma:** `team.captain` + `team.players` join'leri liste yanıtından kaldırıldı (team
+  SKALER satırı kalır; deploy edilmiş bundle yalnız `captainId` okuyor — doğrulandı).
+- **Eklemeli alanlar:** `pitchSummary {id,name,pricePerHour,imageUrl,endTime,business{id,name,district,city}}`
+  + `pendingChallengeCount` (sayfa id'leri üzerinde tek gruplu COUNT). Hydrate `IN` sırası
+  pageIds index haritasıyla düzeltilir (eski mesafe re-sort'u fiyat/tarih sıralamasını bozardı).
+- **Geriye uyumlu zarf:** `paged=1` → `{items,total,hasMore}`; parametresiz → DÜZ DİZİ (eski
+  uygulamalar etkilenmez, default sort=distance ile sayfa bileşimi bayt-aynı).
+- `computeBoundingBox` `server/src/common/geo.util.ts`'e çıkarıldı (tek kaynak; BusinessService
+  import eder).
+
+### İstemci (Marketplace)
+- `useMarketplace`: sınırsız `GET /businesses` çağrısı SİLİNDİ — kart/ChallengeModal verisi
+  `announcement.pitchSummary`'den (`getPitchDetails(announcement)` artık ilan alır, pitchId değil).
+  `date`+`sort` sunucuya gider; değişince fetch-key üzerinden sayfa-0 reset. `hasMore` sunucudan;
+  offset = birikmiş liste uzunluğu (`offsetRef` silindi). Cache anahtarı `cached_matches_v2`
+  (şema değişti); `MKT_BUSINESSES_CACHE_KEY` öldü, AuthContext eski literalleri bir kez süpürür.
+- `getMatchAnnouncementsPaged` (api.ts): `getBusinessesPaged` aynası + eski-sunucu dizi fallback'i.
+  **Deploy sırası: önce sunucu** (fallback pencereyi kapatır).
+- Marketplace: "Daha Fazla Göster" butonu → **infinite scroll** (~600px eşik, PitchBooking deseni).
+- Kart (boy sabit): kişi başı ücret (`≈X ₺/oyuncu`), `timeAgo` ("2 sa önce", `utils/time.ts`),
+  `Bugün/Yarın · 4 Tem` tarih etiketi, `{n} istek` kehribar rozeti (pendingChallengeCount),
+  takım rengi İNCE aksan (3px sol şerit + logo halkası, `utils/teamColors.ts` `toHex`).
+- `TeamDetailModal` (paylaşılan): §35 gereği `createPortal`'a alındı (portal'sızdı!); başlık harici
+  transparenttextures doku URL'i yerine takım renkli düşük-alfa gradyan (+3px aksan çizgisi, logo
+  halkası); favori işletme görseli `coverImageUrl || pitches[0].imageUrl || Store ikonu`
+  (DB: hiçbir işletmede cover yok, tüm sahalarda imageUrl var); takım açıklaması + "N oyuncu" rozeti.
+- `LEGACY_COLOR_HEX`+`toHex` TeamHeaderCard'dan `client/utils/teamColors.ts`'e çıkarıldı (tek kaynak).
+
+### Maç Pazarı ↔ Sahalar senkron kararı
+Veri senkronu YOK ve olmamalı (payload şekilleri farklı; sayfalama state'leri bağımsız).
+Filtre senkronu zaten var: koordinat+yarıçap `LocationContext`, tarih `FilterContext`. Doğru mimari bu.
+
+### Doğrulama
+- Lokal sunucu + lokal `dimli` DB'ye 170 seed ilan (test sonrası silindi): düz dizi uyumu ✓,
+  `team.players/captain` yok ✓, `kendi_aramizda` sızıntısı 0 ✓, mesafe artan ✓, paged zarf +
+  fiyat sıralaması ✓, 3 sayfa kesişimsiz (union=total=139) ✓, tarih filtresi ✓, sort injection →
+  sessiz distance fallback ✓, `/pitch/:id` regresyon ✓, 100km yanıtı ~24ms ✓.
+- `server npm run build` ✓, `client npm run build` ✓.
+- ⚠️ Ortam notu: `server/` kökünde bayat `tsconfig*.tsbuildinfo` dosyaları `nest build`'in hiç .js
+  emit etmemesine yol açıyordu (dist'te yalnız .d.ts) — silindi; aynı belirtide önce bunları sil.

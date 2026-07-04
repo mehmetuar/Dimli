@@ -268,6 +268,20 @@ button, a, [role="button"], input, select, textarea {
   touch-action: manipulation;
 }
 
+/* Native mobil davranış: long-press metin seçimi + iOS "Kopyala/Look Up/Translate"
+   callout'unu UYGULAMA GENELİNDE kapat (bkz. agent.md §43 — §26'yı geneller).
+   Form alanları hariç — orada seçim/imleç/yapıştır menüsü açık kalmalı. */
+* {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+input, textarea, select, [contenteditable="true"] {
+  -webkit-touch-callout: default;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 /* Sayfa içeriğinin status bar + notch altından başlaması — iPhone ~71px, Android ~32px */
 .pt-page-top {
   padding-top: calc(max(env(safe-area-inset-top, 0px), 20px) + 0.75rem);
