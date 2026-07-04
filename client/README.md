@@ -1,20 +1,23 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Dimli — Mobil Uygulama (`client/`)
 
-# Run and deploy your AI Studio app
+Dimli'nin React 19 + Capacitor 6 tabanlı iOS/Android uygulaması. **Yalnızca native mobil** olarak dağıtılır; web'de yayınlanmaz.
 
-This contains everything you need to run your app locally.
+## Komutlar
 
-View your app in AI Studio: https://ai.studio/apps/drive/18CRNnJFJfpb4L1aoty7km6Zspw0ahyKO
+```bash
+npm install --legacy-peer-deps   # bağımlılıklar (capacitor-firebase peer uyarısı nedeniyle)
+npm run dev                      # Vite dev server (:5173)
+npm run build                    # Web build (Capacitor sync öncesi zorunlu)
+npx cap sync                     # Web build'i native projelere kopyala
+npx cap build ios                # Xcode'u aç
+npx cap build android            # Android Studio'yu aç
+```
 
-## Run Locally
+## Yapı
 
-**Prerequisites:**  Node.js
+- `pages/customer/` — kullanıcı ekranları, `pages/business/` — işletme ekranları. Her sayfa: `Xxx.tsx` (UI) + `hooks/useXxx.ts` (state/API) + `components/` (sayfaya özel bileşenler ve modallar).
+- `components/Modals/` — yalnız **birden çok feature'ın paylaştığı** modallar. Tek sayfadan kullanılan modal o sayfanın `components/` klasöründe durur.
+- `services/api.ts` — axios instance (Bearer interceptor); `services/authStorage.ts` — Capacitor Preferences ile oturum.
+- `assets/dimli.png` + `assets/icon.png` — `scripts/generate-icons.cjs` için kaynak görseller (uygulama içi görseller `public/` altında).
 
-
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+Kalıcı kurallar ve mimari detaylar için repo kökündeki `CLAUDE.md` ve `agent.md`'ye bak.
