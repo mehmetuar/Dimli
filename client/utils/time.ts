@@ -7,3 +7,17 @@ export const addOneHour = (time?: string): string | null => {
     if (h > 23 || Number(m[2]) > 59) return null;
     return `${String((h + 1) % 24).padStart(2, '0')}:${m[2]}`;
 };
+
+// ISO timestamp → "şimdi / X dk önce / X sa önce / X gün önce" (kısa, kart içi).
+// Parse edilemeyen değerde null döner (çağıran hiç göstermez).
+export const timeAgo = (iso?: string): string | null => {
+    if (!iso) return null;
+    const t = new Date(iso).getTime();
+    if (Number.isNaN(t)) return null;
+    const diffMin = Math.floor((Date.now() - t) / 60000);
+    if (diffMin < 1) return 'şimdi';
+    if (diffMin < 60) return `${diffMin} dk önce`;
+    const diffH = Math.floor(diffMin / 60);
+    if (diffH < 24) return `${diffH} sa önce`;
+    return `${Math.floor(diffH / 24)} gün önce`;
+};

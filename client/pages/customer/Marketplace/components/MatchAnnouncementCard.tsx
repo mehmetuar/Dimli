@@ -1,30 +1,40 @@
 import React from 'react';
-import { Calendar, Clock, MapPin, Navigation, Shield, X, Lock, TurkishLira, ChevronRight, Users } from 'lucide-react';
+import { Calendar, Clock, MapPin, Navigation, Shield, X, Lock, TurkishLira, ChevronRight, Users, Swords } from 'lucide-react';
 import { LevelBadge } from '../../../../components/UI/LevelBadge';
 import { FairPlayScore } from '../../../../components/UI/FairPlayScore';
-import { Pitch, Business } from '../../../../types';
+import { toHex } from '../../../../utils/teamColors';
+import { addOneHour, timeAgo } from '../../../../utils/time';
+import { todayStr, addDaysStr } from '../../../../utils/today';
 
+// pitch/business, sunucunun ilana gömdüğü pitchSummary'den türetilen hafif şekildir
+// (useMarketplace.getPitchDetails) — tam Pitch/Business entity'leri değildir.
 interface MatchAnnouncementCardProps {
     announcement: any;
     myTeam: any;
     myChallenges: any[];
     isAuthorized: boolean;
     canChallenge: boolean;
-    getPitchDetails: (pitchId: string) => { pitch: Pitch | null, business: Business | null };
+    getPitchDetails: (announcement: any) => {
+        pitch: { id: string; name: string; pricePerHour?: number; imageUrl?: string; endTime?: string } | null;
+        business: { id?: string; name?: string; district?: string | null; city?: string | null } | null;
+    };
     setSelectedTeamId: (teamId: string) => void;
     handleDeleteAdClick: (adId: string) => void;
     handleCancelClick: (challengeId: string) => void;
     handleOpenChallengeModal: (announcement: any) => void;
 }
 
-/** Find end time from pitch time slots; fall back to +1 h */
-const resolveEndTime = (time: string, pitch: Pitch | null): string => {
-    if (pitch && (pitch as any).timeSlots?.length) {
-        const slot = (pitch as any).timeSlots.find((s: any) => s.startTime === time);
-        if (slot?.endTime) return slot.endTime;
-    }
-    const [h, m] = time.split(':').map(Number);
-    return `${String((h + 1) % 24).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+/** Bitiş saati: sunucunun slot'tan bulduğu endTime; yoksa +1 saat kuralı */
+const resolveEndTime = (time: string, pitch: { endTime?: string } | null): string => {
+    if (pitch?.endTime) return pitch.endTime;
+    return addOneHour(time) ?? time;
+};
+
+/** Tarih etiketi: bugün/yarın hızlı taransın; diğer günler mevcut ham format */
+const formatCardDate = (date: string): string => {
+    if (date !== todayStr() && date !== addDaysStr(new Date(), 1)) return date;
+    const pretty = new Date(date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
+    return date === todayStr() ? `Bugün · ${pretty}` : `Yarın · ${pretty}`;
 };
 
 export const MatchAnnouncementCard: React.FC<MatchAnnouncementCardProps> = ({
@@ -40,17 +50,25 @@ export const MatchAnnouncementCard: React.FC<MatchAnnouncementCardProps> = ({
     handleOpenChallengeModal
 }) => {
     const isOwnTeam = announcement.teamId === myTeam?.id;
-    const { pitch, business } = getPitchDetails(announcement.pitchId);
+    const { pitch, business } = getPitchDetails(announcement);
     const endTime = resolveEndTime(announcement.time, pitch);
     const existingChallenge = myChallenges.find(
         c => c.toMatchId === announcement.id && c.status === 'PENDING'
     );
+    // İnce takım-rengi aksanı: yalnız sol şerit + logo halkası (kurumsal görünüm
+    // bozulmasın diye düşük yoğunluk; kart zemini nötr kalır).
+    const accent = toHex(announcement.team?.primaryColor);
+    const postedAgo = timeAgo(announcement.createdAt);
+    const challengeCount = announcement.pendingChallengeCount ?? 0;
 
     return (
-        <div className={`relative rounded-3xl border overflow-hidden ${isOwnTeam
-            ? 'bg-turf-900/20 border-turf-500/50'
-            : 'bg-slate-800 border-slate-700'
-            }`}>
+        <div
+            className={`relative rounded-3xl border overflow-hidden ${isOwnTeam
+                ? 'bg-turf-900/20 border-turf-500/50'
+                : 'bg-slate-800 border-slate-700'
+                }`}
+            style={{ borderLeft: `3px solid ${accent}99` }}
+        >
             {/* Ambient glow */}
             <div className={`absolute -right-10 -top-10 w-40 h-40 rounded-full blur-2xl pointer-events-none ${isOwnTeam ? 'bg-turf-600/20' : 'bg-slate-700/20'}`} />
 
@@ -80,9 +98,10 @@ export const MatchAnnouncementCard: React.FC<MatchAnnouncementCardProps> = ({
                 {/* ── Team header row ── */}
                 <div className="flex items-center gap-3 mb-4">
 
-                    {/* Logo */}
+                    {/* Logo — halka takım renginde (ince aksan) */}
                     <button
                         className="flex-shrink-0 w-12 h-12 xs:w-14 xs:h-14 rounded-full overflow-hidden border-2 border-slate-600 bg-slate-900 shadow-lg active:scale-95 transition-transform"
+                        style={{ boxShadow: `0 0 0 2px ${accent}60` }}
                         onClick={e => { e.stopPropagation(); if (announcement.teamId) setSelectedTeamId(announcement.teamId); }}
                     >
                         <img
@@ -111,11 +130,21 @@ export const MatchAnnouncementCard: React.FC<MatchAnnouncementCardProps> = ({
                                 </span>
                             )}
                         </div>
-                        {/* Row 2: RAKİP ARANIYOR — daima ayrı satırda */}
-                        <div className="mt-1.5">
+                        {/* Row 2: RAKİP ARANIYOR + istek sayısı + tazelik — aynı satır, boy sabit */}
+                        <div className="mt-1.5 flex items-center gap-1.5 min-w-0">
                             <span className="text-[10px] font-bold text-turf-500 bg-turf-900/30 px-2 py-0.5 rounded border border-turf-500/20 whitespace-nowrap">
                                 RAKİP ARANIYOR
                             </span>
+                            {challengeCount > 0 && (
+                                <span className="text-[10px] font-bold text-amber-300 bg-amber-900/30 border border-amber-700/40 px-1.5 py-0.5 rounded flex items-center gap-1 whitespace-nowrap">
+                                    <Swords className="w-2.5 h-2.5" /> {challengeCount} istek
+                                </span>
+                            )}
+                            {postedAgo && (
+                                <span className="text-[9px] text-slate-500 whitespace-nowrap truncate ml-auto">
+                                    {postedAgo}
+                                </span>
+                            )}
                         </div>
                     </button>
                 </div>
@@ -130,7 +159,7 @@ export const MatchAnnouncementCard: React.FC<MatchAnnouncementCardProps> = ({
                         </div>
                         <div className="min-w-0">
                             <div className="text-[9px] text-slate-500 font-bold uppercase leading-none mb-0.5">Tarih</div>
-                            <div className="text-xs font-bold text-slate-200 truncate">{announcement.date}</div>
+                            <div className="text-xs font-bold text-slate-200 truncate">{formatCardDate(announcement.date)}</div>
                         </div>
                     </div>
 
@@ -193,9 +222,16 @@ export const MatchAnnouncementCard: React.FC<MatchAnnouncementCardProps> = ({
                         </div>
                         <div className="min-w-0">
                             <div className="text-[9px] text-slate-500 font-bold uppercase leading-none mb-0.5">Saha Ücreti (Takım Başı)</div>
-                            {pitch ? (
-                                <span className="text-sm font-bold text-green-400 flex items-center gap-0.5">
-                                    {pitch.pricePerHour / 2} <TurkishLira size={12} className="stroke-[3]" />
+                            {pitch?.pricePerHour ? (
+                                <span className="text-sm font-bold text-green-400 flex items-baseline gap-1.5">
+                                    <span className="flex items-center gap-0.5">
+                                        {pitch.pricePerHour / 2} <TurkishLira size={12} className="stroke-[3]" />
+                                    </span>
+                                    {announcement.playerCount > 0 && (
+                                        <span className="text-[10px] font-semibold text-slate-500">
+                                            ≈{Math.round(pitch.pricePerHour / 2 / announcement.playerCount)} ₺/oyuncu
+                                        </span>
+                                    )}
                                 </span>
                             ) : (
                                 <span className="text-xs text-slate-500">Fiyat Bilgisi Yok</span>

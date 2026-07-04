@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, MapPin, Trophy, Users, Shield, Star, Store } from 'lucide-react';
 import { Team, Player, Business } from '../../types';
 import api, { getBusinesses } from '../../services/api';
@@ -6,6 +7,7 @@ import { LoadingSpinner } from '../UI/LoadingSpinner';
 import { LevelBadge } from '../UI/LevelBadge';
 import { FairPlayScore } from '../UI/FairPlayScore';
 import { useModalBodyClass } from '../../utils/useModalBodyClass';
+import { toHex } from '../../utils/teamColors';
 
 interface TeamDetailModalProps {
     isOpen: boolean;
@@ -58,7 +60,16 @@ export const TeamDetailModal: React.FC<TeamDetailModalProps> = ({ isOpen, onClos
     useModalBodyClass(isOpen);
     if (!isOpen) return null;
 
-    return (
+    // Takım renkleri: düşük alfa kapak gradyanı + ince aksan (kurumsal görünüm).
+    const primary = toHex(team?.primaryColor);
+    const secondary = toHex(team?.secondaryColor || team?.primaryColor);
+    // Favori işletme görseli: işletme kapağı yoksa İLK sahasının fotoğrafı
+    // (her işletmenin en az 1 sahası var; pitches sunucudan createdAt ASC gelir).
+    const homeBusinessImage = homeBusiness?.coverImageUrl || homeBusiness?.pitches?.[0]?.imageUrl || null;
+
+    // Portal: sayfa içi scroll container'ların compositing context'ine takılmasın
+    // (agent.md §35) — backdrop tüm viewport'u ve tab bar'ı örter.
+    return createPortal(
         <div className="fixed inset-0 z-[60] flex items-center justify-center px-4 bg-black/90 backdrop-blur-sm animate-fade-in">
             <div className="bg-slate-800 w-full max-w-lg rounded-[2.5rem] border border-slate-700/50 overflow-hidden relative shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[85vh] animate-slide-up">
 
@@ -76,16 +87,28 @@ export const TeamDetailModal: React.FC<TeamDetailModalProps> = ({ isOpen, onClos
                     </div>
                 ) : team ? (
                     <>
-                        {/* Header Image / Pattern */}
-                        <div className="h-32 relative">
-                            <div className="absolute inset-0 bg-gradient-to-r from-slate-900 to-slate-800 overflow-hidden">
-                                <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
+                        {/* Header — takım renkli kapak: düşük alfa gradyan + radyal aksan;
+                            tam doygunluk yalnız alttaki 3px aksan çizgisinde (kurumsal) */}
+                        <div className="h-32 relative bg-slate-900">
+                            <div
+                                className="absolute inset-0 overflow-hidden"
+                                style={{ background: `linear-gradient(135deg, ${primary}26 0%, #0f172a 55%, ${secondary}1f 100%)` }}
+                            >
+                                <div
+                                    className="absolute top-0 right-0 w-40 h-40 rounded-bl-full opacity-20"
+                                    style={{ background: `radial-gradient(circle at top right, ${primary}, transparent 70%)` }}
+                                />
                             </div>
+                            <div
+                                className="absolute bottom-0 inset-x-0 h-[3px]"
+                                style={{ background: `linear-gradient(90deg, ${primary}, ${secondary})` }}
+                            />
                             <div className="absolute -bottom-10 left-6 z-10">
                                 <img
                                     src={team.logoUrl || '/default-team-logo.png'}
                                     alt={team.name}
                                     className="w-24 h-24 rounded-full border-4 border-slate-800 bg-slate-900 object-cover shadow-xl"
+                                    style={{ boxShadow: `0 0 0 3px ${primary}60` }}
                                 />
                             </div>
                         </div>
@@ -110,6 +133,13 @@ export const TeamDetailModal: React.FC<TeamDetailModalProps> = ({ isOpen, onClos
                                 </div>
                             </div>
 
+                            {/* Team Description */}
+                            {team.description && (
+                                <p className="mb-6 -mt-2 text-xs text-slate-400 italic leading-relaxed">
+                                    "{team.description}"
+                                </p>
+                            )}
+
                             {/* Stats Grid */}
                             <div className="grid grid-cols-2 gap-3 mb-6">
                                 <div className="bg-slate-900/50 p-3 rounded-xl border border-slate-700/50 flex flex-col items-center">
@@ -129,11 +159,17 @@ export const TeamDetailModal: React.FC<TeamDetailModalProps> = ({ isOpen, onClos
                                         <Store className="w-4 h-4 text-turf-500" /> Favori İşletme
                                     </h3>
                                     <div className="bg-slate-900 rounded-xl p-3 border border-slate-700 flex items-center gap-4">
-                                        <img
-                                            src={homeBusiness.coverImageUrl || 'https://images.unsplash.com/photo-1529900748604-07564a03e7a6?auto=format&fit=crop&q=80&w=200'}
-                                            className="w-16 h-16 rounded-lg object-cover opacity-80"
-                                            alt={homeBusiness.name}
-                                        />
+                                        {homeBusinessImage ? (
+                                            <img
+                                                src={homeBusinessImage}
+                                                className="w-16 h-16 rounded-lg object-cover opacity-80"
+                                                alt={homeBusiness.name}
+                                            />
+                                        ) : (
+                                            <div className="w-16 h-16 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center">
+                                                <Store className="w-6 h-6 text-slate-600" />
+                                            </div>
+                                        )}
                                         <div>
                                             <div className="font-bold text-white">{homeBusiness.name}</div>
                                             <div className="text-xs text-slate-400">{homeBusiness.district}, {homeBusiness.city}</div>
@@ -150,6 +186,11 @@ export const TeamDetailModal: React.FC<TeamDetailModalProps> = ({ isOpen, onClos
                             <div>
                                 <h3 className="font-bold text-slate-400 text-xs uppercase mb-3 flex items-center gap-2">
                                     <Users className="w-4 h-4 text-blue-500" /> Kadro
+                                    {roster.length > 0 && (
+                                        <span className="text-[10px] font-bold text-slate-300 bg-slate-900/80 border border-slate-700 px-2 py-0.5 rounded-full normal-case">
+                                            {roster.length} oyuncu
+                                        </span>
+                                    )}
                                 </h3>
                                 <div className="space-y-2">
                                     {roster.map(player => {
@@ -203,6 +244,7 @@ export const TeamDetailModal: React.FC<TeamDetailModalProps> = ({ isOpen, onClos
                     <div className="p-8 text-center text-slate-400">Takım bulunamadı.</div>
                 )}
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };

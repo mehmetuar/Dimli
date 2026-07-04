@@ -4,6 +4,7 @@ import { LevelBadge } from '../../../../components/UI/LevelBadge';
 import { FairPlayScore } from '../../../../components/UI/FairPlayScore';
 import { Team } from '../../../../types';
 import { useLongPress } from '../../Chat/hooks/useLongPress';
+import { toHex } from '../../../../utils/teamColors';
 
 interface TeamHeaderCardProps {
     myTeam: Team;
@@ -16,18 +17,6 @@ interface TeamHeaderCardProps {
     setIsTeamMenuOpen: (isOpen: boolean) => void;
     handleLeaveTeam: () => void;
 }
-
-// Supports both hex values (#3b82f6) and legacy Tailwind class strings (bg-blue-500)
-const LEGACY_COLOR_HEX: Record<string, string> = {
-    'bg-blue-500': '#3b82f6', 'bg-green-500': '#22c55e', 'bg-red-500': '#ef4444',
-    'bg-yellow-500': '#eab308', 'bg-purple-500': '#a855f7', 'bg-orange-500': '#f97316',
-    'bg-pink-500': '#ec4899', 'bg-cyan-500': '#06b6d4', 'bg-white': '#ffffff',
-};
-const toHex = (val?: string) => {
-    if (!val) return '#3b82f6';
-    if (val.startsWith('#')) return val;
-    return LEGACY_COLOR_HEX[val] ?? '#3b82f6';
-};
 
 export const TeamHeaderCard: React.FC<TeamHeaderCardProps> = ({
     myTeam, bio, setBio, isCaptain, isEditingBio, setIsEditingBio,
