@@ -4,7 +4,7 @@
 > bilgi notudur. Özellikle **admin panel (`client-admin/`)** ve onu besleyen **backend**
 > üzerine derinleştirilmiştir. Kalıcı kurallar için ayrıca repo kökündeki **`CLAUDE.md`**'yi oku
 > (oradaki talimatlar bağlayıcıdır). Bu dosya ise "neyin nerede olduğu + bilinen sorunlar"
-> haritasıdır. Son güncelleme: 2026-06-28.
+> haritasıdır. Son güncelleme: 2026-07-04.
 
 ---
 
@@ -1513,3 +1513,54 @@ uzaklık/Yol Tarifi/Sahayı Ara; Meydan Oku modalı zengin. Client değişikliğ
 - Ardından `UPDATE "user" SET username = lower(username)` (10 satır). Sonuç: 14 kullanıcı, tamamı
   regex'e uygun, sıfır duplicate (transaction içi DO-blok doğrulamalarıyla teyit edildi).
 - Mevcut JWT'lerdeki eski büyük harfli `username` payload'ı zararsız (her yerde `id` kullanılır).
+
+---
+
+## 42. Client mimari temizliği: ölü kod + Gemini kaldırma + modal colocation (2026-07-04)
+
+`client/` klasörü deterministik import-grafiği analiziyle (266 kaynak dosya) denetlendi ve
+yeniden düzenlendi. Üç değişiklik grubu:
+
+### A. Ölü dosya temizliği (10 dosya silindi)
+Hiçbir yerden import edilmeyen dosyalar: `BusinessNotificationsPanel`, `CreateMatchAnnouncementModal`,
+`UI/NotificationBell`, `BusinessPitchSettings/DeletePitchModal`, `BusinessRegister/steps/PitchesStep`,
+`BusinessRegister/steps/SummaryStep`, `JokerPoolHeader`, `MarketplaceHeader`,
+`ProfileSettings/BlockedUsersModal`, `ProfileSettings/PasswordForm`.
+Ayrıca AI Studio şablon kalıntıları: `metadata.json` silindi, `README.md` gerçek içerikle yeniden
+yazıldı, kullanılmayan `assets/dimliLogin.png` (666KB kopya) silindi.
+
+### B. Gemini AI tamamen kaldırıldı
+- Proje Google AI Studio şablonundan türemişti; `services/geminiService.ts` (takım bio üretme +
+  taktik önerisi) **hiçbir UI'dan erişilebilir değildi** (buton yorumda / handler hiç çağrılmıyor)
+  ve `.env.local`'daki `GEMINI_API_KEY` zaten `PLACEHOLDER_API_KEY` idi — özellik canlıda hiç çalışmadı.
+- Silinen/temizlenen: `geminiService.ts`, `useChat` içindeki `handleGetTactics`/`tactic` state +
+  Chat.tsx "Koç'un Tavsiyesi" bloğu, `useMyTeam.handleGenerateBio` + TeamHeaderCard prop zinciri,
+  `JokerDMChatInfoModal`'daki ölü import, `vite.config.ts` GEMINI define'ları, `@google/genai` paketi.
+- ⚠️ `npm install` bu projede `--legacy-peer-deps` ister (`@capacitor-firebase/messaging@8` ↔ core v6
+  peer çakışması — önceden beri var).
+
+### C. KALICI KURAL: Modal yerleşimi — feature-first colocation
+- **Tek feature'dan kullanılan modal, o feature'ın `components/` klasöründe yaşar**;
+  `components/Modals/` yalnız **birden çok feature'ın paylaştığı** modallara aittir.
+- 22 modal taşındı: Chat 6 (KendiAramizda x2, RematchProposal, MatchDetail, ManageJokers,
+  JokerDMChatInfo), MyTeam 5 (AddPlayer, CreateTeam, JoinTeam, MatchHistory, UpcomingMatches),
+  PitchBooking 4 (SlotDetail, Offer, NeedTeamRole, DirectionsConfirm), BusinessRegister 3
+  (Facilities, LocationSelection, TimeSlots), Marketplace 1 (Challenge), JokerPool 1 (JokerProfile),
+  TeamSettings 1 (ColorPicker), Register 1 (BirthDatePicker).
+- `components/Modals/`'ta kalan 15 paylaşılan modal: BusinessInviteNotice + Rating (App.tsx global),
+  Confirm, Success, ImageCrop, LocationFilter, Sort, CreateMatch, DateSelection, TimeSelection,
+  BusinessTimePicker, InviteJoker, KeyboardAware (altyapı), PlayerDetail, TeamDetail.
+- Yeni modal eklerken bu kurala uy; bir modal ikinci bir feature tarafından kullanılmaya
+  başlarsa `components/Modals/`'a geri taşı.
+
+### Rapor-only bulgular (yapılmadı, aday task'lar)
+- Büyük dosyalar (bölme adayı): `Chat.tsx` 1090+ satır, `BusinessPitchSettings.tsx` 646,
+  `CreateMatchModal.tsx` 594, `useChat.ts` ~490.
+- Hook yerleşim tutarsızlığı: `useKeyboardHeight/useKeyboardScroll/useModalBodyClass` `utils/`ta,
+  `useCurrentUser/useLocationGate` `hooks/`ta (CLAUDE.md yol referansları nedeniyle bilinçli ertelendi).
+- Mock/dummy veri denetimi TEMİZ çıktı — tek meşru istisna `revenuecatService.ts` web/dev
+  fallback'i (`dev_mock_customer_id`).
+
+### Doğrulama
+- `npx tsc --noEmit`: temiz (tek hata `LocationStep.tsx window.google` — önceden beri var, dokunulmadı).
+- `npm run build`: başarılı. Eski `components/Modals/<TaşınanAd>` yollarına sıfır referans (grep).

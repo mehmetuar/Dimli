@@ -75,6 +75,8 @@ NestJS feature modules under `server/src/`. Each module follows entity → servi
 ### Client (mobile) conventions
 - API base URL hardcoded in `client/src/services/api.ts` — axios instance with Bearer token interceptor
 - Auth persisted via `authStorage.ts` (Capacitor Preferences, not localStorage)
+- **Modal placement (feature-first colocation):** a modal used by a single feature lives in that feature's `components/` folder (e.g. `pages/customer/Chat/components/MatchDetailModal.tsx`); `client/components/Modals/` holds only modals shared by 2+ features or mounted globally in `App.tsx`. If a modal gains a second consumer, move it back to `components/Modals/`. See agent.md §42
+- `npm install` in `client/` requires `--legacy-peer-deps` (`@capacitor-firebase/messaging@8` ↔ `@capacitor/core@6` peer conflict)
 - Provider order in `App.tsx`: `AuthProvider → SocketProvider → LocationProvider → FilterProvider`
 - Long-press on chat messages uses **native non-passive** `touchstart` listeners attached via `useEffect` — React's synthetic `onTouchStart` cannot call `e.preventDefault()` in React 17+ (passive by default)
 
