@@ -1,8 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import api from '../../../../services/api';
-import { getTacticalAdvice } from '../../../../services/geminiService';
-import { SkillLevel } from '../../../../types';
 import { formatMessageDate } from '../utils/chatUtils';
 import { useSocket } from '../../../../contexts/SocketContext';
 
@@ -26,8 +24,6 @@ export const useChat = () => {
     const [input, setInput] = useState('');
     const [isSending, setIsSending] = useState(false);
     const sendingRef = useRef(false); // çift gönderim guard'ı (hızlı 2 dokunuş)
-    const [showTactic, setShowTactic] = useState(false);
-    const [tactic, setTactic] = useState('');
     const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
     const [matchDetailData, setMatchDetailData] = useState<any>(null);
     const [isMatchDetailOpen, setIsMatchDetailOpen] = useState(false);
@@ -243,15 +239,6 @@ export const useChat = () => {
             sendingRef.current = false;
             setIsSending(false);
         }
-    };
-
-    const handleGetTactics = async () => {
-        if (!activeChannel) return;
-        setTactic('Koç analiz yapıyor...');
-        setShowTactic(true);
-        const contextLevel = activeChannel.type === 'MATCH_GROUP' ? SkillLevel.ADVANCED : SkillLevel.INTERMEDIATE;
-        const advice = await getTacticalAdvice(contextLevel, SkillLevel.INTERMEDIATE);
-        setTactic(advice);
     };
 
     const handleDeleteChannel = async (channelId: string) => {
@@ -471,8 +458,6 @@ export const useChat = () => {
         messages, currentUser,
         input, setInput,
         isSending,
-        showTactic, setShowTactic,
-        tactic, setTactic,
         isInviteModalOpen, setIsInviteModalOpen,
         matchDetailData, setMatchDetailData,
         isMatchDetailOpen, setIsMatchDetailOpen,
@@ -492,7 +477,7 @@ export const useChat = () => {
         confirmButtonText, setConfirmButtonText,
         successModalOpen, setSuccessModalOpen, successModalMessage, successModalType,
         banModalExpiry, setBanModalExpiry,
-        handleSend, handleGetTactics, handleDeleteChannel, handleOpenMatchDetail,
+        handleSend, handleDeleteChannel, handleOpenMatchDetail,
         handleCancelMatch, handleCancelRequest, handleUndoCancelRequest,
         handleAcceptProposal, handleAcceptRematch, handleInviteJokerToMatch, handleCancelJokerNegotiation,
         hasMore, loadingMore, loadMoreMessages,

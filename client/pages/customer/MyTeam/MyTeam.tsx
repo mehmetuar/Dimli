@@ -37,10 +37,10 @@ export const MyTeam: React.FC = () => {
     const {
         currentUser, isLoading, myTeam, setMyTeam, roster, setRoster,
         businesses, bio, setBio, isEditingBio, setIsEditingBio,
-        isGenerating, upcomingMatches, isUpcomingLoading, fetchUpcomingMatches,
+        upcomingMatches, isUpcomingLoading, fetchUpcomingMatches,
         matchHistory, isMatchHistoryLoading, fetchMatchHistory,
         successMessage, setSuccessMessage, successType, setSuccessType, errorMessage, setErrorMessage,
-        handleGenerateBio, handleSaveBio, handleSetHomeBusiness, handleCreateTeam, handleLeaveTeam,
+        handleSaveBio, handleSetHomeBusiness, handleCreateTeam, handleLeaveTeam,
         isLocationFilterOpen, setIsLocationFilterOpen, locationFilter, applyLocationFilter,
     } = useMyTeam(modals);
 
@@ -121,8 +121,6 @@ export const MyTeam: React.FC = () => {
                         isCaptain={isCaptain}
                         isEditingBio={isEditingBio}
                         setIsEditingBio={setIsEditingBio}
-                        isGenerating={isGenerating}
-                        handleGenerateBio={handleGenerateBio}
                         handleSaveBio={handleSaveBio}
                         setIsTeamMenuOpen={modals.setIsTeamMenuOpen}
                         handleLeaveTeam={handleLeaveTeam}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Settings, LogOut, Edit2, Sparkles, Save } from 'lucide-react';
+import { Settings, LogOut, Edit2, Save } from 'lucide-react';
 import { LevelBadge } from '../../../../components/UI/LevelBadge';
 import { FairPlayScore } from '../../../../components/UI/FairPlayScore';
 import { Team } from '../../../../types';
@@ -11,8 +11,6 @@ interface TeamHeaderCardProps {
     isCaptain: boolean;
     isEditingBio: boolean;
     setIsEditingBio: (isEditing: boolean) => void;
-    isGenerating: boolean;
-    handleGenerateBio: () => void;
     handleSaveBio: () => void;
     setIsTeamMenuOpen: (isOpen: boolean) => void;
     handleLeaveTeam: () => void;
@@ -32,7 +30,7 @@ const toHex = (val?: string) => {
 
 export const TeamHeaderCard: React.FC<TeamHeaderCardProps> = ({
     myTeam, bio, setBio, isCaptain, isEditingBio, setIsEditingBio,
-    isGenerating, handleGenerateBio, handleSaveBio,
+    handleSaveBio,
     setIsTeamMenuOpen, handleLeaveTeam
 }) => {
     return (
@@ -110,9 +108,6 @@ export const TeamHeaderCard: React.FC<TeamHeaderCardProps> = ({
                             <button onClick={() => setIsEditingBio(true)} className="text-xs flex items-center gap-1 text-slate-400 hover:text-white transition-colors">
                                 <Edit2 className="w-3 h-3" /> Düzenle
                             </button>
-                            {/* <button onClick={handleGenerateBio} disabled={isGenerating} className="text-xs flex items-center gap-1 text-purple-400 hover:text-purple-300 transition-colors">
-                                <Sparkles className="w-3 h-3" /> {isGenerating ? '...' : 'AI Yazsın'}
-                            </button> */}
                         </div>
                     )}
                 </div>

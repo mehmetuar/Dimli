@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api, { getPitches, getBusinesses } from '../../../../services/api';
-import { generateTeamBio } from '../../../../services/geminiService';
 import { Team, Player, Pitch, Business, MatchHistoryItem } from '../../../../types';
 import { SuccessType } from '../../../../components/Modals/SuccessModal';
 import { useLocationContext } from '../../../../contexts/LocationContext';
@@ -19,7 +18,6 @@ export const useMyTeam = (modals: any) => {
     const [isLocationFilterOpen, setIsLocationFilterOpen] = useState(false);
     const [bio, setBio] = useState('');
     const [isEditingBio, setIsEditingBio] = useState(false);
-    const [isGenerating, setIsGenerating] = useState(false);
     const [upcomingMatches, setUpcomingMatches] = useState<any[]>([]);
     const [isUpcomingLoading, setIsUpcomingLoading] = useState(false);
     const [matchHistory, setMatchHistory] = useState<MatchHistoryItem[]>([]);
@@ -124,16 +122,6 @@ export const useMyTeam = (modals: any) => {
         } finally {
             setIsMatchHistoryLoading(false);
         }
-    };
-
-    const handleGenerateBio = async () => {
-        if (!myTeam) return;
-        setIsGenerating(true);
-        const newBio = await generateTeamBio(myTeam.name, myTeam.level);
-        setBio(newBio);
-        const updatedTeam = { ...myTeam, description: newBio };
-        setMyTeam(updatedTeam as any);
-        setIsGenerating(false);
     };
 
     const handleSaveBio = async () => {
@@ -251,10 +239,10 @@ export const useMyTeam = (modals: any) => {
     return {
         currentUser, isLoading, myTeam, setMyTeam, roster, setRoster,
         pitches, businesses, bio, setBio, isEditingBio, setIsEditingBio,
-        isGenerating, upcomingMatches, isUpcomingLoading, fetchUpcomingMatches,
+        upcomingMatches, isUpcomingLoading, fetchUpcomingMatches,
         matchHistory, isMatchHistoryLoading, fetchMatchHistory,
         successMessage, setSuccessMessage, successType, setSuccessType, errorMessage, setErrorMessage,
-        handleGenerateBio, handleSaveBio, handleSetHomeBusiness, handleCreateTeam, handleLeaveTeam,
+        handleSaveBio, handleSetHomeBusiness, handleCreateTeam, handleLeaveTeam,
         isLocationFilterOpen, setIsLocationFilterOpen,
         locationFilter, applyLocationFilter,
     };
