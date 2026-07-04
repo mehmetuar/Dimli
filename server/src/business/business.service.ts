@@ -8,6 +8,7 @@ import { Repository } from 'typeorm';
 import { Business } from './entities/business.entity';
 import { UpdateBusinessDto } from './dto/update-business.dto';
 import { SubscriptionService } from '../subscription/subscription.service';
+import { computeBoundingBox } from '../common/geo.util';
 
 interface GeoFilter {
   lat: number;
@@ -119,22 +120,6 @@ export class BusinessService {
 
   // ── Geo aday listesi: bounding-box (indeksli lat/lng aralığı) ile daralt,
   //    sonra kesin Haversine ile filtrele + mesafeye göre sırala. ──
-  private computeBoundingBox(lat: number, lng: number, radiusKm: number) {
-    // %10 güvenlik payı: kutu, yarıçap çemberini kesin kapsasın (kesin filtre yine
-    // Haversine ile yapılır) — sınırdaki hiçbir işletme yanlışlıkla elenmesin.
-    const margin = 1.1;
-    const latDelta = (radiusKm * margin) / 111.32; // ~km/derece (enlem)
-    const cosLat = Math.cos((lat * Math.PI) / 180);
-    const lngDelta =
-      (radiusKm * margin) / (111.32 * Math.max(0.01, Math.abs(cosLat)));
-    return {
-      minLat: lat - latDelta,
-      maxLat: lat + latDelta,
-      minLng: lng - lngDelta,
-      maxLng: lng + lngDelta,
-    };
-  }
-
   private async geoCandidates(
     geoFilter: GeoFilter,
   ): Promise<{ id: string; distance: number }[]> {
@@ -142,7 +127,7 @@ export class BusinessService {
     console.log(
       `🌍 Business geo filter: lat=${lat}, lng=${lng}, radius=${radius}km`,
     );
-    const box = this.computeBoundingBox(lat, lng, radius);
+    const box = computeBoundingBox(lat, lng, radius);
     const distanceExpr = `(6371 * acos(GREATEST(-1.0, LEAST(1.0,
             cos(radians(:lat)) * cos(radians(business.latitude)) * cos(radians(business.longitude) - radians(:lng))
             + sin(radians(:lat)) * sin(radians(business.latitude))

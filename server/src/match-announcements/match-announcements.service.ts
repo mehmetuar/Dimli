@@ -22,6 +22,32 @@ import {
   isPitchClosedOnDate,
   nowInIstanbul,
 } from '../common/turkey-time.util';
+import { computeBoundingBox } from '../common/geo.util';
+
+export type MarketplaceSort =
+  | 'distance'
+  | 'date_desc'
+  | 'date_asc'
+  | 'price_asc'
+  | 'price_desc'
+  | 'fair_play';
+
+// Liste yanıtına eklemeli olarak gömülen hafif saha/işletme özeti — kartın
+// ihtiyacı bu kadar; istemcinin ayrıca sınırsız GET /businesses çekmesini
+// gereksiz kılar. Eski istemciler bilinmeyen alanı yok sayar.
+export interface AnnouncementPitchSummary {
+  id: string;
+  name: string;
+  pricePerHour: number | null;
+  imageUrl: string | null;
+  endTime: string | null;
+  business: {
+    id: string;
+    name: string;
+    district: string | null;
+    city: string | null;
+  };
+}
 
 @Injectable()
 export class MatchAnnouncementsService {
@@ -326,74 +352,177 @@ export class MatchAnnouncementsService {
     pitchId?: string;
     offset?: number;
     limit?: number;
+    sort?: MarketplaceSort;
+    paged?: boolean;
     geoFilter: { lat: number; lng: number; radius: number };
-  }): Promise<(MatchAnnouncement & { distanceKm?: number })[]> {
+  }): Promise<any[] | { items: any[]; total: number; hasMore: boolean }> {
     // Clean up expired announcements first
     await this.deleteExpired();
 
     const { lat, lng, radius } = filters.geoFilter;
     const PAGE = Math.min(filters?.limit ?? 50, 100);
     const off = filters?.offset ?? 0;
+    const sort = filters?.sort ?? 'distance';
+    const date = filters?.date ?? null;
     console.log(
-      `🌍 Geo filter: lat=${lat}, lng=${lng}, radius=${radius}km offset=${off}`,
+      `🌍 Geo filter: lat=${lat}, lng=${lng}, radius=${radius}km offset=${off} sort=${sort}${date ? ` date=${date}` : ''}`,
     );
 
-    // Raw SQL with Haversine formula — joins through pitch → business
-    const raw: any[] = await this.matchAnnouncementsRepository.query(
-      `SELECT
-                    ma.*,
-                    (6371 * acos(
+    // Aday sorgusu: bounding-box ön-filtresi (indeksli aralık) → kesin Haversine.
+    // LIMIT'siz — aday küme yarıçapla sınırlı olduğundan sıralama/dilimleme
+    // in-memory yapılır (BusinessService.findNearbyPaged ile aynı desen); böylece
+    // fiyat/fair-play sıralamaları tüm aday küme üzerinde doğru çalışır.
+    // kendi_aramizda + tarih filtreleri SQL'de: istemci filtrelemesi sayfa
+    // bütünlüğünü (hasMore) bozuyordu. İşletme aktif/abonelik koşulları
+    // Sahalar listesiyle parite için eklendi — askıdaki işletmenin ilanı
+    // istemcide zaten kırık kart olarak kalıyordu.
+    const box = computeBoundingBox(lat, lng, radius);
+    const haversine = `(6371 * acos(GREATEST(-1.0, LEAST(1.0,
                         cos(radians($1)) * cos(radians(b.latitude))
                         * cos(radians(b.longitude) - radians($2))
-                        + sin(radians($1)) * sin(radians(b.latitude))
-                    )) AS distance_km
+                        + sin(radians($1)) * sin(radians(b.latitude))))))`;
+    const raw: any[] = await this.matchAnnouncementsRepository.query(
+      `SELECT
+                    ma.id,
+                    ma.date,
+                    ma.time,
+                    ma.pitch_id        AS pitch_id,
+                    p.name             AS pitch_name,
+                    p."pricePerHour"   AS price_per_hour,
+                    p."imageUrl"       AS pitch_image_url,
+                    (SELECT ts."endTime" FROM time_slots ts
+                      WHERE ts."pitchId" = p.id AND ts."startTime" = ma.time
+                      LIMIT 1)         AS end_time,
+                    b.id               AS business_id,
+                    b.name             AS business_name,
+                    b.district         AS business_district,
+                    b.city             AS business_city,
+                    t.fair_play_score  AS fair_play,
+                    ${haversine} AS distance_km
                  FROM match_announcements ma
-                 JOIN pitches p      ON ma.pitch_id    = p.id
-                 JOIN businesses b   ON p.business_id  = b.id
+                 JOIN pitches p        ON ma.pitch_id     = p.id
+                 JOIN businesses b     ON p.business_id   = b.id
+                 JOIN team t           ON ma.team_id      = t.id
+                 JOIN business_owner o ON o."businessId"  = b.id
+                 JOIN subscriptions s  ON s."ownerId"     = o.id
                  WHERE ma.status  = 'PENDING'
+                   AND ma.match_type <> 'kendi_aramizda'
+                   AND ($4::text IS NULL OR ma.date = $4)
                    AND p."approvalStatus" = 'approved'
                    AND p."isActive" = true
+                   AND b.status = 'active'
+                   AND b."deletedAt" IS NULL
+                   AND s.status IN ('active', 'trial')
                    AND b.latitude  IS NOT NULL
                    AND b.longitude IS NOT NULL
-                   AND (
-                     6371 * acos(
-                         cos(radians($1)) * cos(radians(b.latitude))
-                         * cos(radians(b.longitude) - radians($2))
-                         + sin(radians($1)) * sin(radians(b.latitude))
-                     )
-                   ) <= $3
-                 ORDER BY distance_km ASC
-                 LIMIT $4 OFFSET $5`,
-      [lat, lng, radius, PAGE, off],
+                   AND b.latitude  BETWEEN $5 AND $6
+                   AND b.longitude BETWEEN $7 AND $8
+                   AND ${haversine} <= $3`,
+      [lat, lng, radius, date, box.minLat, box.maxLat, box.minLng, box.maxLng],
     );
 
     if (raw.length === 0) {
       console.log(`📢 No announcements within ${radius}km`);
-      return [];
+      return filters?.paged ? { items: [], total: 0, hasMore: false } : [];
     }
 
-    // Fetch the full entity rows (with relations) for matched ids
-    const ids = raw.map((r) => r.id);
-    const distanceMap = new Map<string, number>(
-      raw.map((r) => [r.id, parseFloat(Number(r.distance_km).toFixed(1))]),
+    // In-memory sıralama (findNearbyPaged deseni). Eşit değerlerde STABİL
+    // ikincil anahtar (id): sayfalar arası öğe kayması/duplikasyonu olmasın
+    // (fiyat tekrarı + fair-play default 5.0 → eşitlik sık).
+    const price = (r: any) => Number(r.price_per_hour ?? 0);
+    const primary = (a: any, b: any) => {
+      switch (sort) {
+        case 'date_asc':
+          return (a.date + a.time).localeCompare(b.date + b.time);
+        case 'date_desc':
+          return (b.date + b.time).localeCompare(a.date + a.time);
+        case 'price_asc':
+          return price(a) - price(b);
+        case 'price_desc':
+          return price(b) - price(a);
+        case 'fair_play':
+          return Number(b.fair_play ?? 0) - Number(a.fair_play ?? 0);
+        case 'distance':
+        default:
+          return Number(a.distance_km) - Number(b.distance_km);
+      }
+    };
+    const sorted = raw.sort(
+      (a, b) => primary(a, b) || String(a.id).localeCompare(String(b.id)),
     );
+    const total = sorted.length;
+    const pageRows = sorted.slice(off, off + PAGE);
+    const pageIds = pageRows.map((r) => r.id);
+    const rowById = new Map<string, any>(pageRows.map((r) => [r.id, r]));
 
+    if (pageIds.length === 0) {
+      return filters?.paged
+        ? { items: [], total, hasMore: off + PAGE < total }
+        : [];
+    }
+
+    // Kırpılmış hydrate: team SKALER satırı yeter (kart: isim/logo/seviye/
+    // fair-play/renkler). captain+players join'leri kaldırıldı — liste yanıtını
+    // şişiriyordu ve istemci hiç okumuyor (findByPitch'teki emsalle aynı).
     const announcements = await this.matchAnnouncementsRepository
       .createQueryBuilder('announcement')
       .leftJoinAndSelect('announcement.team', 'team')
-      .leftJoinAndSelect('team.captain', 'captain')
-      .leftJoinAndSelect('team.players', 'players')
-      .where('announcement.id IN (:...ids)', { ids })
+      .where('announcement.id IN (:...ids)', { ids: pageIds })
       .andWhere('announcement.status = :status', { status: 'PENDING' })
       .getMany();
 
-    // Attach distanceKm and re-sort by distance
-    const result = announcements
-      .map((a) => ({ ...a, distanceKm: distanceMap.get(a.id) ?? 0 }))
-      .sort((a, b) => (a.distanceKm ?? 0) - (b.distanceKm ?? 0));
+    // İlan başına bekleyen meydan okuma sayısı — yalnız sayfa id'leri üzerinde.
+    const challengeCounts: { id: string; cnt: number }[] =
+      await this.matchAnnouncementsRepository.query(
+        `SELECT "toMatchId" AS id, COUNT(*)::int AS cnt
+           FROM challenges
+          WHERE "toMatchId" = ANY($1) AND status = 'PENDING'
+          GROUP BY "toMatchId"`,
+        [pageIds],
+      );
+    const challengeCountMap = new Map(
+      challengeCounts.map((c) => [c.id, c.cnt]),
+    );
 
-    console.log(`📢 Found ${result.length} announcements within ${radius}km`);
-    return result;
+    // IN sorgusu sırasız döner — sıralamayı pageIds'in sırası belirler (eski
+    // koddaki mesafe re-sort'u fiyat/tarih sıralamalarını bozardı).
+    const orderIndex = new Map(pageIds.map((id, i) => [id, i]));
+    const items = announcements
+      .map((a) => {
+        const row = rowById.get(a.id);
+        const summary: AnnouncementPitchSummary | null = row
+          ? {
+              id: row.pitch_id,
+              name: row.pitch_name,
+              pricePerHour:
+                row.price_per_hour != null ? Number(row.price_per_hour) : null,
+              imageUrl: row.pitch_image_url ?? null,
+              endTime: row.end_time ?? null,
+              business: {
+                id: row.business_id,
+                name: row.business_name,
+                district: row.business_district,
+                city: row.business_city,
+              },
+            }
+          : null;
+        return {
+          ...a,
+          distanceKm: row ? parseFloat(Number(row.distance_km).toFixed(1)) : 0,
+          pendingChallengeCount: challengeCountMap.get(a.id) ?? 0,
+          pitchSummary: summary,
+        };
+      })
+      .sort(
+        (a, b) => (orderIndex.get(a.id) ?? 0) - (orderIndex.get(b.id) ?? 0),
+      );
+
+    console.log(
+      `📢 Found ${total} announcements within ${radius}km (sayfa ${off}-${off + pageRows.length}, sort=${sort})`,
+    );
+    return filters?.paged
+      ? { items, total, hasMore: off + PAGE < total }
+      : items;
   }
 
   // Run every hour to check for expired announcements
