@@ -71,6 +71,22 @@ export interface Team {
   captain?: { full_name?: string; username?: string };
 }
 
+// Konum-filtreli listede sunucunun her ilana gömdüğü hafif saha/işletme
+// özeti — kart bununla çizilir, ayrı GET /businesses çağrısı gerekmez.
+export interface AnnouncementPitchSummary {
+  id: string;
+  name: string;
+  pricePerHour: number | null;
+  imageUrl: string | null;
+  endTime: string | null;
+  business: {
+    id: string;
+    name: string;
+    district?: string | null;
+    city?: string | null;
+  };
+}
+
 export interface MatchAnnouncement {
   id: string;
   teamId: string;
@@ -85,6 +101,8 @@ export interface MatchAnnouncement {
   createdAt: string;
   team?: Team;
   pitch?: Pitch;
+  pitchSummary?: AnnouncementPitchSummary | null; // konum-filtreli listede sunucu ekler
+  pendingChallengeCount?: number; // ilana bekleyen meydan okuma sayısı (liste yanıtı)
 }
 
 export interface Challenge {

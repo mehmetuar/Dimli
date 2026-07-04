@@ -98,12 +98,17 @@ export const Marketplace: React.FC = () => {
   }, []);
 
   const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-    const st = e.currentTarget.scrollTop;
+    const el = e.currentTarget;
+    const st = el.scrollTop;
     const opacity = Math.max(0, 1 - st / HEADER_FADE_PX);
     setHeaderOpacity(opacity);
     document.documentElement.style.setProperty('--header-opacity', String(opacity));
     document.documentElement.style.setProperty('--header-pointer-events', opacity > 0.1 ? 'auto' : 'none');
-  }, []);
+    // Infinite-scroll: liste sonuna ~600px kala sonraki sayfayı ekle (loadMore içeride guard'lı).
+    if (el.scrollHeight - st - el.clientHeight < 600) {
+      loadMore();
+    }
+  }, [loadMore]);
 
   const handleTouchStart = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
     touchStartYRef.current = e.touches[0].clientY;
@@ -221,31 +226,29 @@ export const Marketplace: React.FC = () => {
           { key: 'distance', label: 'Yakınlığa Göre' },
         ]}
       />
-      {selectedMatch && (
-        <ChallengeModal
-          isOpen={isChallengeModalOpen}
-          onClose={() => setIsChallengeModalOpen(false)}
-          match={{
-            id: selectedMatch.id,
-            teamName: selectedMatch.team?.name,
-            teamLogo: selectedMatch.team?.logoUrl,
-            date: selectedMatch.date,
-            time: selectedMatch.time,
-            pitchName: getPitchDetails(selectedMatch.pitchId).pitch?.name || 'Bilinmeyen Saha',
-            pitchLocation: (() => {
-              const { business } = getPitchDetails(selectedMatch.pitchId);
-              return business ? `${business.district}, ${business.city}` : 'Konum Yok';
-            })(),
-            businessName: getPitchDetails(selectedMatch.pitchId).business?.name,
-            pricePerTeam: getPitchDetails(selectedMatch.pitchId).pitch?.pricePerHour
-              ? getPitchDetails(selectedMatch.pitchId).pitch!.pricePerHour / 2
-              : undefined,
-            distanceKm: selectedMatch.distanceKm,
-            playerCount: selectedMatch.playerCount
-          }}
-          onSubmit={handleSubmitChallenge}
-        />
-      )}
+      {selectedMatch && (() => {
+        const { pitch, business } = getPitchDetails(selectedMatch);
+        return (
+          <ChallengeModal
+            isOpen={isChallengeModalOpen}
+            onClose={() => setIsChallengeModalOpen(false)}
+            match={{
+              id: selectedMatch.id,
+              teamName: selectedMatch.team?.name,
+              teamLogo: selectedMatch.team?.logoUrl,
+              date: selectedMatch.date,
+              time: selectedMatch.time,
+              pitchName: pitch?.name || 'Bilinmeyen Saha',
+              pitchLocation: business ? `${business.district}, ${business.city}` : 'Konum Yok',
+              businessName: business?.name,
+              pricePerTeam: pitch?.pricePerHour ? pitch.pricePerHour / 2 : undefined,
+              distanceKm: selectedMatch.distanceKm,
+              playerCount: selectedMatch.playerCount
+            }}
+            onSubmit={handleSubmitChallenge}
+          />
+        );
+      })()}
 
       {/* Scroll container */}
       <div
@@ -363,15 +366,10 @@ export const Marketplace: React.FC = () => {
                     handleOpenChallengeModal={handleOpenChallengeModal}
                   />
                 ))}
-                {(hasMore || loadingMore) && (
-                  <div className="flex justify-center pt-4 pb-2">
-                    <button
-                      onClick={loadMore}
-                      disabled={loadingMore}
-                      className="px-6 py-3 bg-slate-800 border border-slate-700 text-white rounded-2xl font-semibold text-sm hover:bg-slate-700 disabled:opacity-50 transition-colors"
-                    >
-                      {loadingMore ? 'Yükleniyor...' : 'Daha Fazla Göster'}
-                    </button>
+                {/* Infinite-scroll alt göstergesi */}
+                {loadingMore && (
+                  <div className="flex items-center justify-center py-4">
+                    <LoadingSpinner />
                   </div>
                 )}
               </>

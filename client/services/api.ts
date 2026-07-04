@@ -137,6 +137,40 @@ export const getBusinessesPaged = async (params: {
     return data ?? { items: [], total: 0, hasMore: false };
 };
 
+// Konum-önce + sayfalı + sunucu-taraflı sıralama/tarih — Maç Pazarı listesi.
+// Aynı /match-announcements endpoint'i; `paged=1` verilince sunucu
+// { items, total, hasMore } döner (getBusinessesPaged deseni).
+export type MarketplaceSort =
+    | 'distance'
+    | 'date_desc'
+    | 'date_asc'
+    | 'price_asc'
+    | 'price_desc'
+    | 'fair_play';
+
+export const getMatchAnnouncementsPaged = async (params: {
+    lat: number;
+    lng: number;
+    radius?: number;
+    limit?: number;
+    offset?: number;
+    sort?: MarketplaceSort;
+    date?: string;
+}): Promise<{ items: any[]; total: number; hasMore: boolean }> => {
+    const { lat, lng, radius = 20, limit = 50, offset = 0, sort = 'distance', date } = params;
+    const query: Record<string, any> = { lat, lng, radius, limit, offset, sort, paged: 1 };
+    if (date) query.date = date;
+    const response = await api.get('/match-announcements', { params: query });
+    const data = response.data;
+    // Geriye dönük uyumluluk: sunucu henüz paged zarfını desteklemiyorsa (deploy edilmemiş
+    // eski sürüm) DÜZ DİZİ döner. Uzunluk sezgisiyle tek sayfa gibi sun → istemci boş kalmaz;
+    // sunucu deploy olunca gerçek sayfalama devreye girer.
+    if (Array.isArray(data)) {
+        return { items: data, total: data.length, hasMore: data.length >= limit };
+    }
+    return data ?? { items: [], total: 0, hasMore: false };
+};
+
 export const getFacilities = (): Promise<string[]> =>
     api.get('/facilities').then(r => r.data);
 

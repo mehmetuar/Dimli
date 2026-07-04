@@ -8,14 +8,15 @@ import {
 } from '../services/authStorage';
 import { unregisterPushOnLogout } from '../services/pushNotificationService';
 import { clearCurrentUserCache } from '../services/currentUserStore';
-import { JOKERS_CACHE_KEY, MATCHES_CACHE_KEY, MKT_BUSINESSES_CACHE_KEY } from '../utils/listCache';
+import { JOKERS_CACHE_KEY, MATCHES_CACHE_KEY } from '../utils/listCache';
 
 // Çıkış/oturum düşmesinde kullanıcıya-özel önbellekleri temizle. (userId zarfı
 // zaten yanlış hesaba sızmayı engeller; bu temizlik hijyen.) Sahalar'ın herkese
-// açık `cached_businesses`'ına bilinçli dokunulmaz.
+// açık `cached_businesses`'ına bilinçli dokunulmaz. Sondaki iki literal, artık
+// kullanılmayan eski anahtarların (v1 şeması) storage kalıntısını süpürür.
 function clearCustomerCaches(): void {
     clearCurrentUserCache();
-    [JOKERS_CACHE_KEY, MATCHES_CACHE_KEY, MKT_BUSINESSES_CACHE_KEY].forEach((k) => {
+    [JOKERS_CACHE_KEY, MATCHES_CACHE_KEY, 'cached_matches_v1', 'cached_mkt_businesses_v1'].forEach((k) => {
         try { localStorage.removeItem(k); } catch { /* ignore */ }
     });
 }

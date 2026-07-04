@@ -1,11 +1,10 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import api from '../../../../services/api';
-import { Business } from '../../../../types';
+import api, { getMatchAnnouncementsPaged, MarketplaceSort } from '../../../../services/api';
 import { LocationFilter } from '../../../../components/Modals/LocationFilterModal';
 import { useLocationContext } from '../../../../contexts/LocationContext';
 import { useFilterContext } from '../../../../contexts/FilterContext';
 import { useCurrentUser } from '../../../../hooks/useCurrentUser';
-import { readListCache, writeListCache, MATCHES_CACHE_KEY, MKT_BUSINESSES_CACHE_KEY } from '../../../../utils/listCache';
+import { readListCache, writeListCache, MATCHES_CACHE_KEY } from '../../../../utils/listCache';
 
 const PAGE_SIZE = 50;
 
@@ -17,19 +16,17 @@ export const useMarketplace = () => {
   const { currentUser } = useCurrentUser();
 
   // Sahalar deseni (stale-while-revalidate): önbellekli sayfa-0 anında basılır,
-  // taze veri arkada çekilir. İşletmeler de önbelleklenir — yoksa önbellekli
-  // kartlar 1 RTT boyunca fiyat/ilçesiz ("Konum Yok" flash'ı) kalırdı.
+  // taze veri arkada çekilir. İşletme/saha bilgisi artık sunucunun her ilana
+  // gömdüğü pitchSummary'den gelir — ayrı (sınırsız) GET /businesses çağrısı yok.
   const [matches, setMatches] = useState<any[]>(() => readListCache(MATCHES_CACHE_KEY));
-  const [businesses, setBusinesses] = useState<Business[]>(() => readListCache(MKT_BUSINESSES_CACHE_KEY));
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
 
-  // DİKKAT: offset sunucu sayfalamasıyla ilerler (istemci kendi_aramizda'yı
-  // filtrelediği için matches.length offset olarak kullanılamaz).
-  const offsetRef = useRef(0);
   // Yarış korumaları (usePitchBooking referans deseni): her reset bir "nesil"
-  // başlatır; eski yanıtlar reset'ten sonra uygulanmaz.
+  // başlatır; eski yanıtlar reset'ten sonra uygulanmaz. Offset, birikmiş liste
+  // uzunluğudur — istemci artık öğe filtrelemediği için (kendi_aramizda +
+  // tarih + sıralama sunucuda) uzunluk gerçek sunucu offset'ine eşittir.
   const matchesRef = useRef<any[]>(matches);
   matchesRef.current = matches;
   const lastFetchKeyRef = useRef<string | null>(null);
@@ -45,7 +42,7 @@ export const useMarketplace = () => {
 
 
 
-  const sortBy = marketplaceSortBy as 'date_desc' | 'date_asc' | 'price_desc' | 'price_asc' | 'fair_play' | 'distance';
+  const sortBy = marketplaceSortBy as MarketplaceSort;
   const setSortBy = setMarketplaceSortBy;
   const [isSortOpen, setIsSortOpen] = useState(false);
 
@@ -73,51 +70,43 @@ export const useMarketplace = () => {
     return () => { cancelled = true; };
   }, [currentUser?.team?.id]);
 
-  // Maç ilanlarına bağlı işletme/saha bilgisi — ilanlar zaten konuma göre
-  // filtrelendiğinden, aynı konum/yarıçapla sınırlı tutmak yeterli.
-  useEffect(() => {
-    if (!coords) return;
-    let cancelled = false;
-    api.get('/businesses', { params: { lat: coords.lat, lng: coords.lng, radius } })
-      .then(res => {
-        if (cancelled) return;
-        setBusinesses(res.data);
-        writeListCache(MKT_BUSINESSES_CACHE_KEY, res.data);
-      })
-      .catch(error => console.error('Failed to fetch businesses:', error));
-    return () => { cancelled = true; };
-  }, [coords, radius]);
-
-  // Konum-önce + sayfalı çekim. reset=true → sayfa 0 (koordinat/yarıçap değişince);
-  // reset=false → sonraki sayfayı ekle. Aynı konum+yarıçap için gereksiz tam
-  // yeniden çekim yapılmaz (mount'ta ref'ler sıfır → her mount bir kez tazelenir).
+  // Konum-önce + sayfalı çekim. reset=true → sayfa 0 (koordinat/yarıçap/tarih/
+  // sıralama değişince); reset=false → sonraki sayfayı ekle. Aynı filtre kümesi
+  // için gereksiz tam yeniden çekim yapılmaz (mount'ta ref'ler sıfır → her mount
+  // bir kez tazelenir). Tarih + sıralama SUNUCUYA gönderilir: yalnız yüklü
+  // sayfaları sıralamak/filtrelemek 500 ilanda yanlış sonuç veriyordu.
   const doFetch = useCallback(async (reset: boolean, force = false) => {
     if (!coords) return;
     if (!reset && isFetchingRef.current) return;
     const round = (n: number) => n.toFixed(3);
-    const key = `${round(coords.lat)}|${round(coords.lng)}|${radius}`;
+    const key = `${round(coords.lat)}|${round(coords.lng)}|${radius}|${selectedDate ?? ''}|${sortBy}`;
     if (reset && !force && key === lastFetchKeyRef.current && matchesRef.current.length > 0) {
       return;
     }
     const gen = reset ? ++fetchGenRef.current : fetchGenRef.current;
-    const off = reset ? 0 : offsetRef.current + PAGE_SIZE;
+    const off = reset ? 0 : matchesRef.current.length;
     isFetchingRef.current = true;
     if (reset) { setIsLoading(true); setLoadingMore(false); }
     else setLoadingMore(true);
     try {
-      const params = { offset: off, limit: PAGE_SIZE, lat: coords.lat, lng: coords.lng, radius };
-      const res = await api.get('/match-announcements', { params });
+      const res = await getMatchAnnouncementsPaged({
+        lat: coords.lat,
+        lng: coords.lng,
+        radius,
+        limit: PAGE_SIZE,
+        offset: off,
+        sort: sortBy,
+        date: selectedDate || undefined,
+      });
       if (gen !== fetchGenRef.current) return; // daha yeni bir reset bunu geçersiz kıldı
-      const data = (res.data as any[]).filter((m: any) => m.matchType !== 'kendi_aramizda');
-      offsetRef.current = off; // yalnız başarıda ilerlet
       if (reset) {
-        setMatches(data);
-        writeListCache(MATCHES_CACHE_KEY, data);
+        setMatches(res.items);
+        writeListCache(MATCHES_CACHE_KEY, res.items);
         lastFetchKeyRef.current = key;
       } else {
-        setMatches(prev => [...prev, ...data]);
+        setMatches(prev => [...prev, ...res.items]);
       }
-      setHasMore(data.length >= PAGE_SIZE);
+      setHasMore(res.hasMore);
     } catch (err) {
       console.error('Failed to fetch announcements', err);
     } finally {
@@ -127,17 +116,19 @@ export const useMarketplace = () => {
         setLoadingMore(false);
       }
     }
-  }, [coords, radius]);
+  }, [coords, radius, selectedDate, sortBy]);
 
-  // Koordinat / yarıçap değişince sayfa 0'a reset (guard içeride).
+  // Koordinat / yarıçap / tarih / sıralama değişince sayfa 0'a reset (guard içeride).
   useEffect(() => {
     doFetch(true, false);
   }, [doFetch]);
 
-  const loadMore = () => {
+  // useCallback: onScroll içindeki infinite-scroll tetikleyicisi stabil kalsın
+  // (usePitchBooking.loadMoreBusinesses ile aynı desen).
+  const loadMore = useCallback(() => {
     if (!hasMore || isFetchingRef.current) return;
     doFetch(false, false);
-  };
+  }, [hasMore, doFetch]);
 
   // İlan yayınlandıktan hemen sonra listeyi tazele (offset başa döner)
   const refetch = () => {
@@ -155,55 +146,42 @@ export const useMarketplace = () => {
     return myTeam.captainId === currentUser.id || myTeam.viceCaptainIds?.includes(currentUser.id) || false;
   };
 
-  const getPitchDetails = (pitchId: string) => {
-    for (const business of businesses) {
-      const pitch = business.pitches?.find(p => p.id === pitchId);
-      if (pitch) return { pitch, business };
-    }
-    return { pitch: null, business: null };
+  // Kart/modalın tükettiği { pitch, business } şekli — sunucunun ilana gömdüğü
+  // pitchSummary'den türetilir. Özet yoksa (eski sunucu sürümü) null döner;
+  // kartın mevcut "Saha bilgisi yükleniyor…" fallback'i devrede kalır.
+  const getPitchDetails = (announcement: any) => {
+    const s = announcement?.pitchSummary;
+    if (!s) return { pitch: null, business: null };
+    return {
+      pitch: {
+        id: s.id,
+        name: s.name,
+        pricePerHour: s.pricePerHour ?? undefined,
+        imageUrl: s.imageUrl ?? undefined,
+        endTime: s.endTime ?? undefined,
+      },
+      business: s.business
+        ? {
+            id: s.business.id,
+            name: s.business.name,
+            district: s.business.district,
+            city: s.business.city,
+          }
+        : null,
+    };
   };
 
-  // Birikmiş tüm matches üzerinde client-side date + sort
-  // Kendi takım ilanları da tarih filtresine tabidir; seçili tarihe ait olanlar
-  // sıralamadan bağımsız her zaman en üstte sabitlenir
+  // Sıralama + tarih filtresi artık SUNUCUDA (tüm aday küme üzerinde doğru).
+  // Burada yalnız: kendi takım ilanlarını üste sabitleme, bayat sayfa-0
+  // önbelleğine karşı ucuz tarih emniyet filtresi ve "ilanlarımı gizle".
   const filteredMatches = useMemo(() => {
     const myTeamId = myTeam?.id;
-    const myListings = myTeamId ? matches.filter(m => m.teamId === myTeamId) : [];
-    const otherListings = myTeamId ? matches.filter(m => m.teamId !== myTeamId) : matches;
-
-    const filteredMine = !selectedDate
-      ? myListings
-      : myListings.filter(m => m.date === selectedDate);
-
-    const filteredOthers = !selectedDate
-      ? otherListings
-      : otherListings.filter(m => m.date === selectedDate);
-
-    const sortedOthers = [...filteredOthers];
-    switch (sortBy) {
-      case 'date_asc':
-        sortedOthers.sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
-        break;
-      case 'date_desc':
-        sortedOthers.sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time));
-        break;
-      case 'price_asc':
-        sortedOthers.sort((a, b) => (getPitchDetails(a.pitchId).pitch?.pricePerHour ?? 0) - (getPitchDetails(b.pitchId).pitch?.pricePerHour ?? 0));
-        break;
-      case 'price_desc':
-        sortedOthers.sort((a, b) => (getPitchDetails(b.pitchId).pitch?.pricePerHour ?? 0) - (getPitchDetails(a.pitchId).pitch?.pricePerHour ?? 0));
-        break;
-      case 'fair_play':
-        sortedOthers.sort((a, b) => (b.team?.fairPlayScore ?? 0) - (a.team?.fairPlayScore ?? 0));
-        break;
-      case 'distance':
-        sortedOthers.sort((a, b) => (a.distanceKm ?? 999) - (b.distanceKm ?? 999));
-        break;
-    }
-
-    if (hideMyListings) return sortedOthers;
-    return [...filteredMine, ...sortedOthers];
-  }, [matches, businesses, selectedDate, sortBy, myTeam, hideMyListings]);
+    const byDate = !selectedDate ? matches : matches.filter(m => m.date === selectedDate);
+    const mine = myTeamId ? byDate.filter(m => m.teamId === myTeamId) : [];
+    const others = myTeamId ? byDate.filter(m => m.teamId !== myTeamId) : byDate;
+    if (hideMyListings) return others;
+    return [...mine, ...others];
+  }, [matches, selectedDate, myTeam, hideMyListings]);
 
   useEffect(() => () => setIsDateFilterOpen(false), []);
 
@@ -212,7 +190,6 @@ export const useMarketplace = () => {
     myTeam,
     matches,
     setMatches,
-    businesses,
     isLoading,
     loadingMore,
     hasMore,
