@@ -11,11 +11,11 @@ import { FilterBar } from './components/FilterBar';
 import { BusinessListItem } from './components/BusinessListItem';
 
 import { CreateMatchModal } from '../../../components/Modals/CreateMatchModal';
-import { OfferModal } from '../../../components/Modals/OfferModal';
+import { OfferModal } from './components/OfferModal';
 import { ConfirmModal } from '../../../components/Modals/ConfirmModal';
-import { NeedTeamRoleModal } from '../../../components/Modals/NeedTeamRoleModal';
+import { NeedTeamRoleModal } from './components/NeedTeamRoleModal';
 import { LocationFilterModal } from '../../../components/Modals/LocationFilterModal';
-import { SlotDetailModal } from '../../../components/Modals/SlotDetailModal';
+import { SlotDetailModal } from './components/SlotDetailModal';
 import { SortModal } from '../../../components/Modals/SortModal';
 
 // Başlık bu kadar px içinde kademeli soluklaşır — yavaş ve doğal his

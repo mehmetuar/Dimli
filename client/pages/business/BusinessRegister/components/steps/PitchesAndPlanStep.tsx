@@ -3,8 +3,8 @@ import { Camera, TurkishLira, X, Layers, Clock, AlertCircle, Calendar } from 'lu
 import { ImageCropModal } from '../../../../../components/Modals/ImageCropModal';
 import { Input } from '../RegisterSidebar';
 import { SUBSCRIPTION_PLANS } from '../../hooks/useBusinessRegister';
-import { FacilitiesModal } from '../../../../../components/Modals/FacilitiesModal';
-import { TimeSlotsModal } from '../../../../../components/Modals/TimeSlotsModal';
+import { FacilitiesModal } from '../FacilitiesModal';
+import { TimeSlotsModal } from '../TimeSlotsModal';
 
 const PITCH_COUNT_OPTIONS = [1, 2, 3, 4, 5];
 

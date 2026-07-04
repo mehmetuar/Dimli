@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Shield, UserPlus, X, Lock } from 'lucide-react';
-import { useModalBodyClass } from '../../utils/useModalBodyClass';
+import { useModalBodyClass } from '../../../../utils/useModalBodyClass';
 
 interface NeedTeamRoleModalProps {
     isOpen: boolean;

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { X, Handshake, Power } from 'lucide-react';
-import { useModalBodyClass } from '../../utils/useModalBodyClass';
+import { useModalBodyClass } from '../../../../utils/useModalBodyClass';
 
 interface Props {
     isOpen: boolean;

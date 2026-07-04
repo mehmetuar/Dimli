@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import ReactDOM from 'react-dom';
 import { X, Plus, Trash2, Clock } from 'lucide-react';
-import { useModalBodyClass } from '../../utils/useModalBodyClass';
-import { BusinessTimePickerModal } from './BusinessTimePickerModal';
+import { useModalBodyClass } from '../../../../utils/useModalBodyClass';
+import { BusinessTimePickerModal } from '../../../../components/Modals/BusinessTimePickerModal';
 import {
     toMinutes,
     isWithinBounds,
     slotsOverlap,
     sortSlotsByNightRule,
-} from '../../utils/nightSlot';
+} from '../../../../utils/nightSlot';
 
 interface TimeSlot {
     startTime: string;

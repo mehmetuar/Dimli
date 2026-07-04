@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, Users, MessageCircle, Shield, Clock, Repeat } from 'lucide-react';
-import { Team } from '../../types';
-import { useModalBodyClass } from '../../utils/useModalBodyClass';
+import { Team } from '../../../../types';
+import { useModalBodyClass } from '../../../../utils/useModalBodyClass';
 
 interface SlotDetailModalProps {
     isOpen: boolean;

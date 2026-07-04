@@ -1,12 +1,12 @@
 import React, { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Shield, Trophy, Palette, AlertCircle, Camera, Loader2 } from 'lucide-react';
-import { Team, SkillLevel } from '../../types';
-import { ColorPickerModal, TEAM_COLORS } from './ColorPickerModal';
-import { ImageCropModal } from './ImageCropModal';
-import api from '../../services/api';
-import { useKeyboardHeight } from '../../utils/useKeyboardHeight';
-import { useModalBodyClass } from '../../utils/useModalBodyClass';
+import { Team, SkillLevel } from '../../../../types';
+import { ColorPickerModal, TEAM_COLORS } from '../../TeamSettings/components/ColorPickerModal';
+import { ImageCropModal } from '../../../../components/Modals/ImageCropModal';
+import api from '../../../../services/api';
+import { useKeyboardHeight } from '../../../../utils/useKeyboardHeight';
+import { useModalBodyClass } from '../../../../utils/useModalBodyClass';
 
 interface Props {
     isOpen: boolean;

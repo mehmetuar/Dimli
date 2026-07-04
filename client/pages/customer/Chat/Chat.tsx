@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useMemo } from 'react';
-import { Send, Bot, ChevronLeft, Users, Shield, Star, Phone, ArrowDown, Swords, MoreVertical, X, ChevronRight, Trash2, XCircle, AlertTriangle, Undo2, UserMinus, UserPlus, RefreshCw, CheckCircle, MessageCircle } from 'lucide-react';
+import { Send, ChevronLeft, Users, Shield, Star, Phone, ArrowDown, Swords, MoreVertical, X, ChevronRight, Trash2, XCircle, AlertTriangle, Undo2, UserMinus, UserPlus, RefreshCw, CheckCircle, MessageCircle } from 'lucide-react';
 import { useChat } from './hooks/useChat';
 import { useMessageActions } from './hooks/useMessageActions';
 import { ChannelItem } from './components/ChannelItem';
@@ -13,15 +13,15 @@ import { resolveTeamChatColors } from '../../../utils/colorUtils';
 import { SystemMessageRenderer } from '../../../components/UI/SystemMessageRenderer';
 import api from '../../../services/api';
 
-import { KendiAramizdaMatchModal } from '../../../components/Modals/KendiAramizdaMatchModal';
+import { KendiAramizdaMatchModal } from './components/KendiAramizdaMatchModal';
 import { InviteJokerModal } from '../../../components/Modals/InviteJokerModal';
-import { MatchDetailModal } from '../../../components/Modals/MatchDetailModal';
-import { RematchProposalModal } from '../../../components/Modals/RematchProposalModal';
+import { MatchDetailModal } from './components/MatchDetailModal';
+import { RematchProposalModal } from './components/RematchProposalModal';
 import { ConfirmModal } from '../../../components/Modals/ConfirmModal';
 import { SuccessModal } from '../../../components/Modals/SuccessModal';
-import { KendiAramizdaNewMatchModal } from '../../../components/Modals/KendiAramizdaNewMatchModal';
-import { ManageJokersModal } from '../../../components/Modals/ManageJokersModal';
-import { JokerDMChatInfoModal } from '../../../components/Modals/JokerDMChatInfoModal';
+import { KendiAramizdaNewMatchModal } from './components/KendiAramizdaNewMatchModal';
+import { ManageJokersModal } from './components/ManageJokersModal';
+import { JokerDMChatInfoModal } from './components/JokerDMChatInfoModal';
 import { useKeyboardHeight } from '../../../utils/useKeyboardHeight';
 import { useModalBodyClass } from '../../../utils/useModalBodyClass';
 
@@ -31,7 +31,6 @@ export const Chat: React.FC = () => {
     channels, activeChannel,
     messages, currentUser,
     input, setInput, isSending,
-    showTactic, tactic,
     isInviteModalOpen, setIsInviteModalOpen,
     matchDetailData,
     isMatchDetailOpen, setIsMatchDetailOpen,
@@ -48,7 +47,7 @@ export const Chat: React.FC = () => {
     setConfirmAction, setConfirmTitle, setConfirmMessage, setConfirmIsDangerous, setConfirmButtonText,
     successModalOpen, setSuccessModalOpen, successModalMessage, successModalType,
     banModalExpiry, setBanModalExpiry,
-    handleSend, handleGetTactics, handleDeleteChannel, handleOpenMatchDetail,
+    handleSend, handleDeleteChannel, handleOpenMatchDetail,
     handleCancelMatch, handleCancelRequest, handleUndoCancelRequest,
     handleAcceptProposal, handleAcceptRematch, handleInviteJokerToMatch, handleCancelJokerNegotiation,
     hasMore, loadingMore, loadMoreMessages,
@@ -161,7 +160,7 @@ export const Chat: React.FC = () => {
     if (isUserAtBottomRef.current) {
       scrollToBottom();
     }
-  }, [messages, tactic]);
+  }, [messages]);
 
   useEffect(() => {
     setIsChatMenuOpen(false);
@@ -660,19 +659,6 @@ export const Chat: React.FC = () => {
           />
         ))}
 
-        {showTactic && (
-          <div className="flex justify-center my-6 animate-fade-in-up">
-            <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-purple-500/30 p-5 rounded-2xl max-w-[90%] shadow-2xl shadow-purple-900/20 relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-indigo-500"></div>
-              <div className="flex items-center gap-2 mb-3 text-purple-400 font-sport font-bold text-lg uppercase tracking-wide">
-                <Bot className="w-5 h-5" /> Koç'un Tavsiyesi
-              </div>
-              <p className="text-sm text-slate-300 whitespace-pre-line leading-relaxed font-medium">
-                {tactic}
-              </p>
-            </div>
-          </div>
-        )}
         <div ref={endRef} />
 
         {showScrollButton && (

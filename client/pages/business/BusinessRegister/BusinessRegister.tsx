@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight, ChevronLeft, Loader2 } from 'lucide-react';
-import { LocationSelectionModal } from '../../../components/Modals/LocationSelectionModal';
+import { LocationSelectionModal } from './components/LocationSelectionModal';
 import { BusinessTimePickerModal } from '../../../components/Modals/BusinessTimePickerModal';
 
 

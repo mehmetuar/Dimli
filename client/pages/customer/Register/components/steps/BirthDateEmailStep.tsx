@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Mail, Calendar } from 'lucide-react';
-import { BirthDatePickerModal } from '../../../../../components/Modals/BirthDatePickerModal';
+import { BirthDatePickerModal } from '../BirthDatePickerModal';
 
 const MONTHS = [
     'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',

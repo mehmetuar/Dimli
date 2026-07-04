@@ -1,7 +1,7 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { X, Calendar, Clock, MapPin, Users, CheckCircle } from 'lucide-react';
-import { useModalBodyClass } from '../../utils/useModalBodyClass';
+import { useModalBodyClass } from '../../../../utils/useModalBodyClass';
 
 interface UpcomingMatch {
     id: string;

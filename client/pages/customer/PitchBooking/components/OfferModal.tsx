@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { CheckCircle } from 'lucide-react';
-import { KeyboardAwareModal } from './KeyboardAwareModal';
+import { KeyboardAwareModal } from '../../../../components/Modals/KeyboardAwareModal';
 
 interface OfferModalProps {
     isOpen: boolean;

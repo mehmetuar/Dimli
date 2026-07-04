@@ -1,11 +1,10 @@
 import React from 'react';
 import { X, Calendar, MapPin, Map, Phone, Users, User, Shield, Handshake, ChevronRight, Banknote, Navigation } from 'lucide-react';
-import { getTacticalAdvice } from '../../services/geminiService';
-import { calculateAge } from '../../utils/calculateAge';
-import { useModalBodyClass } from '../../utils/useModalBodyClass';
-import { getMatchStatusInfo } from '../../pages/customer/Chat/utils/chatUtils';
-import { useLocationContext } from '../../contexts/LocationContext';
-import { calculateDistance } from '../../utils/location';
+import { calculateAge } from '../../../../utils/calculateAge';
+import { useModalBodyClass } from '../../../../utils/useModalBodyClass';
+import { getMatchStatusInfo } from '../utils/chatUtils';
+import { useLocationContext } from '../../../../contexts/LocationContext';
+import { calculateDistance } from '../../../../utils/location';
 
 // Maç durumu → joker için kısa açıklama
 const STATUS_DESCRIPTIONS: Record<string, string> = {

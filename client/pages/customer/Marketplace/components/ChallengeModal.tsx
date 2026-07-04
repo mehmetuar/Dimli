@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { X, MapPin, Calendar, Clock, Swords, Store, Banknote, Navigation, Users } from 'lucide-react';
-import { LoadingSpinner } from '../UI/LoadingSpinner';
-import { KeyboardAwareModal } from './KeyboardAwareModal';
-import { addOneHour } from '../../utils/time';
+import { LoadingSpinner } from '../../../../components/UI/LoadingSpinner';
+import { KeyboardAwareModal } from '../../../../components/Modals/KeyboardAwareModal';
+import { addOneHour } from '../../../../utils/time';
 
 interface ChallengeModalProps {
     isOpen: boolean;

@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { X, Search, ChevronRight, MapPin, Loader2 } from 'lucide-react';
-import { locationService, Province, District } from '../../services/locationService';
-import { KeyboardAwareModal } from './KeyboardAwareModal';
+import { locationService, Province, District } from '../../../../services/locationService';
+import { KeyboardAwareModal } from '../../../../components/Modals/KeyboardAwareModal';
 
 interface Props {
     isOpen: boolean;

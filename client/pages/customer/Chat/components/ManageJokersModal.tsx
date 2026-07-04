@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, X, UserMinus, AlertTriangle } from 'lucide-react';
-import api from '../../services/api';
-import { useModalBodyClass } from '../../utils/useModalBodyClass';
+import api from '../../../../services/api';
+import { useModalBodyClass } from '../../../../utils/useModalBodyClass';
 
 interface ManageJokersModalProps {
     isOpen: boolean;

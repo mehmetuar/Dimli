@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Clock, Phone, AlertCircle, Navigation } from 'lucide-react';
 import { generateSlots, isPastSlot } from '../utils/pitchUtils';
-import { DirectionsConfirmModal } from '../../../../components/Modals/DirectionsConfirmModal';
+import { DirectionsConfirmModal } from './DirectionsConfirmModal';
 
 interface PitchScheduleProps {
     business: any;

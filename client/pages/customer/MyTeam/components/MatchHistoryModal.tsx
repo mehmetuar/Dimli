@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Trophy, Star, CheckCircle, Building2, Shield, MapPin, Users } from 'lucide-react';
-import { MatchHistoryItem, PendingRating } from '../../types';
-import { RatingModal } from './RatingModal';
-import api from '../../services/api';
-import { useModalBodyClass } from '../../utils/useModalBodyClass';
+import { MatchHistoryItem, PendingRating } from '../../../../types';
+import { RatingModal } from '../../../../components/Modals/RatingModal';
+import api from '../../../../services/api';
+import { useModalBodyClass } from '../../../../utils/useModalBodyClass';
 
 interface MatchHistoryModalProps {
     isOpen: boolean;

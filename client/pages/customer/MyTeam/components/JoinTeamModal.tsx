@@ -1,9 +1,9 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Search, CheckCircle, AlertCircle, Loader2, Clock, Users } from 'lucide-react';
-import { Team } from '../../types';
-import api from '../../services/api';
-import { KeyboardAwareModal } from './KeyboardAwareModal';
+import { Team } from '../../../../types';
+import api from '../../../../services/api';
+import { KeyboardAwareModal } from '../../../../components/Modals/KeyboardAwareModal';
 
 interface Props {
   isOpen: boolean;

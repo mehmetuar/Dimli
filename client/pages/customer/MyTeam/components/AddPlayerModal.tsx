@@ -3,10 +3,10 @@ import React, { useState } from 'react';
 import { X, Search, UserPlus, CheckCircle, AlertCircle, Share2 } from 'lucide-react';
 import { Browser } from '@capacitor/browser';
 
-import api from '../../services/api';
-import { KeyboardAwareModal } from './KeyboardAwareModal';
-import { getToken, decodeTokenPayload } from '../../services/authStorage';
-import { normalizeUsername } from '../../utils/username';
+import api from '../../../../services/api';
+import { KeyboardAwareModal } from '../../../../components/Modals/KeyboardAwareModal';
+import { getToken, decodeTokenPayload } from '../../../../services/authStorage';
+import { normalizeUsername } from '../../../../utils/username';
 
 interface Props {
     isOpen: boolean;

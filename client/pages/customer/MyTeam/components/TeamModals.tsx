@@ -1,10 +1,10 @@
 import React from 'react';
-import { CreateTeamModal } from '../../../../components/Modals/CreateTeamModal';
-import { JoinTeamModal } from '../../../../components/Modals/JoinTeamModal';
-import { AddPlayerModal } from '../../../../components/Modals/AddPlayerModal';
+import { CreateTeamModal } from './CreateTeamModal';
+import { JoinTeamModal } from './JoinTeamModal';
+import { AddPlayerModal } from './AddPlayerModal';
 import { ConfirmModal } from '../../../../components/Modals/ConfirmModal';
-import { MatchHistoryModal } from '../../../../components/Modals/MatchHistoryModal';
-import { UpcomingMatchesModal } from '../../../../components/Modals/UpcomingMatchesModal';
+import { MatchHistoryModal } from './MatchHistoryModal';
+import { UpcomingMatchesModal } from './UpcomingMatchesModal';
 import { CreateMatchModal } from '../../../../components/Modals/CreateMatchModal';
 import { SuccessModal, SuccessType } from '../../../../components/Modals/SuccessModal';
 import { TeamCreatedCelebration } from './TeamCreatedCelebration';

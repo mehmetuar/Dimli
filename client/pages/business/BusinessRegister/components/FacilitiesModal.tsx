@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { X, Check, Plus } from 'lucide-react';
-import { getFacilities } from '../../services/api';
-import { useModalBodyClass } from '../../utils/useModalBodyClass';
+import { getFacilities } from '../../../../services/api';
+import { useModalBodyClass } from '../../../../utils/useModalBodyClass';
 
 interface FacilitiesModalProps {
     isOpen: boolean;

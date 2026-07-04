@@ -1,14 +1,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { X, MapPin, Calendar, Clock, ChevronRight, ChevronLeft, CheckCircle, Store, Users, Loader2, Swords } from 'lucide-react';
-import { LoadingSpinner } from '../UI/LoadingSpinner';
-import { Business, Pitch, ReservationStatus } from '../../types';
-import api, { getReservationsByPitch } from '../../services/api';
-import { DateSelectionModal } from './DateSelectionModal';
-import { TimeSelectionModal } from './TimeSelectionModal';
-import { useLocationContext } from '../../contexts/LocationContext';
-import { useModalBodyClass } from '../../utils/useModalBodyClass';
-import { LocationAccessGate } from '../LocationAccessGate';
+import { LoadingSpinner } from '../../../../components/UI/LoadingSpinner';
+import { Business, Pitch, ReservationStatus } from '../../../../types';
+import api, { getReservationsByPitch } from '../../../../services/api';
+import { DateSelectionModal } from '../../../../components/Modals/DateSelectionModal';
+import { TimeSelectionModal } from '../../../../components/Modals/TimeSelectionModal';
+import { useLocationContext } from '../../../../contexts/LocationContext';
+import { useModalBodyClass } from '../../../../utils/useModalBodyClass';
+import { LocationAccessGate } from '../../../../components/LocationAccessGate';
 
 interface KendiAramizdaNewMatchModalProps {
     isOpen: boolean;

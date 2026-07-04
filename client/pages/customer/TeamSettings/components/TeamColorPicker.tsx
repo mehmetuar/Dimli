@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Palette } from 'lucide-react';
-import { ColorPickerModal, TEAM_COLORS } from '../../../../components/Modals/ColorPickerModal';
+import { ColorPickerModal, TEAM_COLORS } from './ColorPickerModal';
 
 interface TeamColorPickerProps {
     primaryColor: string;

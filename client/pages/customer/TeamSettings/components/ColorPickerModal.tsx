@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Check, X } from 'lucide-react';
-import { KeyboardAwareModal } from './KeyboardAwareModal';
-import { hexToHsl, hslToHex, isValidHex } from '../../utils/colorUtils';
+import { KeyboardAwareModal } from '../../../../components/Modals/KeyboardAwareModal';
+import { hexToHsl, hslToHex, isValidHex } from '../../../../utils/colorUtils';
 
 export const TEAM_COLORS = [
     { label: 'Mavi', hex: '#3b82f6' },

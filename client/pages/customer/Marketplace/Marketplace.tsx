@@ -3,7 +3,7 @@ import { MapPin, RefreshCw, Calendar, ArrowUpDown, EyeOff } from 'lucide-react';
 import { LoadingSpinner } from '../../../components/UI/LoadingSpinner';
 import { LocationAccessGate } from '../../../components/LocationAccessGate';
 import { CreateMatchModal } from '../../../components/Modals/CreateMatchModal';
-import { ChallengeModal } from '../../../components/Modals/ChallengeModal';
+import { ChallengeModal } from './components/ChallengeModal';
 import { TeamDetailModal } from '../../../components/Modals/TeamDetailModal';
 import { SuccessModal } from '../../../components/Modals/SuccessModal';
 import { ConfirmModal } from '../../../components/Modals/ConfirmModal';

@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Trophy, Shield, Users, MapPin, Clock, Calendar, Phone, Star, Swords, Navigation } from 'lucide-react';
-import { useModalBodyClass } from '../../utils/useModalBodyClass';
-import { useLocationContext } from '../../contexts/LocationContext';
-import { calculateDistance } from '../../utils/location';
-import { addOneHour } from '../../utils/time';
-import { DirectionsConfirmModal } from './DirectionsConfirmModal';
+import { useModalBodyClass } from '../../../../utils/useModalBodyClass';
+import { useLocationContext } from '../../../../contexts/LocationContext';
+import { calculateDistance } from '../../../../utils/location';
+import { addOneHour } from '../../../../utils/time';
+import { DirectionsConfirmModal } from '../../PitchBooking/components/DirectionsConfirmModal';
 
 interface TeamData {
     id: string;

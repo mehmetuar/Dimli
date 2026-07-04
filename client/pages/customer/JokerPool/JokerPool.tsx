@@ -2,7 +2,7 @@ import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { MapPin, RefreshCw } from 'lucide-react';
 import { LottiePlayer } from '../../../components/UI/LottiePlayer';
 import { InviteJokerModal } from '../../../components/Modals/InviteJokerModal';
-import { JokerProfileModal } from '../../../components/Modals/JokerProfileModal';
+import { JokerProfileModal } from './components/JokerProfileModal';
 import { LocationFilterModal } from '../../../components/Modals/LocationFilterModal';
 import { SortModal } from '../../../components/Modals/SortModal';
 import { LocationAccessGate } from '../../../components/LocationAccessGate';
