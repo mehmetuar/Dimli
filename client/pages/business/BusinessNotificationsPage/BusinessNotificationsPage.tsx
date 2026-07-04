@@ -1,16 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Bell, Calendar, Clock, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Bell, Calendar, Clock, ChevronRight, Users, Star } from 'lucide-react';
 import api from '../../../services/api';
 import { getOwnerId } from '../../../services/authStorage';
 import { BusinessNavbar } from '../../../components/Business/BusinessNavbar';
 import { BusinessLoadingSpinner } from '../../../components/Business/BusinessLoadingSpinner';
 import { stripNotificationEmoji } from '../../../utils/notificationText';
+import { ReservationRequestDetailModal } from './components/ReservationRequestDetailModal';
+import { BusinessNotification, levelLabel, matchTypeLabel } from './types';
 
 export const BusinessNotificationsPage: React.FC = () => {
     const navigate = useNavigate();
-    const [notifications, setNotifications] = useState<any[]>([]);
+    const [notifications, setNotifications] = useState<BusinessNotification[]>([]);
     const [loading, setLoading] = useState(true);
+    const [selectedRR, setSelectedRR] = useState<BusinessNotification | null>(null);
 
     useEffect(() => {
         fetchNotifications();
@@ -31,13 +34,92 @@ export const BusinessNotificationsPage: React.FC = () => {
         }
     };
 
-
-    const handleNotificationClick = (notif: any) => {
+    const handleNotificationClick = (notif: BusinessNotification) => {
+        // Rezervasyon isteğinde zengin detay modalı; diğer tiplerde mevcut davranış.
+        if (notif.type === 'RESERVATION_REQUEST') {
+            setSelectedRR(notif);
+            return;
+        }
         if (notif.metadata?.date) {
-            // For now, let's navigate to dashboard with that date
-            // The dashboard would need to handle the date from URL or state
             navigate('/business/dashboard', { state: { selectedDate: notif.metadata.date } });
         }
+    };
+
+    // Zengin rezervasyon-isteği kartı — yalnız metadata.team varsa. Yoksa null döner
+    // ve varsayılan (title/message) kart render edilir (graceful fallback).
+    const renderReservationCard = (notif: BusinessNotification) => {
+        const m = notif.metadata;
+        if (!m?.team) return null;
+        const team = m.team;
+        const badge = matchTypeLabel(m.matchType);
+        const isKendiAramizda = m.matchType === 'kendi_aramizda';
+        const lvl = levelLabel(team.level);
+        const timeRange = m.startTime
+            ? `${m.startTime}${m.endTime ? `–${m.endTime}` : ''}`
+            : m.time || '';
+        const dateLine = [m.dayName, m.date].filter(Boolean).join(', ');
+
+        return (
+            <div className="flex-1 min-w-0">
+                {/* Satır 1: maç tipi rozeti + tarih pill */}
+                <div className="flex justify-between items-start gap-2 mb-1.5">
+                    {badge ? (
+                        <span
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide ${
+                                isKendiAramizda
+                                    ? 'bg-orange-500/15 text-orange-400 border border-orange-500/30'
+                                    : 'bg-sky-500/15 text-sky-300 border border-sky-500/30'
+                            }`}
+                        >
+                            <Users className="w-2.5 h-2.5" />
+                            {badge}
+                        </span>
+                    ) : (
+                        <span className="text-[11px] font-black text-orange-400 uppercase tracking-wide">Rezervasyon İsteği</span>
+                    )}
+                    <span className="text-[10px] text-slate-500 font-bold whitespace-nowrap shrink-0">
+                        {new Date(notif.createdAt).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })}
+                    </span>
+                </div>
+
+                {/* Satır 2: takım logo + ad + seviye/fair-play */}
+                <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-full bg-slate-900 border border-slate-600 flex items-center justify-center overflow-hidden shrink-0">
+                        {team.logo ? (
+                            <img src={team.logo} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                            <Users className="w-3.5 h-3.5 text-slate-500" />
+                        )}
+                    </div>
+                    <span className="font-black text-white truncate" style={{ fontSize: 'clamp(0.8rem, 3.5vw, 0.95rem)' }}>
+                        {team.name || 'Bilinmeyen Takım'}
+                    </span>
+                    {lvl && (
+                        <span className="px-1.5 py-0.5 rounded-md bg-slate-700/60 border border-slate-600/50 text-[10px] font-bold text-slate-300 shrink-0">
+                            {lvl}
+                        </span>
+                    )}
+                    {team.fairPlay != null && (
+                        <span className="inline-flex items-center gap-0.5 shrink-0">
+                            <Star className="w-3 h-3 text-green-500 fill-green-500/30" />
+                            <span className="text-[10px] font-bold text-slate-300">{Number(team.fairPlay).toFixed(1)}</span>
+                        </span>
+                    )}
+                </div>
+
+                {/* Satır 3: gün + saat aralığı */}
+                {(dateLine || timeRange) && (
+                    <div className="flex items-center gap-1.5 mt-1.5 text-slate-400" style={{ fontSize: 'clamp(0.7rem, 3vw, 0.8rem)' }}>
+                        <Clock className="w-3 h-3 shrink-0 text-slate-500" />
+                        <span className="truncate capitalize">
+                            {dateLine}
+                            {dateLine && timeRange ? ' • ' : ''}
+                            {timeRange}
+                        </span>
+                    </div>
+                )}
+            </div>
+        );
     };
 
     return (
@@ -67,34 +149,39 @@ export const BusinessNotificationsPage: React.FC = () => {
                         <BusinessLoadingSpinner />
                     </div>
                 ) : notifications.length > 0 ? (
-                    notifications.map((notif) => (
-                        <button
-                            key={notif.id}
-                            onClick={() => handleNotificationClick(notif)}
-                            className="w-full rounded-2xl border bg-slate-800/40 border-slate-700/50 text-left transition-all relative group flex gap-3 hover:border-orange-500/40 active:scale-[0.98]"
-                            style={{ padding: 'clamp(0.75rem, 3vw, 1.25rem)' }}
-                        >
-                            <div className="w-12 h-12 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-500 flex items-center justify-center shrink-0 shadow-inner">
-                                {notif.type === 'RESERVATION_REQUEST' ? <Calendar className="w-6 h-6" /> : <Bell className="w-6 h-6" />}
-                            </div>
-
-                            <div className="flex-1 min-w-0">
-                                <div className="flex justify-between items-start mb-1">
-                                    <h4 className="font-black text-white leading-tight" style={{ fontSize: 'clamp(0.8rem, 3.5vw, 1rem)' }}>
-                                        {stripNotificationEmoji(notif.title)}
-                                    </h4>
-                                    <span className="text-[10px] text-slate-500 font-bold whitespace-nowrap ml-2 shrink-0">
-                                        {new Date(notif.createdAt).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })}
-                                    </span>
+                    notifications.map((notif) => {
+                        const richCard = notif.type === 'RESERVATION_REQUEST' ? renderReservationCard(notif) : null;
+                        return (
+                            <button
+                                key={notif.id}
+                                onClick={() => handleNotificationClick(notif)}
+                                className="w-full rounded-2xl border bg-slate-800/40 border-slate-700/50 text-left transition-all relative group flex gap-3 hover:border-orange-500/40 active:scale-[0.98]"
+                                style={{ padding: 'clamp(0.75rem, 3vw, 1.25rem)' }}
+                            >
+                                <div className="w-12 h-12 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-500 flex items-center justify-center shrink-0 shadow-inner">
+                                    {notif.type === 'RESERVATION_REQUEST' ? <Calendar className="w-6 h-6" /> : <Bell className="w-6 h-6" />}
                                 </div>
-                                <p className="text-slate-400 leading-relaxed line-clamp-2" style={{ fontSize: 'clamp(0.75rem, 3vw, 0.875rem)' }}>
-                                    {stripNotificationEmoji(notif.message)}
-                                </p>
-                            </div>
 
-                            <ChevronRight className="w-4 h-4 absolute right-4 top-1/2 -translate-y-1/2 text-slate-600 transition-all group-hover:text-orange-500 group-hover:translate-x-1" />
-                        </button>
-                    ))
+                                {richCard ?? (
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex justify-between items-start mb-1">
+                                            <h4 className="font-black text-white leading-tight" style={{ fontSize: 'clamp(0.8rem, 3.5vw, 1rem)' }}>
+                                                {stripNotificationEmoji(notif.title)}
+                                            </h4>
+                                            <span className="text-[10px] text-slate-500 font-bold whitespace-nowrap ml-2 shrink-0">
+                                                {new Date(notif.createdAt).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })}
+                                            </span>
+                                        </div>
+                                        <p className="text-slate-400 leading-relaxed line-clamp-2" style={{ fontSize: 'clamp(0.75rem, 3vw, 0.875rem)' }}>
+                                            {stripNotificationEmoji(notif.message)}
+                                        </p>
+                                    </div>
+                                )}
+
+                                <ChevronRight className="w-4 h-4 absolute right-4 top-1/2 -translate-y-1/2 text-slate-600 transition-all group-hover:text-orange-500 group-hover:translate-x-1" />
+                            </button>
+                        );
+                    })
                 ) : (
                     <div className="py-40 flex flex-col items-center justify-center text-center px-10">
                         <div className="w-24 h-24 bg-slate-800/50 rounded-full flex items-center justify-center mb-6 border-2 border-dashed border-slate-700">
@@ -106,6 +193,11 @@ export const BusinessNotificationsPage: React.FC = () => {
                 )}
             </div>
             </div>
+
+            <ReservationRequestDetailModal
+                notification={selectedRR}
+                onClose={() => setSelectedRR(null)}
+            />
 
             <BusinessNavbar />
         </div>

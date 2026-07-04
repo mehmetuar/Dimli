@@ -22,6 +22,7 @@ import { Notification } from '../../notifications/notification.entity';
 import { ChatChannel } from '../../chat/chat-channel.entity';
 import { ChatParticipant } from '../../chat/chat-participant.entity';
 import { MatchAnnouncement } from '../../match-announcements/match-announcement.entity';
+import { Team } from '../../teams/team.entity';
 import { Pitch } from '../../pitches/entities/pitch.entity';
 import { BusinessOwner } from '../../business-owner/entities/business-owner.entity';
 import { User } from '../../users/user.entity';
@@ -160,7 +161,7 @@ export class ReservationLifecycleService {
   async create(createReservationDto: CreateReservationDto) {
     const pitch = await this.pitchRepository.findOne({
       where: { id: createReservationDto.pitchId },
-      relations: ['business', 'business.owner'],
+      relations: ['business', 'business.owner', 'timeSlots'],
     });
 
     if (!pitch) {
@@ -231,6 +232,37 @@ export class ReservationLifecycleService {
             minute: '2-digit',
           });
 
+          // Uygulama içi bildirim kartı/detayını zenginleştir: istek gönderen takım +
+          // (varsa) maç tipi + gün adı + saat aralığı. Push (title/message) DEĞİŞMEZ.
+          const dayName = slotTime.toLocaleDateString('tr-TR', {
+            weekday: 'long',
+          });
+          const startTime = timeStr;
+          let endTime = '';
+          const slots = pitch.timeSlots;
+          if (slots?.length) {
+            const matchingSlot = slots.find((s) => s.startTime === startTime);
+            if (matchingSlot) endTime = matchingSlot.endTime;
+          }
+          if (!endTime) {
+            endTime = new Date(slotTime.getTime() + 60 * 60 * 1000)
+              .toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+          }
+          const { dateStr: slotDateIso } = toIstanbulParts(slotTime); // 'YYYY-MM-DD'
+
+          const team = savedReservation.teamId
+            ? await this.reservationRepository.manager
+                .getRepository(Team)
+                .findOne({ where: { id: savedReservation.teamId } })
+            : null;
+          let matchType: string | null = null;
+          if (savedReservation.matchAnnouncementId) {
+            const ann = await this.reservationRepository.manager
+              .getRepository(MatchAnnouncement)
+              .findOne({ where: { id: savedReservation.matchAnnouncementId } });
+            matchType = ann?.matchType ?? null;
+          }
+
           await this.notificationsService.create({
             userId: owner.id,
             type: 'RESERVATION_REQUEST',
@@ -239,11 +271,30 @@ export class ReservationLifecycleService {
             relatedId: savedReservation.id,
             read: false,
             metadata: {
+              // --- mevcut alanlar (geriye dönük uyumluluk) ---
               reservationId: savedReservation.id,
               pitchName: pitch.name,
               date: dateStr,
               time: timeStr,
               role: 'BUSINESS_OWNER',
+              // --- zenginleştirme alanları ---
+              slotDateIso, // 'YYYY-MM-DD' — Sahaya Git için dashboard formatı
+              slotTimeIso: slotTime.toISOString(),
+              dayName,
+              startTime,
+              endTime,
+              matchType, // 'kendi_aramizda' | 'rakip_araniyor' | null (DIRECT)
+              reservationType: savedReservation.type,
+              team: team
+                ? {
+                    id: team.id,
+                    name: team.name,
+                    logo: team.logoUrl ?? null,
+                    level: team.level ?? null,
+                    fairPlay: team.fairPlayScore ?? null,
+                    ratingCount: team.fairPlayRatingCount ?? 0,
+                  }
+                : null,
             },
           });
           this.logger.log(

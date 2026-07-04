@@ -229,6 +229,20 @@ body.modal-open .fixed.top-bell-safe {
   visibility: hidden;
 }
 
+/* Modal açıkken gizlenen navbar/bell alt ağacındaki geçişleri anında bitir:
+   çocuklardaki Tailwind `transition-all` CSS `visibility` özelliğini de kapsar →
+   visible→hidden geçişi elemanı süre boyunca görünür tutup en sonda (%100) çevirir ve
+   görünür çocuk ebeveynin hidden'ını ezer; süreler farklı (150 vs 200/300ms) olduğu için
+   bar "parça parça" kaybolur. Geçişleri iptal edince görünürlük anında flip'ler. */
+body.modal-open nav,
+body.modal-open nav *,
+body.modal-open .business-navbar,
+body.modal-open .business-navbar *,
+body.modal-open .fixed.top-bell-safe,
+body.modal-open .fixed.top-bell-safe * {
+  transition: none !important;
+}
+
 /* PROFİLİM/TAKIMIM sekme barı için modal-open kuralı YOK (bilinçli):
    TeamProfile ağacındaki modallar createPortal(document.body) ile render edilir — backdrop
    gerçek viewport'u (safe-area + sekme barı dahil) kaplar, bar diğer arka plan içeriği gibi

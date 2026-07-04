@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import api from '../../../../services/api';
 import { getOwnerId } from '../../../../services/authStorage';
 import { SuccessType } from '../../../../components/Modals/SuccessModal';
@@ -6,7 +7,19 @@ import { isPastSlot as isPastSlotShared } from '../../../../utils/nightSlot';
 import { listPresetNotes, createPresetNote, PresetNote } from '../../../../services/presetNotes';
 
 export const useBusinessDashboard = () => {
+    const location = useLocation();
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+
+    // Bildirimden "Sahaya Git" ile gelinen tarihi uygula (YYYY-MM-DD).
+    // Regex guard: legacy tr-TR stringi ('4 Temmuz') yoksayılır ki dashboard
+    // sorgusu bozulmasın. setSelectedDate mevcut useEffect'i tetikleyip yeniden yükler.
+    useEffect(() => {
+        const incoming = (location.state as { selectedDate?: string } | null)?.selectedDate;
+        if (incoming && /^\d{4}-\d{2}-\d{2}$/.test(incoming)) {
+            setSelectedDate(incoming);
+            window.history.replaceState({}, ''); // geri/yenilemede tekrar tetiklenmesin
+        }
+    }, [location.state]);
     const [dashboardData, setDashboardData] = useState<any>(null);
     const [subscription, setSubscription] = useState<any>(null);
     const [businessStatus, setBusinessStatus] = useState<string | null>(null);

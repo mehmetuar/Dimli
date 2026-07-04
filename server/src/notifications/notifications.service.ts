@@ -19,7 +19,10 @@ import { MatchAnnouncement } from '../match-announcements/match-announcement.ent
 import { BusinessOwner } from '../business-owner/entities/business-owner.entity';
 import { User } from '../users/user.entity';
 import { Reservation } from '../reservations/entities/reservation.entity';
-import { istanbulDateTimeToUtc } from '../common/turkey-time.util';
+import {
+  istanbulDateTimeToUtc,
+  toIstanbulParts,
+} from '../common/turkey-time.util';
 import { TeamsService } from '../teams/teams.service';
 import { AppGateway } from '../gateway/app.gateway';
 import { FirebaseService } from '../firebase/firebase.service';
@@ -595,10 +598,85 @@ export class NotificationsService {
 
   // Business Owner Notifications
   async findByOwner(ownerId: string): Promise<Notification[]> {
-    return this.notificationsRepository.find({
+    const notifications = await this.notificationsRepository.find({
       where: { userId: ownerId }, // Using userId column for ownerId too
       order: { createdAt: 'DESC' },
     });
+
+    // Self-heal: eski RESERVATION_REQUEST bildirimleri yalnız minimal metadata
+    // içeriyor. Okuma sırasında (yeni 'team' alanı yoksa) ilgili rezervasyonu
+    // yükleyip zengin alanları doldur + kalıcılaştır. Yalnız bir kez yazılır
+    // (guard: !metadata.team); rezervasyon silinmişse yazma yapılmaz.
+    return Promise.all(
+      notifications.map(async (n) => {
+        if (
+          n.type === 'RESERVATION_REQUEST' &&
+          n.metadata &&
+          !n.metadata.team
+        ) {
+          try {
+            const resId = n.metadata.reservationId || n.relatedId;
+            if (!resId) return n;
+            const res = await this.reservationsRepository.findOne({
+              where: { id: resId },
+              relations: ['team', 'matchAnnouncement', 'pitch', 'pitch.timeSlots'],
+            });
+            if (!res) return n; // rezervasyon silinmiş → olduğu gibi dön
+
+            const slotTime = new Date(res.slotTime);
+            const dayName = slotTime.toLocaleDateString('tr-TR', {
+              weekday: 'long',
+            });
+            const startTime = slotTime.toLocaleTimeString('tr-TR', {
+              hour: '2-digit',
+              minute: '2-digit',
+            });
+            let endTime = '';
+            const slots = res.pitch?.timeSlots;
+            if (slots?.length) {
+              const m = slots.find((s) => s.startTime === startTime);
+              if (m) endTime = m.endTime;
+            }
+            if (!endTime) {
+              endTime = new Date(slotTime.getTime() + 60 * 60 * 1000)
+                .toLocaleTimeString('tr-TR', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                });
+            }
+            const { dateStr: slotDateIso } = toIstanbulParts(slotTime);
+
+            n.metadata = {
+              ...n.metadata,
+              slotDateIso,
+              slotTimeIso: slotTime.toISOString(),
+              dayName,
+              startTime,
+              endTime,
+              matchType: res.matchAnnouncement?.matchType ?? null,
+              reservationType: res.type,
+              team: res.team
+                ? {
+                    id: res.team.id,
+                    name: res.team.name,
+                    logo: res.team.logoUrl ?? null,
+                    level: res.team.level ?? null,
+                    fairPlay: res.team.fairPlayScore ?? null,
+                    ratingCount: res.team.fairPlayRatingCount ?? 0,
+                  }
+                : null,
+            };
+            await this.notificationsRepository.save(n);
+          } catch (e) {
+            this.logger.error(
+              `RESERVATION_REQUEST enrich failed for ${n.id}`,
+              e,
+            );
+          }
+        }
+        return n;
+      }),
+    );
   }
 
   async getUnreadCountForOwner(ownerId: string): Promise<number> {
