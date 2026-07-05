@@ -306,6 +306,7 @@ export class UsersService {
   /**
    * Takıma bağlı tüm kayıtları koparıp takımı siler (teams.service.ts purgeTeam
    * ile aynı SQL sırası — orada değişiklik yapılırsa burası da güncellenmeli).
+   * Bu takımın maç ilanlarına bağlı chat_channels da temizlenir (öksüz sohbet kalmasın).
    * Tek transaction: yarıda kalırsa hiçbir şey değişmez.
    * teamName: rezervasyon ad-snapshot'ı (rakip "Bu takım artık mevcut değil" bilgisi).
    */
@@ -317,6 +318,16 @@ export class UsersService {
       await em.query(`DELETE FROM "join_requests" WHERE "teamId" = $1`, [
         teamId,
       ]);
+      // Bu takımın maçlarına bağlı sohbet kanalları (maç grubu + joker müzakere) —
+      // maç ilanları silinmeden ÖNCE. teams.service.ts purgeTeam ile SENKRON.
+      await em.query(
+        `DELETE FROM "chat_channels"
+           WHERE type IN ('MATCH_GROUP','JOKER_NEGOTIATION')
+             AND "relatedMatchId" IN (
+               SELECT id::text FROM "match_announcements" WHERE "team_id" = $1
+             )`,
+        [teamId],
+      );
       await em.query(`DELETE FROM "match_announcements" WHERE "team_id" = $1`, [
         teamId,
       ]);
@@ -359,6 +370,17 @@ export class UsersService {
 
     // 3. Notifications sil
     await this.notificationRepository.delete({ userId });
+
+    // 4a. Kullanıcının dahil olduğu 1:1 kanallar (joker müzakere + DM) TAMAMEN silinir —
+    //     katılımcı-silme (4) ÖNCESİ, ki hangi kanallara ait olduğunu hâlâ bulabilelim.
+    //     Cascade peer'in katılımcı satırını + mesajları alır → karşı tarafta ölü DM kalmaz.
+    //     MATCH_GROUP bilinçli HARİÇ: joker maç grubundan sadece ayrılır, grup ayakta kalır.
+    await this.usersRepository.query(
+      `DELETE FROM "chat_channels"
+         WHERE type IN ('JOKER_NEGOTIATION','DM')
+           AND id IN (SELECT "channelId" FROM "chat_participants_v2" WHERE "userId" = $1)`,
+      [userId],
+    );
 
     // 4. ChatParticipants hard-delete (FK kısıtlaması soft-delete ile çözülmez)
     await this.usersRepository.query(

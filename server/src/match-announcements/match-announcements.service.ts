@@ -682,6 +682,15 @@ export class MatchAnnouncementsService {
       );
     }
 
+    // Bu ilana bağlı sohbet kanalları (maç grubu + joker müzakere) — ilan silinmeden
+    // ÖNCE temizlenir ki Operasyon Merkezi'nde öksüz "durumsuz maç" sohbeti kalmasın.
+    // chat_channels.relatedMatchId = ilan id'si (varchar); cascade participants+messages siler.
+    await this.matchAnnouncementsRepository.manager.query(
+      `DELETE FROM "chat_channels"
+         WHERE type IN ('MATCH_GROUP','JOKER_NEGOTIATION') AND "relatedMatchId" = $1`,
+      [id],
+    );
+
     await this.matchAnnouncementsRepository.remove(announcement);
   }
 }

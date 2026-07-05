@@ -1661,3 +1661,53 @@ Filtre senkronu zaten var: koordinat+yarıçap `LocationContext`, tarih `FilterC
 - `server npm run build` ✓, `client npm run build` ✓.
 - ⚠️ Ortam notu: `server/` kökünde bayat `tsconfig*.tsbuildinfo` dosyaları `nest build`'in hiç .js
   emit etmemesine yol açıyordu (dist'te yalnız .d.ts) — silindi; aynı belirtide önce bunları sil.
+
+---
+
+## 45. Silinen takım/joker → öksüz sohbet ("durumsuz maç") temizliği (2026-07-05)
+
+> Belirti: silinmiş bir takımla oynanan maçların MATCH_GROUP sohbeti Operasyon Merkezi'nde
+> "durumsuz maç" olarak takılı kalıyor, açınca "Maç bilgisi bulunamadı", **silinemiyor** (istemci
+> silme koşulu yalnız played/unplayed'e izin veriyor; öksüz kanalın durumu null). Aynı şekilde joker
+> DM'i (JOKER_NEGOTIATION) jokerin hesabı silinince karşı tarafta ölü kalabilirdi.
+
+### Kök neden ve mimari (kritik)
+- MATCH_GROUP/JOKER_NEGOTIATION kanalının `relatedMatchId`'si `match_announcements.id`'ye işaret eder
+  (**varchar↔uuid → `id::text` cast şart**). `chat_channels`'ta **soft-delete kolonu YOK**;
+  `chat_participants_v2.channelId` ve `chat_messages.channelId` FK'ları **ON DELETE CASCADE** → tek
+  `DELETE FROM chat_channels` katılımcı+mesajı da siler.
+- Maç ilanını hard-delete eden **3 yol** vardı, hiçbiri chat kanalını temizlemiyordu →
+  `purgeTeam` (teams.service.ts), `purgeTeamRaw` (users.service.ts §38 ikizi), `match-announcements.service.ts delete()`.
+- Nüans: **sunucu `deleteChannel` öksüz kanalı zaten silebiliyordu** (durum null → engel yok); takılma
+  tamamen **istemci** butonundandı. Kullanıcı kararı: kaynağında tamamen sil (istemci/uygulama sürümü YOK).
+
+### Değişiklikler (server-only, geriye-uyumlu)
+- **`purgeTeam` + `purgeTeamRaw`:** `match_announcements` silinmeden ÖNCE (subquery çözülsün diye)
+  `DELETE FROM chat_channels WHERE type IN ('MATCH_GROUP','JOKER_NEGOTIATION') AND "relatedMatchId" IN
+  (SELECT id::text FROM match_announcements WHERE team_id=$1)`. **§38: iki ikiz SENKRON — aynı commit.**
+- **`match-announcements.service.ts delete()`:** `remove()` öncesi aynı desen tek ilana
+  (`"relatedMatchId" = $1`, eşitlik). Onaylı maçı engelleyen guard yok → bu yol da öksüz üretebiliyordu.
+- **`users.service.ts deleteAccount`:** mevcut `DELETE chat_participants_v2 WHERE userId` ÖNCESİNE
+  `DELETE FROM chat_channels WHERE type IN ('JOKER_NEGOTIATION','DM') AND id IN (SELECT "channelId" FROM
+  chat_participants_v2 WHERE userId=$1)` → 1:1 kanal tümüyle gider (cascade peer + mesaj), ölü DM kalmaz.
+  **MATCH_GROUP bilinçli HARİÇ** (joker gruptan sadece ayrılır; maç + diğer takım ayakta kalır).
+
+### Puanlama ETKİLENMEZ (doğrulandı)
+`ratings` chat'ten bağımsız: `reservationId`(FK)+`type(BUSINESS|FAIRPLAY)`+`targetBusinessId/TeamId`.
+`submitRating` takım-var-mı kontrolünü **yalnız FAIRPLAY**'de yapar → silinmiş rakibe rağmen **işletme
+puanı verilebilir**. Puanlama yüzeyleri (App.tsx pending `RatingModal`, TakımProfili Geçmiş Maçlar
+`MatchHistoryModal`) `getPendingRatings`/`getMatchHistory` → **yalnız reservation/ratings** okur, chat'e
+dokunmaz. Canlı kanıt: rez. `7d91d44a` (Konyalılar vs silinmiş Mavi şimşekler) BUSINESS puanını temizlik
+sonrası da koruyor.
+
+### Tek seferlik canlı temizlik (kullanıcı onaylı, §9 istisnası)
+`server/scripts/cleanup-orphan-chat-channels.ts` (cleanup-orphan-notifications.ts deseni; idempotent,
+tek transaction, say→sil→doğrula). Öksüz = `type IN (MATCH_GROUP,JOKER_NEGOTIATION) AND relatedMatchId
+NOT IN (SELECT id::text FROM match_announcements)`. Çalıştırıldı: **9 kanal silindi** (7 MATCH_GROUP:
+UÇARLAR Kendi Aramızda + 2 Mavi şimşekler vs Konyalılar + 4 Mavi şimşekler vs Özeller; 2 JOKER_NEGOTIATION:
+Joker DM Mehmet Uçar), cascade katılımcı+mesaj temizledi, kalan öksüz **0**. **Deploy: server Render'a;
+istemci değişikliği YOK (yeni sürüm gerekmez).** Kod deploy'undan sonra gerekiyorsa script tekrar çalıştırılabilir.
+
+### Doğrulama
+Server `npm run build` ✓. Canlı DB (salt-okunur): öksüz kanal 0, öksüz katılımcı 0, öksüz mesaj 0,
+`deletedTeamName`'li rezervasyonlar + BUSINESS puanları korunuyor.

@@ -540,6 +540,9 @@ export class TeamsService implements OnModuleInit {
    * FK envanteri: challenges.fromTeamId, join_requests.teamId,
    * match_announcements.team_id, reservation.teamId/opponentTeamId,
    * user.team_id — hiçbirinde CASCADE yok; team_bans CASCADE'li (kendiliğinden).
+   * Ayrıca bu takımın maç ilanlarına bağlı chat_channels (MATCH_GROUP/JOKER_NEGOTIATION)
+   * ilanlar silinmeden ÖNCE temizlenir (cascade participants+messages) — yoksa öksüz
+   * "durumsuz maç" sohbetleri Operasyon Merkezi'nde ölü kalır.
    * teamName: rezervasyon ad-snapshot'ı için (rakip "Bu takım artık mevcut değil"
    * bilgilendirmesi). users.service.ts purgeTeamRaw ile SENKRON TUTULMALI.
    */
@@ -553,6 +556,18 @@ export class TeamsService implements OnModuleInit {
       await em.query(`DELETE FROM "join_requests" WHERE "teamId" = $1`, [
         teamId,
       ]);
+      // Bu takımın maçlarına bağlı sohbet kanalları (maç grubu + joker müzakere) —
+      // maç ilanları silinmeden ÖNCE (subquery çözülebilsin diye). relatedMatchId
+      // varchar, match_announcements.id uuid → id::text cast şart. chat_channels →
+      // participants/messages FK'ları ON DELETE CASCADE olduğundan tek DELETE yeterli.
+      await em.query(
+        `DELETE FROM "chat_channels"
+           WHERE type IN ('MATCH_GROUP','JOKER_NEGOTIATION')
+             AND "relatedMatchId" IN (
+               SELECT id::text FROM "match_announcements" WHERE "team_id" = $1
+             )`,
+        [teamId],
+      );
       // Maç ilanları: TÜM statüler (geçmiş/iptal dahil) —
       // reservation.matchAnnouncementId FK'sı ON DELETE SET NULL, güvenli
       await em.query(`DELETE FROM "match_announcements" WHERE "team_id" = $1`, [
