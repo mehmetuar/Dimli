@@ -6,6 +6,7 @@ import {
   JoinColumn,
   OneToMany,
   CreateDateColumn,
+  Index,
 } from 'typeorm';
 import { Business } from '../../business/entities/business.entity';
 import { MatchAnnouncement } from '../../match-announcements/match-announcement.entity';
@@ -13,6 +14,9 @@ import { TimeSlot } from './time-slot.entity';
 
 export type PitchApprovalStatus = 'approved' | 'pending' | 'rejected';
 
+// İşletme→saha join'leri ve approved-pitch alt sorguları (business.service
+// geoCandidates/fetchBusinessesByIds) bu bileşik indeksten okur.
+@Index(['businessId', 'approvalStatus'])
 @Entity('pitches')
 export class Pitch {
   @PrimaryGeneratedColumn('uuid')

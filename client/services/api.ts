@@ -174,4 +174,32 @@ export const getMatchAnnouncementsPaged = async (params: {
 export const getFacilities = (): Promise<string[]> =>
     api.get('/facilities').then(r => r.data);
 
+// Bildirimler — sunucu sayfalama; `limit` verilince sunucu {items,total,hasMore}
+// zarfı döner (getMatchAnnouncementsPaged deseni).
+export const getNotificationsPaged = async (params: {
+    limit?: number;
+    offset?: number;
+}): Promise<{ items: any[]; total: number; hasMore: boolean }> => {
+    const { limit = 20, offset = 0 } = params;
+    const response = await api.get('/notifications', { params: { limit, offset } });
+    const data = response.data;
+    // Geriye dönük uyumluluk: eski sunucu zarfı bilmez, düz dizi döner —
+    // tek sayfa gibi sun; sunucu deploy olunca gerçek sayfalama devreye girer.
+    if (Array.isArray(data)) {
+        return { items: data, total: data.length, hasMore: data.length >= limit };
+    }
+    return data ?? { items: [], total: 0, hasMore: false };
+};
+
+// Tüm okunmamışları TEK istekte okundu yapar (sunucuda tek UPDATE) — eski
+// bildirim-başına PATCH döngüsünün (50 okunmamış = 50 istek) yerini alır.
+// Eski sunucuya düşerse (route yok → 404) bildirim-başına PATCH sigortası devrede.
+export const markAllNotificationsRead = async (unreadIds: string[]): Promise<void> => {
+    try {
+        await api.patch('/notifications/read-all');
+    } catch {
+        await Promise.all(unreadIds.map(id => api.patch(`/notifications/${id}/read`)));
+    }
+};
+
 export default api;

@@ -1804,13 +1804,16 @@ sıfır fark). Parite düzeltmeleri: `acos(GREATEST(-1,LEAST(1,...)))` kırpmas�
 Bitmap Index Scan doğrulandı; 255 satırlık local DB'de planlayıcı haklı olarak Seq Scan seçiyor, ölçekte devreye girer).
 
 ### 10-20bin kullanıcı için kalan ölçek riskleri (konum yolları — ileriki görevler)
-1. `business.service findNearbyPaged`: her sayfa isteğinde TÜM aday kümesi hydrate ediliyor (pitches+slots,
-   slice hydrate'ten sonra) — metropolde istek başına 10-20k join satırı olabilir. Çözüm: sıralama anahtarlarını
-   geoCandidates'te skaler çek, önce id sırala/dilimle, sadece sayfayı hydrate et.
-2. `match-announcements findAll` her listelemede `deleteExpired()` (DELETE) çalıştırıyor — en sıcak okuma
-   yolunda yazma. Çözüm: WHERE ile dışla, silmeyi cron'a taşı.
-3. Konum PATCH yazma yükü: koordinat güncellemesi 2 tekil + 1 kısmi indeksi güncelliyor; kısmi indeks
-   kanıtlandıktan sonra tekil lat/lng indeksleri düşürülerek yazma yükü azaltılabilir (250m eşiği korunmalı).
+1. ~~`business.service findNearbyPaged`: her sayfa isteğinde TÜM aday kümesi hydrate~~ → **ÇÖZÜLDÜ (§49)**.
+2. ~~`match-announcements findAll` her listelemede `deleteExpired()` çalıştırıyor~~ → **ÇÖZÜLDÜ (§49)**
+   (not: DELETE değil 2 UPDATE'ti — yine de okuma yolunda yazmaydı).
+3. Konum PATCH yazma yükü: **kanıt toplandı (§49)** — local 10k kullanıcı/600 joker'de EXPLAIN: getJokers
+   tekil lat/lng indekslerini KULLANMIYOR (planlayıcı isJoker tekilini, o yokken kısmi `IDX_user_joker_lat_lng`'i
+   seçiyor; tekiller transaction'da DROP edilince plan değişmedi). Tekil lat/lng `@Index`'lerin entity'den
+   kaldırılması BEKLEMEDE: önce kısmi indeksin canlıya deploy olması (canlıda henüz YOK, 2026-07-06 SELECT ile
+   doğrulandı), birkaç gün `pg_stat_user_indexes` izlemesi (kısmi idx_scan artarken tekiller sabit), sonra AYRI
+   deploy'da kaldırma (synchronize DROP eder; düşük trafik saati). 250m eşiği + iOS 3dk/Android 2dk interval
+   client'ta doğru çalışıyor (LocationContext, kod okunarak doğrulandı — değişiklik gerekmez).
 
 ## 48. Takım logosu baş-harf fallback'i uygulama geneline tamamlandı (2026-07-06)
 
@@ -1835,3 +1838,69 @@ onError eklendi).
   avatar, TeamHeaderCard, JoinTeamModal.
 - Not: ilk otomatik tarama ReservationRequestDetailModal ve MessageBubble'ı "güvenli" sanıp kaçırmıştı;
   grep denetimi (`img src={...logo}` ∧ ¬onError) ile yakalandı — bu grep gelecekte de regresyon kontrolü.
+
+## 49. Ölçek turu: sayfa-önce hydrate + okuma yolundan yazma kaldırma + bildirim sayfalama (2026-07-06)
+
+> Hedef ölçek: 10bin kullanıcı / 200 işletme / 2bin ilan / 600 joker. §47'deki risk 1-2 kapatıldı,
+> risk 3 kanıtlandı (karar canlı izlemeye bağlı). Golden-diff (38 kombinasyon: 5 sort × 3 offset ×
+> q'lu/q'suz business + 4 sort × 2 offset ilan) önce/sonra BİREBİR aynı çıktı.
+
+### KALICI DESEN: skaler anahtar → sırala/dilimle → yalnız sayfayı hydrate → geri diz
+`business.service.ts findNearbyPaged`: `geoCandidates(geoFilter, withSortKeys)` bayrakla genişletildi —
+bayrak true iken (yalnız findNearbyPaged) name/rating/ratingCount + ilk-pitch fiyatı (correlated subquery:
+en eski `created_at`'li approved+silinmemiş pitch, `ORDER BY created_at, id LIMIT 1`) skaler gelir ve
+"≥1 approved pitch" koşulu SQL'e iner (EXISTS). Bayrak false iken SQL bayt-aynı → legacy `findAll` yolu
+etkilenmez. Akış: skaler adaylar → q filtresi → sort + id tie-break → slice → `fetchBusinessesByIds(pageIds)`
+→ `orderIndex` Map ile sayfa sırasına geri diz. Kanıt: 52 aday'da `hydrate=20` (sayfa boyutu); eskiden 52'nin
+tamamı pitches+timeSlots join'iyle çekiliyordu (metropolde 10-20k satır → ~600-800 satır).
+Nüans: aynı `created_at`'li pitch'lerde fiyat seçimi artık `p.id ASC` ile deterministik (eski JS stable-sort
+IN-sırasına bağlıydı); golden-diff'te fark çıkmadı.
+
+### KALICI KURAL: sıcak okuma yolunda UPDATE/DELETE yasak — WHERE dışlama + cron
+`match-announcements`: findAll'daki inline `deleteExpired()` (2 UPDATE) SİLİNDİ. findAll raw SQL'ine
+`AND (ma.date > $9 OR (ma.date = $9 AND ma.time >= $10))` (nowInIstanbul), findByPitch'e aynı andWhere
+eklendi. PENDING→EXPIRED geçişi YALNIZ saatlik cron'da (`handleCron`): artık tüm PENDING'leri relation'larla
+yüklemek yerine süresi geçmişleri SQL'de filtreler + durum geçişleri `In(ids)` batch (ilan başına save yok);
+kaptan bildirimi döngüsü korunur; bağlı PENDING rezervasyonlar da `In(ids)` ile EXPIRED. Kanıt: geçmiş saatli
+PENDING test ilanı findAll/findByPitch'te görünmedi VE statüsü PENDING kaldı (okuma yazmıyor); 21:00 cron'unda
+EXPIRED + kaptan bildirimi + batch log. EXPIRED statüsünün başka tüketicisi yok (grep, kırılma yok).
+Not: iki server aynı local DB'de cron çalıştırırsa kaptan bildirimi duplike olur (dev artefaktı; canlı tek instance).
+
+### Bildirimler (müşteri): sunucu sayfalama + read-all + N+1 batching + infinite scroll
+- Server `findByUser(userId, opts?)`: `limit` yoksa legacy limitsiz dizi (yayındaki sürümler kırılmaz —
+  §27 deseni); varsa `take: limit+1` (hasMore) + `skip` + `count` → `{items,total,hasMore}`. Controller clamp
+  1..50 (varsayılan 20). `PATCH /notifications/read-all` → tek `update({userId, read:false}, {read:true})`
+  (`markAllAsReadForOwner` emsali). Rota sırası: `read-all`, `:id/read`'den ÖNCE tanımlı.
+- CHALLENGE self-repair N+1 → `enrichChallengeNotifications`: In() toplu sorgular (challenges → chatChannels →
+  matchAnnouncements, sayfa başına ≤3 sorgu + tek batch save). **UUID regex ön-filtresi ŞART** — relatedId
+  serbest varchar, In() uuid kolonda geçersiz değerle patlar (eski findOne'lar hatayı yutuyordu).
+- Client `useNotifications`: PAGE_SIZE=20, fetchGen nesil guard'ı + id-dedup append (useJokerPool deseni),
+  `NOTIFICATIONS_CACHE_KEY` stale-while-revalidate sayfa-0. Okundu işaretleme: bildirim-başına PATCH döngüsü
+  (50 okunmamış = 50 istek!) → tek `markAllNotificationsRead()` (eski sunucuya 404 sigortası: per-id fallback).
+  **`GET /teams` tam dökümü kaldırıldı** — kaptanlık `useCurrentUser().team.captainId === id`'den türetilir
+  (tek-takım modeli, useMarketplace.isAuthorized emsali); join-requests/challenges artık ≤1 takım × 2 istek
+  (Promise.allSettled). Socket refetch → 1sn debounce'lu sayfa-0 reset. Tabs "TÜMÜ" sayacı = sunucu `total`.
+- Davranış notu: 20+ bildirim gerisindeki eski davet ilk açılışta MATCH_REQUESTS'te görünmez (scroll ile gelir) —
+  davetler taze doğalı, bayatları cron siliyor; gerekirse server-side type filtresi aday-görev.
+
+### Eklenen indeksler (synchronize oluşturur; canlıya deploy'la gider)
+`pitches(business_id, approvalStatus)` bileşik, `time_slots(pitchId)`, `notifications(userId, createdAt)` bileşik.
+Canlı DB tespiti (2026-07-06, salt SELECT): notifications tablosunda PK dışında HİÇ indeks yoktu;
+pitches/time_slots FK'ları indekssizdi.
+
+### Doğrulama (local şişirilmiş DB: 10bin kullanıcı/600 joker/52 işletme/204 ilan)
+Golden-diff birebir; bildirim curl'leri: limit=20 → zarf, limitsiz → dizi, clamp 500→50, read-all tek UPDATE
+(42 okunmamış → unread-count 0); jest 3/3; client build temiz; getJokers 600 jokerde 18ms.
+Sentetik veri temizliği (istenirse): `DELETE FROM "user" WHERE username LIKE 'scaletest_%';`
+`DELETE FROM notifications WHERE message LIKE 'Sayfalama testi%' OR message LIKE 'Enrichment testi%';`
+`DELETE FROM match_announcements WHERE description='GOLDEN-TEST-EXPIRED';`
+
+### Aday-görevler (bu turda bilinçli YAPILMADI)
+- Sayfasız endpoint'ler: `GET /teams` (findAll — client sıcak kullanımı bu turla kalktı ama endpoint limitsiz),
+  challenges listeleri, join-requests, ratings pending/history, reservations my-team/upcoming, chat channels
+  listesi, user-blocks. İşletme bildirim sayfalaması (`GET /business-owner/notifications`).
+- Eksik FK indeksleri: ratings hedef kolonları, `challenges.toMatchId`, `pitch_change_requests.businessId`.
+- Ölçekte `synchronize:false` + migration altyapısı; çoklu-instance socket presence → Redis adapter.
+- `markAsRead`/`delete` sahiplik kontrolü (güvenlik turu konusu). Challenge-accept expiry guard'ı
+  (`challenges.service.updateStatus` ilan süresi kontrolü yapmıyor; kabul yüzeyi SQL+client filtreli, pencere ≤60dk).
+- MATCH_REQUESTS sekmesi türetme sınırı için server-side type filtresi.

@@ -605,89 +605,161 @@ export class NotificationsService {
     return result;
   }
 
-  async findByUser(userId: string): Promise<Notification[]> {
-    const notifications = await this.notificationsRepository.find({
-      where: { userId },
-      order: { createdAt: 'DESC' },
-    });
+  // limit verilirse sayfalı zarf ({items,total,hasMore} — §27/§44 deseni), yoksa
+  // legacy limitsiz dizi: yayındaki eski mobil sürümler kırılmaz.
+  async findByUser(
+    userId: string,
+  ): Promise<Notification[]>;
+  async findByUser(
+    userId: string,
+    opts: { limit: number; offset: number },
+  ): Promise<{ items: Notification[]; total: number; hasMore: boolean }>;
+  async findByUser(
+    userId: string,
+    opts?: { limit: number; offset: number },
+  ): Promise<
+    Notification[] | { items: Notification[]; total: number; hasMore: boolean }
+  > {
+    if (!opts) {
+      const notifications = await this.notificationsRepository.find({
+        where: { userId },
+        order: { createdAt: 'DESC' },
+      });
+      return this.enrichChallengeNotifications(notifications);
+    }
 
-    // Enrich notifications with missing metadata (Self-Repairing Logic)
-    const enrichedNotifications = await Promise.all(
-      notifications.map(async (notification) => {
-        // Only process CHALLENGE notifications that are missing date/time
-        if (
-          notification.type === 'CHALLENGE' &&
-          (!notification.metadata?.matchDate ||
-            !notification.metadata?.matchTime)
-        ) {
-          try {
-            let matchId: string | null = null;
-
-            if (notification.relatedId) {
-              // Case 1: Notification is linked to a Challenge (Offer)
-              const challenge = await this.challengesRepository.findOne({
-                where: { id: notification.relatedId },
-              });
-              if (challenge) {
-                matchId = challenge.toMatchId;
-              } else {
-                // Case 2: Notification is linked to a ChatChannel (Accepted)
-                const channel = await this.chatChannelsRepository.findOne({
-                  where: { id: notification.relatedId },
-                });
-                if (channel) {
-                  matchId = channel.relatedMatchId;
-                }
-              }
-            } else if (notification.metadata?.challengeId) {
-              // Fallback: Check metadata for challengeId
-              const challenge = await this.challengesRepository.findOne({
-                where: { id: notification.metadata.challengeId },
-              });
-              if (challenge) matchId = challenge.toMatchId;
-            }
-
-            if (matchId) {
-              const match = await this.matchAnnouncementsRepository.findOne({
-                where: { id: matchId },
-              });
-              if (match) {
-                // Enriched! Update the notification
-                notification.metadata = {
-                  ...notification.metadata,
-                  matchDate: match.date,
-                  matchTime: match.time,
-                };
-                await this.notificationsRepository.save(notification);
-                console.log(
-                  `🔧 Repaired notification ${notification.id} with match date: ${match.date}`,
-                );
-              } else {
-                // Match not found (likely deleted because it expired or was removed)
-                // Mark as expired using a past date to ensure consistency
-                notification.metadata = {
-                  ...notification.metadata,
-                  matchDate: '2000-01-01', // Legacy date to force expiry
-                  matchTime: '00:00',
-                };
-                await this.notificationsRepository.save(notification);
-                console.log(
-                  `🔧 Repaired notification ${notification.id} as EXPIRED (Match not found)`,
-                );
-              }
-            }
-          } catch (error) {
-            console.error(
-              `Failed to repair notification ${notification.id}`,
-              error,
-            );
-          }
-        }
-        return notification;
+    const { limit, offset } = opts;
+    // limit+1 çek → hasMore'u ek COUNT'suz belirle (getJokers deseni);
+    // total sekme sayacı için ayrıca sayılır ((userId,createdAt) indeksiyle ucuz).
+    const [rows, total] = await Promise.all([
+      this.notificationsRepository.find({
+        where: { userId },
+        order: { createdAt: 'DESC' },
+        take: limit + 1,
+        skip: offset,
       }),
+      this.notificationsRepository.count({ where: { userId } }),
+    ]);
+    const hasMore = rows.length > limit;
+    const items = await this.enrichChallengeNotifications(
+      hasMore ? rows.slice(0, limit) : rows,
     );
+    return { items, total, hasMore };
+  }
 
-    return enrichedNotifications;
+  // CHALLENGE bildirimlerinde eksik maç tarihi/saati onarımı (Self-Repairing) —
+  // eski bildirim-başına findOne zinciri yerine In() toplu sorgular (§26 deseni):
+  // sayfa başına en fazla 3 ek sorgu + tek batch save.
+  private async enrichChallengeNotifications(
+    notifications: Notification[],
+  ): Promise<Notification[]> {
+    const targets = notifications.filter(
+      (n) =>
+        n.type === 'CHALLENGE' &&
+        (!n.metadata?.matchDate || !n.metadata?.matchTime),
+    );
+    if (targets.length === 0) return notifications;
+
+    // relatedId/challengeId serbest varchar — In() uuid kolonda geçersiz değerle
+    // patlar; eski kod hatayı try/catch ile yutuyordu, biz ön-filtreleriz.
+    const isUuid = (v: unknown): v is string =>
+      typeof v === 'string' &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+
+    try {
+      const challengeIds = new Set<string>();
+      for (const n of targets) {
+        if (isUuid(n.relatedId)) challengeIds.add(n.relatedId);
+        else if (isUuid(n.metadata?.challengeId))
+          challengeIds.add(n.metadata.challengeId);
+      }
+      const challenges = challengeIds.size
+        ? await this.challengesRepository.find({
+            where: { id: In([...challengeIds]) },
+          })
+        : [];
+      const challengeById = new Map(challenges.map((c) => [c.id, c]));
+
+      // relatedId challenge'a çıkmadıysa ChatChannel olabilir (Accepted akışı).
+      const channelIds = targets
+        .map((n) => n.relatedId)
+        .filter((id): id is string => isUuid(id) && !challengeById.has(id));
+      const channels = channelIds.length
+        ? await this.chatChannelsRepository.find({
+            where: { id: In([...new Set(channelIds)]) },
+          })
+        : [];
+      const channelById = new Map(channels.map((c) => [c.id, c]));
+
+      // Bildirim → matchId çözümü (eski öncelik sırası birebir).
+      const matchIdByNotif = new Map<string, string>();
+      for (const n of targets) {
+        let matchId: string | null = null;
+        if (n.relatedId) {
+          const ch = isUuid(n.relatedId)
+            ? challengeById.get(n.relatedId)
+            : undefined;
+          if (ch) matchId = ch.toMatchId;
+          else {
+            const channel = isUuid(n.relatedId)
+              ? channelById.get(n.relatedId)
+              : undefined;
+            if (channel) matchId = channel.relatedMatchId;
+          }
+        } else if (isUuid(n.metadata?.challengeId)) {
+          matchId = challengeById.get(n.metadata.challengeId)?.toMatchId ?? null;
+        }
+        if (matchId) matchIdByNotif.set(n.id, matchId);
+      }
+
+      const matchIds = [...new Set(matchIdByNotif.values())].filter(isUuid);
+      const matches = matchIds.length
+        ? await this.matchAnnouncementsRepository.find({
+            where: { id: In(matchIds) },
+          })
+        : [];
+      const matchById = new Map(matches.map((m) => [m.id, m]));
+
+      const changed: Notification[] = [];
+      for (const n of targets) {
+        const matchId = matchIdByNotif.get(n.id);
+        if (!matchId) continue;
+        const match = matchById.get(matchId);
+        if (match) {
+          n.metadata = {
+            ...n.metadata,
+            matchDate: match.date,
+            matchTime: match.time,
+          };
+        } else {
+          // Match bulunamadı (silinmiş/expire) — tutarlılık için geçmiş sentinel.
+          n.metadata = {
+            ...n.metadata,
+            matchDate: '2000-01-01',
+            matchTime: '00:00',
+          };
+        }
+        changed.push(n);
+      }
+      if (changed.length > 0) {
+        await this.notificationsRepository.save(changed);
+        console.log(`🔧 Repaired ${changed.length} CHALLENGE notification(s).`);
+      }
+    } catch (error) {
+      // Onarım best-effort — listeleme onarım hatasıyla kırılmaz (eski davranış).
+      console.error('Failed to repair CHALLENGE notifications', error);
+    }
+
+    return notifications;
+  }
+
+  // Tek UPDATE ile kullanıcının tüm okunmamışları — istemcinin bildirim-başına
+  // PATCH döngüsünün (50 okunmamış = 50 istek) yerini alır. userId JWT'den gelir.
+  async markAllAsRead(userId: string): Promise<void> {
+    await this.notificationsRepository.update(
+      { userId, read: false },
+      { read: true },
+    );
   }
 
   async markAsRead(id: string): Promise<Notification> {

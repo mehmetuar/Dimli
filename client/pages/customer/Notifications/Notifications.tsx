@@ -16,6 +16,7 @@ export const Notifications: React.FC = () => {
    const {
       activeTab, setActiveTab,
       notifications, loading,
+      total, hasMore, loadingMore, loadMore,
       successMessage, errorMessage,
       selectedJoinRequest, setSelectedJoinRequest,
       selectedTeamId, setSelectedTeamId,
@@ -25,6 +26,12 @@ export const Notifications: React.FC = () => {
       handleAcceptChallenge, handleRejectChallenge,
       handleAcceptRematchFromNotif, handleAcceptJokerInvite, handleRejectJokerInvite
    } = useNotifications();
+
+   // Infinite scroll: dibe ~600px kala sonraki sayfa (Marketplace eşiği).
+   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+      const el = e.currentTarget;
+      if (el.scrollHeight - el.scrollTop - el.clientHeight < 600) loadMore();
+   };
 
    return (
       <div className="fixed inset-0 bg-pitch flex flex-col overflow-hidden" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
@@ -48,13 +55,13 @@ export const Notifications: React.FC = () => {
             <NotificationTabs
                activeTab={activeTab}
                setActiveTab={setActiveTab}
-               notificationsCount={notifications.length}
+               notificationsCount={total ?? notifications.length}
                matchRequestsCount={filteredMatchRequests.length + rematchProposals.length + jokerInvites.length}
                joinRequestsCount={filteredJoinRequests.length}
             />
          </div>
 
-         <div className="flex-1 overflow-y-auto overscroll-contain scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
+         <div className="flex-1 overflow-y-auto overscroll-contain scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties} onScroll={handleScroll}>
             <div className="px-4 max-w-3xl mx-auto pt-4 pb-28" style={{ minHeight: 'calc(100% + 1px)' }}>
                {successMessage && (
                   <div className="mb-6 bg-green-500/10 border border-green-500/50 text-green-400 p-4 rounded-xl flex items-center gap-3 animate-fade-in">
@@ -102,6 +109,13 @@ export const Notifications: React.FC = () => {
                            handleAcceptRematchFromNotif={handleAcceptRematchFromNotif}
                            setActiveTab={setActiveTab}
                         />
+                     )}
+
+                     {/* Infinite-scroll alt göstergesi (Marketplace deseni) */}
+                     {activeTab === 'ALL' && loadingMore && (
+                        <div className="flex items-center justify-center py-4">
+                           <LoadingSpinner size="sm" text="" />
+                        </div>
                      )}
                   </div>
                )}

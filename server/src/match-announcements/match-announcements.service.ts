@@ -5,7 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule'; // Import Cron
 import { MatchAnnouncement } from './match-announcement.entity';
 import { User } from '../users/user.entity';
@@ -356,9 +356,6 @@ export class MatchAnnouncementsService {
     paged?: boolean;
     geoFilter: { lat: number; lng: number; radius: number };
   }): Promise<any[] | { items: any[]; total: number; hasMore: boolean }> {
-    // Clean up expired announcements first
-    await this.deleteExpired();
-
     const { lat, lng, radius } = filters.geoFilter;
     const PAGE = Math.min(filters?.limit ?? 50, 100);
     const off = filters?.offset ?? 0;
@@ -376,6 +373,10 @@ export class MatchAnnouncementsService {
     // bütünlüğünü (hasMore) bozuyordu. İşletme aktif/abonelik koşulları
     // Sahalar listesiyle parite için eklendi — askıdaki işletmenin ilanı
     // istemcide zaten kırık kart olarak kalıyordu.
+    // Süresi geçenler SQL'de dışlanır ($9/$10) — eski inline deleteExpired
+    // (okuma yolunda UPDATE) kaldırıldı; PENDING→EXPIRED geçişi cron'da (handleCron).
+    const { dateStr: todayStr, hours, minutes } = nowInIstanbul();
+    const nowTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
     const box = computeBoundingBox(lat, lng, radius);
     const haversine = `(6371 * acos(GREATEST(-1.0, LEAST(1.0,
                         cos(radians($1)) * cos(radians(b.latitude))
@@ -417,8 +418,20 @@ export class MatchAnnouncementsService {
                    AND b.longitude IS NOT NULL
                    AND b.latitude  BETWEEN $5 AND $6
                    AND b.longitude BETWEEN $7 AND $8
+                   AND (ma.date > $9 OR (ma.date = $9 AND ma.time >= $10))
                    AND ${haversine} <= $3`,
-      [lat, lng, radius, date, box.minLat, box.maxLat, box.minLng, box.maxLng],
+      [
+        lat,
+        lng,
+        radius,
+        date,
+        box.minLat,
+        box.maxLat,
+        box.minLng,
+        box.maxLng,
+        todayStr,
+        nowTime,
+      ],
     );
 
     if (raw.length === 0) {
@@ -533,84 +546,68 @@ export class MatchAnnouncementsService {
 
     // İstanbul yerel takvim günü/saati — process.env.TZ'den bağımsız, sabit
     // +3 ofsetle hesaplanır (bkz. common/turkey-time.util.ts).
-    const {
-      dateStr: todayStr,
-      hours: currentHour,
-      minutes: currentMinute,
-    } = nowInIstanbul();
+    const { dateStr: todayStr, hours, minutes } = nowInIstanbul();
+    const nowTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 
-    // 1. Find all PENDING announcements
-    const announcements = await this.matchAnnouncementsRepository.find({
-      where: { status: 'PENDING' },
-      relations: ['team', 'team.captain'], // Need captain to notify
-    });
+    // Süresi geçenler SQL'de filtrelenir — tüm PENDING'leri relation'larla
+    // yüklemek yerine yalnız işlem görecek satırlar gelir. Okuma yolları
+    // (findAll/findByPitch) süresi geçenleri zaten WHERE ile dışladığından
+    // buradaki geçiş yalnız bildirim + durum hijyeni içindir.
+    const expired = await this.matchAnnouncementsRepository
+      .createQueryBuilder('ma')
+      .leftJoinAndSelect('ma.team', 'team')
+      .leftJoinAndSelect('team.captain', 'captain')
+      .where('ma.status = :status', { status: 'PENDING' })
+      .andWhere('(ma.date < :today OR (ma.date = :today AND ma.time < :now))', {
+        today: todayStr,
+        now: nowTime,
+      })
+      .getMany();
 
-    for (const announcement of announcements) {
-      let isExpired = false;
+    for (const announcement of expired) {
+      console.log(
+        `🗑️ Expired announcement found: ${announcement.id} (Date: ${announcement.date}, Time: ${announcement.time})`,
+      );
 
-      // Check if date is in the past
-      if (announcement.date < todayStr) {
-        isExpired = true;
-      }
-      // Check if date is today but time has passed (minute-accurate)
-      else if (announcement.date === todayStr) {
-        const [announcementHour, announcementMin = 0] = (
-          announcement.time || '00:00'
-        )
-          .split(':')
-          .map(Number);
-        const announcementTotalMin = announcementHour * 60 + announcementMin;
-        const currentTotalMin = currentHour * 60 + currentMinute;
-        if (announcementTotalMin < currentTotalMin) {
-          isExpired = true;
+      // Notify Captain
+      if (announcement.team?.captain) {
+        try {
+          // Cast captain to any to avoid type issues if captainId vs object not perfectly typed in entity
+          const captainId =
+            (announcement.team.captain as any).id || announcement.team.captain;
+
+          await this.notificationsService.create({
+            userId: captainId,
+            type: 'SYSTEM',
+            read: false,
+            message:
+              'Maç ilanınızın tarihi geçti. Yeni bir maç oluşturmaya ne dersiniz?',
+            metadata: {
+              type: 'ANNOUNCEMENT_EXPIRED',
+              announcementId: announcement.id,
+            },
+          });
+          console.log(`🔔 Notification sent to captain: ${captainId}`);
+        } catch (err) {
+          console.error('❌ Failed to send notification', err);
         }
       }
+    }
 
-      if (isExpired) {
-        console.log(
-          `🗑️ Expired announcement found: ${announcement.id} (Date: ${announcement.date}, Time: ${announcement.time})`,
-        );
-
-        // Notify Captain
-        if (announcement.team?.captain) {
-          try {
-            // Cast captain to any to avoid type issues if captainId vs object not perfectly typed in entity
-            const captainId =
-              (announcement.team.captain as any).id ||
-              announcement.team.captain;
-
-            await this.notificationsService.create({
-              userId: captainId,
-              type: 'SYSTEM',
-              read: false,
-              message:
-                'Maç ilanınızın tarihi geçti. Yeni bir maç oluşturmaya ne dersiniz?',
-              metadata: {
-                type: 'ANNOUNCEMENT_EXPIRED',
-                announcementId: announcement.id,
-              },
-            });
-            console.log(`🔔 Notification sent to captain: ${captainId}`);
-          } catch (err) {
-            console.error('❌ Failed to send notification', err);
-          }
-        }
-
-        // Mark Expired instead of Delete
-        announcement.status = 'EXPIRED';
-        await this.matchAnnouncementsRepository.save(announcement);
-        console.log('✅ Announcement marked as EXPIRED.');
-
-        // Bağlı reservation hâlâ PENDING'de kalmasın — saha takvimi sonsuza
-        // kadar "Onay Bekliyor" göstermesin diye onu da süresi geçmiş yap.
-        await this.reservationRepository.update(
-          {
-            matchAnnouncementId: announcement.id,
-            status: ReservationStatus.PENDING,
-          },
-          { status: ReservationStatus.EXPIRED },
-        );
-      }
+    if (expired.length > 0) {
+      const ids = expired.map((a) => a.id);
+      // Durum geçişleri toplu (§26 In() deseni) — ilan başına save/update yok.
+      await this.matchAnnouncementsRepository.update(
+        { id: In(ids) },
+        { status: 'EXPIRED' },
+      );
+      // Bağlı reservation hâlâ PENDING'de kalmasın — saha takvimi sonsuza
+      // kadar "Onay Bekliyor" göstermesin diye onu da süresi geçmiş yap.
+      await this.reservationRepository.update(
+        { matchAnnouncementId: In(ids), status: ReservationStatus.PENDING },
+        { status: ReservationStatus.EXPIRED },
+      );
+      console.log(`✅ ${ids.length} announcement(s) marked as EXPIRED (batch).`);
     }
 
     // İstek/davet "ölü artıkları"nı temizle (geçmiş maçlar) — birikmeyi önler.
@@ -660,40 +657,23 @@ export class MatchAnnouncementsService {
     }
   }
 
-  private async deleteExpired(): Promise<void> {
-    const { dateStr: todayStr, hours, minutes } = nowInIstanbul();
-    const currentTimeStr = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-
-    // Geçmiş günlerin ilanlarını expire et
-    await this.matchAnnouncementsRepository
-      .createQueryBuilder()
-      .update(MatchAnnouncement)
-      .set({ status: 'EXPIRED' })
-      .where('date < :today', { today: todayStr })
-      .andWhere('status = :status', { status: 'PENDING' })
-      .execute();
-
-    // Bugünün geçmiş saatli ilanlarını expire et (HH:MM string karşılaştırması doğru çalışır)
-    await this.matchAnnouncementsRepository
-      .createQueryBuilder()
-      .update(MatchAnnouncement)
-      .set({ status: 'EXPIRED' })
-      .where('date = :today', { today: todayStr })
-      .andWhere('time < :currentTime', { currentTime: currentTimeStr })
-      .andWhere('status = :status', { status: 'PENDING' })
-      .execute();
-  }
-
   async findByPitch(pitchId: string): Promise<MatchAnnouncement[]> {
     // Kart yalnız takım özetini (logo/ad/level/fairPlay) gösterir; TAM oyuncu kadrosu
     // burada YÜKLENMEZ — takım-detay modalı açılınca GET /teams/:id ile lazy çekilir.
     // (team + captain tekil satır; players[] koleksiyonu satır çarpımı + payload şişmesi yapıyordu.)
+    // Süresi geçenler WHERE ile dışlanır (findAll paritesi) — cron geçişine bağımlı değil.
+    const { dateStr: today, hours, minutes } = nowInIstanbul();
+    const now = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
     const announcements = await this.matchAnnouncementsRepository
       .createQueryBuilder('announcement')
       .leftJoinAndSelect('announcement.team', 'team')
       .leftJoinAndSelect('team.captain', 'captain')
       .where('announcement.pitchId = :pitchId', { pitchId })
       .andWhere('announcement.status = :status', { status: 'PENDING' })
+      .andWhere(
+        '(announcement.date > :today OR (announcement.date = :today AND announcement.time >= :now))',
+        { today, now },
+      )
       .orderBy('announcement.date', 'ASC')
       .addOrderBy('announcement.time', 'ASC')
       .getMany();

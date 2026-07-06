@@ -1,9 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import api from '../../../../services/api';
-import { getToken, decodeTokenPayload } from '../../../../services/authStorage';
+import api, { getNotificationsPaged, markAllNotificationsRead } from '../../../../services/api';
 import { useSocket } from '../../../../contexts/SocketContext';
+import { useCurrentUser } from '../../../../hooks/useCurrentUser';
+import { readListCache, writeListCache, NOTIFICATIONS_CACHE_KEY } from '../../../../utils/listCache';
 import { Challenge } from '../../../../types';
+
+const PAGE_SIZE = 20;
 
 export interface JoinRequest {
     id: string;
@@ -44,91 +47,137 @@ export const useNotifications = () => {
         return 'ALL';
     })();
     const [activeTab, setActiveTab] = useState<'ALL' | 'JOIN_REQUESTS' | 'MATCH_REQUESTS'>(initialTab);
-    const [notifications, setNotifications] = useState<Notification[]>([]);
+    // Stale-while-revalidate: önbellekli sayfa-0 anında basılır, taze veri arkada
+    // çekilir (JokerPool/Sahalar deseni) — soğuk açılışta spinner beklenmez.
+    const [notifications, setNotifications] = useState<Notification[]>(() => readListCache(NOTIFICATIONS_CACHE_KEY));
+    const [total, setTotal] = useState<number | null>(null);
+    const [hasMore, setHasMore] = useState(false);
+    const [loadingMore, setLoadingMore] = useState(false);
     const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
     const [matchRequests, setMatchRequests] = useState<Challenge[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(notifications.length === 0);
     const [successMessage, setSuccessMessage] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
     const navigate = useNavigate();
     const socket = useSocket();
+    const { currentUser } = useCurrentUser();
     const [selectedJoinRequest, setSelectedJoinRequest] = useState<JoinRequest | null>(null);
     const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
 
+    // Sayfalama yarış korumaları (useJokerPool/useMarketplace referans deseni):
+    // her reset bir "nesil" başlatır; eski yanıtlar reset'ten sonra uygulanmaz.
+    const notificationsRef = useRef<Notification[]>(notifications);
+    notificationsRef.current = notifications;
+    const isFetchingRef = useRef(false);
+    const fetchGenRef = useRef(0);
+
+    // Kaptanlık: sistemdeki TÜM takımları çekip client'ta filtrelemek yerine
+    // ortak currentUser'dan türetilir (useMarketplace.isAuthorized emsali) —
+    // tek-takım modelinde kaptan olunan takım = kendi takımı.
+    const myTeamId = currentUser?.team && currentUser.team.captainId === currentUser.id
+        ? currentUser.team.id
+        : null;
+
+    // Bildirim listesi — 20'şerli sunucu sayfalama + append + id-dedup.
+    const fetchNotifications = useCallback(async (reset: boolean) => {
+        if (!reset && isFetchingRef.current) return;
+        const gen = reset ? ++fetchGenRef.current : fetchGenRef.current;
+        const offset = reset ? 0 : notificationsRef.current.length;
+        isFetchingRef.current = true;
+        if (!reset) setLoadingMore(true);
+        try {
+            const { items, total: t, hasMore: more } = await getNotificationsPaged({ limit: PAGE_SIZE, offset });
+            if (gen !== fetchGenRef.current) return; // daha yeni bir reset bunu geçersiz kıldı
+
+            // Okundu işaretleme: TEK read-all isteği (eski bildirim-başına PATCH
+            // döngüsü yerine). Yeni gelenler her zaman en yeni oldukları için
+            // sayfa-0'da görünür → sayfa-0'da okunmamış yoksa gerisinde de yoktur.
+            // Liste basımını bloklamasın diye beklenmez; badge event'i başarıda atılır.
+            const unreadIds = items.filter((n: any) => !n.read).map((n: any) => n.id);
+            if (reset && unreadIds.length > 0) {
+                void markAllNotificationsRead(unreadIds)
+                    .then(() => window.dispatchEvent(new CustomEvent('notificationsCleared')))
+                    .catch(err => console.error('Bildirimler okundu işaretlenemedi:', err));
+            }
+            const readItems = items.map((n: any) => ({ ...n, read: true }));
+
+            if (reset) {
+                setNotifications(readItems);
+                writeListCache(NOTIFICATIONS_CACHE_KEY, readItems);
+            } else {
+                // id-bazlı dedup: yeni bildirim gelişiyle offset kayarsa aynı kayıt
+                // ikinci kez gelmesin (useJokerPool deseni).
+                setNotifications(prev => {
+                    const seen = new Set(prev.map(n => n.id));
+                    return [...prev, ...readItems.filter((n: any) => !seen.has(n.id))];
+                });
+            }
+            setTotal(t);
+            setHasMore(more);
+        } catch (error) {
+            console.error('Bildirimler alınamadı:', error);
+        } finally {
+            if (gen === fetchGenRef.current) {
+                isFetchingRef.current = false;
+                setLoadingMore(false);
+            }
+        }
+    }, []);
+
+    // Katılma istekleri + gelen meydan okumalar — yalnız kaptansa, tek takım.
+    const fetchSideData = useCallback(async () => {
+        if (!myTeamId) {
+            setJoinRequests([]);
+            setMatchRequests([]);
+            return;
+        }
+        const [joinRes, matchRes] = await Promise.allSettled([
+            api.get(`/join-requests/team/${myTeamId}`),
+            api.get(`/challenges/team/${myTeamId}/incoming`),
+        ]);
+        if (joinRes.status === 'fulfilled') setJoinRequests(joinRes.value.data);
+        else console.error('Katılma istekleri alınamadı:', joinRes.reason);
+        if (matchRes.status === 'fulfilled') setMatchRequests(matchRes.value.data);
+        else console.error('Maç istekleri alınamadı:', matchRes.reason);
+    }, [myTeamId]);
+
+    const fetchData = useCallback(async () => {
+        setLoading(notificationsRef.current.length === 0); // önbellek doluysa spinner yok
+        try {
+            await Promise.all([fetchNotifications(true), fetchSideData()]);
+        } finally {
+            setLoading(false);
+        }
+    }, [fetchNotifications, fetchSideData]);
+
+    const loadMore = useCallback(() => {
+        if (!hasMore || isFetchingRef.current) return;
+        void fetchNotifications(false);
+    }, [hasMore, fetchNotifications]);
+
     useEffect(() => {
-        fetchData();
+        void fetchData();
 
         // Reaktif socket (useSocket) — socket bağlanınca/değişince listener yeniden bağlanır.
-        // Eskiden (window as any).__socket deps:[] ile okunuyordu; socket sonradan bağlanırsa
-        // listener hiç takılmıyordu.
+        // Her event'te tam refetch yerine 1sn debounce'lu sayfa-0 reset: art arda
+        // gelen event'ler (ör. toplu bildirim) tek yenilemeye katlanır.
         if (!socket) return;
-        const handleRefresh = () => fetchData();
+        let debounce: ReturnType<typeof setTimeout> | null = null;
+        const handleRefresh = () => {
+            if (debounce) clearTimeout(debounce);
+            debounce = setTimeout(() => { void fetchData(); }, 1000);
+        };
         socket.on('notification', handleRefresh);
         socket.on('newChallenge', handleRefresh);
         socket.on('joinRequest', handleRefresh);
 
         return () => {
+            if (debounce) clearTimeout(debounce);
             socket.off('notification', handleRefresh);
             socket.off('newChallenge', handleRefresh);
             socket.off('joinRequest', handleRefresh);
         };
-    }, [socket]);
-
-    const getCurrentUserId = () => {
-        const token = getToken();
-        if (!token) return null;
-        const payload = decodeTokenPayload(token);
-        return payload?.sub ?? null;
-    };
-
-    const fetchData = async () => {
-        try {
-            setLoading(true);
-
-            const notifResponse = await api.get('/notifications');
-            const fetchedNotifications = notifResponse.data;
-            setNotifications(fetchedNotifications);
-
-            const unreadIds = fetchedNotifications.filter((n: any) => !n.read).map((n: any) => n.id);
-            if (unreadIds.length > 0) {
-                await Promise.all(unreadIds.map((id: string) => api.patch(`/notifications/${id}/read`)));
-                window.dispatchEvent(new CustomEvent('notificationsCleared'));
-            }
-
-            const teamsResponse = await api.get('/teams');
-            const myTeams = teamsResponse.data.filter((team: any) =>
-                team.captainId === getCurrentUserId() ||
-                team.captain?.id === getCurrentUserId()
-            );
-
-            const allJoinRequests: JoinRequest[] = [];
-            const allMatchRequests: Challenge[] = [];
-
-            for (const team of myTeams) {
-                try {
-                    const joinRes = await api.get(`/join-requests/team/${team.id}`);
-                    allJoinRequests.push(...joinRes.data);
-                } catch (err) {
-                    console.error(`Katılma istekleri alınamadı (takım: ${team.id})`, err);
-                }
-
-                try {
-                    const matchRes = await api.get(`/challenges/team/${team.id}/incoming`);
-                    allMatchRequests.push(...matchRes.data);
-                } catch (err) {
-                    console.error(`Maç istekleri alınamadı (takım: ${team.id})`, err);
-                }
-            }
-
-            setJoinRequests(allJoinRequests);
-            setMatchRequests(allMatchRequests);
-
-        } catch (error) {
-            console.error('Bildirimler alınamadı:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
+    }, [socket, fetchData]);
 
     const handleAcceptJoinRequest = async (requestId: string) => {
         try {
@@ -265,6 +314,7 @@ export const useNotifications = () => {
     return {
         activeTab, setActiveTab,
         notifications, loading,
+        total, hasMore, loadingMore, loadMore,
         successMessage, errorMessage,
         selectedJoinRequest, setSelectedJoinRequest,
         selectedTeamId, setSelectedTeamId,

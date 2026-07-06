@@ -12,6 +12,8 @@ export const JOKERS_CACHE_KEY = 'cached_jokers_v1';
 // v2: öğeler artık sunucudan gömülü pitchSummary ile geliyor (ayrı işletme
 // listesi önbelleği kaldırıldı — eski cached_mkt_businesses_v1 anahtarı öldü).
 export const MATCHES_CACHE_KEY = 'cached_matches_v2';
+// Bildirimler sayfa-0 (20 kayıt) — soğuk açılışta spinner yerine anında liste.
+export const NOTIFICATIONS_CACHE_KEY = 'cached_notifications_v1';
 
 const currentUserId = (): string | null => {
     const token = getToken();

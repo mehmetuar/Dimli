@@ -3,8 +3,11 @@ import {
   Column,
   PrimaryGeneratedColumn,
   CreateDateColumn,
+  Index,
 } from 'typeorm';
 
+// findByUser (WHERE userId ORDER BY createdAt DESC) + unread-count bu indeksten okur.
+@Index(['userId', 'createdAt'])
 @Entity('notifications')
 export class Notification {
   @PrimaryGeneratedColumn('uuid')
