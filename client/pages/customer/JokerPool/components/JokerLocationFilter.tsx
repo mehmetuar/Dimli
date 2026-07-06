@@ -15,25 +15,31 @@ export const JokerLocationFilter: React.FC<JokerLocationFilterProps> = ({
     sortBy,
     setIsSortOpen,
 }) => {
+    // Pill stili Marketplace.tsx filtre satırıyla BİREBİR (kanonik kaynak) —
+    // değişiklikte üç sayfayı (Marketplace/FilterBar/JokerLocationFilter) senkron tut.
     return (
-        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+        <div className="flex gap-1.5 overflow-x-auto pb-2 scrollbar-hide">
             <button
                 onClick={() => setIsLocationFilterOpen(true)}
-                className="flex items-center gap-1.5 px-3 sm:px-4 py-3 rounded-xl font-bold text-sm transition-all border bg-turf-600 border-turf-500 text-white shadow-lg shadow-turf-600/20 whitespace-nowrap shrink-0"
+                className="px-3 py-2.5 border rounded-xl text-[11px] font-bold whitespace-nowrap transition-colors skew-x-[-6deg] shrink-0 bg-turf-900/50 border-turf-500 text-white"
             >
-                <MapPin className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
-                {`Yakınımda (${locationFilter.radius ?? 20}km)`}
+                <span className="skew-x-[6deg] flex items-center gap-1">
+                    <MapPin className="w-3 h-3 shrink-0" />
+                    {`Yakınımda (${locationFilter.radius ?? 20}km)`}
+                </span>
             </button>
             <button
                 onClick={() => setIsSortOpen(true)}
-                className={`flex items-center gap-1.5 px-3 sm:px-4 py-3 rounded-xl font-bold text-sm transition-all border whitespace-nowrap shrink-0 ${
+                className={`px-3 py-2.5 border rounded-xl text-[11px] font-bold whitespace-nowrap transition-colors skew-x-[-6deg] shrink-0 ${
                     sortBy !== 'distance'
                         ? 'bg-turf-900/40 border-turf-500 text-turf-400'
                         : 'bg-slate-800 border-slate-700 text-slate-300 hover:border-turf-500 hover:text-white'
                 }`}
             >
-                <ArrowUpDown className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
-                Sırala
+                <span className="skew-x-[6deg] flex items-center gap-1">
+                    <ArrowUpDown className="w-3 h-3 shrink-0" />
+                    Sırala
+                </span>
             </button>
         </div>
     );

@@ -1771,3 +1771,43 @@ cooldown ✓, saatlik 3 ✓, günlük telefon tavanı (amaç karışık) ✓, 5 
 429) ✓, e-posta anahtarlı işletme akışı telefon cooldown'una takılıyor ✓, IP throttle 10/dk ✓,
 bütçe %80 warn + limit error + 429 ✓, kill-switch=0 ✓, mutlu yol (doğru kodla verify user+business) ✓,
 geçersiz telefon 400 ✓. Test verileri temizlendi.
+
+## 47. "Yakınımda" filtre denetimi + Marketplace pill stili birleştirme + getJokers bounding-box (2026-07-06)
+
+### Denetim sonucu: filtre mimarisi SAĞLAM
+`radius` tek global kaynak `LocationContext`'te (`location_radius` localStorage anahtarı, varsayılan 20,
+restart'a dayanıklı); tüm sayfalar aynı context'i okur → bir yerde değişince her yerde değişir (doğrulandı).
+Tek paylaşılan `LocationFilterModal` (5-100 km slider). Filtreleme tamamen sunucu-tarafı (lat/lng/radius
+→ Haversine); `requireGeoFilter` (validate-geo.util.ts) lat/lng zorunlu + radius max 100 kırpma yapıyor.
+Radius değişiminde uçuştaki fetch `fetchGenRef` nesil sayacıyla iptal ediliyor.
+
+### KALICI: filtre pill stili — kanonik kaynak Marketplace.tsx
+Sahalar (`PitchBooking/components/FilterBar.tsx`) ve Joker Havuzu (`JokerPool/components/JokerLocationFilter.tsx`)
+filtre satırları Marketplace'in eğik pill yapısına BİREBİR geçirildi: `px-3 py-2.5 border rounded-xl
+text-[11px] font-bold skew-x-[-6deg]` + iç `span.skew-x-[6deg]` ters-eğim + `w-3 h-3` ikon.
+Renk durumları: Yakınımda (hep aktif) `bg-turf-900/50 border-turf-500 text-white`; Sırala toggle aktif
+`bg-turf-900/40 border-turf-500 text-turf-400`; tarih `border-turf-500/50 bg-turf-900/20`. Üç dosyada
+kanonik yorum var — stil değişecekse ÜÇÜ birden güncellenir. FilterBar'daki arama ikon hapı `w-10` eğik,
+yüksekliği flex stretch'ten alır; AÇIK arama overlay'i eğiksiz + `h-[46px]` + koşullu mount/autoFocus
+(iOS klavye çözümü) DOKUNULMADI. CreateMatchModal rozeti sadece renk aldı (skew yok — salt gösterim,
+düz input yanında). TeamHomeBusiness ve FavoriteBusinesses varyantları BİLİNÇLİ farklı bırakıldı.
+Ortak FilterPill bileşeni bilinçli çıkarılmadı (varyantlar erken ayrışıyor; 4. yüzey gelirse ayrı görev).
+
+### getJokers bounding-box + kısmi indeks (§11 F6 borcu kapandı)
+`users.service.ts getJokers`: ortak `computeBoundingBox` (geo.util.ts) ile indeksli `latitude/longitude
+BETWEEN` ön-filtre eklendi (box paramları $4-$7, position/sharesFee'nin dinamik indeksleri korunarak ÖNCE
+eklenir); Haversine kesin eşik kaldı → sonuç kümesi birebir aynı (psql'de eski/yeni sorgu diff'i: 100 joker,
+sıfır fark). Parite düzeltmeleri: `acos(GREATEST(-1,LEAST(1,...)))` kırpması (aynı koordinatta FP taşması
+"input is out of range" verirdi) + `ORDER BY distance_km, id` kararlı sıralama (§27 kuralı).
+`user` entity'ye kısmi bileşik indeks: `IDX_user_joker_lat_lng (latitude, longitude) WHERE "isJoker"=true`
+(synchronize oluşturur; SQL'de isJoker literal olduğundan kullanılabilir — EXPLAIN ile seçici kutuda
+Bitmap Index Scan doğrulandı; 255 satırlık local DB'de planlayıcı haklı olarak Seq Scan seçiyor, ölçekte devreye girer).
+
+### 10-20bin kullanıcı için kalan ölçek riskleri (konum yolları — ileriki görevler)
+1. `business.service findNearbyPaged`: her sayfa isteğinde TÜM aday kümesi hydrate ediliyor (pitches+slots,
+   slice hydrate'ten sonra) — metropolde istek başına 10-20k join satırı olabilir. Çözüm: sıralama anahtarlarını
+   geoCandidates'te skaler çek, önce id sırala/dilimle, sadece sayfayı hydrate et.
+2. `match-announcements findAll` her listelemede `deleteExpired()` (DELETE) çalıştırıyor — en sıcak okuma
+   yolunda yazma. Çözüm: WHERE ile dışla, silmeyi cron'a taşı.
+3. Konum PATCH yazma yükü: koordinat güncellemesi 2 tekil + 1 kısmi indeksi güncelliyor; kısmi indeks
+   kanıtlandıktan sonra tekil lat/lng indeksleri düşürülerek yazma yükü azaltılabilir (250m eşiği korunmalı).

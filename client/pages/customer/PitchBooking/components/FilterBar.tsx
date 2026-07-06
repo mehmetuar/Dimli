@@ -28,46 +28,57 @@ export const FilterBar: React.FC<FilterBarProps> = ({
     return (
         <div className="relative pb-2" style={{ minHeight: 46 }}>
             {/* ── KAPALI: filtre satırı (öne çıkan arama hapı + 3 pill) ──
-                Arama açılınca solup tıklanamaz olur; yükseklik bu katmandan gelir. */}
+                Arama açılınca solup tıklanamaz olur; yükseklik bu katmandan gelir.
+                Pill stili Marketplace.tsx filtre satırıyla BİREBİR (kanonik kaynak) —
+                değişiklikte üç sayfayı (Marketplace/FilterBar/JokerLocationFilter) senkron tut. */}
             <div
-                className={`flex gap-2 overflow-x-auto scrollbar-hide transition-all duration-300 ease-out ${
+                className={`flex gap-1.5 overflow-x-auto scrollbar-hide transition-all duration-300 ease-out ${
                     isSearchOpen ? 'opacity-0 -translate-x-1 pointer-events-none' : 'opacity-100 translate-x-0'
                 }`}
             >
-                {/* Arama ikon hapı — basınca sağdaki input'a "büyür" */}
+                {/* Arama ikon hapı — basınca sağdaki input'a "büyür"; yükseklik
+                    vermeden flex stretch ile satırdaki pill'lerle hizalanır */}
                 <button
                     onClick={onOpenSearch}
                     aria-label="Saha ara"
-                    className="flex items-center justify-center w-[46px] h-[46px] shrink-0 rounded-xl border bg-slate-800 border-slate-700 text-turf-400 transition-all active:scale-95 hover:border-turf-500"
+                    className="flex items-center justify-center w-10 shrink-0 rounded-xl border bg-slate-800 border-slate-700 text-turf-400 transition-colors hover:border-turf-500 hover:text-white active:scale-95 skew-x-[-6deg]"
                 >
-                    <Search className="w-[18px] h-[18px]" />
+                    <span className="skew-x-[6deg] flex">
+                        <Search className="w-4 h-4" />
+                    </span>
                 </button>
 
                 <button
                     onClick={onOpenLocationFilter}
-                    className="flex items-center gap-1.5 px-3 py-3 rounded-xl font-bold text-sm transition-all border bg-turf-600 border-turf-500 text-white shadow-lg shadow-turf-600/20 whitespace-nowrap shrink-0"
+                    className="px-3 py-2.5 border rounded-xl text-[11px] font-bold whitespace-nowrap transition-colors skew-x-[-6deg] shrink-0 bg-turf-900/50 border-turf-500 text-white"
                 >
-                    <MapPin className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
-                    {`Yakınımda (${locationFilter.radius ?? 20}km)`}
+                    <span className="skew-x-[6deg] flex items-center gap-1">
+                        <MapPin className="w-3 h-3 shrink-0" />
+                        {`Yakınımda (${locationFilter.radius ?? 20}km)`}
+                    </span>
                 </button>
 
                 <button
                     onClick={onOpenDateFilter}
-                    className="flex items-center gap-1.5 px-3 py-3 rounded-xl font-bold text-sm transition-all border bg-slate-800 border-slate-700 text-slate-300 hover:border-turf-500 hover:text-white whitespace-nowrap shrink-0"
+                    className="px-3 py-2.5 border border-turf-500/50 bg-turf-900/20 text-white rounded-xl text-[11px] font-bold whitespace-nowrap hover:bg-turf-800 transition-colors skew-x-[-6deg] shrink-0"
                 >
-                    <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
-                    {new Date(selectedDate).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })}
+                    <span className="skew-x-[6deg] flex items-center gap-1">
+                        <Calendar className="w-3 h-3 text-turf-500 shrink-0" />
+                        {new Date(selectedDate).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })}
+                    </span>
                 </button>
 
                 <button
                     onClick={onOpenSort}
-                    className={`flex items-center gap-1.5 px-3 py-3 rounded-xl font-bold text-sm transition-all border whitespace-nowrap shrink-0 ${isNonDefaultSort
+                    className={`px-3 py-2.5 border rounded-xl text-[11px] font-bold whitespace-nowrap transition-colors skew-x-[-6deg] shrink-0 ${isNonDefaultSort
                         ? 'bg-turf-900/40 border-turf-500 text-turf-400'
                         : 'bg-slate-800 border-slate-700 text-slate-300 hover:border-turf-500 hover:text-white'
                         }`}
                 >
-                    <ArrowUpDown className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
-                    Sırala
+                    <span className="skew-x-[6deg] flex items-center gap-1">
+                        <ArrowUpDown className="w-3 h-3 shrink-0" />
+                        Sırala
+                    </span>
                 </button>
             </div>
 

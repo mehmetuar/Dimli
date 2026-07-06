@@ -365,7 +365,9 @@ const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelected
                                 <LocationAccessGate contentLabel="sahaları" compact>
                                     {/* Location badge + Search row */}
                                     <div className="flex gap-2 mb-3">
-                                        <div className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold bg-turf-600 text-white border border-turf-500 shrink-0">
+                                        {/* Salt gösterim rozeti — rengi Marketplace "Yakınımda" pill'iyle aynı
+                                            (bg-turf-900/50); skew yok: yanındaki düz kenarlı input'la aynı satırda */}
+                                        <div className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold bg-turf-900/50 text-white border border-turf-500 shrink-0">
                                             <MapPin className="w-3.5 h-3.5" />
                                             Yakınımda ({radius}km)
                                         </div>

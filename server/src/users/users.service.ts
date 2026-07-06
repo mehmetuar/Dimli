@@ -14,6 +14,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { AccountDeletion } from '../account-deletions/account-deletion.entity';
+import { computeBoundingBox } from '../common/geo.util';
 import { JoinRequest } from '../join-requests/join-request.entity';
 import { Notification } from '../notifications/notification.entity';
 import { Team } from '../teams/team.entity';
@@ -157,7 +158,20 @@ export class UsersService {
     };
     const dbPosition = position ? (positionMap[position] ?? null) : null;
 
-    const params: any[] = [lat, lng, radius];
+    // Bounding-box ön-filtre (indeksli lat/lng aralığı) tam-tablo Haversine'i
+    // önler; kesin eşik yine Haversine (business/match-announcements ile aynı
+    // desen, ortak computeBoundingBox). acos girdisi FP taşmasına karşı
+    // [-1, 1]'e kırpılır (aynı koordinattaki joker "input is out of range" verirdi).
+    const box = computeBoundingBox(lat, lng, radius);
+    const params: any[] = [
+      lat,
+      lng,
+      radius,
+      box.minLat,
+      box.maxLat,
+      box.minLng,
+      box.maxLng,
+    ];
     let extraWhere = '';
 
     if (dbPosition) {
@@ -176,24 +190,26 @@ export class UsersService {
 
     const raw: any[] = await this.usersRepository.query(
       `SELECT id,
-                (6371 * acos(
+                (6371 * acos(GREATEST(-1.0, LEAST(1.0,
                     cos(radians($1)) * cos(radians(latitude))
                     * cos(radians(longitude) - radians($2))
                     + sin(radians($1)) * sin(radians(latitude))
-                )) AS distance_km
+                )))) AS distance_km
              FROM "user"
              WHERE "isJoker" = true
                AND latitude IS NOT NULL
                AND longitude IS NOT NULL
+               AND latitude BETWEEN $4 AND $5
+               AND longitude BETWEEN $6 AND $7
                AND (
-                   6371 * acos(
+                   6371 * acos(GREATEST(-1.0, LEAST(1.0,
                        cos(radians($1)) * cos(radians(latitude))
                        * cos(radians(longitude) - radians($2))
                        + sin(radians($1)) * sin(radians(latitude))
-                   )
+                   )))
                ) <= $3
                ${extraWhere}
-             ORDER BY distance_km ASC
+             ORDER BY distance_km ASC, id ASC
              LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
       params,
     );

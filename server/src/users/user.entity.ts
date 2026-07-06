@@ -8,6 +8,13 @@ import {
 } from 'typeorm';
 import type { Team } from '../teams/team.entity';
 
+// getJokers'ın bounding-box sorgusu için kısmi bileşik indeks: yalnız joker
+// satırlarını kapsar (10-20k kullanıcıda ~%5-15 satır) — tekil lat/lng
+// indekslerinden çok daha küçük ve önbellek-dostu. SQL'de "isJoker" = true
+// LİTERAL olduğu için Postgres kısmi indeksi kullanabilir.
+@Index('IDX_user_joker_lat_lng', ['latitude', 'longitude'], {
+  where: '"isJoker" = true',
+})
 @Entity()
 export class User {
   @PrimaryGeneratedColumn('uuid')
