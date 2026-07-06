@@ -5,7 +5,7 @@ import { initializePushNotifications } from '../../../../services/pushNotificati
 import { useAuth } from '../../../../contexts/AuthContext';
 import { isValidTurkishPhone, sanitizePhoneInput, PHONE_INVALID_MESSAGE } from '../../../../utils/phone';
 import { sanitizeUsernameInput, isValidUsername, normalizeUsername, USERNAME_INVALID_MESSAGE } from '../../../../utils/username';
-import { getErrorMessage } from '../../../../utils/apiError';
+import { getErrorMessage, getRetryAfterSeconds } from '../../../../utils/apiError';
 
 export const useRegister = () => {
     const [step, setStep] = useState(1);
@@ -96,6 +96,9 @@ export const useRegister = () => {
             setResendCountdown(60);
         } catch (err: any) {
             setError(getErrorMessage(err, 'SMS gönderilemedi. Lütfen tekrar deneyin.'));
+            // 429 → geri sayımı sunucunun söylediği süreden başlat
+            const retryAfter = getRetryAfterSeconds(err);
+            if (retryAfter) setResendCountdown(retryAfter);
         } finally {
             setOtpLoading(false);
         }

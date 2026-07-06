@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { X, Mail, KeyRound, Lock, CheckCircle2, ArrowRight } from 'lucide-react';
 import api from '../../../../services/api';
 import { OtpInput } from '../../../../components/UI/OtpInput';
+import { getErrorMessage, getRetryAfterSeconds } from '../../../../utils/apiError';
 
 interface BusinessForgotPasswordModalProps {
     isOpen: boolean;
@@ -18,6 +19,14 @@ export const BusinessForgotPasswordModal: React.FC<BusinessForgotPasswordModalPr
     
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [resendCountdown, setResendCountdown] = useState(0);
+
+    // Tekrar-gönder geri sayımı — erken return'ün ÜSTÜNDE olmalı (hook kuralı)
+    useEffect(() => {
+        if (resendCountdown <= 0) return;
+        const timer = setTimeout(() => setResendCountdown((c) => c - 1), 1000);
+        return () => clearTimeout(timer);
+    }, [resendCountdown]);
 
     if (!isOpen) return null;
 
@@ -30,6 +39,7 @@ export const BusinessForgotPasswordModal: React.FC<BusinessForgotPasswordModalPr
         setMaskedPhone('');
         setError('');
         setLoading(false);
+        setResendCountdown(0);
     };
 
     const handleClose = () => {
@@ -44,9 +54,30 @@ export const BusinessForgotPasswordModal: React.FC<BusinessForgotPasswordModalPr
         try {
             const response = await api.post('/auth/business/forgot-password/send-otp', { email });
             setMaskedPhone(response.data.maskedPhone);
+            setCode('');
+            setResendCountdown(60);
             setStep(2);
         } catch (err: any) {
-            setError(err.response?.data?.message || 'Kod gönderilirken bir hata oluştu.');
+            setError(getErrorMessage(err, 'Kod gönderilirken bir hata oluştu.'));
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Adım 2'deki "Kodu tekrar gönder" — geri sayım sıfırlanana kadar buton kilitli
+    const handleResendOtp = async () => {
+        if (resendCountdown > 0 || loading) return;
+        setError('');
+        setLoading(true);
+        try {
+            await api.post('/auth/business/forgot-password/send-otp', { email });
+            setCode('');
+            setResendCountdown(60);
+        } catch (err: any) {
+            setError(getErrorMessage(err, 'Kod gönderilirken bir hata oluştu.'));
+            // 429 → geri sayımı sunucunun söylediği süreden başlat
+            const retryAfter = getRetryAfterSeconds(err);
+            if (retryAfter) setResendCountdown(retryAfter);
         } finally {
             setLoading(false);
         }
@@ -172,6 +203,17 @@ export const BusinessForgotPasswordModal: React.FC<BusinessForgotPasswordModalPr
                                 className="w-full bg-orange-600 text-white py-4 rounded-xl font-bold hover:bg-orange-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {loading ? 'Doğrulanıyor...' : 'Doğrula'}
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={handleResendOtp}
+                                disabled={loading || resendCountdown > 0}
+                                className="w-full text-slate-400 hover:text-white text-sm font-medium transition-colors py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {resendCountdown > 0
+                                    ? `Kodu tekrar gönder (${resendCountdown}s)`
+                                    : 'Kodu tekrar gönder'}
                             </button>
                         </form>
                     )}

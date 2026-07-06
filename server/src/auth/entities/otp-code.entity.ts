@@ -3,9 +3,11 @@ import {
   Column,
   PrimaryGeneratedColumn,
   CreateDateColumn,
+  Index,
 } from 'typeorm';
 
 @Entity('otp_codes')
+@Index(['phone', 'purpose'])
 export class OtpCode {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -23,7 +25,7 @@ export class OtpCode {
   expiresAt: Date;
 
   @Column({ default: 'registration' })
-  purpose: string; // 'registration' | 'password_reset' | 'business_registration'
+  purpose: string; // OtpPurpose (otp-security.service.ts): 'registration' | 'password_reset' | 'business_registration' | 'business_password_reset'
 
   @Column({ default: 0 })
   attempts: number;

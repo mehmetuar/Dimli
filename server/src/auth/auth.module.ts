@@ -9,8 +9,12 @@ import { LocalStrategy } from './local.strategy';
 import { JwtStrategy } from './jwt.strategy';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { OtpCode } from './entities/otp-code.entity';
+import { OtpSendLog } from './entities/otp-send-log.entity';
+import { OtpLock } from './entities/otp-lock.entity';
+import { OtpSecurityService } from './otp-security.service';
 import { SmsModule } from '../sms/sms.module';
 import { SubscriptionModule } from '../subscription/subscription.module';
+import { OtpThrottlerGuard } from '../common/otp-throttler.guard';
 
 @Module({
   imports: [
@@ -19,13 +23,19 @@ import { SubscriptionModule } from '../subscription/subscription.module';
     PassportModule,
     SmsModule,
     SubscriptionModule,
-    TypeOrmModule.forFeature([OtpCode]),
+    TypeOrmModule.forFeature([OtpCode, OtpSendLog, OtpLock]),
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'SECRET_KEY',
       signOptions: { expiresIn: '365d' },
     }),
   ],
-  providers: [AuthService, LocalStrategy, JwtStrategy],
+  providers: [
+    AuthService,
+    OtpSecurityService,
+    OtpThrottlerGuard,
+    LocalStrategy,
+    JwtStrategy,
+  ],
   controllers: [AuthController],
 })
 export class AuthModule {}

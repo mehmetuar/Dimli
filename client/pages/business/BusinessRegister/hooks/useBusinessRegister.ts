@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import api from '../../../../services/api';
 import { purchasePlan, linkRevenueCatUser, purchaseErrorToTurkish } from '../../../../services/revenuecatService';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { initializePushNotifications } from '../../../../services/pushNotificationService';
 import { isValidTurkishPhone, PHONE_INVALID_MESSAGE } from '../../../../utils/phone';
-import { getErrorMessage } from '../../../../utils/apiError';
+import { getErrorMessage, getRetryAfterSeconds } from '../../../../utils/apiError';
 
 export const SUBSCRIPTION_PLANS: Record<number, { label: string; price: number; planType: string }> = {
     1: { label: 'Starter', price: 1709.99, planType: '1_pitch' },
@@ -53,6 +53,14 @@ export const useBusinessRegister = () => {
     const [otpSending, setOtpSending] = useState(false);
     const [otpVerified, setOtpVerified] = useState(false);
     const [otpCode, setOtpCode] = useState('');
+    const [resendCountdown, setResendCountdown] = useState(0);
+
+    // Tekrar-gönder geri sayımı (müşteri kayıt akışıyla aynı desen)
+    useEffect(() => {
+        if (resendCountdown <= 0) return;
+        const timer = setTimeout(() => setResendCountdown((c) => c - 1), 1000);
+        return () => clearTimeout(timer);
+    }, [resendCountdown]);
 
     // Şifre doğrulama (backend'e gönderilmez)
     const [ownerPasswordConfirm, setOwnerPasswordConfirm] = useState('');
@@ -225,9 +233,13 @@ export const useBusinessRegister = () => {
         try {
             await api.post('/auth/business/send-otp', { phone: formData.owner.phone });
             setOtpSent(true);
+            setResendCountdown(60);
             return true;
         } catch (err: any) {
             setError(getErrorMessage(err, 'Doğrulama kodu gönderilemedi. Lütfen tekrar deneyin.'));
+            // 429 → geri sayımı sunucunun söylediği süreden başlat
+            const retryAfter = getRetryAfterSeconds(err);
+            if (retryAfter) setResendCountdown(retryAfter);
             return false;
         } finally {
             setOtpSending(false);
@@ -360,7 +372,7 @@ export const useBusinessRegister = () => {
         isTimePickerOpen, setIsTimePickerOpen,
         tempSlot, setTempSlot,
         formData, setFormData,
-        otpSent, otpSending, otpVerified,
+        otpSent, otpSending, otpVerified, resendCountdown,
         otpCode, setOtpCode,
         ownerPasswordConfirm, setOwnerPasswordConfirm,
         updateOwner, updateBusiness, updatePitch,

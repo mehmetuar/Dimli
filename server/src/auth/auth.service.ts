@@ -10,7 +10,8 @@ import { UsersService } from '../users/users.service';
 import { BusinessOwnerService } from '../business-owner/business-owner.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { DataSource, DeepPartial, Repository, MoreThanOrEqual } from 'typeorm';
+import { randomInt, timingSafeEqual } from 'crypto';
+import { DataSource, DeepPartial, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { RegisterBusinessDto } from './dto/register-business.dto';
 import { Business } from '../business/entities/business.entity';
@@ -20,6 +21,7 @@ import { TimeSlot } from '../pitches/entities/time-slot.entity';
 import { OtpCode } from './entities/otp-code.entity';
 import { SmsService } from '../sms/sms.service';
 import { SubscriptionService } from '../subscription/subscription.service';
+import { OtpSecurityService } from './otp-security.service';
 
 @Injectable()
 export class AuthService {
@@ -30,6 +32,7 @@ export class AuthService {
     private dataSource: DataSource,
     private smsService: SmsService,
     private subscriptionService: SubscriptionService,
+    private otpSecurity: OtpSecurityService,
     @InjectRepository(OtpCode)
     private otpRepository: Repository<OtpCode>,
   ) {}
@@ -62,20 +65,52 @@ export class AuthService {
   }
 
   private generateOtpCode(): string {
-    return Math.floor(100000 + Math.random() * 900000).toString();
+    return randomInt(100000, 1000000).toString();
   }
 
-  private async checkRateLimit(phone: string, purpose: string): Promise<void> {
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-    const recentCount = await this.otpRepository.count({
-      where: { phone, purpose, createdAt: MoreThanOrEqual(oneHourAgo) },
-    });
-    if (recentCount >= 3) {
+  // Zamanlama saldırılarına karşı sabit süreli karşılaştırma
+  private otpCodeMatches(expected: string, provided: string): boolean {
+    const a = Buffer.from(expected);
+    const b = Buffer.from(provided);
+    if (a.length !== b.length) return false;
+    return timingSafeEqual(a, b);
+  }
+
+  // 4 OTP akışının ortak doğrulama adımı: deneme sayacı, 5 yanlışta telefon
+  // kilidi (gönderim + doğrulama, tüm amaçlar), süre ve kod kontrolü.
+  private async completeOtpVerification(
+    otp: OtpCode,
+    code: string,
+    phone: string,
+  ): Promise<void> {
+    otp.attempts += 1;
+    if (otp.attempts >= 5) {
+      await this.otpRepository.delete({ id: otp.id });
+      const lockMinutes = await this.otpSecurity.lockPhone(phone);
       throw new HttpException(
-        'Çok fazla doğrulama kodu isteğinde bulundunuz. Lütfen 1 saat sonra tekrar deneyin.',
+        {
+          statusCode: HttpStatus.TOO_MANY_REQUESTS,
+          message: `Çok fazla yanlış deneme yaptınız. Güvenlik nedeniyle ${lockMinutes} dakika boyunca kod isteyemez ve doğrulama yapamazsınız.`,
+          retryAfter: lockMinutes * 60,
+        },
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }
+
+    if (!this.otpCodeMatches(otp.code, code)) {
+      await this.otpRepository.save(otp);
+      throw new BadRequestException('Geçersiz doğrulama kodu.');
+    }
+
+    if (new Date() > otp.expiresAt) {
+      await this.otpRepository.delete({ id: otp.id });
+      throw new BadRequestException(
+        'Doğrulama kodunun süresi dolmuş. Lütfen yeni kod isteyin.',
+      );
+    }
+
+    otp.verified = true;
+    await this.otpRepository.save(otp);
   }
 
   async sendOtp(phone: string): Promise<void> {
@@ -90,8 +125,8 @@ export class AuthService {
       );
     }
 
-    // Saatte maksimum 3 OTP isteği (sadece kullanıcı kayıt OTP'leri sayılır)
-    await this.checkRateLimit(phone, 'registration');
+    // Kilit + cooldown + saatlik/günlük limitler + global bütçe (OtpSecurityService)
+    await this.otpSecurity.assertSendAllowed(phone, 'registration');
 
     // Önceki bekleyen kayıt kodlarını sil
     await this.otpRepository.delete({
@@ -113,6 +148,9 @@ export class AuthService {
     });
     await this.otpRepository.save(otp);
 
+    // Gönderim DENEMESİ sayılır (SMS başarısı değil) — hata yolları bedava tekrar sağlamaz
+    await this.otpSecurity.recordSend(phone, 'registration');
+
     await this.sendOtpSms(
       phone,
       `Dimli doğrulama kodunuz: ${code}. Kodu kimseyle paylaşmayın.`,
@@ -122,6 +160,8 @@ export class AuthService {
   async verifyOtp(phone: string, code: string): Promise<void> {
     phone = this.normalizePhone(phone);
 
+    await this.otpSecurity.assertVerifyAllowed(phone);
+
     const otp = await this.otpRepository.findOne({
       where: { phone, verified: false, purpose: 'registration' },
     });
@@ -130,29 +170,7 @@ export class AuthService {
       throw new BadRequestException('Geçersiz doğrulama kodu.');
     }
 
-    // Deneme sınırı kontrolü
-    otp.attempts += 1;
-    if (otp.attempts >= 5) {
-      await this.otpRepository.delete({ id: otp.id });
-      throw new BadRequestException(
-        'Çok fazla yanlış deneme. Lütfen yeni kod isteyin.',
-      );
-    }
-
-    if (otp.code !== code) {
-      await this.otpRepository.save(otp);
-      throw new BadRequestException('Geçersiz doğrulama kodu.');
-    }
-
-    if (new Date() > otp.expiresAt) {
-      await this.otpRepository.delete({ id: otp.id });
-      throw new BadRequestException(
-        'Doğrulama kodunun süresi dolmuş. Lütfen yeni kod isteyin.',
-      );
-    }
-
-    otp.verified = true;
-    await this.otpRepository.save(otp);
+    await this.completeOtpVerification(otp, code, phone);
   }
 
   async isPhoneVerified(phone: string): Promise<boolean> {
@@ -182,8 +200,8 @@ export class AuthService {
       );
     }
 
-    // Saatte maksimum 3 OTP isteği (sadece işletme kayıt OTP'leri sayılır)
-    await this.checkRateLimit(phone, 'business_registration');
+    // Kilit + cooldown + saatlik/günlük limitler + global bütçe (OtpSecurityService)
+    await this.otpSecurity.assertSendAllowed(phone, 'business_registration');
 
     // Önceki bekleyen kodları sil
     await this.otpRepository.delete({
@@ -205,6 +223,8 @@ export class AuthService {
     });
     await this.otpRepository.save(otp);
 
+    await this.otpSecurity.recordSend(phone, 'business_registration');
+
     await this.sendOtpSms(
       phone,
       `Dimli doğrulama kodunuz: ${code}. Kodu kimseyle paylaşmayın.`,
@@ -214,6 +234,8 @@ export class AuthService {
   async verifyBusinessOwnerOtp(phone: string, code: string): Promise<void> {
     phone = this.normalizePhone(phone);
 
+    await this.otpSecurity.assertVerifyAllowed(phone);
+
     const otp = await this.otpRepository.findOne({
       where: { phone, verified: false, purpose: 'business_registration' },
     });
@@ -222,28 +244,7 @@ export class AuthService {
       throw new BadRequestException('Geçersiz doğrulama kodu.');
     }
 
-    otp.attempts += 1;
-    if (otp.attempts >= 5) {
-      await this.otpRepository.delete({ id: otp.id });
-      throw new BadRequestException(
-        'Çok fazla yanlış deneme. Lütfen yeni kod isteyin.',
-      );
-    }
-
-    if (otp.code !== code) {
-      await this.otpRepository.save(otp);
-      throw new BadRequestException('Geçersiz doğrulama kodu.');
-    }
-
-    if (new Date() > otp.expiresAt) {
-      await this.otpRepository.delete({ id: otp.id });
-      throw new BadRequestException(
-        'Doğrulama kodunun süresi dolmuş. Lütfen yeni kod isteyin.',
-      );
-    }
-
-    otp.verified = true;
-    await this.otpRepository.save(otp);
+    await this.completeOtpVerification(otp, code, phone);
   }
 
   async isBusinessOwnerPhoneVerified(phone: string): Promise<boolean> {
@@ -251,12 +252,13 @@ export class AuthService {
     const otp = await this.otpRepository.findOne({
       where: { phone, verified: true, purpose: 'business_registration' },
     });
-    return !!otp;
+    return !!otp && new Date() < otp.expiresAt;
   }
 
   // ─── Şifremi Unuttum Akışı ──────────────────────────────────────────────────
 
   async sendPasswordResetOtp(phone: string): Promise<void> {
+    this.validatePhoneFormat(phone);
     phone = this.normalizePhone(phone);
 
     // Telefon kayıtlı DEĞİLSE hata ver
@@ -267,8 +269,8 @@ export class AuthService {
       );
     }
 
-    // Saatte maksimum 3 OTP isteği (sadece şifre sıfırlama OTP'leri sayılır)
-    await this.checkRateLimit(phone, 'password_reset');
+    // Kilit + cooldown + saatlik/günlük limitler + global bütçe (OtpSecurityService)
+    await this.otpSecurity.assertSendAllowed(phone, 'password_reset');
 
     // Önceki bekleyen şifre sıfırlama kodlarını sil
     await this.otpRepository.delete({
@@ -290,6 +292,8 @@ export class AuthService {
     });
     await this.otpRepository.save(otp);
 
+    await this.otpSecurity.recordSend(phone, 'password_reset');
+
     await this.sendOtpSms(
       phone,
       `Dimli şifre sıfırlama kodunuz: ${code}. Kodu kimseyle paylaşmayın.`,
@@ -299,6 +303,8 @@ export class AuthService {
   async verifyPasswordResetOtp(phone: string, code: string): Promise<void> {
     phone = this.normalizePhone(phone);
 
+    await this.otpSecurity.assertVerifyAllowed(phone);
+
     const otp = await this.otpRepository.findOne({
       where: { phone, verified: false, purpose: 'password_reset' },
     });
@@ -307,29 +313,7 @@ export class AuthService {
       throw new BadRequestException('Geçersiz doğrulama kodu.');
     }
 
-    // Deneme sınırı kontrolü
-    otp.attempts += 1;
-    if (otp.attempts >= 5) {
-      await this.otpRepository.delete({ id: otp.id });
-      throw new BadRequestException(
-        'Çok fazla yanlış deneme. Lütfen yeni kod isteyin.',
-      );
-    }
-
-    if (otp.code !== code) {
-      await this.otpRepository.save(otp);
-      throw new BadRequestException('Geçersiz doğrulama kodu.');
-    }
-
-    if (new Date() > otp.expiresAt) {
-      await this.otpRepository.delete({ id: otp.id });
-      throw new BadRequestException(
-        'Doğrulama kodunun süresi dolmuş. Lütfen yeni kod isteyin.',
-      );
-    }
-
-    otp.verified = true;
-    await this.otpRepository.save(otp);
+    await this.completeOtpVerification(otp, code, phone);
   }
 
   async resetPassword(phone: string, newPassword: string): Promise<void> {
@@ -385,8 +369,8 @@ export class AuthService {
 
     const phone = this.normalizePhone(owner.phone);
 
-    // Saatte maksimum 3 OTP isteği
-    await this.checkRateLimit(phone, 'business_password_reset');
+    // Kilit + cooldown + saatlik/günlük limitler + global bütçe (OtpSecurityService)
+    await this.otpSecurity.assertSendAllowed(phone, 'business_password_reset');
 
     // Önceki bekleyen şifre sıfırlama kodlarını sil
     await this.otpRepository.delete({
@@ -407,6 +391,8 @@ export class AuthService {
       attempts: 0,
     });
     await this.otpRepository.save(otp);
+
+    await this.otpSecurity.recordSend(phone, 'business_password_reset');
 
     await this.sendOtpSms(
       phone,
@@ -429,6 +415,8 @@ export class AuthService {
 
     const phone = this.normalizePhone(owner.phone);
 
+    await this.otpSecurity.assertVerifyAllowed(phone);
+
     const otp = await this.otpRepository.findOne({
       where: { phone, verified: false, purpose: 'business_password_reset' },
     });
@@ -437,29 +425,7 @@ export class AuthService {
       throw new BadRequestException('Geçersiz doğrulama kodu.');
     }
 
-    // Deneme sınırı kontrolü
-    otp.attempts += 1;
-    if (otp.attempts >= 5) {
-      await this.otpRepository.delete({ id: otp.id });
-      throw new BadRequestException(
-        'Çok fazla yanlış deneme. Lütfen yeni kod isteyin.',
-      );
-    }
-
-    if (otp.code !== code) {
-      await this.otpRepository.save(otp);
-      throw new BadRequestException('Geçersiz doğrulama kodu.');
-    }
-
-    if (new Date() > otp.expiresAt) {
-      await this.otpRepository.delete({ id: otp.id });
-      throw new BadRequestException(
-        'Doğrulama kodunun süresi dolmuş. Lütfen yeni kod isteyin.',
-      );
-    }
-
-    otp.verified = true;
-    await this.otpRepository.save(otp);
+    await this.completeOtpVerification(otp, code, phone);
   }
 
   async resetBusinessPassword(

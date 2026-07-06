@@ -1711,3 +1711,63 @@ istemci değişikliği YOK (yeni sürüm gerekmez).** Kod deploy'undan sonra ger
 ### Doğrulama
 Server `npm run build` ✓. Canlı DB (salt-okunur): öksüz kanal 0, öksüz katılımcı 0, öksüz mesaj 0,
 `deletedTeamName`'li rezervasyonlar + BUSINESS puanları korunuyor.
+
+## 46. OTP SMS güvenlik katmanı — hız limitleri + kilit + IP throttle (2026-07-06)
+
+### Kök neden: "saatte 3 SMS" limiti hiç çalışmıyordu
+Eski `checkRateLimit()` `otp_codes` satırlarını sayıyordu; ama her gönderim yeni kodu eklemeden
+önce önceki doğrulanmamış kaydı SİLDİĞİ için sayaç hiç 3'e ulaşamıyordu → 4 OTP akışının
+(kullanıcı kayıt, kullanıcı şifre sıfırlama, işletme kayıt, işletme şifre sıfırlama) hiçbirinde
+sunucu-tarafı limit fiilen yoktu. Müşteri akışlarında "çalışıyor" görünen şey istemcideki 60 sn
+geri sayımdı. Ayrıca "5 yanlış → 1 saat engel" diye bir mekanizma kodda hiç yoktu.
+
+### Yeni mimari — tek ortak mekanizma: `OtpSecurityService`
+`server/src/auth/otp-security.service.ts` + 2 yeni tablo (synchronize ile otomatik oluşur):
+- **`otp_send_log`** (append-only): her gönderim DENEMESİ SMS'ten önce loglanır; hiçbir istek
+  yolu silmez → sayım bir daha bozulamaz. Aynı zamanda SMS maliyet iz kaydı.
+- **`otp_locks`**: 5 yanlış doğrulama → telefon 1 saat kilitli (TÜM amaçlarda, hem send hem verify).
+  DB'de kalıcı (restart/deploy silmez).
+- 4 send akışı `assertSendAllowed(phone, purpose)` + `recordSend`; 4 verify akışı
+  `assertVerifyAllowed` + ortak `completeOtpVerification()` (auth.service.ts) kullanır.
+- Limitler (env ile ayarlanabilir): `OTP_RESEND_COOLDOWN_SEC`(60), `OTP_MAX_PER_HOUR`(3, telefon+amaç),
+  `OTP_MAX_PER_DAY_PHONE`(10, telefon başına tüm amaçlar/24s), `OTP_LOCK_DURATION_MIN`(60),
+  `SMS_DAILY_LIMIT`(2000, sistem geneli/gün; **0 = kill-switch**, Render env ile deploy'suz kapatma;
+  %80'de logger.warn, dolunca logger.error).
+- Tüm limit ihlalleri tek tip gövde döner: `{statusCode:429, message:'<Türkçe>', retryAfter:<sn>}`
+  + `Retry-After` header (AllExceptionsFilter). İstemci geri sayımı bu değerden beslenir.
+- Gece 04:00 cron temizliği: 48s'ten eski log, süresi geçen kilitler, bayat otp_codes satırları.
+
+### KALICI KURAL: zaman aritmetiği SQL'de yapılır (bu tablolarda)
+`timestamp without time zone` kolonlarında DB-yazımlı değerler (now() default) OTURUM saat
+dilimindedir; local Postgres `Europe/Istanbul`, canlı (Render) UTC. JS'te `getTime()` farkı local'de
+3 saat kayar. Bu yüzden `otp_send_log`/`otp_locks` yaş/kalan-süre hesapları SQL'de
+(`EXTRACT(EPOCH FROM (now()::timestamp - ...))`) yapılır; kilit yazımı da DB tarafında
+(`now() + make_interval(...)`, raw upsert). `otp_codes.expiresAt` ise JS-yazılıp JS-okunur
+(kendi içinde tutarlı) — o dokunulmadı. Karışık kullanma!
+
+### IP bazlı throttle + trust proxy
+`@nestjs/throttler@6` eklendi. `app.module.ts`'te `ThrottlerModule.forRoot` (otp-minute 10/dk,
+otp-hour 30/saat) — GLOBAL guard bağlanmadı; yalnız `auth.controller.ts`'deki 8 OTP endpoint'inde
+`@UseGuards(OtpThrottlerGuard)` (`server/src/common/otp-throttler.guard.ts`, Türkçe 429 + retryAfter).
+`main.ts`: `app.getHttpAdapter().getInstance().set('trust proxy', 1)` — Render proxy'si arkasında
+gerçek istemci IP'si için ŞART (DuplicateRequestInterceptor IP anahtarını da düzeltir).
+Değerler CGNAT (mobil operatör paylaşımlı IP) nedeniyle bilinçli cömert.
+
+### İstemci
+`getRetryAfterSeconds()` (`client/utils/apiError.ts`): 429 gövdesinden geri sayım tohumlar.
+İşletme kayıt (useBusinessRegister + OtpVerificationStep) ve işletme şifre modalına
+(BusinessForgotPasswordModal — tekrar gönder butonu hiç yoktu, eklendi) 60 sn geri sayım geldi;
+müşteri hook'ları (useRegister, useForgotPassword) 429'da geri sayımı sunucu değerinden başlatır.
+NOT: modalda `useEffect` erken `return null`'un ÜSTÜNDE (hook kuralı).
+
+### Mikro-sıkılaştırmalar
+`crypto.randomInt` (Math.random yerine), `timingSafeEqual` kod karşılaştırması,
+`OtpCode`'a `@Index(['phone','purpose'])`, `sendPasswordResetOtp`'a eksik `validatePhoneFormat`,
+`isBusinessOwnerPhoneVerified`'a eksik `expiresAt` kontrolü. OTP kodu bilinçli düz metin
+(10^6 uzay her hash'te anında kırılır; asıl koruma TTL+deneme sınırı+kilit).
+
+### Doğrulama (local, 3100 portu, NetGSM env boş → SMS no-op)
+cooldown ✓, saatlik 3 ✓, günlük telefon tavanı (amaç karışık) ✓, 5 yanlış → kilit (send+verify
+429) ✓, e-posta anahtarlı işletme akışı telefon cooldown'una takılıyor ✓, IP throttle 10/dk ✓,
+bütçe %80 warn + limit error + 429 ✓, kill-switch=0 ✓, mutlu yol (doğru kodla verify user+business) ✓,
+geçersiz telefon 400 ✓. Test verileri temizlendi.

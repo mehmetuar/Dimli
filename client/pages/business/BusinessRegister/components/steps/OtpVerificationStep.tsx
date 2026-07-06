@@ -8,12 +8,13 @@ interface OtpVerificationStepProps {
     setOtpCode: (v: string) => void;
     otpSending: boolean;
     isLoading: boolean;
+    resendCountdown: number;
     onVerify: (code: string) => void;
     onResend: () => void;
 }
 
 export const OtpVerificationStep: React.FC<OtpVerificationStepProps> = ({
-    phone, otpCode, setOtpCode, otpSending, isLoading, onVerify, onResend
+    phone, otpCode, setOtpCode, otpSending, isLoading, resendCountdown, onVerify, onResend
 }) => {
     const handleVerify = () => {
         const code = otpCode.padEnd(6, '');
@@ -42,11 +43,13 @@ export const OtpVerificationStep: React.FC<OtpVerificationStepProps> = ({
 
             <button
                 onClick={onResend}
-                disabled={otpSending}
-                className="text-slate-400 hover:text-white text-sm font-medium transition-colors flex items-center gap-1"
+                disabled={otpSending || resendCountdown > 0}
+                className="text-slate-400 hover:text-white text-sm font-medium transition-colors flex items-center gap-1 disabled:opacity-50"
             >
                 {otpSending ? <Loader2 className="animate-spin" size={14} /> : null}
-                Kodu tekrar gönder
+                {resendCountdown > 0
+                    ? `Kodu tekrar gönder (${resendCountdown}s)`
+                    : 'Kodu tekrar gönder'}
             </button>
         </div>
     );

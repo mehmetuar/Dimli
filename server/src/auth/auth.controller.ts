@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LocalAuthGuard } from './local-auth.guard';
+import { OtpThrottlerGuard } from '../common/otp-throttler.guard';
 import { UsersService } from '../users/users.service';
 
 import { CreateUserDto } from '../users/dto/create-user.dto';
@@ -26,12 +27,14 @@ export class AuthController {
     return this.authService.login(req.user);
   }
 
+  @UseGuards(OtpThrottlerGuard)
   @Post('send-otp')
   async sendOtp(@Body() body: { phone: string }) {
     await this.authService.sendOtp(body.phone);
     return { success: true };
   }
 
+  @UseGuards(OtpThrottlerGuard)
   @Post('verify-otp')
   async verifyOtp(@Body() body: { phone: string; code: string }) {
     await this.authService.verifyOtp(body.phone, body.code);
@@ -71,12 +74,14 @@ export class AuthController {
 
   // ─── Şifremi Unuttum ────────────────────────────────────────────────────────
 
+  @UseGuards(OtpThrottlerGuard)
   @Post('forgot-password/send-otp')
   async forgotPasswordSendOtp(@Body() body: { phone: string }) {
     await this.authService.sendPasswordResetOtp(body.phone);
     return { success: true };
   }
 
+  @UseGuards(OtpThrottlerGuard)
   @Post('forgot-password/verify-otp')
   async forgotPasswordVerifyOtp(@Body() body: { phone: string; code: string }) {
     await this.authService.verifyPasswordResetOtp(body.phone, body.code);
@@ -91,6 +96,7 @@ export class AuthController {
 
   // ─── Business Auth ───────────────────────────────────────────────────────────
 
+  @UseGuards(OtpThrottlerGuard)
   @Post('business/forgot-password/send-otp')
   async businessForgotPasswordSendOtp(@Body() body: { email: string }) {
     const result = await this.authService.sendBusinessPasswordResetOtp(
@@ -99,6 +105,7 @@ export class AuthController {
     return { success: true, maskedPhone: result.maskedPhone };
   }
 
+  @UseGuards(OtpThrottlerGuard)
   @Post('business/forgot-password/verify-otp')
   async businessForgotPasswordVerifyOtp(
     @Body() body: { email: string; code: string },
@@ -118,12 +125,14 @@ export class AuthController {
     return { success: true };
   }
 
+  @UseGuards(OtpThrottlerGuard)
   @Post('business/send-otp')
   async businessSendOtp(@Body() body: { phone: string }) {
     await this.authService.sendBusinessOwnerOtp(body.phone);
     return { success: true };
   }
 
+  @UseGuards(OtpThrottlerGuard)
   @Post('business/verify-otp')
   async businessVerifyOtp(@Body() body: { phone: string; code: string }) {
     await this.authService.verifyBusinessOwnerOtp(body.phone, body.code);

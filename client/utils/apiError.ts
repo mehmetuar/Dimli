@@ -7,3 +7,12 @@ export const getErrorMessage = (err: any, fallback: string): string => {
     if (GENERIC_BACKEND_MESSAGES.includes(message.trim().toLowerCase())) return fallback;
     return message;
 };
+
+// OTP hız limitlerinin 429 gövdesindeki retryAfter (saniye) değeri — tekrar-gönder
+// geri sayımını sunucuyla senkronlamak için. 429 değilse/yoksa null döner.
+export const getRetryAfterSeconds = (err: any): number | null => {
+    const retryAfter = Number(err?.response?.data?.retryAfter);
+    return err?.response?.status === 429 && Number.isFinite(retryAfter) && retryAfter > 0
+        ? Math.ceil(retryAfter)
+        : null;
+};

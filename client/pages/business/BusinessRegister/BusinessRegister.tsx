@@ -32,7 +32,7 @@ export const BusinessRegister: React.FC = () => {
         isTimePickerOpen, setIsTimePickerOpen,
         tempSlot, setTempSlot,
         formData,
-        otpSent, otpSending, otpCode, setOtpCode,
+        otpSent, otpSending, resendCountdown, otpCode, setOtpCode,
         ownerPasswordConfirm, setOwnerPasswordConfirm,
         updateOwner, updateBusiness, updatePitch,
         setPitchCount, toggleFacility, toggleClosedDay, addTimeSlot, removeTimeSlot,
@@ -68,6 +68,7 @@ export const BusinessRegister: React.FC = () => {
                         setOtpCode={setOtpCode}
                         otpSending={otpSending}
                         isLoading={isLoading}
+                        resendCountdown={resendCountdown}
                         onVerify={verifyOtp}
                         onResend={sendOtp}
                     />

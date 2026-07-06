@@ -32,7 +32,20 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     if (exception instanceof HttpException) {
       const status = exception.getStatus();
-      response.status(status).json(exception.getResponse());
+      const body = exception.getResponse();
+      // OTP hız limitleri retryAfter (saniye) taşır → standart Retry-After header'ı
+      if (
+        status === HttpStatus.TOO_MANY_REQUESTS &&
+        typeof body === 'object' &&
+        body !== null &&
+        typeof (body as { retryAfter?: unknown }).retryAfter === 'number'
+      ) {
+        response.setHeader(
+          'Retry-After',
+          String((body as { retryAfter: number }).retryAfter),
+        );
+      }
+      response.status(status).json(body);
       return;
     }
 

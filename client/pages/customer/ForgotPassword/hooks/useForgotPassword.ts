@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../../../../services/api';
+import { getRetryAfterSeconds } from '../../../../utils/apiError';
 
 export const useForgotPassword = () => {
     const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -41,6 +42,9 @@ export const useForgotPassword = () => {
             setStep(2);
         } catch (err: any) {
             setError(err.response?.data?.message || err.message || 'SMS gönderilemedi. Lütfen tekrar deneyin.');
+            // 429 → geri sayımı sunucunun söylediği süreden başlat
+            const retryAfter = getRetryAfterSeconds(err);
+            if (retryAfter) setResendCountdown(retryAfter);
         } finally {
             setLoading(false);
         }
@@ -56,6 +60,8 @@ export const useForgotPassword = () => {
             setResendCountdown(60);
         } catch (err: any) {
             setError(err.response?.data?.message || err.message || 'SMS gönderilemedi. Lütfen tekrar deneyin.');
+            const retryAfter = getRetryAfterSeconds(err);
+            if (retryAfter) setResendCountdown(retryAfter);
         } finally {
             setLoading(false);
         }

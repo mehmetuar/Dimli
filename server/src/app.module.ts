@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
@@ -56,6 +57,16 @@ import { PresetNotesModule } from './preset-notes/preset-notes.module';
       },
     }),
     ScheduleModule.forRoot(),
+    // IP bazlı hız limiti — GLOBAL guard olarak BAĞLANMAZ; yalnız OtpThrottlerGuard
+    // ile işaretlenen OTP endpoint'lerinde çalışır (auth.controller.ts).
+    // CGNAT (mobil operatör) arkasında çok kullanıcı aynı IP'yi paylaşabildiği için
+    // değerler cömert: gerçek bir kullanıcı saatte ≤3 SMS ister.
+    ThrottlerModule.forRoot({
+      throttlers: [
+        { name: 'otp-minute', ttl: 60_000, limit: 10 },
+        { name: 'otp-hour', ttl: 3_600_000, limit: 30 },
+      ],
+    }),
     AuthModule,
     UsersModule,
     TeamsModule,

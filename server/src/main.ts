@@ -29,6 +29,9 @@ import { AllExceptionsFilter } from './common/all-exceptions.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  // Render proxy'si arkasında req.ip'nin X-Forwarded-For'daki gerçek istemci IP'sini
+  // göstermesi için şart (IP throttler + DuplicateRequestInterceptor anahtarları).
+  app.getHttpAdapter().getInstance().set('trust proxy', 1);
   app.enableCors();
   app.useWebSocketAdapter(new IoAdapter(app));
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
