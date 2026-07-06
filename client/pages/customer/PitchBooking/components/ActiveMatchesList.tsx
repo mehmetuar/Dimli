@@ -7,6 +7,7 @@ import { FairPlayScore } from '../../../../components/UI/FairPlayScore';
 import { getRelativeDateLabel } from '../utils/pitchUtils';
 import { useModalBodyClass } from '../../../../utils/useModalBodyClass';
 import { todayStr, addDaysStr } from '../../../../utils/today';
+import { teamLogoSrc, teamInitialsAvatar } from '../../../../utils/teamColors';
 
 interface ActiveMatchesListProps {
     activeMatches: any[];
@@ -109,9 +110,10 @@ const MatchCard: React.FC<MatchCardProps> = ({
             <div className="flex items-center justify-between relative z-10">
                 <div className="flex items-center gap-3">
                     <img
-                        src={team?.logoUrl || '/default-team-logo.png'}
+                        src={teamLogoSrc(team)}
                         className="w-14 h-14 rounded-full border-2 border-slate-600 object-cover bg-slate-900 shadow-md"
                         alt={team?.name}
+                        onError={(e) => { const el = e.currentTarget; el.onerror = null; el.src = teamInitialsAvatar(team?.name); }}
                     />
                     <div>
                         <div className="text-white font-bold text-sm xs:text-base sm:text-lg font-sport tracking-wide italic truncate max-w-[160px] xs:max-w-none">{team?.name}</div>

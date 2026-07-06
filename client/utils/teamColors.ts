@@ -11,3 +11,13 @@ export const toHex = (val?: string): string => {
     if (val.startsWith('#')) return val;
     return LEGACY_COLOR_HEX[val] ?? '#3b82f6';
 };
+
+// Takım logosu fallback'i — logo yoksa/bozuksa baş-harflerden ui-avatars görseli türetir.
+// CreateTeamModal'ın takım kurarken yazdığı biçimle birebir aynı → NULL-logo takım,
+// uygulamadan kurulmuş gibi görünür. ⚠️ Takım logosu render ederken HER ZAMAN bunu kullan;
+// ham `team.logoUrl || '/default-team-logo.png'` deseni YASAK (o dosya projede yok).
+export const teamInitialsAvatar = (name?: string): string =>
+    `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'Takım')}&background=random&color=fff&size=200`;
+
+export const teamLogoSrc = (team?: { logoUrl?: string | null; name?: string } | null): string =>
+    team?.logoUrl || teamInitialsAvatar(team?.name);

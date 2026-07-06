@@ -8,6 +8,7 @@ import { calculateDistance } from '../../../../utils/location';
 import { addOneHour } from '../../../../utils/time';
 import { LevelBadge } from '../../../../components/UI/LevelBadge';
 import { FairPlayScore } from '../../../../components/UI/FairPlayScore';
+import { teamLogoSrc, teamInitialsAvatar } from '../../../../utils/teamColors';
 
 // match_type → kullanıcı etiketi
 const MATCH_TYPE_LABELS: Record<string, string> = {
@@ -63,7 +64,7 @@ export const MatchRequestsTab: React.FC<MatchRequestsTabProps> = ({
                     {/* Üst: logo + takım + rozetler + tarih */}
                     <div className="flex gap-3 items-start relative z-10">
                         <div className="relative flex-shrink-0 z-20 cursor-pointer hover:scale-105 transition-transform" onClick={(e) => { e.stopPropagation(); if (request.fromTeamId) setSelectedTeamId(request.fromTeamId); }}>
-                            <img src={request.fromTeam?.logoUrl || '/default-team-logo.png'} alt={request.fromTeam?.name || 'Rakip Takım'} className="w-14 h-14 rounded-full object-cover border-2 border-slate-600 bg-slate-900" />
+                            <img src={teamLogoSrc(request.fromTeam)} alt={request.fromTeam?.name || 'Rakip Takım'} onError={(e) => { const el = e.currentTarget; el.onerror = null; el.src = teamInitialsAvatar(request.fromTeam?.name); }} className="w-14 h-14 rounded-full object-cover border-2 border-slate-600 bg-slate-900" />
                         </div>
                         <div className="flex-1 min-w-0">
                             <div className="flex justify-between items-start">

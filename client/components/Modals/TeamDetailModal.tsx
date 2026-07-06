@@ -7,7 +7,7 @@ import { LoadingSpinner } from '../UI/LoadingSpinner';
 import { LevelBadge } from '../UI/LevelBadge';
 import { FairPlayScore } from '../UI/FairPlayScore';
 import { useModalBodyClass } from '../../utils/useModalBodyClass';
-import { toHex } from '../../utils/teamColors';
+import { toHex, teamLogoSrc, teamInitialsAvatar } from '../../utils/teamColors';
 
 interface TeamDetailModalProps {
     isOpen: boolean;
@@ -105,10 +105,11 @@ export const TeamDetailModal: React.FC<TeamDetailModalProps> = ({ isOpen, onClos
                             />
                             <div className="absolute -bottom-10 left-6 z-10">
                                 <img
-                                    src={team.logoUrl || '/default-team-logo.png'}
+                                    src={teamLogoSrc(team)}
                                     alt={team.name}
                                     className="w-24 h-24 rounded-full border-4 border-slate-800 bg-slate-900 object-cover shadow-xl"
                                     style={{ boxShadow: `0 0 0 3px ${primary}60` }}
+                                    onError={(e) => { const el = e.currentTarget; el.onerror = null; el.src = teamInitialsAvatar(team?.name); }}
                                 />
                             </div>
                         </div>

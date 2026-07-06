@@ -6,6 +6,7 @@ import { FairPlayScore } from '../../../../components/UI/FairPlayScore';
 import { Team } from '../../../../types';
 import api from '../../../../services/api';
 import { useModalBodyClass } from '../../../../utils/useModalBodyClass';
+import { teamLogoSrc, teamInitialsAvatar } from '../../../../utils/teamColors';
 
 interface TeamDetailModalProps {
     viewingTeam: Team | null;
@@ -38,7 +39,7 @@ export const TeamDetailModal: React.FC<TeamDetailModalProps> = ({ viewingTeam, o
                 {/* Header */}
                 <div className="h-32 relative">
                     <div className={`absolute inset-0 bg-gradient-to-b from-${viewingTeam.primaryColor || 'blue-500'} to-slate-800 opacity-80`}></div>
-                    <img src={team.logoUrl || '/default-team-logo.png'} className="absolute -bottom-10 left-1/2 transform -translate-x-1/2 w-24 h-24 rounded-full border-4 border-slate-800 shadow-xl z-10 bg-slate-900 object-cover" />
+                    <img src={teamLogoSrc(team)} alt={team.name} onError={(e) => { const el = e.currentTarget; el.onerror = null; el.src = teamInitialsAvatar(team?.name); }} className="absolute -bottom-10 left-1/2 transform -translate-x-1/2 w-24 h-24 rounded-full border-4 border-slate-800 shadow-xl z-10 bg-slate-900 object-cover" />
                 </div>
 
                 <div className="pt-12 pb-8 px-6 text-center">

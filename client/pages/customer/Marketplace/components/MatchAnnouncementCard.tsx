@@ -2,7 +2,7 @@ import React from 'react';
 import { Calendar, Clock, MapPin, Navigation, Shield, X, Lock, TurkishLira, ChevronRight, Users, Swords } from 'lucide-react';
 import { LevelBadge } from '../../../../components/UI/LevelBadge';
 import { FairPlayScore } from '../../../../components/UI/FairPlayScore';
-import { toHex } from '../../../../utils/teamColors';
+import { toHex, teamLogoSrc, teamInitialsAvatar } from '../../../../utils/teamColors';
 import { addOneHour, timeAgo } from '../../../../utils/time';
 import { todayStr, addDaysStr } from '../../../../utils/today';
 
@@ -104,9 +104,10 @@ export const MatchAnnouncementCard: React.FC<MatchAnnouncementCardProps> = ({
                         onClick={e => { e.stopPropagation(); if (announcement.teamId) setSelectedTeamId(announcement.teamId); }}
                     >
                         <img
-                            src={announcement.team?.logoUrl || '/default-team-logo.png'}
+                            src={teamLogoSrc(announcement.team)}
                             alt={announcement.team?.name}
                             className="w-full h-full object-cover"
+                            onError={(e) => { const el = e.currentTarget; el.onerror = null; el.src = teamInitialsAvatar(announcement.team?.name); }}
                         />
                     </button>
 
