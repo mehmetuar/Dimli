@@ -8,6 +8,14 @@ export const getErrorMessage = (err: any, fallback: string): string => {
     return message;
 };
 
+// Yanıtsız axios hatası = ağ/erişim sorunu. Boş-durum "Bağlantı yok + Tekrar Dene"
+// ayrımı için timeout (ECONNABORTED) DA ağ hatası sayılır — banner'dan (yalnız
+// ERR_NETWORK, NetworkContext) bilinçli olarak daha geniş: yavaş ağda da kullanıcıya
+// "boş sonuç" değil "bağlantı sorunu" gösterilmeli.
+export const isNetworkError = (err: any): boolean =>
+    !!err && err.response === undefined &&
+    (err.code === 'ERR_NETWORK' || err.code === 'ECONNABORTED' || err.message === 'Network Error');
+
 // OTP hız limitlerinin 429 gövdesindeki retryAfter (saniye) değeri — tekrar-gönder
 // geri sayımını sunucuyla senkronlamak için. 429 değilse/yoksa null döner.
 export const getRetryAfterSeconds = (err: any): number | null => {

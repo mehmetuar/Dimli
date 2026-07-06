@@ -1904,3 +1904,70 @@ Sentetik veri temizliği (istenirse): `DELETE FROM "user" WHERE username LIKE 's
 - `markAsRead`/`delete` sahiplik kontrolü (güvenlik turu konusu). Challenge-accept expiry guard'ı
   (`challenges.service.updateStatus` ilan süresi kontrolü yapmıyor; kabul yüzeyi SQL+client filtreli, pencere ≤60dk).
 - MATCH_REQUESTS sekmesi türetme sınırı için server-side type filtresi.
+
+## 50. Çevrimdışı deneyim (Facebook-tarzı): NetworkContext + banner + boş-durum ayrımı + önbellek genişletmesi (2026-07-07)
+
+> Sorun: internet kopunca boş "mavi ekran" + "Veri bulunamadı" (asıl yüzey BusinessDashboard tam-ekranı;
+> müşteri sayfalarında sessiz boş listeler). Karar (kullanıcı onaylı): @capacitor/network + axios sinyali,
+> kalıcı üst banner + 2sn yeşil "Bağlandı" + otomatik yenileme, listCache'in Chat/Takımım/İşletme-Dashboard'a
+> genişletilmesi. Tam offline-first (mutasyon kuyruğu) bilinçli KAPSAM DIŞI.
+
+### KRİTİK BUGFIX: ağ kesintisi ≠ oturum düşmesi
+- `api.ts` interceptor'ında 401/403-doğrulama isteği ağ hatasıyla düşünce (`!ve.response`)
+  `auth:sessionExpired` atılıyordu → kullanıcı ağ kesintisinde YANLIŞLIKLA login'e atılıyordu. Kaldırıldı;
+  o dal artık `network:apiNetworkError` window event'i atar (NetworkContext dinler).
+- Aynı ilke MyTeam'de: `/users/me` ağ hatasında `currentUser null → <Navigate to=/login>` vardı — artık
+  ortak store snapshot'ı + `loadError` ile OfflineEmptyState gösterilir, login'e atılmaz.
+
+### KALICI MİMARİ: ağ durumu TEK KAYNAK = NetworkContext (client/contexts/NetworkContext.tsx)
+- Sinyaller: ① @capacitor/network listener (uçak modu anında; web/dev'de navigator.onLine fallback),
+  ② api response interceptor'ı (her başarılı yanıt → online; `ERR_NETWORK` → offline; **ECONNABORTED/timeout
+  offline SAYILMAZ** — Render cold-start yanlış pozitifi), ③ `network:apiNetworkError` event'i (verifyAxios boşluğu).
+- Kurtarma: offline'ken 12sn'de bir `api.get('/', {timeout:5000, validateStatus:()=>true})` probe — HERHANGİ
+  bir HTTP yanıtı = erişilebilir; eklentinin connected event'i probe'u hemen tetikler (önce probe, sonra online).
+- `goOnline()` yalnız false→true geçişinde: `network:reconnected` window event + `fetchCurrentUser({force:true})`.
+- Provider EN DIŞTA (`<NetworkProvider><AuthProvider>...`). Socket sinyali BİLİNÇLİ kullanılmıyor
+  (SOCKET_URL prod / BASE_URL LAN çelişkisi + token'sız bağlanmıyor).
+- StrictMode güvenliği: interceptor `eject(id)`, listener `.then(h=>h.remove())`, interval/timer cleanup.
+
+### KALICI DESEN: sayfa hook'larında çevrimdışı üçlüsü
+1. `useOnReconnect(cb)` (client/hooks/useOnReconnect.ts) — 'network:reconnected' dinler, cb ref'te; her ana
+   sayfa hook'u kendi sayfa-0 tazelemesini bağlar (Marketplace/PitchBooking/JokerPool/Notifications/Chat/
+   MyTeam/BizDashboard/BizStats — pull-to-refresh'lere dokunulmadı).
+2. `isNetworkError(err)` (utils/apiError.ts — yanıtsız + ERR_NETWORK|ECONNABORTED): catch'te
+   `setLoadError(isNetworkError(err) ? 'network' : 'generic')`; boş listede `loadError==='network'` →
+   `<OfflineEmptyState onRetry=...>` (client/components/OfflineEmptyState.tsx, accent: müşteri turf /
+   işletme orange, fullScreen varyantı), değilse mevcut gerçek boş-durum. Banner'dan farklı olarak timeout
+   DA ağ hatası sayılır (bilinçli — yavaş ağda "boş sonuç" denmez).
+3. Sayfa-0 önbelleği: `readListCache`/`readObjectCache` lazy-init + fetch başarısında write.
+   **Nesne varyantı** `readObjectCache/writeObjectCache` ({userId, value} zarfı) listCache'e eklendi.
+
+### OfflineBanner (client/components/OfflineBanner.tsx, App.tsx'te koşulsuz mount)
+- createPortal(document.body) (§35); `fixed top-0 z-[55] pointer-events-none` — z haritası: sayfa
+  başlıkları/Navbar/zil z-50 ALTINDA, modallar z-[60]+ ÜSTÜNDE kalır; overlay (layout push değil — sayfalar
+  fixed inset-0 desenli). Safe-area: YALNIZ `env(safe-area-inset-top, 0px)` — `max(...,20px)` Android'de
+  hayalet boşluk yaratır (Android'de StatusBar overlay DEĞİL → inset=0; iOS'ta çentik arkası boyanır).
+- Faz: offline `bg-red-900` "İnternet bağlantısı yok — son veriler gösteriliyor" / reconnected `bg-green-600`
+  "Bağlandı" 2sn (timer cleanup'lı) / hidden. translateY animasyonu.
+
+### Önbellek anahtarları (listCache.ts) + hijyen
+- Yeni: `CHANNELS_CACHE_KEY` (Chat ilk 30 kanal), `TEAM_CACHE_KEY` ({team} — takımsızsa {team:null} yazılır,
+  bayat takım kalmaz), `BIZ_DASHBOARD_CACHE_KEY` ({date,data,subscription} — YALNIZ bugünün verisi yazılır/okunur,
+  tarih bağımlı), `BUSINESSES_CACHE_KEY` v2 (PitchBooking'in eski çıplak 'cached_businesses' + cache_cleared_v3
+  bloğu kaldırıldı, kullanıcı-kapsamlı zarfa taşındı). İşletme token'ında sub = owner.id (auth.service
+  loginBusinessOwner) → listCache userId zarfı işletme tarafında da doğru çalışır.
+- AuthContext.clearCustomerCaches: tüm yeni anahtarlar + eski literal süpürme ('cached_businesses',
+  'cache_cleared_v3' dahil).
+
+### Kurulum/deploy notları
+- `@capacitor/network@^6` (6.x PİNLİ — core ^6.2.1; 7/8 kırar), `npx cap sync` yapıldı (13 eklenti).
+  cap sync macOS'ta CocoaPods `unicode_normalize` hatası verirse `LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8` ile çalıştır.
+- Native kod içerir → YENİ iOS/Android build ZORUNLU (pod/gradle otomatik sync'lendi; Android
+  ACCESS_NETWORK_STATE manifest-merge ile gelir, kullanıcı istemi yok; iOS izin gerektirmez).
+- Ön-var-olan tsc hatası (BusinessRegister/LocationStep.tsx window.google) bu turla İLGİSİZ, dokunulmadı.
+
+### Cihaz test listesi (kullanıcı)
+Uçak modu aç → banner anında; kapat → ≤12sn'de yeşil "Bağlandı" + listeler kendiliğinden tazelenir.
+LAN server durdur → gezinti banner + cache'li sayfalar bayat veri, cache'sizler "Bağlantı yok + Tekrar Dene".
+iOS çentik arkası dikişsiz; Android status bar altı. 401+kesinti kombinasyonunda login'e atılmama.
+Hesap değişiminde önceki kullanıcının kanal/takım cache'inin görünmemesi (userId zarfı).

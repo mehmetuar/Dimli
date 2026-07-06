@@ -16,6 +16,8 @@ import { LocationProvider } from './contexts/LocationContext';
 import { FilterProvider } from './contexts/FilterContext';
 import { SocketProvider } from './contexts/SocketContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { NetworkProvider } from './contexts/NetworkContext';
+import { OfflineBanner } from './components/OfflineBanner';
 import { getToken, getRole } from './services/authStorage';
 import { fetchCurrentUser } from './services/currentUserStore';
 import { useKeyboardScroll } from './utils/useKeyboardScroll';
@@ -379,6 +381,7 @@ function AppContent() {
         />
       )}
       {!isAuthPage && <Navbar />}
+      <OfflineBanner />
       {businessInviteNotice && (
         <BusinessInviteNoticeModal
           onClose={() => setBusinessInviteNotice(false)}
@@ -397,18 +400,22 @@ function App() {
   // LocationProvider, AuthProvider'ın İÇİNDE olmalı: konum senkronu (ilk giriş +
   // periyodik PATCH) yalnız oturum/rol belirlendikten sonra ve sadece müşteri için
   // çalışsın diye useAuth()'a erişmesi gerekiyor. SocketProvider da Auth'a bağımlı.
+  // NetworkProvider EN DIŞTA: hiçbir context'e bağımlı değil, api sinyalleri
+  // auth'suz da akar (login ekranı da çevrimdışı banner'ını görmeli).
   return (
-    <AuthProvider>
-      <SocketProvider>
-        <LocationProvider>
-          <FilterProvider>
-            <HashRouter>
-              <AppContent />
-            </HashRouter>
-          </FilterProvider>
-        </LocationProvider>
-      </SocketProvider>
-    </AuthProvider>
+    <NetworkProvider>
+      <AuthProvider>
+        <SocketProvider>
+          <LocationProvider>
+            <FilterProvider>
+              <HashRouter>
+                <AppContent />
+              </HashRouter>
+            </FilterProvider>
+          </LocationProvider>
+        </SocketProvider>
+      </AuthProvider>
+    </NetworkProvider>
   );
 }
 

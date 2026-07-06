@@ -8,15 +8,35 @@ import {
 } from '../services/authStorage';
 import { unregisterPushOnLogout } from '../services/pushNotificationService';
 import { clearCurrentUserCache } from '../services/currentUserStore';
-import { JOKERS_CACHE_KEY, MATCHES_CACHE_KEY } from '../utils/listCache';
+import {
+    JOKERS_CACHE_KEY,
+    MATCHES_CACHE_KEY,
+    NOTIFICATIONS_CACHE_KEY,
+    CHANNELS_CACHE_KEY,
+    TEAM_CACHE_KEY,
+    BIZ_DASHBOARD_CACHE_KEY,
+    BUSINESSES_CACHE_KEY,
+} from '../utils/listCache';
 
 // Çıkış/oturum düşmesinde kullanıcıya-özel önbellekleri temizle. (userId zarfı
-// zaten yanlış hesaba sızmayı engeller; bu temizlik hijyen.) Sahalar'ın herkese
-// açık `cached_businesses`'ına bilinçli dokunulmaz. Sondaki iki literal, artık
-// kullanılmayan eski anahtarların (v1 şeması) storage kalıntısını süpürür.
+// zaten yanlış hesaba sızmayı engeller; bu temizlik hijyen.) Sondaki literal'ler,
+// artık kullanılmayan eski anahtarların (v1 şeması + çıplak cached_businesses —
+// v2 ile kullanıcı-kapsamlı zarfa taşındı) storage kalıntısını süpürür.
 function clearCustomerCaches(): void {
     clearCurrentUserCache();
-    [JOKERS_CACHE_KEY, MATCHES_CACHE_KEY, 'cached_matches_v1', 'cached_mkt_businesses_v1'].forEach((k) => {
+    [
+        JOKERS_CACHE_KEY,
+        MATCHES_CACHE_KEY,
+        NOTIFICATIONS_CACHE_KEY,
+        CHANNELS_CACHE_KEY,
+        TEAM_CACHE_KEY,
+        BIZ_DASHBOARD_CACHE_KEY,
+        BUSINESSES_CACHE_KEY,
+        'cached_matches_v1',
+        'cached_mkt_businesses_v1',
+        'cached_businesses',
+        'cache_cleared_v3',
+    ].forEach((k) => {
         try { localStorage.removeItem(k); } catch { /* ignore */ }
     });
 }

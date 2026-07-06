@@ -4,6 +4,8 @@ import api, { getNotificationsPaged, markAllNotificationsRead } from '../../../.
 import { useSocket } from '../../../../contexts/SocketContext';
 import { useCurrentUser } from '../../../../hooks/useCurrentUser';
 import { readListCache, writeListCache, NOTIFICATIONS_CACHE_KEY } from '../../../../utils/listCache';
+import { isNetworkError } from '../../../../utils/apiError';
+import { useOnReconnect } from '../../../../hooks/useOnReconnect';
 import { Challenge } from '../../../../types';
 
 const PAGE_SIZE = 20;
@@ -53,6 +55,8 @@ export const useNotifications = () => {
     const [total, setTotal] = useState<number | null>(null);
     const [hasMore, setHasMore] = useState(false);
     const [loadingMore, setLoadingMore] = useState(false);
+    // Ağ hatası / genel hata ayrımı — boş listede "Bağlantı yok + Tekrar Dene".
+    const [loadError, setLoadError] = useState<'network' | 'generic' | null>(null);
     const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
     const [matchRequests, setMatchRequests] = useState<Challenge[]>([]);
     const [loading, setLoading] = useState(notifications.length === 0);
@@ -114,8 +118,10 @@ export const useNotifications = () => {
             }
             setTotal(t);
             setHasMore(more);
+            setLoadError(null);
         } catch (error) {
             console.error('Bildirimler alınamadı:', error);
+            if (reset) setLoadError(isNetworkError(error) ? 'network' : 'generic');
         } finally {
             if (gen === fetchGenRef.current) {
                 isFetchingRef.current = false;
@@ -154,6 +160,9 @@ export const useNotifications = () => {
         if (!hasMore || isFetchingRef.current) return;
         void fetchNotifications(false);
     }, [hasMore, fetchNotifications]);
+
+    // Ağ geri gelince tam tazele (bildirimler + yan veriler).
+    useOnReconnect(() => { void fetchData(); });
 
     useEffect(() => {
         void fetchData();
@@ -314,7 +323,8 @@ export const useNotifications = () => {
     return {
         activeTab, setActiveTab,
         notifications, loading,
-        total, hasMore, loadingMore, loadMore,
+        total, hasMore, loadingMore, loadMore, loadError,
+        refetch: fetchData,
         successMessage, errorMessage,
         selectedJoinRequest, setSelectedJoinRequest,
         selectedTeamId, setSelectedTeamId,

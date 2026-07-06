@@ -3,6 +3,9 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import api from '../../../../services/api';
 import { formatMessageDate } from '../utils/chatUtils';
 import { useSocket } from '../../../../contexts/SocketContext';
+import { isNetworkError } from '../../../../utils/apiError';
+import { readListCache, writeListCache, CHANNELS_CACHE_KEY } from '../../../../utils/listCache';
+import { useOnReconnect } from '../../../../hooks/useOnReconnect';
 
 const mapMsg = (msg: any, currentUserId?: string) => ({
     id: msg.id,
@@ -19,7 +22,9 @@ const mapMsg = (msg: any, currentUserId?: string) => ({
 
 export const useChat = () => {
     const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
-    const [channels, setChannels] = useState<any[]>([]);
+    // Stale-while-revalidate: önbellekli kanal listesi (ilk 30) anında basılır —
+    // çevrimdışı açılışta "Henüz sohbetin yok" yerine son bilinen sohbetler görünür.
+    const [channels, setChannels] = useState<any[]>(() => readListCache(CHANNELS_CACHE_KEY));
     const [messages, setMessages] = useState<any[]>([]);
     const [input, setInput] = useState('');
     const [isSending, setIsSending] = useState(false);
@@ -57,8 +62,11 @@ export const useChat = () => {
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [hasMore, setHasMore] = useState(false);
     const [loadingMore, setLoadingMore] = useState(false);
-    const [isLoadingChannels, setIsLoadingChannels] = useState(true);
+    const [isLoadingChannels, setIsLoadingChannels] = useState(channels.length === 0);
     const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+    // Ağ hatası ayrımı — boş kanal listesinde "Bağlantı yok" ile gerçek
+    // "Henüz sohbetin yok" karışmasın.
+    const [channelsError, setChannelsError] = useState<'network' | 'generic' | null>(null);
 
     const socket = useSocket();
     const isFirstChannelFetchRef = useRef(true);
@@ -81,8 +89,12 @@ export const useChat = () => {
         try {
             const response = await api.get('/chat/channels');
             setChannels(response.data);
+            // Sayfa-0 dengi: ilk 30 kanal çevrimdışı açılış için saklanır.
+            writeListCache(CHANNELS_CACHE_KEY, (response.data ?? []).slice(0, 30));
+            setChannelsError(null);
         } catch (error) {
             console.error('Failed to fetch channels:', error);
+            setChannelsError(isNetworkError(error) ? 'network' : 'generic');
         } finally {
             if (isFirstChannelFetchRef.current) {
                 isFirstChannelFetchRef.current = false;
@@ -90,6 +102,9 @@ export const useChat = () => {
             }
         }
     }, []);
+
+    // Ağ geri gelince kanal listesini tazele (60sn fallback interval'ini beklemeden).
+    useOnReconnect(fetchChannels);
 
     useEffect(() => {
         fetchChannels();
@@ -481,7 +496,7 @@ export const useChat = () => {
         handleCancelMatch, handleCancelRequest, handleUndoCancelRequest,
         handleAcceptProposal, handleAcceptRematch, handleInviteJokerToMatch, handleCancelJokerNegotiation,
         hasMore, loadingMore, loadMoreMessages,
-        isLoadingChannels, isLoadingMessages,
+        isLoadingChannels, isLoadingMessages, channelsError,
         fetchChannels,
     };
 };

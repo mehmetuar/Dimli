@@ -1,36 +1,29 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../../../../services/api';
 import { getBusinessesPaged } from '../../../../services/api';
-import { getErrorMessage } from '../../../../utils/apiError';
+import { getErrorMessage, isNetworkError } from '../../../../utils/apiError';
 import { Business, Team } from '../../../../types';
 import { LocationFilter } from '../../../../components/Modals/LocationFilterModal';
 import { useLocationContext } from '../../../../contexts/LocationContext';
 import { useFilterContext } from '../../../../contexts/FilterContext';
 import { useCurrentUser } from '../../../../hooks/useCurrentUser';
+import { readListCache, writeListCache, BUSINESSES_CACHE_KEY } from '../../../../utils/listCache';
+import { useOnReconnect } from '../../../../hooks/useOnReconnect';
 
 export const usePitchBooking = () => {
     const { coords, radius, setRadius, requestLocation } = useLocationContext();
     const { selectedDate, setSelectedDate, pitchSortBy, setPitchSortBy, isDateFilterModalOpen: isDateFilterOpen, setIsDateFilterModalOpen: setIsDateFilterOpen } = useFilterContext();
 
-    const [businesses, setBusinesses] = useState<Business[]>(() => {
-        try {
-            const cached = localStorage.getItem('cached_businesses');
-            return cached ? JSON.parse(cached) : [];
-        } catch { return []; } // bozuk cache hook'u çökertmesin
-    });
-
-    // Clear potentially corrupted cache once to handle schema changes
-    useEffect(() => {
-        const hasCleared = localStorage.getItem('cache_cleared_v3');
-        if (!hasCleared) {
-            localStorage.removeItem('cached_businesses');
-            localStorage.setItem('cache_cleared_v3', 'true');
-        }
-    }, []);
+    // listCache (kullanıcı-kapsamlı zarf) — eski çıplak 'cached_businesses' anahtarı
+    // v2 ile buraya taşındı; versiyonlu anahtar eski kaydı kendiliğinden öldürür
+    // (cache_cleared_v3 tek-seferlik temizlik bloğu da bu taşımayla kalktı).
+    const [businesses, setBusinesses] = useState<Business[]>(() => readListCache(BUSINESSES_CACHE_KEY));
 
     const [isLoadingBusinesses, setIsLoadingBusinesses] = useState(false);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [hasMore, setHasMore] = useState(false);
+    // Ağ hatası / genel hata ayrımı — boş listede "Bağlantı yok + Tekrar Dene".
+    const [loadError, setLoadError] = useState<'network' | 'generic' | null>(null);
 
     // İşletme adıyla arama (Sahalar arama çubuğu). searchQuery anlık input; debouncedQuery
     // ~350ms sonra sunucuya gider (aşırı istek olmasın). Arama SERVER-SIDE: sunucu tüm
@@ -151,15 +144,17 @@ export const usePitchBooking = () => {
                 // sonuçları soğuk-açılış cache'ini KİRLETMESİN. q temizlenince reset yine
                 // varsayılan page-0'ı çekip cache'ler.
                 if (!debouncedQuery) {
-                    localStorage.setItem('cached_businesses', JSON.stringify(items));
+                    writeListCache(BUSINESSES_CACHE_KEY, items);
                 }
                 lastFetchKeyRef.current = key;
             } else {
                 setBusinesses(prev => [...prev, ...items]);
             }
             setHasMore(!!res?.hasMore);
+            setLoadError(null);
         } catch (error) {
             console.error('Failed to fetch businesses:', error);
+            if (reset) setLoadError(isNetworkError(error) ? 'network' : 'generic');
         } finally {
             // Yalnız güncel nesil bayrakları temizler (eski/superseded çağrılar dokunmaz).
             if (gen === fetchGenRef.current) {
@@ -182,6 +177,9 @@ export const usePitchBooking = () => {
 
     // Pull-to-refresh: konum aynı olsa da sayfa 0'ı zorla yenile.
     const refreshBusinesses = useCallback(() => doFetch(true, true), [doFetch]);
+
+    // Ağ geri gelince sayfa-0 tazele (OfflineBanner yeşil onayıyla eşzamanlı).
+    useOnReconnect(refreshBusinesses);
 
     useEffect(() => {
         if (expandedBusinessId && selectedPitchIdInBusiness[expandedBusinessId]) {
@@ -350,7 +348,7 @@ export const usePitchBooking = () => {
         currentUser, pitchAnnouncements,
         isAuthorized, filteredBusinesses,
         applyLocationFilter,
-        isLoadingBusinesses, isLoadingMore, hasMore,
+        isLoadingBusinesses, isLoadingMore, hasMore, loadError,
         loadMoreBusinesses, refreshBusinesses,
         handleSendOffer, handleConfirmCancel, handleConfirmDeleteAd,
         handleCreateAd, handleUnauthorizedSlotClick, openSlotDetail,

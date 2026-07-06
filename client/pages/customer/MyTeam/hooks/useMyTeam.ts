@@ -1,22 +1,46 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api, { getPitches, getBusinesses } from '../../../../services/api';
 import { Team, Player, Pitch, Business, MatchHistoryItem } from '../../../../types';
 import { SuccessType } from '../../../../components/Modals/SuccessModal';
 import { useLocationContext } from '../../../../contexts/LocationContext';
 import { LocationFilter } from '../../../../components/Modals/LocationFilterModal';
+import { getCurrentUserSnapshot } from '../../../../services/currentUserStore';
+import { isNetworkError } from '../../../../utils/apiError';
+import { readObjectCache, writeObjectCache, TEAM_CACHE_KEY } from '../../../../utils/listCache';
+import { useOnReconnect } from '../../../../hooks/useOnReconnect';
+
+// Kadro projeksiyonu — fetch/cache-hydrate/create yollarında aynı eşleme.
+const mapRoster = (players: any[]): Partial<Player>[] =>
+    (players || []).map((p: any) => ({
+        id: p.id,
+        name: p.full_name || p.username,
+        position: p.position || 'Orta Saha',
+        avatarUrl: p.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.full_name || p.username || '?')}&background=random&size=100`,
+        rating: p.rating || 0,
+    }));
 
 export const useMyTeam = (modals: any) => {
     const navigate = useNavigate();
     const { coords, radius, setRadius } = useLocationContext();
-    const [currentUser, setCurrentUser] = useState<any>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [myTeam, setMyTeam] = useState<Team | undefined>(undefined);
-    const [roster, setRoster] = useState<Partial<Player>[]>([]);
+    // Çevrimdışı açılış: ortak store snapshot'ı + takım önbelleği ile sayfa
+    // "son bilinen" haliyle açılır — eski davranış ağ hatasında kullanıcıyı
+    // YANLIŞLIKLA login'e yönlendiriyordu (currentUser null → <Navigate>).
+    const [currentUser, setCurrentUser] = useState<any>(() => getCurrentUserSnapshot());
+    const [isLoading, setIsLoading] = useState(currentUser === null);
+    const [loadError, setLoadError] = useState<'network' | 'generic' | null>(null);
+    const [myTeam, setMyTeam] = useState<Team | undefined>(
+        () => readObjectCache<{ team: Team | null }>(TEAM_CACHE_KEY)?.team ?? undefined,
+    );
+    const [roster, setRoster] = useState<Partial<Player>[]>(
+        () => mapRoster((readObjectCache<{ team: any }>(TEAM_CACHE_KEY)?.team?.players) ?? []),
+    );
     const [pitches, setPitches] = useState<Pitch[]>([]);
     const [businesses, setBusinesses] = useState<Business[]>([]);
     const [isLocationFilterOpen, setIsLocationFilterOpen] = useState(false);
-    const [bio, setBio] = useState('');
+    const [bio, setBio] = useState(
+        () => readObjectCache<{ team: any }>(TEAM_CACHE_KEY)?.team?.description ?? '',
+    );
     const [isEditingBio, setIsEditingBio] = useState(false);
     const [upcomingMatches, setUpcomingMatches] = useState<any[]>([]);
     const [isUpcomingLoading, setIsUpcomingLoading] = useState(false);
@@ -39,46 +63,49 @@ export const useMyTeam = (modals: any) => {
         }
     }, [successMessage, errorMessage]);
 
-    useEffect(() => {
-        const fetchUser = async () => {
-            try {
-                const response = await api.get('/users/me');
-                const user = response.data;
-                setCurrentUser(user);
+    const fetchUser = useCallback(async () => {
+        try {
+            const response = await api.get('/users/me');
+            const user = response.data;
+            setCurrentUser(user);
 
-                const [pitchesData, historyResponse] = await Promise.all([
-                    getPitches(),
-                    api.get('/ratings/history'),
-                ]);
-                setPitches(pitchesData);
-                setMatchHistory(historyResponse.data || []);
+            const [pitchesData, historyResponse] = await Promise.all([
+                getPitches(),
+                api.get('/ratings/history'),
+            ]);
+            setPitches(pitchesData);
+            setMatchHistory(historyResponse.data || []);
 
-                if (user.team) {
-                    const teamResponse = await api.get(`/teams/${user.team.id}`);
-                    const fullTeam = teamResponse.data;
+            if (user.team) {
+                const teamResponse = await api.get(`/teams/${user.team.id}`);
+                const fullTeam = teamResponse.data;
 
-                    setMyTeam(fullTeam);
-                    setBio(fullTeam.description || '');
-
-                    if (fullTeam.players) {
-                        const mappedRoster = fullTeam.players.map((p: any) => ({
-                            id: p.id,
-                            name: p.full_name || p.username,
-                            position: p.position || 'Orta Saha',
-                            avatarUrl: p.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.full_name || p.username || '?')}&background=random&size=100`,
-                            rating: p.rating || 0
-                        }));
-                        setRoster(mappedRoster);
-                    }
-                }
-            } catch (error) {
-                console.error("Failed to fetch user profile", error);
-            } finally {
-                setIsLoading(false);
+                setMyTeam(fullTeam);
+                setBio(fullTeam.description || '');
+                if (fullTeam.players) setRoster(mapRoster(fullTeam.players));
+                // Çevrimdışı açılış için son bilinen takım saklanır.
+                writeObjectCache(TEAM_CACHE_KEY, { team: fullTeam });
+            } else {
+                // Takımsız kullanıcı: bayat takım önbelleği kalmasın (ayrılma/silme sonrası).
+                setMyTeam(undefined);
+                setRoster([]);
+                writeObjectCache(TEAM_CACHE_KEY, { team: null });
             }
-        };
-        fetchUser();
+            setLoadError(null);
+        } catch (error) {
+            console.error("Failed to fetch user profile", error);
+            setLoadError(isNetworkError(error) ? 'network' : 'generic');
+        } finally {
+            setIsLoading(false);
+        }
     }, []);
+
+    useEffect(() => {
+        fetchUser();
+    }, [fetchUser]);
+
+    // Ağ geri gelince profil + takım tazele (banner yeşil onayıyla eşzamanlı).
+    useOnReconnect(fetchUser);
 
     // Konum değişince işletmeleri yeniden çek — PitchBooking ile aynı pattern
     useEffect(() => {
@@ -237,7 +264,7 @@ export const useMyTeam = (modals: any) => {
     const applyLocationFilter = (filter: LocationFilter) => { if (filter.radius) setRadius(filter.radius); };
 
     return {
-        currentUser, isLoading, myTeam, setMyTeam, roster, setRoster,
+        currentUser, isLoading, loadError, fetchUser, myTeam, setMyTeam, roster, setRoster,
         pitches, businesses, bio, setBio, isEditingBio, setIsEditingBio,
         upcomingMatches, isUpcomingLoading, fetchUpcomingMatches,
         matchHistory, isMatchHistoryLoading, fetchMatchHistory,

@@ -5,6 +5,8 @@ import { useLocationContext } from '../../../../contexts/LocationContext';
 import { useFilterContext } from '../../../../contexts/FilterContext';
 import { useCurrentUser } from '../../../../hooks/useCurrentUser';
 import { readListCache, writeListCache, MATCHES_CACHE_KEY } from '../../../../utils/listCache';
+import { isNetworkError } from '../../../../utils/apiError';
+import { useOnReconnect } from '../../../../hooks/useOnReconnect';
 
 const PAGE_SIZE = 50;
 
@@ -22,6 +24,9 @@ export const useMarketplace = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
+  // Ağ hatası / genel hata ayrımı — boş listede "Bağlantı yok + Tekrar Dene"
+  // ile gerçek "ilan yok" durumunu ayırt etmek için.
+  const [loadError, setLoadError] = useState<'network' | 'generic' | null>(null);
 
   // Yarış korumaları (usePitchBooking referans deseni): her reset bir "nesil"
   // başlatır; eski yanıtlar reset'ten sonra uygulanmaz. Offset, birikmiş liste
@@ -107,8 +112,10 @@ export const useMarketplace = () => {
         setMatches(prev => [...prev, ...res.items]);
       }
       setHasMore(res.hasMore);
+      setLoadError(null);
     } catch (err) {
       console.error('Failed to fetch announcements', err);
+      if (reset) setLoadError(isNetworkError(err) ? 'network' : 'generic');
     } finally {
       if (gen === fetchGenRef.current) {
         isFetchingRef.current = false;
@@ -134,6 +141,9 @@ export const useMarketplace = () => {
   const refetch = () => {
     doFetch(true, true);
   };
+
+  // Ağ geri gelince sayfa-0 tazele (OfflineBanner yeşil onayıyla eşzamanlı).
+  useOnReconnect(() => doFetch(true, true));
 
   const applyLocationFilter = (filter: LocationFilter) => {
     if (filter.radius) setRadius(filter.radius);
@@ -195,6 +205,7 @@ export const useMarketplace = () => {
     hasMore,
     loadMore,
     refetch,
+    loadError,
     myChallenges,
     setMyChallenges,
     isCreateModalOpen,

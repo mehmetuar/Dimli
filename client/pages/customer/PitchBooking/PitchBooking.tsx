@@ -3,6 +3,7 @@ import { MapPin, RefreshCw } from 'lucide-react';
 import { LoadingSpinner } from '../../../components/UI/LoadingSpinner';
 import { LottiePlayer } from '../../../components/UI/LottiePlayer';
 import { LocationAccessGate } from '../../../components/LocationAccessGate';
+import { OfflineEmptyState } from '../../../components/OfflineEmptyState';
 
 import { usePitchBooking } from './hooks/usePitchBooking';
 import { TeamDetailModal } from './components/TeamDetailModal';
@@ -46,7 +47,7 @@ export const PitchBooking: React.FC = () => {
       handleSendOffer, handleConfirmCancel, handleConfirmDeleteAd,
       handleCreateAd, handleUnauthorizedSlotClick, openSlotDetail,
       handleCancelClick, handleDeleteAdClick,
-      isLoadingBusinesses, isLoadingMore,
+      isLoadingBusinesses, isLoadingMore, loadError,
       loadMoreBusinesses, refreshBusinesses,
       slotWarning, setSlotWarning,
       refetchReservations,
@@ -280,6 +281,9 @@ export const PitchBooking: React.FC = () => {
                         <LoadingSpinner />
                         <p className="mt-4 text-sm font-medium">İşletmeler yükleniyor...</p>
                      </div>
+                  ) : filteredBusinesses.length === 0 && loadError === 'network' ? (
+                     // Ağ hatasıyla boş kalan liste ≠ "konumda işletme yok" — sebep + retry.
+                     <OfflineEmptyState onRetry={refreshBusinesses} />
                   ) : filteredBusinesses.length === 0 ? (
                      <div className="text-center py-12 px-6 text-slate-400 bg-slate-800/50 rounded-3xl border border-dashed border-slate-700 flex flex-col items-center">
                         {/* Saha çizim animasyonu (tek-sefer); reduce-motion/yüklenme → statik pin */}

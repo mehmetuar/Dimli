@@ -6,6 +6,7 @@ import { ConfirmModal } from '../../../components/Modals/ConfirmModal';
 import { SuccessModal } from '../../../components/Modals/SuccessModal';
 import { BusinessDateFilterModal } from './components/BusinessDateFilterModal';
 import { BusinessLoadingSpinner } from '../../../components/Business/BusinessLoadingSpinner';
+import { OfflineEmptyState } from '../../../components/OfflineEmptyState';
 
 // Hooks
 import { useBusinessDashboard } from './hooks/useBusinessDashboard';
@@ -29,6 +30,8 @@ export const BusinessDashboard: React.FC = () => {
         resubmitting,
         handleResubmit,
         loading,
+        loadError,
+        fetchDashboard,
         selectedSlot,
         setSelectedSlot,
         showDatePicker,
@@ -93,7 +96,21 @@ export const BusinessDashboard: React.FC = () => {
     }, [pullDistance, silentRefetch]);
 
     if (loading) return <BusinessLoadingSpinner fullScreen />;
-    if (!dashboardData) return <div className="min-h-screen bg-slate-800 flex items-center justify-center text-white font-bold italic">Veri bulunamadı.</div>;
+    // Ağ hatası ile gerçek veri yokluğu AYRI: eski tek "Veri bulunamadı" mavi
+    // ekranı çevrimdışıda yanıltıcıydı; artık sebep + Tekrar Dene sunulur.
+    if (!dashboardData) {
+        return (
+            <OfflineEmptyState
+                accent="orange"
+                fullScreen
+                onRetry={() => fetchDashboard()}
+                {...(loadError !== 'network' && {
+                    title: 'Bir sorun oluştu',
+                    description: 'Veriler yüklenemedi. Lütfen tekrar deneyin.',
+                })}
+            />
+        );
+    }
 
     const hasActiveSubscription = subscription && ['active', 'trial'].includes(subscription.status);
     const isPending = businessStatus === 'pending';

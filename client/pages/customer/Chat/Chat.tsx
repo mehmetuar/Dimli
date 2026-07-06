@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useMemo } from 'react';
 import { Send, ChevronLeft, Users, Shield, Star, Phone, ArrowDown, Swords, MoreVertical, X, ChevronRight, Trash2, XCircle, AlertTriangle, Undo2, UserMinus, UserPlus, RefreshCw, CheckCircle, MessageCircle } from 'lucide-react';
 import { useChat } from './hooks/useChat';
 import { useMessageActions } from './hooks/useMessageActions';
+import { OfflineEmptyState } from '../../../components/OfflineEmptyState';
 import { ChannelItem } from './components/ChannelItem';
 import { MatchStatusBadge } from './components/MatchStatusBadge';
 import { MessageBubble } from './components/MessageBubble';
@@ -51,7 +52,7 @@ export const Chat: React.FC = () => {
     handleCancelMatch, handleCancelRequest, handleUndoCancelRequest,
     handleAcceptProposal, handleAcceptRematch, handleInviteJokerToMatch, handleCancelJokerNegotiation,
     hasMore, loadingMore, loadMoreMessages,
-    isLoadingChannels, isLoadingMessages,
+    isLoadingChannels, isLoadingMessages, channelsError,
     fetchChannels,
   } = useChat();
 
@@ -243,6 +244,9 @@ export const Chat: React.FC = () => {
                   </div>
                 ))}
               </div>
+            ) : channels.length === 0 && channelsError === 'network' ? (
+              // Ağ hatasıyla boş kalan liste ≠ "Henüz sohbetin yok" — sebep + retry.
+              <OfflineEmptyState onRetry={fetchChannels} />
             ) : channels.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 px-6 text-center gap-3">
                 <div className="w-16 h-16 rounded-full bg-slate-800/80 border border-slate-700/50 flex items-center justify-center">

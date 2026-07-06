@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { LoadingSpinner } from '../../../components/UI/LoadingSpinner';
+import { OfflineEmptyState } from '../../../components/OfflineEmptyState';
 import { useModalBodyClass } from '../../../utils/useModalBodyClass';
 import { Check, X, Shield, Crown, Trash2, ShieldX, ChevronRight, MoreVertical } from 'lucide-react';
 
@@ -35,7 +36,7 @@ export const MyTeam: React.FC = () => {
         }
     }, [location.state]);
     const {
-        currentUser, isLoading, myTeam, setMyTeam, roster, setRoster,
+        currentUser, isLoading, loadError, fetchUser, myTeam, setMyTeam, roster, setRoster,
         businesses, bio, setBio, isEditingBio, setIsEditingBio,
         upcomingMatches, isUpcomingLoading, fetchUpcomingMatches,
         matchHistory, isMatchHistoryLoading, fetchMatchHistory,
@@ -60,6 +61,20 @@ export const MyTeam: React.FC = () => {
     }
 
     if (!currentUser) {
+        // Ağ hatası ≠ oturumsuzluk: profil yüklenemediyse (snapshot da yokken)
+        // login'e ATMAK yerine "Bağlantı yok + Tekrar Dene" gösterilir.
+        if (loadError) {
+            return (
+                <OfflineEmptyState
+                    fullScreen
+                    onRetry={fetchUser}
+                    {...(loadError !== 'network' && {
+                        title: 'Bir sorun oluştu',
+                        description: 'Profil yüklenemedi. Lütfen tekrar deneyin.',
+                    })}
+                />
+            );
+        }
         return <Navigate to="/login" replace />;
     }
 

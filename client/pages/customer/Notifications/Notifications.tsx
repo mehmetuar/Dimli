@@ -2,6 +2,7 @@ import React from 'react';
 import { CheckCircle, AlertCircle, ChevronLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { LoadingSpinner } from '../../../components/UI/LoadingSpinner';
+import { OfflineEmptyState } from '../../../components/OfflineEmptyState';
 import { PlayerDetailModal } from '../../../components/Modals/PlayerDetailModal';
 import { TeamDetailModal } from '../../../components/Modals/TeamDetailModal';
 
@@ -16,7 +17,7 @@ export const Notifications: React.FC = () => {
    const {
       activeTab, setActiveTab,
       notifications, loading,
-      total, hasMore, loadingMore, loadMore,
+      total, hasMore, loadingMore, loadMore, loadError, refetch,
       successMessage, errorMessage,
       selectedJoinRequest, setSelectedJoinRequest,
       selectedTeamId, setSelectedTeamId,
@@ -104,11 +105,16 @@ export const Notifications: React.FC = () => {
                      )}
 
                      {activeTab === 'ALL' && (
-                        <AllNotificationsTab
-                           notifications={notifications}
-                           handleAcceptRematchFromNotif={handleAcceptRematchFromNotif}
-                           setActiveTab={setActiveTab}
-                        />
+                        // Ağ hatasıyla boş kalan liste ≠ "bildirim yok" — sebep + retry.
+                        notifications.length === 0 && loadError === 'network' ? (
+                           <OfflineEmptyState onRetry={refetch} />
+                        ) : (
+                           <AllNotificationsTab
+                              notifications={notifications}
+                              handleAcceptRematchFromNotif={handleAcceptRematchFromNotif}
+                              setActiveTab={setActiveTab}
+                           />
+                        )
                      )}
 
                      {/* Infinite-scroll alt göstergesi (Marketplace deseni) */}

@@ -5,11 +5,23 @@ import { getOwnerId } from '../../../../services/authStorage';
 import { SuccessType } from '../../../../components/Modals/SuccessModal';
 import { isPastSlot as isPastSlotShared } from '../../../../utils/nightSlot';
 import { listPresetNotes, createPresetNote, PresetNote } from '../../../../services/presetNotes';
+import { isNetworkError } from '../../../../utils/apiError';
+import { readObjectCache, writeObjectCache, BIZ_DASHBOARD_CACHE_KEY } from '../../../../utils/listCache';
+import { useOnReconnect } from '../../../../hooks/useOnReconnect';
+
+// Yalnız BUGÜNÜN önbelleği geçerli — dashboard tarih bağımlı; dünkü özet
+// bugünmüş gibi gösterilmez. Tarih seçilmişse cache miss (kabul edilir).
+const readTodayDashboardCache = () => {
+    const cached = readObjectCache<{ date: string; data: any; subscription: any }>(BIZ_DASHBOARD_CACHE_KEY);
+    return cached?.date === new Date().toISOString().split('T')[0] ? cached : null;
+};
 
 export const useBusinessDashboard = () => {
     const location = useLocation();
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-    const [dashboardData, setDashboardData] = useState<any>(null);
+    // Stale-while-revalidate: bugünün önbelleği varsa soğuk açılışta anında basılır
+    // ("mavi ekran" yerine); arkada normal fetch sürer.
+    const [dashboardData, setDashboardData] = useState<any>(() => readTodayDashboardCache()?.data ?? null);
 
     // Bildirimden "Rezervasyon İsteğine Git" ile gelen slot hedefi: veri o TARİH
     // için yüklendiğinde SlotDetailModal otomatik açılır (date guard'ı, bugünün
@@ -48,11 +60,15 @@ export const useBusinessDashboard = () => {
             if (incoming === selectedDate) tryOpenPendingSlot(dashboardData, incoming);
         }
     }, [location.state]);
-    const [subscription, setSubscription] = useState<any>(null);
-    const [businessStatus, setBusinessStatus] = useState<string | null>(null);
+    const [subscription, setSubscription] = useState<any>(() => readTodayDashboardCache()?.subscription ?? null);
+    const [businessStatus, setBusinessStatus] = useState<string | null>(() => readTodayDashboardCache()?.data?.businessStatus ?? null);
     const [rejectionReason, setRejectionReason] = useState<string | null>(null);
     const [resubmitting, setResubmitting] = useState(false);
-    const [loading, setLoading] = useState(true);
+    // Önbellek hydrate edildiyse spinner'sız başla; taze veri arkada gelir.
+    const [loading, setLoading] = useState(dashboardData === null);
+    // Ağ hatası / genel hata ayrımı — boş-durum ekranı "Bağlantı yok + Tekrar Dene"
+    // ile "Veri bulunamadı"yı ayırt eder.
+    const [loadError, setLoadError] = useState<'network' | 'generic' | null>(null);
     const [selectedSlot, setSelectedSlot] = useState<any>(null);
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [note, setNote] = useState('');
@@ -148,18 +164,33 @@ export const useBusinessDashboard = () => {
             setBusinessStatus(data?.businessStatus ?? null);
             setRejectionReason(data?.rejectionReason ?? null);
             setSubscription(subRes.data);
+            setLoadError(null);
+
+            // Çevrimdışı açılış için bugünün özeti saklanır (yalnız bugün — tarih
+            // bağımlı veri; readTodayDashboardCache aynı guard'la okur).
+            if (selectedDate === new Date().toISOString().split('T')[0]) {
+                writeObjectCache(BIZ_DASHBOARD_CACHE_KEY, {
+                    date: selectedDate,
+                    data,
+                    subscription: subRes.data,
+                });
+            }
 
             // Bildirimden gelinen slot hedefi bu tarihin TAZE verisiyle açılır
             // (closure'daki selectedDate = bu fetch'in sorguladığı tarih).
             tryOpenPendingSlot(data, selectedDate);
         } catch (error) {
             console.error('Error fetching dashboard:', error);
+            setLoadError(isNetworkError(error) ? 'network' : 'generic');
         } finally {
             if (!silent) setLoading(false);
         }
     };
 
     const silentRefetch = useCallback(() => fetchDashboard(true), [selectedDate]);
+
+    // Ağ geri gelince sessiz tazele (banner yeşil onayıyla eşzamanlı).
+    useOnReconnect(silentRefetch);
 
     // Reddedilen işletmeyi tekrar onaya gönder (status rejected -> pending).
     // Body yok; sunucu owner'ı JWT'den çözer ve yalnız 'rejected'tan geçişe izin verir.
@@ -433,6 +464,8 @@ export const useBusinessDashboard = () => {
         resubmitting,
         handleResubmit,
         loading,
+        loadError,
+        fetchDashboard,
         selectedSlot,
         setSelectedSlot,
         showDatePicker,

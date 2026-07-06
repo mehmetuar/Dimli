@@ -2,6 +2,7 @@ import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { MapPin, RefreshCw, Calendar, ArrowUpDown, EyeOff } from 'lucide-react';
 import { LoadingSpinner } from '../../../components/UI/LoadingSpinner';
 import { LocationAccessGate } from '../../../components/LocationAccessGate';
+import { OfflineEmptyState } from '../../../components/OfflineEmptyState';
 import { CreateMatchModal } from '../../../components/Modals/CreateMatchModal';
 import { ChallengeModal } from './components/ChallengeModal';
 import { TeamDetailModal } from '../../../components/Modals/TeamDetailModal';
@@ -45,6 +46,7 @@ export const Marketplace: React.FC = () => {
     filteredMatches,
     loadingMore,
     hasMore,
+    loadError,
     loadMore,
     refetch,
     selectedDate,
@@ -344,11 +346,16 @@ export const Marketplace: React.FC = () => {
                 <p className="mt-4 text-sm font-medium">Maçlar Yükleniyor...</p>
               </div>
             ) : displayMatches.length === 0 ? (
-              <div className="text-center py-12 text-slate-400">
-                {matches.length === 0
-                  ? "Henüz aktif ilan yok. İlk ilanı sen oluştur!"
-                  : "Seçilen kriterlere uygun ilan bulunamadı."}
-              </div>
+              // Ağ hatasıyla boş kalan liste ile gerçek "ilan yok" AYRI gösterilir.
+              matches.length === 0 && loadError === 'network' ? (
+                <OfflineEmptyState onRetry={refetch} />
+              ) : (
+                <div className="text-center py-12 text-slate-400">
+                  {matches.length === 0
+                    ? "Henüz aktif ilan yok. İlk ilanı sen oluştur!"
+                    : "Seçilen kriterlere uygun ilan bulunamadı."}
+                </div>
+              )
             ) : (
               <>
                 {displayMatches.map((announcement) => (
