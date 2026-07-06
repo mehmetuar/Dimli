@@ -2,9 +2,11 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Brackets, Repository } from 'typeorm';
 import { Challenge } from './challenge.entity';
 import { MatchAnnouncement } from '../match-announcements/match-announcement.entity';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -12,7 +14,10 @@ import { MatchAnnouncementsService } from '../match-announcements/match-announce
 import { TeamsService } from '../teams/teams.service';
 import { ChatService } from '../chat/chat.service';
 import { ReservationsService } from '../reservations/reservations.service';
-import { istanbulDateTimeToUtc } from '../common/turkey-time.util';
+import {
+  istanbulDateTimeToUtc,
+  nowInIstanbul,
+} from '../common/turkey-time.util';
 
 @Injectable()
 export class ChallengesService {
@@ -110,6 +115,40 @@ export class ChallengesService {
     });
   }
 
+  // Takım İstekleri ekranı: takımın GELECEK maçlara gönderdiği meydan okumalar,
+  // opponent takım + saha + işletme join'li (findIncomingByTeamId deseni). Geçmiş
+  // maçlar (date+time < now) hariç → ekran kirlenmez; cron artıkları da temizler.
+  async findActiveOutgoingByTeamId(teamId: string): Promise<Challenge[]> {
+    const { dateStr: todayStr, hours, minutes } = nowInIstanbul();
+    const currentTimeStr = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+
+    return this.challengesRepository
+      .createQueryBuilder('challenge')
+      .leftJoinAndSelect('challenge.match', 'match')
+      .leftJoinAndSelect('match.team', 'opponentTeam')
+      .leftJoinAndSelect('match.pitch', 'pitch')
+      .leftJoinAndSelect('pitch.business', 'business')
+      .where('challenge.fromTeamId = :teamId', { teamId })
+      .andWhere('challenge.status IN (:...statuses)', {
+        statuses: ['PENDING', 'ACCEPTED'],
+      })
+      // Yalnız gelecek maçlar (İstanbul date+time >= now)
+      .andWhere(
+        new Brackets((qb) => {
+          qb.where('match.date > :today', { today: todayStr }).orWhere(
+            new Brackets((qb2) => {
+              qb2
+                .where('match.date = :today', { today: todayStr })
+                .andWhere('match.time >= :nowTime', { nowTime: currentTimeStr });
+            }),
+          );
+        }),
+      )
+      .orderBy('match.date', 'ASC')
+      .addOrderBy('match.time', 'ASC')
+      .getMany();
+  }
+
   async findIncomingByTeamId(teamId: string): Promise<Challenge[]> {
     // Find match announcements created by this team
     const matches = await this.matchAnnouncementsRepository.find({
@@ -134,11 +173,31 @@ export class ChallengesService {
       .getMany();
   }
 
-  async delete(id: string): Promise<void> {
+  async delete(id: string, userId?: string): Promise<void> {
     const challenge = await this.challengesRepository.findOne({
       where: { id },
     });
     if (!challenge) throw new NotFoundException('Meydan okuma bulunamadı.');
+
+    // Yetki: yalnız meydan okuyan takımın kaptanı/yardımcı kaptanı geri çekebilir
+    // (joker cancel F1 deseniyle aynı). userId verildiyse doğrula.
+    if (userId) {
+      const team = await this.teamsService.findOne(challenge.fromTeamId);
+      const isLeader =
+        !!team &&
+        (team.captainId === userId ||
+          (team.viceCaptainIds || []).includes(userId));
+      if (!isLeader) {
+        throw new ForbiddenException(
+          'Bu meydan okumayı yalnız takım kaptanı veya yardımcı kaptanı geri çekebilir.',
+        );
+      }
+      if (challenge.status !== 'PENDING') {
+        throw new BadRequestException(
+          'Yalnız cevap bekleyen meydan okumalar geri çekilebilir.',
+        );
+      }
+    }
 
     // Delete related notification
     const notification = await this.notificationsService[

@@ -99,6 +99,7 @@ export const MyTeam: React.FC = () => {
                 handleCreateTeam={handleCreateTeam}
                 matchHistory={matchHistory}
                 isMatchHistoryLoading={isMatchHistoryLoading}
+                isLeader={isCaptain || isViceCaptain}
                 successMessage={successMessage}
                 successType={successType}
                 setSuccessMessage={setSuccessMessage}
@@ -133,6 +134,7 @@ export const MyTeam: React.FC = () => {
                         setIsUpcomingMatchesOpen={modals.setIsUpcomingMatchesOpen}
                         fetchMatchHistory={fetchMatchHistory}
                         setIsMatchHistoryOpen={modals.setIsMatchHistoryOpen}
+                        setIsTeamRequestsOpen={modals.setIsTeamRequestsOpen}
                     />
 
                     <TeamHomeBusiness

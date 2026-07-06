@@ -6,9 +6,13 @@ import {
   Delete,
   Body,
   Param,
+  Request,
+  UseGuards,
 } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ChallengesService } from './challenges.service';
 
+@UseGuards(JwtAuthGuard)
 @Controller('challenges')
 export class ChallengesController {
   constructor(private readonly challengesService: ChallengesService) {}
@@ -44,13 +48,23 @@ export class ChallengesController {
     return this.challengesService.findByTeamId(teamId);
   }
 
+  // Takım İstekleri ekranı: zengin + yalnız GELECEK maçlara giden meydan okumalar
+  @Get('team/:teamId/active')
+  async getActiveOutgoing(@Param('teamId') teamId: string) {
+    return this.challengesService.findActiveOutgoingByTeamId(teamId);
+  }
+
   @Get('team/:teamId/incoming')
   async getIncomingByTeam(@Param('teamId') teamId: string) {
     return this.challengesService.findIncomingByTeamId(teamId);
   }
 
+  // İptal (geri çek): yalnız fromTeam'in kaptanı/yardımcı kaptanı (service'te doğrulanır)
   @Delete(':id')
-  async delete(@Param('id') id: string) {
-    return this.challengesService.delete(id);
+  async delete(
+    @Param('id') id: string,
+    @Request() req: { user: { id: string } },
+  ) {
+    return this.challengesService.delete(id, req.user.id);
   }
 }

@@ -5,6 +5,7 @@ import { AddPlayerModal } from './AddPlayerModal';
 import { ConfirmModal } from '../../../../components/Modals/ConfirmModal';
 import { MatchHistoryModal } from './MatchHistoryModal';
 import { UpcomingMatchesModal } from './UpcomingMatchesModal';
+import { TeamRequestsModal } from './TeamRequestsModal';
 import { CreateMatchModal } from '../../../../components/Modals/CreateMatchModal';
 import { SuccessModal, SuccessType } from '../../../../components/Modals/SuccessModal';
 import { TeamCreatedCelebration } from './TeamCreatedCelebration';
@@ -19,6 +20,7 @@ interface TeamModalsProps {
     handleCreateTeam: (data: any) => void;
     matchHistory: MatchHistoryItem[];
     isMatchHistoryLoading: boolean;
+    isLeader: boolean;
     successMessage: string;
     successType: SuccessType | null;
     setSuccessMessage: (msg: string) => void;
@@ -27,7 +29,7 @@ interface TeamModalsProps {
 
 export const TeamModals: React.FC<TeamModalsProps> = ({
     modals, myTeam, roster, upcomingMatches, isUpcomingLoading, handleCreateTeam,
-    matchHistory, isMatchHistoryLoading,
+    matchHistory, isMatchHistoryLoading, isLeader,
     successMessage, successType, setSuccessMessage, setSuccessType
 }) => {
     return (
@@ -85,6 +87,13 @@ export const TeamModals: React.FC<TeamModalsProps> = ({
                 matches={upcomingMatches}
                 currentTeamId={myTeam?.id}
                 isLoading={isUpcomingLoading}
+            />
+
+            <TeamRequestsModal
+                isOpen={modals.isTeamRequestsOpen}
+                onClose={() => modals.setIsTeamRequestsOpen(false)}
+                teamId={myTeam?.id}
+                isLeader={isLeader}
             />
 
             <CreateMatchModal

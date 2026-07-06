@@ -23,6 +23,7 @@ import { Team } from '../teams/team.entity';
 import {
   istanbulDateTimeToUtc,
   istanbulDisplayParts,
+  nowInIstanbul,
 } from '../common/turkey-time.util';
 import { TeamsService } from '../teams/teams.service';
 import { AppGateway } from '../gateway/app.gateway';
@@ -482,6 +483,126 @@ export class NotificationsService {
     if (toCancel) {
       await this.notificationsRepository.delete(toCancel.id);
     }
+  }
+
+  // Takım İstekleri ekranı — Joker Davetleri sekmesi: takımın GELECEK maçları için
+  // maç-bazlı gruplu joker listesi. İki kaynak birleşir:
+  //  - Bekleyen (PENDING): JOKER_INVITE bildirimi hâlâ duruyor (joker kabul etmemiş).
+  //  - Katılmış (JOINED):  joker kabul edince bildirim silinir (deleteOwnJokerInvite),
+  //    joker MATCH_GROUP'ta aktif katılımcıdır → oradan türetilir.
+  // matchId havuzu = takımın gelecek KENDİ ilanları ∪ takımın davet gönderdiği maçlar.
+  async getTeamJokerInvites(teamId: string): Promise<any[]> {
+    const { dateStr: todayStr, hours, minutes } = nowInIstanbul();
+    const nowTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+    const isFuture = (date?: string, time?: string) =>
+      !!date &&
+      (date > todayStr || (date === todayStr && (time || '00:00') >= nowTime));
+
+    // B: takımın gönderdiği joker davetleri (metadata.teamId — JSONB yerine bellek filtresi)
+    const allJokerInvites = await this.notificationsRepository.find({
+      where: { type: 'JOKER_INVITE' },
+    });
+    const teamInvites = allJokerInvites.filter(
+      (n) => n.metadata?.teamId === teamId,
+    );
+
+    // A: takımın kendi ilanları (gelecek) + B'nin matchId'leri → havuz
+    const ownMatches = await this.matchAnnouncementsRepository.find({
+      where: { teamId },
+    });
+    const matchIdSet = new Set<string>();
+    ownMatches
+      .filter((m) => isFuture(m.date, m.time))
+      .forEach((m) => matchIdSet.add(m.id));
+    teamInvites.forEach((n) => n.relatedId && matchIdSet.add(n.relatedId));
+    const matchIds = [...matchIdSet];
+    if (matchIds.length === 0) return [];
+
+    const matches = await this.matchAnnouncementsRepository.find({
+      where: { id: In(matchIds) },
+      relations: ['team', 'pitch', 'pitch.business'],
+    });
+    const matchById = new Map(matches.map((m) => [m.id, m]));
+
+    // Joker satırı — client'ta oyuncu kartı (PlayerDetailModal) için tam profil alanları.
+    const jokerEntry = (
+      u: User,
+      status: 'PENDING' | 'JOINED',
+      notificationId: string | null,
+    ) => ({
+      jokerId: u.id,
+      name: u.full_name || u.username,
+      avatarUrl: u.avatarUrl ?? null,
+      position: u.position ?? null,
+      status,
+      notificationId,
+      // oyuncu kartı alanları
+      foot: u.foot ?? null,
+      birthDate: u.birthDate ?? null,
+      secondaryPosition: u.secondaryPosition ?? null,
+      location: u.location ?? null,
+      nationality: u.nationality ?? null,
+      favoriteBusinessIds: u.favoriteBusinessIds ?? [],
+    });
+
+    const result: any[] = [];
+    for (const matchId of matchIds) {
+      const match = matchById.get(matchId);
+      if (!match || !isFuture(match.date, match.time)) continue;
+
+      const opponentTeamId = await this.resolveOpponentTeamId(match);
+      const matchTeamIds = [match.teamId, opponentTeamId].filter(Boolean);
+
+      const jokers: any[] = [];
+
+      // Bekleyen davetler (bu takımın, bu maça)
+      for (const n of teamInvites.filter((x) => x.relatedId === matchId)) {
+        const joker = await this.usersRepository.findOne({
+          where: { id: n.userId },
+        });
+        if (!joker) continue;
+        jokers.push(jokerEntry(joker, 'PENDING', n.id));
+      }
+
+      // Katılmış jokerler (MATCH_GROUP'ta, maçın iki takımından hiçbirine ait olmayan aktif üyeler)
+      const channel = await this.chatChannelsRepository.findOne({
+        where: { relatedMatchId: matchId, type: 'MATCH_GROUP' },
+      });
+      if (channel) {
+        const parts = await this.chatParticipantsRepository.find({
+          where: { channelId: channel.id, deletedAt: IsNull() },
+          relations: ['user'],
+        });
+        for (const p of parts) {
+          const u = p.user;
+          if (!u) continue;
+          const isJoker = !u.teamId || !matchTeamIds.includes(u.teamId);
+          if (isJoker) {
+            jokers.push(jokerEntry(u, 'JOINED', null));
+          }
+        }
+      }
+
+      if (jokers.length === 0) continue;
+      result.push({
+        matchId,
+        date: match.date,
+        time: match.time,
+        matchType: match.matchType,
+        pitchName: match.pitch?.name ?? null,
+        businessName: match.pitch?.business?.name ?? null,
+        district: match.pitch?.business?.district ?? null,
+        opponentTeamName:
+          match.teamId === teamId ? null : (match.team?.name ?? null),
+        jokers,
+      });
+    }
+
+    // Yakın maç önce
+    result.sort((a, b) =>
+      (a.date + a.time).localeCompare(b.date + b.time),
+    );
+    return result;
   }
 
   async findByUser(userId: string): Promise<Notification[]> {

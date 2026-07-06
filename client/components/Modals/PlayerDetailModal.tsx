@@ -17,6 +17,8 @@ interface PlayerDetailModalProps {
     onEdit?: () => void;
     onAccept?: () => void;
     onReject?: () => void;
+    // Başka bir modalın (ör. z-[70]) ÜSTÜNDE açmak için katman sınıfı. Varsayılan z-[60].
+    zClass?: string;
 }
 
 export const PlayerDetailModal: React.FC<PlayerDetailModalProps> = (props) => {
@@ -35,7 +37,8 @@ const PlayerDetailModalContent: React.FC<PlayerDetailModalProps> = ({
 
     onEdit,
     onAccept,
-    onReject
+    onReject,
+    zClass = 'z-[60]'
 }) => {
     if (!player) return null;
 
@@ -55,7 +58,7 @@ const PlayerDetailModalContent: React.FC<PlayerDetailModalProps> = ({
 
     // Portal → body: TeamProfile scroll konteynerine hapsolmasın (backdrop tüm ekranı kaplasın)
     return createPortal(
-        <div className="fixed inset-0 z-[60] flex items-center justify-center px-4 bg-black/95 backdrop-blur-md animate-fade-in overflow-y-auto py-10">
+        <div className={`fixed inset-0 ${zClass} flex items-center justify-center px-4 bg-black/95 backdrop-blur-md animate-fade-in overflow-y-auto py-10`}>
             {/* Close Button */}
             <button
                 onClick={onClose}

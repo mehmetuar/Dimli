@@ -8,6 +8,7 @@ export const useTeamModals = () => {
     const [isAddPlayerModalOpen, setIsAddPlayerModalOpen] = useState(false);
     const [isMatchHistoryOpen, setIsMatchHistoryOpen] = useState(false);
     const [isUpcomingMatchesOpen, setIsUpcomingMatchesOpen] = useState(false);
+    const [isTeamRequestsOpen, setIsTeamRequestsOpen] = useState(false);
     const [isCreateMatchModalOpen, setIsCreateMatchModalOpen] = useState(false);
     const [isTeamMenuOpen, setIsTeamMenuOpen] = useState(false);
 
@@ -40,6 +41,7 @@ export const useTeamModals = () => {
         isAddPlayerModalOpen, setIsAddPlayerModalOpen,
         isMatchHistoryOpen, setIsMatchHistoryOpen,
         isUpcomingMatchesOpen, setIsUpcomingMatchesOpen,
+        isTeamRequestsOpen, setIsTeamRequestsOpen,
         isCreateMatchModalOpen, setIsCreateMatchModalOpen,
         isTeamMenuOpen, setIsTeamMenuOpen,
         confirmModal, setConfirmModal,

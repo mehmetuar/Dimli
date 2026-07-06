@@ -612,6 +612,52 @@ export class MatchAnnouncementsService {
         );
       }
     }
+
+    // İstek/davet "ölü artıkları"nı temizle (geçmiş maçlar) — birikmeyi önler.
+    await this.cleanupStaleRequests();
+  }
+
+  // Geçmiş (İstanbul date+time < now) maçlara ait, hiç işlem görmemiş istek/davet
+  // artıklarını hard-delete eder. Güvenli: challenges.id/notifications'a bağlı FK YOK;
+  // ACCEPTED challenge'a DOKUNULMAZ (oynanmış maç → veri reservation'da korunur);
+  // puanlama/geçmiş maç reservation'dan beslenir (challenge okumaz). Bkz. plan raporu.
+  private async cleanupStaleRequests(): Promise<void> {
+    const { dateStr: todayStr, hours, minutes } = nowInIstanbul();
+    const nowTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+    const em = this.matchAnnouncementsRepository.manager;
+    const past = `(ma.date < $1 OR (ma.date = $1 AND ma.time < $2))`;
+    const params = [todayStr, nowTime];
+
+    try {
+      // 1. Geçmiş maça giden PENDING/REJECTED challenge'ların CHALLENGE bildirimini sil
+      await em.query(
+        `DELETE FROM notifications n
+           WHERE n.type = 'CHALLENGE'
+             AND n."relatedId" IN (
+               SELECT c.id::text FROM challenges c
+               JOIN match_announcements ma ON ma.id = c."toMatchId"
+               WHERE c.status IN ('PENDING','REJECTED') AND ${past})`,
+        params,
+      );
+      // 2. Challenge'ları sil (yalnız PENDING/REJECTED; ACCEPTED korunur)
+      await em.query(
+        `DELETE FROM challenges c
+           USING match_announcements ma
+           WHERE ma.id = c."toMatchId"
+             AND c.status IN ('PENDING','REJECTED') AND ${past}`,
+        params,
+      );
+      // 3. Geçmiş maça ait bekleyen JOKER_INVITE bildirimlerini sil
+      await em.query(
+        `DELETE FROM notifications n
+           USING match_announcements ma
+           WHERE ma.id::text = n."relatedId"
+             AND n.type = 'JOKER_INVITE' AND ${past}`,
+        params,
+      );
+    } catch (err) {
+      console.error('❌ cleanupStaleRequests başarısız:', err);
+    }
   }
 
   private async deleteExpired(): Promise<void> {

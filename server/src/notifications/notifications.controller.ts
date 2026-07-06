@@ -65,6 +65,14 @@ export class NotificationsController {
     return this.notificationsService.getSentJokerInvites(req.user.id, jokerId);
   }
 
+  // Takım İstekleri ekranı — takımın gelecek maçları için maç-bazlı joker daveti listesi
+  // (bekleyen + katılmış). Görüntüleme tüm üyelere açık; iptal cancelJokerInvite'ta yetkilendirilir.
+  @UseGuards(JwtAuthGuard)
+  @Get('joker-invites/team/:teamId')
+  async getTeamJokerInvites(@Param('teamId') teamId: string) {
+    return this.notificationsService.getTeamJokerInvites(teamId);
+  }
+
   @UseGuards(JwtAuthGuard)
   @Delete('joker-invite/:jokerId/:matchId')
   async cancelJokerInvite(
