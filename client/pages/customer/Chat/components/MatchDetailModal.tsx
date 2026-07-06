@@ -6,6 +6,7 @@ import { useLocationContext } from '../../../../contexts/LocationContext';
 import { calculateDistance } from '../../../../utils/location';
 import { addOneHour } from '../../../../utils/time';
 import { DirectionsConfirmModal } from '../../PitchBooking/components/DirectionsConfirmModal';
+import { teamInitialsAvatar } from '../../../../utils/teamColors';
 
 interface TeamData {
     id: string;
@@ -233,7 +234,7 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({ isOpen, onCl
                                     }}
                                 >
                                     {data.homeTeam.logoUrl ? (
-                                        <img src={data.homeTeam.logoUrl} alt="" className="w-full h-full object-cover" />
+                                        <img src={data.homeTeam.logoUrl} alt="" className="w-full h-full object-cover" onError={(e) => { const el = e.currentTarget; el.onerror = null; el.src = teamInitialsAvatar(data.homeTeam?.name); }} />
                                     ) : (
                                         data.homeTeam.name.charAt(0)
                                     )}
@@ -269,7 +270,7 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({ isOpen, onCl
                                             }}
                                         >
                                             {data.awayTeam.logoUrl ? (
-                                                <img src={data.awayTeam.logoUrl} alt="" className="w-full h-full object-cover" />
+                                                <img src={data.awayTeam.logoUrl} alt="" className="w-full h-full object-cover" onError={(e) => { const el = e.currentTarget; el.onerror = null; el.src = teamInitialsAvatar(data.awayTeam?.name); }} />
                                             ) : (
                                                 data.awayTeam.name.charAt(0)
                                             )}

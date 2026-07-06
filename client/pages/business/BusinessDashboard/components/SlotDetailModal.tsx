@@ -3,6 +3,7 @@ import { X, Users, Phone, AlertTriangle, Check, MessageSquare, Star, Trophy, Rep
 import { Clock } from 'lucide-react';
 import { useModalBodyClass } from '../../../../utils/useModalBodyClass';
 import { telHref } from '../../../../utils/phone';
+import { teamLogoSrc, teamInitialsAvatar } from '../../../../utils/teamColors';
 
 // İsteğin geliş zamanı — kart sağ üstünde küçük gösterim ("3 Tem 15:16").
 const formatRequestTime = (createdAt?: string): string => {
@@ -148,8 +149,8 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                                         {/* TEAM 1 (Requester) */}
                                         <div className="flex items-start gap-4 mb-4">
                                             <div className="w-14 h-14 bg-slate-900 rounded-full border-2 border-slate-600 flex items-center justify-center overflow-hidden shrink-0">
-                                                {res.team?.logoUrl ? (
-                                                    <img src={res.team.logoUrl} className="w-full h-full object-cover" />
+                                                {res.team ? (
+                                                    <img src={teamLogoSrc(res.team)} alt={res.team?.name} className="w-full h-full object-cover" onError={(e) => { const el = e.currentTarget; el.onerror = null; el.src = teamInitialsAvatar(res.team?.name); }} />
                                                 ) : (
                                                     <Users className="w-6 h-6 text-slate-500" />
                                                 )}
@@ -215,8 +216,8 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                                         {res.opponentTeam && (
                                             <div className="flex items-start gap-4 mb-4">
                                                 <div className="w-14 h-14 bg-slate-900 rounded-full border-2 border-slate-600 flex items-center justify-center overflow-hidden shrink-0">
-                                                    {res.opponentTeam?.logoUrl ? (
-                                                        <img src={res.opponentTeam.logoUrl} className="w-full h-full object-cover" />
+                                                    {res.opponentTeam ? (
+                                                        <img src={teamLogoSrc(res.opponentTeam)} alt={res.opponentTeam?.name} className="w-full h-full object-cover" onError={(e) => { const el = e.currentTarget; el.onerror = null; el.src = teamInitialsAvatar(res.opponentTeam?.name); }} />
                                                     ) : (
                                                         <Users className="w-6 h-6 text-slate-500" />
                                                     )}

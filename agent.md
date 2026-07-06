@@ -1811,3 +1811,27 @@ Bitmap Index Scan doğrulandı; 255 satırlık local DB'de planlayıcı haklı o
    yolunda yazma. Çözüm: WHERE ile dışla, silmeyi cron'a taşı.
 3. Konum PATCH yazma yükü: koordinat güncellemesi 2 tekil + 1 kısmi indeksi güncelliyor; kısmi indeks
    kanıtlandıktan sonra tekil lat/lng indeksleri düşürülerek yazma yükü azaltılabilir (250m eşiği korunmalı).
+
+## 48. Takım logosu baş-harf fallback'i uygulama geneline tamamlandı (2026-07-06)
+
+§20de8d5 ile eklenen kanonik desen (`teamLogoSrc`/`teamInitialsAvatar`, client/utils/teamColors.ts)
+5 noktaya uygulanmıştı; kalan eksikler tarandı ve kapatıldı. Meydan Oku (ChallengeModal) modalında
+logosuz rakip takım `via.placeholder.com` erişilemeyince kırık "?" görseli veriyordu — asıl bildirilen hata.
+
+### KALICI KURAL
+Takım logosu render eden HER `<img>` şu iki güvenceyi taşımalı:
+1. `src` = `teamLogoSrc(team)` (nesne) VEYA düz alanlarda `team.logo/logoUrl || teamInitialsAvatar(team.name)`.
+2. `onError` = `(e) => { const el = e.currentTarget; el.onerror = null; el.src = teamInitialsAvatar(name); }`.
+Ham `logoUrl || 'placeholder'` VEYA fallback'siz `<img src={logoUrl}>` YASAK. Logosuz takımda genel
+ikon (Users/Shield) göstermek de artık tercih edilmez — baş-harf avatarı kullan (mevcut takım-renkli
+gradyan+harf kutuları — TeamHeaderCard/JoinTeamModal/Chat MatchDetail — korunur, sadece bozuk-URL için
+onError eklendi).
+
+### Bu turda düzeltilen noktalar
+- Kırık (fallback yok): ChallengeModal (Meydan Oku), CreateMatchModal footer rozeti.
+- İkon→baş-harf: PitchBooking SlotDetailModal (6), BusinessDashboard SlotDetailModal (2),
+  TeamInvite, BusinessNotificationsPage teamLogo() helper, ReservationRequestDetailModal.
+- Sadece onError emniyeti (yerel harf fallback'i korundu): Chat MatchDetailModal, Chat MessageBubble
+  avatar, TeamHeaderCard, JoinTeamModal.
+- Not: ilk otomatik tarama ReservationRequestDetailModal ve MessageBubble'ı "güvenli" sanıp kaçırmıştı;
+  grep denetimi (`img src={...logo}` ∧ ¬onError) ile yakalandı — bu grep gelecekte de regresyon kontrolü.

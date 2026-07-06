@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Users, MessageCircle, Shield, Clock, Repeat } from 'lucide-react';
 import { Team } from '../../../../types';
 import { useModalBodyClass } from '../../../../utils/useModalBodyClass';
+import { teamLogoSrc, teamInitialsAvatar } from '../../../../utils/teamColors';
 
 interface SlotDetailModalProps {
     isOpen: boolean;
@@ -96,8 +97,9 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                                     ) : !approvedReservation.opponentTeam ? (
                                         <div className="flex flex-col items-center justify-center gap-2">
                                             <div className="w-20 h-20 bg-slate-800 rounded-full mx-auto mb-2 border-2 border-orange-500/50 flex items-center justify-center shadow-[0_0_15px_rgba(249,115,22,0.15)] relative overflow-hidden">
-                                                {approvedReservation.team?.logoUrl ? (
-                                                    <img src={approvedReservation.team.logoUrl} className="w-full h-full object-cover" />
+                                                {/* Takım varsa logosuz da olsa baş-harf avatarı; takım hiç yoksa ikon */}
+                                                {approvedReservation.team ? (
+                                                    <img src={teamLogoSrc(approvedReservation.team)} alt={approvedReservation.team?.name} className="w-full h-full object-cover" onError={(e) => { const el = e.currentTarget; el.onerror = null; el.src = teamInitialsAvatar(approvedReservation.team?.name); }} />
                                                 ) : (
                                                     <Users className="w-8 h-8 text-orange-400" />
                                                 )}
@@ -109,8 +111,8 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                                         <>
                                             <div className="text-center flex-1">
                                                 <div className="w-16 h-16 bg-slate-800 rounded-full mx-auto mb-2 border-2 border-slate-600 overflow-hidden relative flex items-center justify-center">
-                                                    {approvedReservation.team?.logoUrl ? (
-                                                        <img src={approvedReservation.team.logoUrl} className="w-full h-full object-cover" />
+                                                    {approvedReservation.team ? (
+                                                        <img src={teamLogoSrc(approvedReservation.team)} alt={approvedReservation.team?.name} className="w-full h-full object-cover" onError={(e) => { const el = e.currentTarget; el.onerror = null; el.src = teamInitialsAvatar(approvedReservation.team?.name); }} />
                                                     ) : (
                                                         <Shield className="w-8 h-8 text-slate-600" />
                                                     )}
@@ -122,8 +124,8 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
 
                                             <div className="text-center flex-1">
                                                 <div className="w-16 h-16 bg-slate-800 rounded-full mx-auto mb-2 border-2 border-slate-600 overflow-hidden relative flex items-center justify-center">
-                                                    {approvedReservation.opponentTeam?.logoUrl ? (
-                                                        <img src={approvedReservation.opponentTeam.logoUrl} className="w-full h-full object-cover" />
+                                                    {approvedReservation.opponentTeam ? (
+                                                        <img src={teamLogoSrc(approvedReservation.opponentTeam)} alt={approvedReservation.opponentTeam?.name} className="w-full h-full object-cover" onError={(e) => { const el = e.currentTarget; el.onerror = null; el.src = teamInitialsAvatar(approvedReservation.opponentTeam?.name); }} />
                                                     ) : (
                                                         <Shield className="w-8 h-8 text-slate-600" />
                                                     )}
@@ -172,19 +174,15 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                                             <div key={res.id} className="flex items-center gap-3 p-3 bg-slate-700/30 border border-slate-700 rounded-xl">
                                                 <div className="flex -space-x-3">
                                                     <div className="w-10 h-10 bg-slate-800 rounded-full border border-slate-600 flex items-center justify-center overflow-hidden z-10">
-                                                        {res.team?.logoUrl ? (
-                                                            <img src={res.team.logoUrl} className="w-full h-full object-cover" />
+                                                        {res.team ? (
+                                                            <img src={teamLogoSrc(res.team)} alt={res.team?.name} className="w-full h-full object-cover" onError={(e) => { const el = e.currentTarget; el.onerror = null; el.src = teamInitialsAvatar(res.team?.name); }} />
                                                         ) : (
                                                             <Shield className="w-5 h-5 text-slate-500" />
                                                         )}
                                                     </div>
                                                     {res.opponentTeam && (
                                                         <div className="w-10 h-10 bg-slate-800 rounded-full border border-slate-600 flex items-center justify-center overflow-hidden z-20">
-                                                            {res.opponentTeam?.logoUrl ? (
-                                                                <img src={res.opponentTeam.logoUrl} className="w-full h-full object-cover" />
-                                                            ) : (
-                                                                <Shield className="w-5 h-5 text-slate-500" />
-                                                            )}
+                                                            <img src={teamLogoSrc(res.opponentTeam)} alt={res.opponentTeam?.name} className="w-full h-full object-cover" onError={(e) => { const el = e.currentTarget; el.onerror = null; el.src = teamInitialsAvatar(res.opponentTeam?.name); }} />
                                                         </div>
                                                     )}
                                                 </div>
@@ -218,8 +216,8 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                                                 <div key={ann.id} className={`flex items-center gap-3 p-3 border rounded-xl relative overflow-hidden ${isMyTeam ? 'bg-turf-900/10 border-turf-500/30' : 'bg-slate-700/30 border-slate-700'}`}>
                                                     <div className={`absolute left-0 top-0 bottom-0 w-1 ${isMyTeam ? 'bg-white' : 'bg-turf-500'}`}></div>
                                                     <div className="w-10 h-10 bg-slate-800 rounded-full border border-slate-600 flex items-center justify-center overflow-hidden">
-                                                        {ann.team?.logoUrl ? (
-                                                            <img src={ann.team.logoUrl} className="w-full h-full object-cover" />
+                                                        {ann.team ? (
+                                                            <img src={teamLogoSrc(ann.team)} alt={ann.team?.name} className="w-full h-full object-cover" onError={(e) => { const el = e.currentTarget; el.onerror = null; el.src = teamInitialsAvatar(ann.team?.name); }} />
                                                         ) : (
                                                             <Shield className="w-5 h-5 text-slate-500" />
                                                         )}

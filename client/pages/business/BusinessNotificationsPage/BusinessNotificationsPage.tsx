@@ -8,6 +8,7 @@ import { BusinessLoadingSpinner } from '../../../components/Business/BusinessLoa
 import { stripNotificationEmoji } from '../../../utils/notificationText';
 import { ReservationRequestDetailModal } from './components/ReservationRequestDetailModal';
 import { BusinessNotification, levelLabel, matchTypeLabel } from './types';
+import { teamInitialsAvatar } from '../../../utils/teamColors';
 
 export const BusinessNotificationsPage: React.FC = () => {
     const navigate = useNavigate();
@@ -61,13 +62,14 @@ export const BusinessNotificationsPage: React.FC = () => {
             : m.time || '';
         const dateLine = [m.dayName, m.date].filter(Boolean).join(', ');
 
-        const teamLogo = (t: { logo?: string | null }) => (
+        const teamLogo = (t: { logo?: string | null; name?: string }) => (
             <div className="w-6 h-6 rounded-full bg-slate-900 border border-slate-600 flex items-center justify-center overflow-hidden shrink-0">
-                {t.logo ? (
-                    <img src={t.logo} alt="" className="w-full h-full object-cover" />
-                ) : (
-                    <Users className="w-3 h-3 text-slate-500" />
-                )}
+                <img
+                    src={t.logo || teamInitialsAvatar(t.name)}
+                    alt=""
+                    className="w-full h-full object-cover"
+                    onError={(e) => { const el = e.currentTarget; el.onerror = null; el.src = teamInitialsAvatar(t.name); }}
+                />
             </div>
         );
 

@@ -3,6 +3,7 @@ import { X, MapPin, Calendar, Clock, Swords, Store, Banknote, Navigation, Users 
 import { LoadingSpinner } from '../../../../components/UI/LoadingSpinner';
 import { KeyboardAwareModal } from '../../../../components/Modals/KeyboardAwareModal';
 import { addOneHour } from '../../../../utils/time';
+import { teamInitialsAvatar } from '../../../../utils/teamColors';
 
 interface ChallengeModalProps {
     isOpen: boolean;
@@ -65,7 +66,12 @@ export const ChallengeModal: React.FC<ChallengeModalProps> = ({ isOpen, onClose,
                     <div className="bg-slate-900/50 rounded-2xl border border-slate-700/50 overflow-hidden">
                         {/* Team Header */}
                         <div className="p-4 flex items-center gap-4 border-b border-slate-700/50 bg-slate-800/30">
-                            <img src={match.teamLogo || 'https://via.placeholder.com/50'} alt={match.teamName} className="w-12 h-12 rounded-full border-2 border-slate-600 object-cover" />
+                            <img
+                                src={match.teamLogo || teamInitialsAvatar(match.teamName)}
+                                alt={match.teamName}
+                                className="w-12 h-12 rounded-full border-2 border-slate-600 object-cover"
+                                onError={(e) => { const el = e.currentTarget; el.onerror = null; el.src = teamInitialsAvatar(match.teamName); }}
+                            />
                             <div>
                                 <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">Rakip Takım</div>
                                 <h3 className="font-sport font-bold text-xl text-white uppercase italic">{match.teamName}</h3>

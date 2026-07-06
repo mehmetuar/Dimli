@@ -14,6 +14,7 @@ import { LocationAccessGate } from '../LocationAccessGate';
 import { DateSelectionModal } from './DateSelectionModal';
 import { TimeSelectionModal } from './TimeSelectionModal';
 import { useModalBodyClass } from '../../utils/useModalBodyClass';
+import { teamLogoSrc, teamInitialsAvatar } from '../../utils/teamColors';
 
 interface Props {
     isOpen: boolean;
@@ -557,7 +558,12 @@ const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelected
                             </div>
                             {myTeam && (
                                 <div className="flex items-center gap-2">
-                                    <img src={myTeam.logoUrl} className="w-8 h-8 rounded-full border border-slate-600" />
+                                    <img
+                                        src={teamLogoSrc(myTeam)}
+                                        alt={myTeam.name}
+                                        className="w-8 h-8 rounded-full border border-slate-600 object-cover"
+                                        onError={(e) => { const el = e.currentTarget; el.onerror = null; el.src = teamInitialsAvatar(myTeam?.name); }}
+                                    />
                                     <span className="text-sm font-bold text-white">{myTeam.name}</span>
                                 </div>
                             )}

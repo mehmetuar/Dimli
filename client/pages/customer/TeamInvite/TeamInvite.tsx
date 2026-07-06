@@ -4,6 +4,7 @@ import { Loader2, Users, AlertCircle, CheckCircle, ArrowLeft } from 'lucide-reac
 import api from '../../../services/api';
 import { LevelBadge } from '../../../components/UI/LevelBadge';
 import { Team } from '../../../types';
+import { teamLogoSrc, teamInitialsAvatar } from '../../../utils/teamColors';
 
 export const TeamInvite: React.FC = () => {
     const { shortId } = useParams<{ shortId: string }>();
@@ -96,11 +97,12 @@ export const TeamInvite: React.FC = () => {
                         <>
                             <div className="flex flex-col items-center gap-3 text-center">
                                 <div className="w-20 h-20 rounded-2xl bg-slate-900 border border-slate-700 flex items-center justify-center overflow-hidden">
-                                    {team.logoUrl ? (
-                                        <img src={team.logoUrl} alt={team.name} className="w-full h-full object-cover" />
-                                    ) : (
-                                        <Users className="w-9 h-9 text-slate-500" />
-                                    )}
+                                    <img
+                                        src={teamLogoSrc(team)}
+                                        alt={team.name}
+                                        className="w-full h-full object-cover"
+                                        onError={(e) => { const el = e.currentTarget; el.onerror = null; el.src = teamInitialsAvatar(team?.name); }}
+                                    />
                                 </div>
                                 <div>
                                     <h2 className="text-white font-black text-lg">{team.name}</h2>

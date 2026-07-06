@@ -1,6 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import { Swords } from 'lucide-react';
 import { SystemMessageRenderer } from '../../../../components/UI/SystemMessageRenderer';
+import { teamInitialsAvatar } from '../../../../utils/teamColors';
 import type { ActionMessage, MenuPosition } from '../hooks/useMessageActions';
 
 interface MsgLike extends ActionMessage {
@@ -203,7 +204,7 @@ export const MessageBubble: React.FC<Props> = ({
                             onMouseDown={e => e.stopPropagation()}
                         >
                             {accent?.logo ? (
-                                <img src={accent.logo} className="w-full h-full object-cover" />
+                                <img src={accent.logo} className="w-full h-full object-cover" onError={(e) => { const el = e.currentTarget; el.onerror = null; el.src = teamInitialsAvatar(msg.senderName); }} />
                             ) : (
                                 msg.senderName.charAt(0).toUpperCase()
                             )}

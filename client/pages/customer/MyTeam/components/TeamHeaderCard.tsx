@@ -4,7 +4,7 @@ import { LevelBadge } from '../../../../components/UI/LevelBadge';
 import { FairPlayScore } from '../../../../components/UI/FairPlayScore';
 import { Team } from '../../../../types';
 import { useLongPress } from '../../Chat/hooks/useLongPress';
-import { toHex } from '../../../../utils/teamColors';
+import { toHex, teamInitialsAvatar } from '../../../../utils/teamColors';
 
 interface TeamHeaderCardProps {
     myTeam: Team;
@@ -62,7 +62,7 @@ export const TeamHeaderCard: React.FC<TeamHeaderCardProps> = ({
                     >
                         {(myTeam as any).logoUrl ? (
                             <img src={(myTeam as any).logoUrl} className="w-full h-full object-cover" alt="Logo"
-                                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                                onError={(e) => { const el = e.currentTarget; el.onerror = null; el.src = teamInitialsAvatar(myTeam?.name); }} />
                         ) : (
                             <div
                                 className="w-full h-full flex items-center justify-center text-white font-black text-xl sm:text-2xl"

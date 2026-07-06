@@ -4,6 +4,7 @@ import { X, Search, CheckCircle, AlertCircle, Loader2, Clock, Users } from 'luci
 import { Team } from '../../../../types';
 import api from '../../../../services/api';
 import { KeyboardAwareModal } from '../../../../components/Modals/KeyboardAwareModal';
+import { teamInitialsAvatar } from '../../../../utils/teamColors';
 
 interface Props {
   isOpen: boolean;
@@ -190,6 +191,7 @@ const JoinTeamModalContent: React.FC<Props> = ({ isOpen, onClose }) => {
                           className="w-11 h-11 rounded-xl object-cover shrink-0"
                           style={{ border: '1px solid rgba(255,255,255,0.1)' }}
                           alt={team.name}
+                          onError={(e) => { const el = e.currentTarget; el.onerror = null; el.src = teamInitialsAvatar(team?.name); }}
                         />
                       ) : (
                         <div

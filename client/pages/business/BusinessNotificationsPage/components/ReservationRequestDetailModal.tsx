@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { X, Users, Star, MapPin, CalendarDays, Clock, ArrowRight, History } from 'lucide-react';
 import { useModalBodyClass } from '../../../../utils/useModalBodyClass';
 import { BusinessNotification, ReservationRequestTeam, levelLabel, matchTypeLabel } from '../types';
+import { teamInitialsAvatar } from '../../../../utils/teamColors';
 
 interface ReservationRequestDetailModalProps {
     notification: BusinessNotification | null; // null → kapalı
@@ -43,11 +44,12 @@ export const ReservationRequestDetailModal: React.FC<ReservationRequestDetailMod
             <div className="bg-slate-900/50 rounded-2xl border border-slate-700/60 p-4">
                 <div className="flex items-center gap-3">
                     <div className="w-14 h-14 bg-slate-900 rounded-full border-2 border-slate-600 flex items-center justify-center overflow-hidden shrink-0">
-                        {t.logo ? (
-                            <img src={t.logo} alt="" className="w-full h-full object-cover" />
-                        ) : (
-                            <Users className="w-6 h-6 text-slate-500" />
-                        )}
+                        <img
+                            src={t.logo || teamInitialsAvatar(t.name)}
+                            alt={t.name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => { const el = e.currentTarget; el.onerror = null; el.src = teamInitialsAvatar(t.name); }}
+                        />
                     </div>
                     <div className="flex-1 min-w-0">
                         {label && (
