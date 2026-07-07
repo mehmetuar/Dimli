@@ -116,16 +116,43 @@ export class TeamsService implements OnModuleInit {
     return this.findOne(savedTeam.id) as Promise<Team>;
   }
 
+  // /teams yanıtlarında oyuncu/kaptan olarak dönen User kayıtlarındaki hassas
+  // alanlar (şifre hash'i, telefon, e-posta, push token, GPS, chat-ban) istemciye
+  // SIZMAMALI — GET /teams, /teams/:id ve /teams/search/:term anonim erişime açık.
+  // Yeni hassas kolon eklenirse bu listeye de ekle!
+  private static readonly SENSITIVE_USER_FIELDS = [
+    'password',
+    'email',
+    'phone',
+    'pushToken',
+    'latitude',
+    'longitude',
+    'isChatBanned',
+    'chatBannedAt',
+    'chatBanExpiry',
+    'phoneVerified',
+  ] as const;
+
+  // Alanlar "absent" bırakılır (null YAZILMAZ) → bu nesneler save()'e girse bile
+  // eksik key hiçbir UPDATE üretmez (Team.players zaten cascade'siz).
+  private sanitizeUser<T extends object>(user: T): T {
+    const copy = { ...user } as Record<string, unknown>;
+    for (const key of TeamsService.SENSITIVE_USER_FIELDS) delete copy[key];
+    return copy as unknown as T;
+  }
+
   async findAll(): Promise<Team[]> {
     const teams = await this.teamsRepository.find({ relations: ['captain'] });
 
     // For each team, manually load players using query builder
     for (const team of teams) {
-      team.players = await this.usersService['usersRepository']
+      const players = await this.usersService['usersRepository']
         .createQueryBuilder('user')
         .leftJoinAndSelect('user.team', 'team')
         .where('team.id = :teamId', { teamId: team.id })
         .getMany();
+      team.players = players.map((u) => this.sanitizeUser(u));
+      if (team.captain) team.captain = this.sanitizeUser(team.captain);
     }
 
     return teams;
@@ -160,7 +187,13 @@ export class TeamsService implements OnModuleInit {
         const playedMatchCount = await this.ratingsService.getTeamMatchCount(
           team.id,
         );
-        return { ...team, playedMatchCount };
+        return {
+          ...team,
+          captain: team.captain
+            ? this.sanitizeUser(team.captain)
+            : team.captain,
+          playedMatchCount,
+        };
       }),
     );
 
@@ -186,18 +219,21 @@ export class TeamsService implements OnModuleInit {
       `🔍 DEBUG: Found ${players.length} players for team ${team.name}`,
     );
 
-    // Map User entity to Player interface structure
-    team.players = players.map((user) => ({
-      ...user,
-      id: user.id,
-      name: user.full_name || user.username, // vital mapping
-      position: user.position,
-      avatarUrl:
-        user.avatarUrl ||
-        `https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name || user.username)}&background=random`,
-      rating: user.rating,
-      teamId: team.id,
-    }));
+    // Map User entity to Player interface structure (hassas alanlar temizlenir)
+    team.players = players.map((user) =>
+      this.sanitizeUser({
+        ...user,
+        id: user.id,
+        name: user.full_name || user.username, // vital mapping
+        position: user.position,
+        avatarUrl:
+          user.avatarUrl ||
+          `https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name || user.username)}&background=random`,
+        rating: user.rating,
+        teamId: team.id,
+      }),
+    );
+    if (team.captain) team.captain = this.sanitizeUser(team.captain);
 
     const playedMatchCount = await this.ratingsService.getTeamMatchCount(
       team.id,
@@ -325,15 +361,24 @@ export class TeamsService implements OnModuleInit {
     if (!player) throw new NotFoundException('Oyuncu takımda bulunamadı.');
 
     if (role === 'CAPTAIN') {
-      // Swap captain
+      // Swap captain; yardımcıyken kaptan yapılan oyuncu hayalet yardımcı
+      // slotu işgal etmesin diye viceCaptainIds'ten de düşürülür.
       team.captain = player;
+      if (team.viceCaptainIds?.includes(playerId)) {
+        team.viceCaptainIds = team.viceCaptainIds.filter(
+          (id) => id !== playerId,
+        );
+      }
     } else if (role === 'VICE') {
-      // Add to viceCaptainIds if not already present (max 2)
       if (!team.viceCaptainIds) team.viceCaptainIds = [];
-      if (
-        !team.viceCaptainIds.includes(playerId) &&
-        team.viceCaptainIds.length < 2
-      ) {
+      // Zaten yardımcıysa idempotent (değişiklik yok); limit doluysa SESSİZCE
+      // ATLANMAZ — 409 döner ki client sahte başarı modalı göstermesin.
+      if (!team.viceCaptainIds.includes(playerId)) {
+        if (team.viceCaptainIds.length >= 2) {
+          throw new ConflictException(
+            'Bir takımda en fazla 2 yardımcı kaptan olabilir.',
+          );
+        }
         team.viceCaptainIds.push(playerId);
       }
     }
@@ -352,11 +397,14 @@ export class TeamsService implements OnModuleInit {
     if (!team.viceCaptainIds) team.viceCaptainIds = [];
 
     if (add) {
-      // Add vice-captain (max 2)
-      if (
-        !team.viceCaptainIds.includes(add) &&
-        team.viceCaptainIds.length < 2
-      ) {
+      // Zaten yardımcıysa idempotent; limit doluysa sessizce atlamak yerine
+      // 409 (updatePlayerRole VICE dalıyla parite — sahte başarı önlenir).
+      if (!team.viceCaptainIds.includes(add)) {
+        if (team.viceCaptainIds.length >= 2) {
+          throw new ConflictException(
+            'Bir takımda en fazla 2 yardımcı kaptan olabilir.',
+          );
+        }
         team.viceCaptainIds.push(add);
       }
     }
