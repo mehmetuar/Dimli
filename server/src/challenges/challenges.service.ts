@@ -115,38 +115,42 @@ export class ChallengesService {
     });
   }
 
-  // Takım İstekleri ekranı: takımın GELECEK maçlara gönderdiği meydan okumalar,
-  // opponent takım + saha + işletme join'li (findIncomingByTeamId deseni). Geçmiş
-  // maçlar (date+time < now) hariç → ekran kirlenmez; cron artıkları da temizler.
+  // Takım İstekleri ekranı: takımın GELECEK maçlara gönderdiği ve hâlâ CEVAP
+  // BEKLEYEN meydan okumalar, opponent takım + saha + işletme join'li
+  // (findIncomingByTeamId deseni). Yalnız PENDING — kabul edilenler bu listeden
+  // düşer (kesinleşen maç Yaklaşan Maçlar'da görünür). Geçmiş maçlar
+  // (date+time < now) hariç → ekran kirlenmez; cron artıkları da temizler.
   async findActiveOutgoingByTeamId(teamId: string): Promise<Challenge[]> {
     const { dateStr: todayStr, hours, minutes } = nowInIstanbul();
     const currentTimeStr = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 
-    return this.challengesRepository
-      .createQueryBuilder('challenge')
-      .leftJoinAndSelect('challenge.match', 'match')
-      .leftJoinAndSelect('match.team', 'opponentTeam')
-      .leftJoinAndSelect('match.pitch', 'pitch')
-      .leftJoinAndSelect('pitch.business', 'business')
-      .where('challenge.fromTeamId = :teamId', { teamId })
-      .andWhere('challenge.status IN (:...statuses)', {
-        statuses: ['PENDING', 'ACCEPTED'],
-      })
-      // Yalnız gelecek maçlar (İstanbul date+time >= now)
-      .andWhere(
-        new Brackets((qb) => {
-          qb.where('match.date > :today', { today: todayStr }).orWhere(
-            new Brackets((qb2) => {
-              qb2
-                .where('match.date = :today', { today: todayStr })
-                .andWhere('match.time >= :nowTime', { nowTime: currentTimeStr });
-            }),
-          );
-        }),
-      )
-      .orderBy('match.date', 'ASC')
-      .addOrderBy('match.time', 'ASC')
-      .getMany();
+    return (
+      this.challengesRepository
+        .createQueryBuilder('challenge')
+        .leftJoinAndSelect('challenge.match', 'match')
+        .leftJoinAndSelect('match.team', 'opponentTeam')
+        .leftJoinAndSelect('match.pitch', 'pitch')
+        .leftJoinAndSelect('pitch.business', 'business')
+        .where('challenge.fromTeamId = :teamId', { teamId })
+        .andWhere('challenge.status = :status', { status: 'PENDING' })
+        // Yalnız gelecek maçlar (İstanbul date+time >= now)
+        .andWhere(
+          new Brackets((qb) => {
+            qb.where('match.date > :today', { today: todayStr }).orWhere(
+              new Brackets((qb2) => {
+                qb2
+                  .where('match.date = :today', { today: todayStr })
+                  .andWhere('match.time >= :nowTime', {
+                    nowTime: currentTimeStr,
+                  });
+              }),
+            );
+          }),
+        )
+        .orderBy('match.date', 'ASC')
+        .addOrderBy('match.time', 'ASC')
+        .getMany()
+    );
   }
 
   async findIncomingByTeamId(teamId: string): Promise<Challenge[]> {

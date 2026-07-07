@@ -486,10 +486,10 @@ export class NotificationsService {
   }
 
   // Takım İstekleri ekranı — Joker Davetleri sekmesi: takımın GELECEK maçları için
-  // maç-bazlı gruplu joker listesi. İki kaynak birleşir:
-  //  - Bekleyen (PENDING): JOKER_INVITE bildirimi hâlâ duruyor (joker kabul etmemiş).
-  //  - Katılmış (JOINED):  joker kabul edince bildirim silinir (deleteOwnJokerInvite),
-  //    joker MATCH_GROUP'ta aktif katılımcıdır → oradan türetilir.
+  // maç-bazlı gruplu joker listesi. YALNIZ bekleyen (PENDING) davetler döner:
+  // JOKER_INVITE bildirimi hâlâ duruyor = joker kabul etmemiş. Kabul edilen davet
+  // (bildirim silinir, joker MATCH_GROUP'a girer) bu listeden DÜŞER — ekran
+  // "cevap bekleyen istekler" ekranıdır (kullanıcı kararı, 2026-07-07).
   // matchId havuzu = takımın gelecek KENDİ ilanları ∪ takımın davet gönderdiği maçlar.
   async getTeamJokerInvites(teamId: string): Promise<any[]> {
     const { dateStr: todayStr, hours, minutes } = nowInIstanbul();
@@ -550,9 +550,6 @@ export class NotificationsService {
       const match = matchById.get(matchId);
       if (!match || !isFuture(match.date, match.time)) continue;
 
-      const opponentTeamId = await this.resolveOpponentTeamId(match);
-      const matchTeamIds = [match.teamId, opponentTeamId].filter(Boolean);
-
       const jokers: any[] = [];
 
       // Bekleyen davetler (bu takımın, bu maça)
@@ -564,25 +561,7 @@ export class NotificationsService {
         jokers.push(jokerEntry(joker, 'PENDING', n.id));
       }
 
-      // Katılmış jokerler (MATCH_GROUP'ta, maçın iki takımından hiçbirine ait olmayan aktif üyeler)
-      const channel = await this.chatChannelsRepository.findOne({
-        where: { relatedMatchId: matchId, type: 'MATCH_GROUP' },
-      });
-      if (channel) {
-        const parts = await this.chatParticipantsRepository.find({
-          where: { channelId: channel.id, deletedAt: IsNull() },
-          relations: ['user'],
-        });
-        for (const p of parts) {
-          const u = p.user;
-          if (!u) continue;
-          const isJoker = !u.teamId || !matchTeamIds.includes(u.teamId);
-          if (isJoker) {
-            jokers.push(jokerEntry(u, 'JOINED', null));
-          }
-        }
-      }
-
+      // Bekleyen daveti kalmayan maç grupları gizlenir (kabul edilenler dahil).
       if (jokers.length === 0) continue;
       result.push({
         matchId,
@@ -599,17 +578,13 @@ export class NotificationsService {
     }
 
     // Yakın maç önce
-    result.sort((a, b) =>
-      (a.date + a.time).localeCompare(b.date + b.time),
-    );
+    result.sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
     return result;
   }
 
   // limit verilirse sayfalı zarf ({items,total,hasMore} — §27/§44 deseni), yoksa
   // legacy limitsiz dizi: yayındaki eski mobil sürümler kırılmaz.
-  async findByUser(
-    userId: string,
-  ): Promise<Notification[]>;
+  async findByUser(userId: string): Promise<Notification[]>;
   async findByUser(
     userId: string,
     opts: { limit: number; offset: number },
@@ -707,7 +682,8 @@ export class NotificationsService {
             if (channel) matchId = channel.relatedMatchId;
           }
         } else if (isUuid(n.metadata?.challengeId)) {
-          matchId = challengeById.get(n.metadata.challengeId)?.toMatchId ?? null;
+          matchId =
+            challengeById.get(n.metadata.challengeId)?.toMatchId ?? null;
         }
         if (matchId) matchIdByNotif.set(n.id, matchId);
       }
