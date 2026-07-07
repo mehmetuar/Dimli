@@ -2094,3 +2094,76 @@ Hesap değişiminde önceki kullanıcının kanal/takım cache'inin görünmemes
   `successType === 'VICE_LIMIT'` için atlanır (kullanıcı TAMAM ile kapatır); diğer sonuç
   modalları 3sn davranışını korur.
 - Doğrulama: tsc (yalnız ön-var-olan LocationStep) + vite build + cap copy (ios+android) ✓.
+
+## 54. Müşteri login: premium "gece halısahası" yeniden tasarımı (2026-07-07)
+
+> Round 1 (ambiyans SVG + süzülen benekler + el-yapımı dönen-top Lottie `soccer-ball-spin.json`
+> + buton `btn-shine` + logo `pulse-glow` hale) kullanıcı geri bildirimiyle "dandik" bulunup
+> **TAMAMEN GERİ ALINDI/SİLİNDİ** (AuthAmbient.tsx, LoginBallAccent.tsx, soccer-ball-spin.json
+> silindi; İşletme login birebir orijinaline döndü — pitch YALNIZ müşteri login'inde).
+> Kararlar (AskUserQuestion): **koyu gece sahası** (zümrüt→siyah radyal + floodlight + vignette)
+> + **floodlit tebeşir** çizgiler. Amaç: uygulama içi premium navbar seviyesi.
+
+### DOM-çapalı saha (tüm cihazlarda hizalı — KALICI desen)
+- **Neden tek arka-plan SVG DEĞİL:** `preserveAspectRatio slice` farklı en-boy oranlarında logo/
+  buton hizasını kaydırır. Bunun yerine her saha işareti **çerçevelediği DOM öğesinin içine**
+  çapalanır → orta çember her ekranda logoyla, ceza sahası butonla ortalı kalır.
+- **`components/UI/PitchCenterCircle.tsx`** (logo sarmalayıcısında `absolute inset-0`, img'den
+  önce/arkada): orta çember (`<circle>` stroke-draw, logo kutusunun %92'si → **icon.png'yi içine
+  alır**) + orta nokta + **tam viewport-genişliği orta çizgi** (`left:50%; margin-left:-50vw;
+  width:100vw`; dikey `top:calc(50% - 1px)` — transform çakışmasız; `.pitch-line-h` = `scaleX(0→1)`
+  merkez-kaynaklı). Logo `relative z-10`, çember `z-0` → çizgi logonun ARKASINDAN geçer.
+- **`components/UI/PitchGoalArea.tsx`** (footer'da `absolute inset-x-0 bottom-0`, butonun
+  arkasında): ceza sahası ⊓ + penaltı yayı + penaltı noktası. `viewBox 0 0 300 120` +
+  `preserveAspectRatio="none"` + **`vectorEffect="non-scaling-stroke"`** → her oranda düzgün 2px
+  çizgi. Kutu `x 10..290` (neredeyse tam genişlik) → tam-genişlik butonu içine alır (buton
+  `relative z-10`). Touchline YOK (kenarda çift-çizgi/kalabalık yapmasın; kullanıcının beğendiği
+  sadeliğe uygun).
+
+### Zemin & stil
+- Kök `fixed` div: `radial-gradient(125% 78% at 50% 24%, #16402f, #0d2419, #061710, #040f0a)`
+  (üst-merkez floodlight, kenar vignette). Ayrı `absolute inset-0` katman = çok düşük opak dikey
+  **çim biçme şeritleri** (`repeating-linear-gradient` %1.8 beyaz).
+- **Floodlit tebeşir:** hero (çember + orta çizgi) `rgba(236,247,241,0.66)` + `drop-shadow(0 0 3px
+  rgba(200,255,225,0.4))`; ceza sahası `0.4` keskin (glow yok, perf).
+- Logo **icon.png** (şeffaf neon-yeşil "halısaha-D"; `dimliLogin.png` KALDIRILDI), boyut
+  `clamp(120px,42vw,200px)`, `drop-shadow(0 0 22px rgba(74,222,128,0.35))`.
+- **İçerik z-katmanı:** header/form/footer `relative z-10` (pitch `z-0`'ın üstünde) → çizgiler
+  input'ların arkasında kalır, okumayı bozmaz.
+
+### Kademeli açılış koreografisi (reduce-motion'da statik son-hâl)
+- orta çizgi `0.1s` (scaleX) → çember `0.35s` (stroke) + logo `enter-up 300ms` → ceza sahası
+  `0.85s`/yay `1s`/nokta `1.05s` → form `enter-up 360ms` → footer `enter-up 440ms`.
+- **Klavye açıkken:** pitch katmanları opaklığı ~%22-28'e düşer (`keyboardOpen` prop) — hizalama
+  korunur (logoya/footer'a çapalı), yalnız sönükleşir; input'lar öne çıkar.
+
+### Premium form/buton
+- Input: `bg-slate-900/50 border-white/10`, focus `border-turf-500 + shadow-neon-sm`; ikon
+  `group-focus-within:text-turf-400`.
+- "GİRİŞ YAP": `bg-gradient-to-b from-turf-500 to-turf-600` + yeşil neon gölge (statik; hareketli
+  shine YOK). Mevcut dönen-top Lottie loader (`isSubmitting`) korundu (§28 — login'de kalan tek
+  Lottie kullanımı).
+- "İşletme Hesabına Geçiş Yap": ceza sahası içinde, turuncu marka gradyanı + premium gölge;
+  `goToBusiness` flip mantığı dokunulmadı.
+
+### Kalıcı kısıtlar (index.css)
+- Login saha animasyonları YALNIZ transform/opacity; tek istisna çember `pitch-draw` (stroke-
+  dashoffset, kısa/açılış — dvh yasağı gibi bilinçli, eski-WebView güvenli).
+- `.pitch-draw` (çember stroke) + `.pitch-line-h` (orta çizgi scaleX) + `.pitch-wipe-up` (ceza
+  sahası clip-path) → `prefers-reduced-motion: reduce`'te statik son-hâl. `dvh/svh` yok; WASM yok.
+
+### Revizyon (2026-07-07, cihaz bulgusu) — KALICI GOTCHA
+- **iOS/WebKit: `vectorEffect="non-scaling-stroke"` + `pathLength` + `stroke-dasharray` BİRLİKTE
+  bozuk** → stroke-dashoffset çizim tam kapanmaz (çember/kutu kalıcı boşluklu). Round-1 çember +
+  ceza sahası bu yüzden eksik çiziliyordu.
+  - **Çember çözümü:** pathLength/non-scaling-stroke KALDIR; kanonik daire-draw = inline
+    `strokeDasharray/Offset = çevre (2πr)` + `@keyframes pitchDrawClose { to { offset:0 } }` →
+    boşluksuz tam daire. (strokeWidth ~1.5; non-scaling-stroke gidince viewBox ölçeğiyle ~2px.)
+  - **Ceza sahası çözümü:** dash-draw KALDIR (çizgiler hep komple); uniform çizgi için
+    `preserveAspectRatio="none"` + non-scaling-stroke KALIR; giriş = kapsayıcıya `clip-path`
+    wipe-up (`pitchWipeUp`) → garantili tam kutu.
+- **Logo merkezleme:** `icon.png` görünen "D" çekirdeği canvas'ta dikeyde YUKARIDA (çekirdek
+  merkezi y≈%41.5, alt %38 sadece glow; yatay %50 ortada). Çember/orta çizgi/nokta dikey merkezi
+  `PitchCenterCircle` `coreCenterY=0.415` ile %41.5'e alındı → D çemberin tam ortasında.
+- Doğrulama: PIL kompozisyon önizlemesi (tam daire + D merkezde + komple ceza sahası) + `npm run
+  build` (tsc + vite) temiz.
