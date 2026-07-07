@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BookmarkPlus, ChevronDown, ChevronUp, Settings2 } from 'lucide-react';
 import { PresetNote } from '../../../../services/presetNotes';
+import { CharCountTextarea } from '../../../../components/UI/CharCountTextarea';
+import { NOTE_CHAR_LIMITS } from '../../../../utils/noteLimits';
 
 interface DashboardActionModalsProps {
     targetReservationId: string | null;
@@ -83,7 +85,8 @@ export const DashboardActionModals: React.FC<DashboardActionModalsProps> = ({
                                     <button
                                         key={p.id}
                                         onClick={() => {
-                                            setNote(p.content);
+                                            // Hazır not 100 karakteri aşarsa kırp (preset 500 char olabilir)
+                                            setNote(p.content.slice(0, NOTE_CHAR_LIMITS.business));
                                             setShowPicker(false);
                                         }}
                                         className="w-full text-left bg-slate-900/60 hover:bg-slate-700/60 border border-slate-700/60 rounded-xl px-3 py-2.5 text-[13px] text-slate-200 leading-relaxed active:scale-[0.99] transition-all"
@@ -101,11 +104,12 @@ export const DashboardActionModals: React.FC<DashboardActionModalsProps> = ({
                     </p>
                 )}
 
-                <textarea
+                <CharCountTextarea
                     value={note}
-                    onChange={(e) => setNote(e.target.value)}
+                    onChange={setNote}
                     placeholder="Örn: Lütfen 15 dk erken gelin (Opsiyonel)"
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-orange-500 min-h-[100px] mb-2 resize-none"
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-orange-500 min-h-[100px] resize-none"
+                    maxChars={NOTE_CHAR_LIMITS.business}
                 />
 
                 {/* Bu notu kaydet + Notları Yönet */}

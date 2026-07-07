@@ -123,7 +123,7 @@ export const MatchRequestsTab: React.FC<MatchRequestsTabProps> = ({
                             )}
                         </div>
                     )}
-                    {request.note && <p className="text-xs text-slate-300 italic mt-2 line-clamp-1 relative z-10">"{request.note}"</p>}
+                    {request.note && <p className="text-xs text-slate-300 italic mt-2 line-clamp-3 break-words relative z-10">"{request.note}"</p>}
                     <div className="flex gap-2 mt-3 relative z-10">
                         <button onClick={(e) => { e.stopPropagation(); handleAcceptChallenge(request.id); }} className="flex-1 py-2 bg-turf-600 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1 hover:bg-turf-500 transition-colors shadow-lg shadow-turf-600/20">
                             <Check className="w-3 h-3" /> Kabul Et
@@ -249,7 +249,7 @@ export const MatchRequestsTab: React.FC<MatchRequestsTabProps> = ({
                                     )}
                                 </div>
                             )}
-                            {meta.note && <p className="text-xs text-slate-300 italic mt-2 line-clamp-1 relative z-10">"{meta.note}"</p>}
+                            {meta.note && <p className="text-xs text-slate-300 italic mt-2 line-clamp-3 break-words relative z-10">"{meta.note}"</p>}
                             <div className="flex gap-2 mt-3 relative z-10">
                                 <button onClick={() => handleAcceptJokerInvite(notif)} className="flex-1 py-2 bg-gradient-to-r from-turf-600 to-green-500 text-white rounded-lg text-xs font-black uppercase italic flex items-center justify-center gap-1 hover:scale-[1.02] transition-transform shadow-lg shadow-turf-600/20"><Check className="w-3 h-3" /> Kabul Et</button>
                                 <button onClick={() => handleRejectJokerInvite(notif)} className="flex-1 py-2 bg-slate-700 text-slate-300 rounded-lg text-xs font-bold flex items-center justify-center gap-1 hover:bg-red-900/50 hover:text-red-400 transition-colors"><X className="w-3 h-3" /> Reddet</button>

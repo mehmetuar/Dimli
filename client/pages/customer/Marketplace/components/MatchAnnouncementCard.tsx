@@ -240,9 +240,9 @@ export const MatchAnnouncementCard: React.FC<MatchAnnouncementCardProps> = ({
                     </div>
                 </div>
 
-                {/* Description */}
+                {/* Description — nota göre kart asla taşmaz: en çok 4 satır + uzun kelimeleri böl */}
                 {announcement.description && (
-                    <div className="mb-4 text-xs text-slate-400 italic leading-relaxed">
+                    <div className="mb-4 text-xs text-slate-400 italic leading-relaxed line-clamp-4 break-words">
                         "{announcement.description}"
                     </div>
                 )}

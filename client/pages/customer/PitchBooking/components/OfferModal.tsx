@@ -2,6 +2,8 @@
 import React, { useState } from 'react';
 import { CheckCircle } from 'lucide-react';
 import { KeyboardAwareModal } from '../../../../components/Modals/KeyboardAwareModal';
+import { CharCountTextarea } from '../../../../components/UI/CharCountTextarea';
+import { NOTE_CHAR_LIMITS } from '../../../../utils/noteLimits';
 
 interface OfferModalProps {
     isOpen: boolean;
@@ -54,12 +56,13 @@ export const OfferModal: React.FC<OfferModalProps> = ({ isOpen, onClose, teamNam
 
                         <div className="mb-4">
                             <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Rakip Kaptana Notun (Opsiyonel)</label>
-                            <textarea
-                                className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-white text-sm focus:border-turf-500 focus:outline-none transition-colors"
+                            <CharCountTextarea
+                                className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-white text-sm focus:border-turf-500 focus:outline-none transition-colors resize-none"
                                 rows={3}
-                                placeholder="Örn: Kadromuz tam, maça hazırız. Forma rengimiz kırmızı..."
+                                placeholder="Örn: Kadromuz tam, hazırız."
                                 value={note}
-                                onChange={(e) => setNote(e.target.value)}
+                                onChange={setNote}
+                                maxChars={NOTE_CHAR_LIMITS.match}
                             />
                         </div>
 

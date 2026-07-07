@@ -4,6 +4,8 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { X, MapPin, Calendar, Clock, Shield, ChevronRight, CheckCircle, Trophy, Store, Info, Search } from 'lucide-react';
 import { LoadingSpinner } from '../UI/LoadingSpinner';
+import { CharCountTextarea } from '../UI/CharCountTextarea';
+import { NOTE_CHAR_LIMITS } from '../../utils/noteLimits';
 import { SkillLevel, Business, ReservationStatus } from '../../types';
 import api, { getReservationsByPitch, getBusinesses } from '../../services/api';
 import { useLocationContext } from '../../contexts/LocationContext';
@@ -533,12 +535,13 @@ const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelected
 
                                 <div>
                                     <span className="text-xs text-slate-400 mb-2 block">Kaptan Notu</span>
-                                    <textarea
+                                    <CharCountTextarea
                                         rows={3}
-                                        className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-white text-sm focus:border-turf-500 focus:outline-none"
-                                        placeholder="Örn: Forma rengimiz siyah. İddialıyız."
+                                        className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-white text-sm focus:border-turf-500 focus:outline-none resize-none"
+                                        placeholder="Örn: Forma rengimiz siyah."
                                         value={note}
-                                        onChange={(e) => setNote(e.target.value)}
+                                        onChange={setNote}
+                                        maxChars={NOTE_CHAR_LIMITS.match}
                                         onFocus={(e) => {
                                             const el = e.target;
                                             setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 400);

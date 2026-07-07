@@ -4,6 +4,8 @@ import { LoadingSpinner } from '../../../../components/UI/LoadingSpinner';
 import { KeyboardAwareModal } from '../../../../components/Modals/KeyboardAwareModal';
 import { addOneHour } from '../../../../utils/time';
 import { teamInitialsAvatar } from '../../../../utils/teamColors';
+import { CharCountTextarea } from '../../../../components/UI/CharCountTextarea';
+import { NOTE_CHAR_LIMITS } from '../../../../utils/noteLimits';
 
 interface ChallengeModalProps {
     isOpen: boolean;
@@ -139,18 +141,13 @@ export const ChallengeModal: React.FC<ChallengeModalProps> = ({ isOpen, onClose,
                         <label className="block text-xs font-bold text-slate-400 uppercase mb-2 ml-1">
                             Kaptan Mesajı (Opsiyonel)
                         </label>
-                        <div className="relative">
-                            <textarea
-                                value={note}
-                                onChange={(e) => setNote(e.target.value)}
-                                placeholder="Örn: Merhaba, takımımız hazır. Maçı onaylarsanız detayları konuşalım."
-                                className="w-full bg-slate-900 text-white p-4 rounded-xl border border-slate-700 focus:border-turf-500 focus:outline-none resize-none h-28 text-sm placeholder:text-slate-600"
-                                maxLength={200}
-                            />
-                            <div className="absolute bottom-3 right-3 text-[10px] font-bold text-slate-600 bg-slate-800 px-2 py-0.5 rounded-md">
-                                {note.length}/200
-                            </div>
-                        </div>
+                        <CharCountTextarea
+                            value={note}
+                            onChange={setNote}
+                            placeholder="Örn: Takımımız hazır, bekliyoruz."
+                            className="w-full bg-slate-900 text-white p-4 rounded-xl border border-slate-700 focus:border-turf-500 focus:outline-none resize-none h-28 text-sm placeholder:text-slate-600"
+                            maxChars={NOTE_CHAR_LIMITS.match}
+                        />
                     </div>
 
                     {/* Action Buttons */}
