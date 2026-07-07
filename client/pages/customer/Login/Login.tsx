@@ -7,6 +7,8 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { useKeyboardHeight } from '../../../utils/useKeyboardHeight';
 import { sanitizeUsernameInput } from '../../../utils/username';
 import { LottiePlayer } from '../../../components/UI/LottiePlayer';
+import { PitchCenterCircle } from '../../../components/UI/PitchCenterCircle';
+import { PitchGoalArea } from '../../../components/UI/PitchGoalArea';
 
 type Phase = 'entering' | 'idle' | 'exiting-left';
 
@@ -70,56 +72,57 @@ export const Login: React.FC = () => {
 
     return (
         <div
-            className="fixed left-0 right-0 w-full bg-gradient-to-b from-pitch-surface to-pitch overflow-hidden flex flex-col flip-perspective"
+            className="fixed left-0 right-0 w-full overflow-hidden flex flex-col flip-perspective"
             style={{
                 top: 'calc(-1 * env(safe-area-inset-top))',
                 bottom: 'calc(-1 * env(safe-area-inset-bottom))',
+                // Gece halısahası: üst-merkezde floodlight, kenarlarda vignette
+                background: 'radial-gradient(125% 78% at 50% 24%, #16402f 0%, #0d2419 44%, #061710 78%, #040f0a 100%)',
             }}
         >
+            {/* Çim biçme şeritleri (halısaha dokusu) — çok düşük opak, göz yormaz */}
+            <div
+                aria-hidden="true"
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                    background: 'repeating-linear-gradient(90deg, rgba(255,255,255,0.018) 0 9%, transparent 9% 18%)',
+                }}
+            />
+
             <div
                 className={`flip-card-3d relative flex-1 w-full min-h-0 flex flex-col overflow-y-auto scrollbar-hide ${animClass}`}
                 style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
             >
-                {/* Header: logo */}
+                {/* Header: orta saha çemberi içinde logo */}
                 <div
-                    className="relative flex flex-col items-center justify-start flex-shrink-0 transition-all duration-200"
+                    className="relative z-10 flex flex-col items-center justify-start flex-shrink-0 transition-all duration-200"
                     style={{
-                        paddingTop: keyboardOpen ? 'max(env(safe-area-inset-top), 50px)' : 'clamp(28px, 7vh, 56px)',
-                        paddingBottom: '0px',
-                        maxHeight: keyboardOpen ? '17vh' : '40vh',
-                        overflow: 'hidden',
+                        paddingTop: keyboardOpen ? 'max(env(safe-area-inset-top), 50px)' : 'clamp(40px, 12vh, 96px)',
+                        paddingBottom: 'clamp(8px, 2vh, 20px)',
+                        maxHeight: keyboardOpen ? '20vh' : '46vh',
                     }}
                 >
-                    {/* Logo üzerine sol-üst / sağ-üst hafif beyaz spot ışığı */}
+                    {/* Logo + orta saha çemberi/çizgisi (çember logoya çapalı → her cihazda ortalı) */}
                     <div
-                        className="absolute inset-0 pointer-events-none"
-                        style={{
-                            background: 'radial-gradient(circle at top left, rgba(255,255,255,0.14), transparent 55%)',
-                            filter: 'blur(20px)',
-                        }}
-                    />
-                    <div
-                        className="absolute inset-0 pointer-events-none"
-                        style={{
-                            background: 'radial-gradient(circle at top right, rgba(255,255,255,0.14), transparent 55%)',
-                            filter: 'blur(20px)',
-                        }}
-                    />
-                    <img
-                        src="/dimliLogin.png"
-                        alt="DİMLİ"
-                        className="relative z-10 object-contain animate-enter-up transition-all duration-200"
-                        style={{
-                            width: keyboardOpen ? 'clamp(125px, 34vw, 190px)' : 'clamp(230px, 75vw, 440px)',
-                            height: 'auto',
-                            filter: 'drop-shadow(0 4px 18px rgba(34,197,94,0.22))',
-                        }}
-                    />
+                        className="relative flex items-center justify-center transition-all duration-200"
+                        style={{ width: keyboardOpen ? 'clamp(70px, 18vw, 104px)' : 'clamp(120px, 42vw, 200px)' }}
+                    >
+                        <PitchCenterCircle keyboardOpen={keyboardOpen} />
+                        <img
+                            src="/icon.png"
+                            alt="DİMLİ"
+                            className="relative z-10 w-full h-auto object-contain animate-enter-up transition-all duration-200"
+                            style={{
+                                filter: 'drop-shadow(0 0 22px rgba(74,222,128,0.35))',
+                                animationDelay: '300ms',
+                            }}
+                        />
+                    </div>
                 </div>
 
                 {/* Form */}
                 <div
-                    className="flex-1 flex flex-col justify-start min-h-0 animate-enter-up [animation-delay:240ms] transition-all duration-200"
+                    className="relative z-10 flex-1 flex flex-col justify-start min-h-0 animate-enter-up [animation-delay:360ms] transition-all duration-200"
                     style={{
                         padding: '0 clamp(16px, 5vw, 32px)',
                         paddingTop: keyboardOpen ? '0px' : 'clamp(4px, 1.5vh, 16px)',
@@ -149,13 +152,13 @@ export const Login: React.FC = () => {
                             >
                                 Kullanıcı Adı:
                             </label>
-                            <div className="relative">
+                            <div className="relative group">
                                 <User
-                                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none"
+                                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none transition-colors group-focus-within:text-turf-400"
                                     style={{ width: 'clamp(16px, 4vh, 20px)', height: 'clamp(16px, 4vh, 20px)' }}
                                 />
                                 <input
-                                    className="w-full pl-11 pr-4 rounded-2xl bg-slate-800/40 border border-slate-700/80 text-white focus:outline-none focus:border-turf-500 focus:shadow-neon-sm transition-colors font-bold"
+                                    className="w-full pl-11 pr-4 rounded-2xl bg-slate-900/50 border border-white/10 text-white focus:outline-none focus:border-turf-500 focus:shadow-neon-sm transition-all font-bold"
                                     style={{ height: 'clamp(36px, 6.5vh, 56px)', fontSize: 'clamp(0.85rem, 2.2vh, 1rem)' }}
                                     id="username"
                                     type="text"
@@ -179,9 +182,9 @@ export const Login: React.FC = () => {
                             >
                                 Şifre:
                             </label>
-                            <div className="relative">
+                            <div className="relative group">
                                 <Lock
-                                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none"
+                                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none transition-colors group-focus-within:text-turf-400"
                                     style={{ width: 'clamp(16px, 4vh, 20px)', height: 'clamp(16px, 4vh, 20px)' }}
                                 />
                                 <input
@@ -190,7 +193,7 @@ export const Login: React.FC = () => {
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     autoComplete="current-password"
-                                    className="w-full pl-11 pr-12 rounded-2xl bg-slate-800/40 border border-slate-700/80 text-white focus:outline-none focus:border-turf-500 focus:shadow-neon-sm transition-colors font-bold"
+                                    className="w-full pl-11 pr-12 rounded-2xl bg-slate-900/50 border border-white/10 text-white focus:outline-none focus:border-turf-500 focus:shadow-neon-sm transition-all font-bold"
                                     style={{ height: 'clamp(36px, 6.5vh, 56px)', fontSize: 'clamp(0.85rem, 2.2vh, 1rem)' }}
                                     placeholder="••••••••"
                                     required
@@ -220,8 +223,12 @@ export const Login: React.FC = () => {
                         <button
                             type="submit"
                             disabled={isSubmitting}
-                            className="w-full bg-turf-600 text-white rounded-2xl font-display font-bold uppercase tracking-wider shadow-lg shadow-black/30 border border-turf-400/15 active:bg-turf-700 active:scale-[0.97] transition-all disabled:opacity-80 disabled:active:scale-100 flex items-center justify-center gap-2"
-                            style={{ height: 'clamp(40px, 7.5vh, 58px)', fontSize: 'clamp(0.85rem, 2.4vh, 1.125rem)' }}
+                            className="w-full bg-gradient-to-b from-turf-500 to-turf-600 text-white rounded-2xl font-display font-bold uppercase tracking-wider border border-turf-400/25 active:from-turf-600 active:to-turf-700 active:scale-[0.97] transition-all disabled:opacity-80 disabled:active:scale-100 flex items-center justify-center gap-2"
+                            style={{
+                                height: 'clamp(40px, 7.5vh, 58px)',
+                                fontSize: 'clamp(0.85rem, 2.4vh, 1.125rem)',
+                                boxShadow: '0 10px 30px -10px rgba(34,197,94,0.55), inset 0 1px 0 rgba(255,255,255,0.15)',
+                            }}
                         >
                             {isSubmitting ? (
                                 <>
@@ -251,22 +258,26 @@ export const Login: React.FC = () => {
                     </form>
                 </div>
 
-                {/* Footer: İşletme Hesabına Geçiş Yap butonu */}
+                {/* Footer: alt ceza sahası içinde "İşletme Hesabına Geçiş Yap" butonu */}
                 <div
-                    className="relative flex-shrink-0 transition-all duration-200"
+                    className="relative z-10 flex-shrink-0 animate-enter-up [animation-delay:440ms] transition-all duration-200"
                     style={{
                         padding: keyboardOpen
                             ? '0 clamp(16px, 5vw, 32px) clamp(10px, 1.5vh, 16px)'
                             : '0 clamp(16px, 5vw, 32px) clamp(20px, 3.5vh, 32px)',
                     }}
                 >
+                    {/* Ceza sahası çizgileri (butonun arkasında, butonu içine alır) */}
+                    <PitchGoalArea keyboardOpen={keyboardOpen} />
+
                     <button
                         type="button"
                         onClick={goToBusiness}
-                        className="block w-full rounded-2xl text-center font-bold tracking-wide text-white shadow-lg active:scale-[0.98] transition-all"
+                        className="relative z-10 block w-full rounded-2xl text-center font-bold tracking-wide text-white active:scale-[0.98] transition-all"
                         style={{
-                            background: 'linear-gradient(135deg, #c2410c, #9a3412)',
-                            boxShadow: '0 8px 20px -8px rgba(154,52,18,0.45)',
+                            background: 'linear-gradient(135deg, #ea580c, #9a3412)',
+                            boxShadow: '0 10px 26px -10px rgba(234,88,12,0.55), inset 0 1px 0 rgba(255,255,255,0.15)',
+                            border: '1px solid rgba(251,146,60,0.25)',
                             WebkitTapHighlightColor: 'transparent',
                             height: keyboardOpen ? 'clamp(36px, 5.5vh, 48px)' : 'clamp(44px, 7vh, 58px)',
                             fontSize: keyboardOpen ? 'clamp(0.7rem, 1.8vh, 0.8rem)' : 'clamp(0.8rem, 2.2vh, 0.95rem)',
