@@ -18,6 +18,7 @@ import {
   istanbulDateTimeToUtc,
   nowInIstanbul,
 } from '../common/turkey-time.util';
+import { assertNoteWithinLimit } from '../common/text-limit.util';
 
 @Injectable()
 export class ChallengesService {
@@ -38,6 +39,8 @@ export class ChallengesService {
     toMatchId: string,
     note?: string,
   ): Promise<Challenge> {
+    // Not: en fazla 50 karakter — hem Meydan Okuma hem Maç Teklifi bu uçtan geçer
+    assertNoteWithinLimit(note, 50, 'Not');
     // 0. Check for existing pending challenge
     const existingChallenge = await this.challengesRepository.findOne({
       where: {

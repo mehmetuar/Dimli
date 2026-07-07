@@ -28,6 +28,7 @@ import { BusinessOwner } from '../../business-owner/entities/business-owner.enti
 import { User } from '../../users/user.entity';
 import { CreateReservationDto } from '../dto/create-reservation.dto';
 import { NotificationsService } from '../../notifications/notifications.service';
+import { assertNoteWithinLimit } from '../../common/text-limit.util';
 import { SubscriptionService } from '../../subscription/subscription.service';
 import { ReservationSupportService } from './reservation-support.service';
 import {
@@ -322,6 +323,8 @@ export class ReservationLifecycleService {
 
   async approve(id: string, businessNote?: string) {
     this.logger.log(`Approval process started for reservation: ${id}`);
+    // İşletme notu: en fazla 100 karakter (client atlansa bile korunur)
+    assertNoteWithinLimit(businessNote, 100, 'İşletme notu');
 
     return this.dataSource.transaction(async (manager) => {
       // 1. Acquire row-level lock WITHOUT joins — LEFT JOIN + FOR UPDATE OF causes
@@ -1076,6 +1079,8 @@ export class ReservationLifecycleService {
 
   async sendBusinessNote(reservationId: string, note: string) {
     this.logger.log(`Sending business note for reservation: ${reservationId}`);
+    // İşletme notu: en fazla 100 karakter (client atlansa bile korunur)
+    assertNoteWithinLimit(note, 100, 'İşletme notu');
 
     const reservation = await this.reservationRepository.findOne({
       where: { id: reservationId },

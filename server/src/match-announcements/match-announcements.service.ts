@@ -10,6 +10,7 @@ import { Cron, CronExpression } from '@nestjs/schedule'; // Import Cron
 import { MatchAnnouncement } from './match-announcement.entity';
 import { User } from '../users/user.entity';
 import { NotificationsService } from '../notifications/notifications.service';
+import { assertNoteWithinLimit } from '../common/text-limit.util';
 import { ReservationsService } from '../reservations/reservations.service';
 import {
   Reservation,
@@ -67,6 +68,8 @@ export class MatchAnnouncementsService {
     data: Partial<MatchAnnouncement>,
     userId: string,
   ): Promise<MatchAnnouncement & { channelId: string | null }> {
+    // İlan notu: en fazla 50 karakter (client atlansa bile korunur)
+    assertNoteWithinLimit(data.description, 50, 'İlan notu');
     // Ensure user belongs to a team
     const user = await this.usersRepository.findOne({
       where: { id: userId },
