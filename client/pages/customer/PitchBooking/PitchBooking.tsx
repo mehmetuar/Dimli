@@ -6,7 +6,7 @@ import { LocationAccessGate } from '../../../components/LocationAccessGate';
 import { OfflineEmptyState } from '../../../components/OfflineEmptyState';
 
 import { usePitchBooking } from './hooks/usePitchBooking';
-import { TeamDetailModal } from './components/TeamDetailModal';
+import { TeamDetailModal } from '../../../components/Modals/TeamDetailModal';
 import { DateFilterModal } from './components/DateFilterModal';
 import { FilterBar } from './components/FilterBar';
 import { BusinessListItem } from './components/BusinessListItem';
@@ -125,7 +125,15 @@ export const PitchBooking: React.FC = () => {
          style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}
       >
          {/* Modals */}
-         <TeamDetailModal viewingTeam={viewingTeam} onClose={() => setViewingTeam(null)} />
+         {/* Rakip takım kartı: Maç Pazarı/Bildirimler'le AYNI paylaşılan modal (yerel kopya silindi). */}
+         {viewingTeam && (
+            <TeamDetailModal
+               isOpen={!!viewingTeam}
+               onClose={() => setViewingTeam(null)}
+               teamId={viewingTeam.id}
+               currentUserId={currentUser?.id}
+            />
+         )}
          <LocationFilterModal
             isOpen={isLocationFilterOpen}
             onClose={() => setIsLocationFilterOpen(false)}
