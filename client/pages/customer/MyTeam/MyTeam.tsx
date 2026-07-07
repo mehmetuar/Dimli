@@ -18,6 +18,8 @@ import { TeamRoster } from './components/TeamRoster';
 import { TeamModals } from './components/TeamModals';
 import { NoTeamView } from './components/NoTeamView';
 import { TeamSettingsMenu } from './components/TeamSettingsMenu';
+import { PlayerDetailModal } from '../../../components/Modals/PlayerDetailModal';
+import { Player } from '../../../types';
 
 export const MyTeam: React.FC = () => {
     const location = useLocation();
@@ -175,6 +177,7 @@ export const MyTeam: React.FC = () => {
                         isViceCaptain={isViceCaptain}
                         setIsAddPlayerModalOpen={modals.setIsAddPlayerModalOpen}
                         setPlayerActionsModal={modals.setPlayerActionsModal}
+                        setPlayerCardModal={modals.setPlayerCardModal}
                         setMyTeam={setMyTeam as any}
                     />
                 </div>
@@ -288,6 +291,24 @@ export const MyTeam: React.FC = () => {
                 </div>,
                 document.body
             )}
+
+            {/* Kadro satırına dokununca açılan oyuncu bilgi kartı (JokerPool kart tasarımıyla aynı
+                paylaşılan bileşen). Salt bilgi — aksiyon prop'ları verilmez; kendine dokununca
+                "Profili Düzenle" ile ayarlara gider (ProfileHeaderCard deseni). */}
+            <PlayerDetailModal
+                isOpen={modals.playerCardModal.isOpen}
+                onClose={() => modals.setPlayerCardModal({ isOpen: false, player: null })}
+                player={modals.playerCardModal.player as Player | null}
+                isMe={!!modals.playerCardModal.player && modals.playerCardModal.player.id === currentUser?.id}
+                onEdit={
+                    modals.playerCardModal.player?.id === currentUser?.id
+                        ? () => {
+                            modals.setPlayerCardModal({ isOpen: false, player: null });
+                            navigate('/settings/profile');
+                        }
+                        : undefined
+                }
+            />
         </div>
     );
 };

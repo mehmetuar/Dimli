@@ -58,8 +58,20 @@ export const useTeamRoster = ({
         }
     };
 
+    const VICE_LIMIT_MESSAGE =
+        'Bir takımda en fazla 2 yardımcı kaptan olabilir. Yeni bir yardımcı atamak için önce mevcut yardımcılardan birinin yetkisini kaldırmalısın.';
+
     const handlePromotePlayer = async (playerId: string, role: 'CAPTAIN' | 'VICE') => {
         if (!myTeam) return;
+
+        // Ön-kontrol: 2 yardımcı doluyken API'ye gitmeden uyarı modalı
+        // (server'da da 409 guard'ı var — bayat state yarışına karşı aşağıdaki catch eşler).
+        if (role === 'VICE' && (myTeam.viceCaptainIds?.length ?? 0) >= 2) {
+            setSuccessMessage(VICE_LIMIT_MESSAGE);
+            setSuccessType('VICE_LIMIT');
+            return;
+        }
+
         try {
             const response = await api.patch(`/teams/${myTeam.id}/players/${playerId}/role`, { role });
             setMyTeam(response.data);
@@ -73,6 +85,11 @@ export const useTeamRoster = ({
             }
         } catch (error: any) {
             console.error("Failed to promote player", error);
+            if (role === 'VICE' && error.response?.status === 409) {
+                setSuccessMessage(error.response?.data?.message || VICE_LIMIT_MESSAGE);
+                setSuccessType('VICE_LIMIT');
+                return;
+            }
             setErrorMessage(error.response?.data?.message || "Rol güncellenemedi.");
         }
     };

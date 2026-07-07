@@ -25,6 +25,13 @@ export const useTeamModals = () => {
         player: Partial<Player> | null;
     }>({ isOpen: false, player: null });
 
+    // Kadroda oyuncu satırına dokununca açılan bilgi kartı (PlayerDetailModal).
+    // Body-class efekti gerekmez — PlayerDetailModal kendi useModalBodyClass'ını çağırır.
+    const [playerCardModal, setPlayerCardModal] = useState<{
+        isOpen: boolean;
+        player: Partial<Player> | null;
+    }>({ isOpen: false, player: null });
+
     useEffect(() => {
         if (playerActionsModal.isOpen) {
             document.body.classList.add('modal-open');
@@ -45,6 +52,7 @@ export const useTeamModals = () => {
         isCreateMatchModalOpen, setIsCreateMatchModalOpen,
         isTeamMenuOpen, setIsTeamMenuOpen,
         confirmModal, setConfirmModal,
-        playerActionsModal, setPlayerActionsModal
+        playerActionsModal, setPlayerActionsModal,
+        playerCardModal, setPlayerCardModal
     };
 };

@@ -11,6 +11,8 @@ import { readObjectCache, writeObjectCache, TEAM_CACHE_KEY } from '../../../../u
 import { useOnReconnect } from '../../../../hooks/useOnReconnect';
 
 // Kadro projeksiyonu — fetch/cache-hydrate/create yollarında aynı eşleme.
+// Liste alanlarına ek olarak oyuncu kartının (PlayerDetailModal) ihtiyaç
+// duyduğu alanlar da taşınır (yaş/ayak/mevki/uyruk/konum/favori işletmeler).
 const mapRoster = (players: any[]): Partial<Player>[] =>
     (players || []).map((p: any) => ({
         id: p.id,
@@ -18,6 +20,12 @@ const mapRoster = (players: any[]): Partial<Player>[] =>
         position: p.position || 'Orta Saha',
         avatarUrl: p.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.full_name || p.username || '?')}&background=random&size=100`,
         rating: p.rating || 0,
+        secondaryPosition: p.secondaryPosition,
+        location: p.location,
+        birthDate: p.birthDate,
+        foot: p.foot,
+        nationality: p.nationality,
+        favoritePitchIds: p.favoriteBusinessIds ?? [],
     }));
 
 export const useMyTeam = (modals: any) => {
@@ -54,6 +62,9 @@ export const useMyTeam = (modals: any) => {
 
     useEffect(() => {
         if (successMessage || errorMessage) {
+            // YARDIMCI SINIRI uyarısı otomatik KAPANMAZ — kullanıcı TAMAM ile kapatır
+            // (kullanıcı kararı). Diğer tüm sonuç modalları 3sn davranışını korur.
+            if (successType === 'VICE_LIMIT') return;
             const timer = setTimeout(() => {
                 setSuccessMessage('');
                 setErrorMessage('');
@@ -61,7 +72,7 @@ export const useMyTeam = (modals: any) => {
             }, 3000);
             return () => clearTimeout(timer);
         }
-    }, [successMessage, errorMessage]);
+    }, [successMessage, errorMessage, successType]);
 
     const fetchUser = useCallback(async () => {
         try {
@@ -184,13 +195,7 @@ export const useMyTeam = (modals: any) => {
             setMyTeam(created);
             setBio(created.description || '');
             if (Array.isArray(created.players)) {
-                setRoster(created.players.map((p: any) => ({
-                    id: p.id,
-                    name: p.full_name || p.username,
-                    position: p.position || 'Orta Saha',
-                    avatarUrl: p.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.full_name || p.username || '?')}&background=random&size=100`,
-                    rating: p.rating || 0,
-                })));
+                setRoster(mapRoster(created.players));
             }
             modals.setIsCreateTeamModalOpen(false);
             setSuccessMessage('Takım başarıyla oluşturuldu!');

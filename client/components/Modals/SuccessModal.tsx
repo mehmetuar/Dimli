@@ -1,10 +1,12 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { Crown, Shield, ShieldX, Trash2, Check, CheckCircle } from 'lucide-react';
+import { Crown, Shield, ShieldX, Trash2, Check, CheckCircle, AlertTriangle } from 'lucide-react';
 import { useModalBodyClass } from '../../utils/useModalBodyClass';
 import { LottiePlayer } from '../UI/LottiePlayer';
 
-export type SuccessType = 'TEAM_CREATED' | 'CAPTAIN' | 'VICE' | 'ROLE_REMOVED' | 'KICK' | 'CHALLENGE_SENT' | 'CHALLENGE_ACCEPTED' | 'CHALLENGE_REJECTED' | 'MESSAGE_SENT' | 'MATCH_CANCELLED' | 'MATCH_APPROVED' | 'CREATE_AD' | 'DEFAULT';
+// VICE_LIMIT: başarı değil UYARI varyantı (amber) — modal olumsuz sonuçları da
+// taşıyor (KICK/REJECTED/CANCELLED), tek TAMAM'lı sonuç modalının parçası.
+export type SuccessType = 'TEAM_CREATED' | 'CAPTAIN' | 'VICE' | 'VICE_LIMIT' | 'ROLE_REMOVED' | 'KICK' | 'CHALLENGE_SENT' | 'CHALLENGE_ACCEPTED' | 'CHALLENGE_REJECTED' | 'MESSAGE_SENT' | 'MATCH_CANCELLED' | 'MATCH_APPROVED' | 'CREATE_AD' | 'DEFAULT';
 
 interface SuccessModalProps {
     isOpen: boolean;
@@ -38,6 +40,7 @@ export const SuccessModal: React.FC<SuccessModalProps> = ({
         switch (type) {
             case 'CAPTAIN': return <Crown className="w-10 h-10 text-yellow-500" />;
             case 'VICE': return <Shield className="w-10 h-10 text-blue-500" />;
+            case 'VICE_LIMIT': return <AlertTriangle className="w-10 h-10 text-amber-500" />;
             case 'ROLE_REMOVED': return <ShieldX className="w-10 h-10 text-orange-500" />;
             case 'KICK': return <Trash2 className="w-10 h-10 text-red-500" />;
             case 'CHALLENGE_SENT': return <Shield className="w-10 h-10 text-turf-500" />;
@@ -54,6 +57,7 @@ export const SuccessModal: React.FC<SuccessModalProps> = ({
         switch (type) {
             case 'CAPTAIN': return 'bg-yellow-500/20';
             case 'VICE': return 'bg-blue-500/20';
+            case 'VICE_LIMIT': return 'bg-amber-500/20';
             case 'ROLE_REMOVED': return 'bg-orange-500/20';
             case 'KICK': return 'bg-red-500/20';
             case 'CHALLENGE_REJECTED': return 'bg-red-500/20';
@@ -69,6 +73,7 @@ export const SuccessModal: React.FC<SuccessModalProps> = ({
         switch (type) {
             case 'CAPTAIN': return 'bg-yellow-600 hover:bg-yellow-500 shadow-yellow-600/20';
             case 'VICE': return 'bg-blue-600 hover:bg-blue-500 shadow-blue-600/20';
+            case 'VICE_LIMIT': return 'bg-amber-600 hover:bg-amber-500 shadow-amber-600/20';
             case 'ROLE_REMOVED': return 'bg-orange-600 hover:bg-orange-500 shadow-orange-600/20';
             case 'KICK': return 'bg-red-600 hover:bg-red-500 shadow-red-600/20';
             case 'CHALLENGE_REJECTED': return 'bg-red-600 hover:bg-red-500 shadow-red-600/20';
@@ -84,6 +89,7 @@ export const SuccessModal: React.FC<SuccessModalProps> = ({
         switch (type) {
             case 'CAPTAIN': return 'YENİ KAPTAN!';
             case 'VICE': return 'YENİ YARDIMCI!';
+            case 'VICE_LIMIT': return 'YARDIMCI SINIRI';
             case 'ROLE_REMOVED': return 'YETKİ ALINDI';
             case 'KICK': return 'OYUNCU ATILDI';
             case 'TEAM_CREATED': return 'TEBRİKLER KAPTAN!';

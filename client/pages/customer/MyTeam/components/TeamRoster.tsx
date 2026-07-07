@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Shield, UserPlus, Crown, MoreVertical, X } from 'lucide-react';
 import { Player, Team } from '../../../../types';
 
@@ -11,13 +11,28 @@ interface TeamRosterProps {
     isViceCaptain: boolean;
     setIsAddPlayerModalOpen: (isOpen: boolean) => void;
     setPlayerActionsModal: (modal: { isOpen: boolean, player: any }) => void;
+    setPlayerCardModal: (modal: { isOpen: boolean, player: any }) => void;
     setMyTeam: (team: Team) => void;
 }
 
 export const TeamRoster: React.FC<TeamRosterProps> = ({
     myTeam, currentUser, roster, guestPlayers,
-    isCaptain, isViceCaptain, setIsAddPlayerModalOpen, setPlayerActionsModal, setMyTeam
+    isCaptain, isViceCaptain, setIsAddPlayerModalOpen, setPlayerActionsModal, setPlayerCardModal, setMyTeam
 }) => {
+    // Kadro sırası: kendisi → kaptan → yardımcılar → diğerleri (kendisi kaptansa tek
+    // satırda birleşir). Grup içinde mevcut sıra korunur (stable sort). Yardımcı
+    // atama/alma myTeam'i güncellediğinden liste anında yeniden sıralanır.
+    const captainId = myTeam.captainId || (myTeam.captain as any)?.id;
+    const viceIds = myTeam.viceCaptainIds;
+    const sortedRoster = useMemo(() => {
+        const rank = (p: Partial<Player>) =>
+            p.id === currentUser.id ? 0
+                : p.id === captainId ? 1
+                    : viceIds?.includes(p.id!) ? 2
+                        : 3;
+        return [...roster].sort((a, b) => rank(a) - rank(b));
+    }, [roster, captainId, viceIds, currentUser.id]);
+
     return (
         <div className="bg-slate-800 rounded-2xl border border-slate-700 p-4">
             <div className="flex justify-between items-center gap-2 mb-4">
@@ -49,8 +64,13 @@ export const TeamRoster: React.FC<TeamRosterProps> = ({
             <div className="space-y-4">
                 {/* Regular Players */}
                 <div className="space-y-2">
-                    {roster.map((player) => (
-                        <div key={player.id} className="flex items-center gap-3 p-2 rounded-lg bg-slate-900/50 hover:bg-slate-700/50 transition-colors group">
+                    {sortedRoster.map((player) => (
+                        // Satıra dokunma → oyuncu bilgi kartı (kendine dokununca kendi kartı).
+                        <div
+                            key={player.id}
+                            onClick={() => setPlayerCardModal({ isOpen: true, player })}
+                            className="flex items-center gap-3 p-2 rounded-lg bg-slate-900/50 hover:bg-slate-700/50 active:bg-slate-700/70 transition-colors group cursor-pointer"
+                        >
                             <div className="w-10 h-10 rounded-full bg-slate-600 overflow-hidden relative border border-slate-700">
                                 <img src={player.avatarUrl} alt="Player" className="w-full h-full object-cover" />
                                 {myTeam.captainId === player.id && (
@@ -86,7 +106,10 @@ export const TeamRoster: React.FC<TeamRosterProps> = ({
                                 return false;
                             })() && (
                                     <button
-                                        onClick={() => setPlayerActionsModal({ isOpen: true, player })}
+                                        onClick={(e) => {
+                                            e.stopPropagation(); // satır tıklaması (bilgi kartı) tetiklenmesin
+                                            setPlayerActionsModal({ isOpen: true, player });
+                                        }}
                                         className="p-3 text-slate-400 hover:text-white rounded-xl hover:bg-slate-700 transition-colors active:bg-slate-600 min-w-[44px] min-h-[44px] flex items-center justify-center"
                                     >
                                         <MoreVertical className="w-6 h-6" />
