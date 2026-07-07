@@ -38,7 +38,7 @@ export const MyTeam: React.FC = () => {
         }
     }, [location.state]);
     const {
-        currentUser, isLoading, loadError, fetchUser, myTeam, setMyTeam, roster, setRoster,
+        currentUser, isLoading, teamResolved, loadError, fetchUser, myTeam, setMyTeam, roster, setRoster,
         businesses, bio, setBio, isEditingBio, setIsEditingBio,
         upcomingMatches, isUpcomingLoading, fetchUpcomingMatches,
         matchHistory, isMatchHistoryLoading, fetchMatchHistory,
@@ -58,7 +58,10 @@ export const MyTeam: React.FC = () => {
     // Ekliyoruz ki bu sheet açıkken alt navbar/bell gizlensin ve body scroll kilitlensin (diğer modallarla tutarlı).
     useModalBodyClass(modals.playerActionsModal.isOpen);
 
-    if (isLoading) {
+    // isLoading: currentUser hiç yokken (ilk soğuk açılış)
+    // !myTeam && !teamResolved: kullanıcı snapshot'ı var ama takım henüz sunucudan
+    //   çözülmedi ve önbellekte cevap yok → NoTeamView flash'ı yerine dönen top
+    if (isLoading || (!myTeam && !teamResolved)) {
         return <LoadingSpinner fullScreen text="Takım Yükleniyor..." />;
     }
 

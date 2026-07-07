@@ -40,6 +40,12 @@ export const useMyTeam = (modals: any) => {
     const [myTeam, setMyTeam] = useState<Team | undefined>(
         () => readObjectCache<{ team: Team | null }>(TEAM_CACHE_KEY)?.team ?? undefined,
     );
+    // Takım henüz sunucudan çözülmedi VE önbellekte cevap yok mu? → dönen top göster.
+    // readObjectCache yalnızca önbellek YOKKEN null döner (takımsız durumu {team:null}
+    // olarak non-null saklanır), böylece "cevap var mı" net ayrılır.
+    const [teamResolved, setTeamResolved] = useState(
+        () => readObjectCache<{ team: Team | null }>(TEAM_CACHE_KEY) != null,
+    );
     const [roster, setRoster] = useState<Partial<Player>[]>(
         () => mapRoster((readObjectCache<{ team: any }>(TEAM_CACHE_KEY)?.team?.players) ?? []),
     );
@@ -108,6 +114,7 @@ export const useMyTeam = (modals: any) => {
             setLoadError(isNetworkError(error) ? 'network' : 'generic');
         } finally {
             setIsLoading(false);
+            setTeamResolved(true);   // fetch bitince (başarı/hata) top asla asılı kalmaz
         }
     }, []);
 
@@ -269,7 +276,7 @@ export const useMyTeam = (modals: any) => {
     const applyLocationFilter = (filter: LocationFilter) => { if (filter.radius) setRadius(filter.radius); };
 
     return {
-        currentUser, isLoading, loadError, fetchUser, myTeam, setMyTeam, roster, setRoster,
+        currentUser, isLoading, teamResolved, loadError, fetchUser, myTeam, setMyTeam, roster, setRoster,
         pitches, businesses, bio, setBio, isEditingBio, setIsEditingBio,
         upcomingMatches, isUpcomingLoading, fetchUpcomingMatches,
         matchHistory, isMatchHistoryLoading, fetchMatchHistory,
