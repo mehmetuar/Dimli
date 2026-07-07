@@ -5,8 +5,10 @@ import { useLocationContext } from '../../../../contexts/LocationContext';
 import { useCurrentUser } from '../../../../hooks/useCurrentUser';
 import { seedCurrentUser } from '../../../../services/currentUserStore';
 import { readListCache, writeListCache, JOKERS_CACHE_KEY } from '../../../../utils/listCache';
+import { isNetworkError } from '../../../../utils/apiError';
+import { useOnReconnect } from '../../../../hooks/useOnReconnect';
 
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 20;
 const POSITION_KEYS = ['kaleci', 'orta_saha', 'forvet', 'defans'];
 
 export const useJokerPool = () => {
@@ -21,6 +23,8 @@ export const useJokerPool = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [loadingMore, setLoadingMore] = useState(false);
     const [hasMore, setHasMore] = useState(false);
+    // Ağ hatası / genel hata ayrımı — boş listede "Bağlantı yok + Tekrar Dene".
+    const [loadError, setLoadError] = useState<'network' | 'generic' | null>(null);
     const [selectedJoker, setSelectedJoker] = useState<any | null>(null);
     const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
     const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -77,11 +81,18 @@ export const useJokerPool = () => {
                 writeListCache(JOKERS_CACHE_KEY, data);
                 lastFetchKeyRef.current = key;
             } else {
-                setJokers(prev => [...prev, ...data]);
+                // id-bazlı dedup: canlı listede offset kayması aynı oyuncuyu tekrar
+                // getirirse duplicate kart/key oluşmasın
+                setJokers(prev => {
+                    const seen = new Set(prev.map(j => j.id));
+                    return [...prev, ...data.filter((j: any) => !seen.has(j.id))];
+                });
             }
             setHasMore(more);
+            setLoadError(null);
         } catch (err) {
             console.error('Failed to fetch jokers:', err);
+            if (reset) setLoadError(isNetworkError(err) ? 'network' : 'generic');
         } finally {
             if (gen === fetchGenRef.current) {
                 isFetchingRef.current = false;
@@ -100,10 +111,15 @@ export const useJokerPool = () => {
     // NOT: Koordinat→sunucu PATCH'i LocationContext'te merkezî yapılıyor
     // (tek yetkili kaynak). Burada ayrıca PATCH atılmıyor.
 
-    const loadMore = () => {
+    // useCallback: onScroll içindeki infinite-scroll tetikleyicisi stabil kalsın
+    // (useMarketplace.loadMore ile aynı desen).
+    const loadMore = useCallback(() => {
         if (!hasMore || isFetchingRef.current) return;
         doFetch(false, false);
-    };
+    }, [hasMore, doFetch]);
+
+    // Ağ geri gelince sayfa-0 tazele (OfflineBanner yeşil onayıyla eşzamanlı).
+    useOnReconnect(() => doFetch(true, true));
 
     const applyLocationFilter = (filter: LocationFilter) => {
         if (filter.radius) setRadius(filter.radius);
@@ -133,6 +149,8 @@ export const useJokerPool = () => {
         loadingMore,
         hasMore,
         loadMore,
+        loadError,
+        refetch: () => doFetch(true, true),
         selectedJoker, setSelectedJoker,
         isInviteModalOpen, setIsInviteModalOpen,
         isProfileModalOpen, setIsProfileModalOpen,

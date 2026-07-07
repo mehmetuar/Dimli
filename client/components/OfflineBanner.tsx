@@ -53,7 +53,7 @@ export const OfflineBanner: React.FC = () => {
                 ) : (
                     <>
                         <WifiOff className="w-3.5 h-3.5" />
-                        <span>İnternet bağlantısı yok — son veriler gösteriliyor</span>
+                        <span>İnternet bağlantısı yok</span>
                     </>
                 )}
             </div>

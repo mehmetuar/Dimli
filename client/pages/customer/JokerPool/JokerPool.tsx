@@ -1,11 +1,13 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { MapPin, RefreshCw } from 'lucide-react';
 import { LottiePlayer } from '../../../components/UI/LottiePlayer';
+import { LoadingSpinner } from '../../../components/UI/LoadingSpinner';
 import { InviteJokerModal } from '../../../components/Modals/InviteJokerModal';
 import { JokerProfileModal } from './components/JokerProfileModal';
 import { LocationFilterModal } from '../../../components/Modals/LocationFilterModal';
 import { SortModal } from '../../../components/Modals/SortModal';
 import { LocationAccessGate } from '../../../components/LocationAccessGate';
+import { OfflineEmptyState } from '../../../components/OfflineEmptyState';
 
 import { useJokerPool } from './hooks/useJokerPool';
 import { JokerLocationFilter } from './components/JokerLocationFilter';
@@ -19,6 +21,8 @@ export const JokerPool: React.FC = () => {
    const {
       currentUser,
       isLoading,
+      loadError,
+      refetch,
       loadingMore,
       hasMore,
       loadMore,
@@ -51,12 +55,17 @@ export const JokerPool: React.FC = () => {
    }, []);
 
    const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-      const st = e.currentTarget.scrollTop;
+      const el = e.currentTarget;
+      const st = el.scrollTop;
       const opacity = Math.max(0, 1 - st / HEADER_FADE_PX);
       setHeaderOpacity(opacity);
       document.documentElement.style.setProperty('--header-opacity', String(opacity));
       document.documentElement.style.setProperty('--header-pointer-events', opacity > 0.1 ? 'auto' : 'none');
-   }, []);
+      // Infinite-scroll: liste sonuna ~600px kala sonraki sayfayı ekle (loadMore içeride guard'lı).
+      if (el.scrollHeight - st - el.clientHeight < 600) {
+         loadMore();
+      }
+   }, [loadMore]);
 
    const handleTouchStart = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
       touchStartYRef.current = e.touches[0].clientY;
@@ -162,16 +171,20 @@ export const JokerPool: React.FC = () => {
                )}
             </div>
 
-            {/* Başlık + profil butonu — flex satır: buton yeri otomatik ayrılır (çakışma imkânsız),
-                başlık gerekirse "JOKER"/"HAVUZU" olarak sarar; birlikte scroll'da soluklaşır. */}
+            {/* Başlık + profil butonu — flex satır: buton yeri otomatik ayrılır (çakışma imkânsız).
+                Başlık TEK SATIR (whitespace-nowrap): font, kalan genişliğe göre akışkan ölçeklenir —
+                clamp orta değeri (100vw − 204px)/6.7: 204px = maks buton ("Profilini Düzenle") +
+                px-4×2 + gap-4 + NEFES PAYI (başlık butona yapışmasın — kullanıcı kararı);
+                6.7 ≈ "JOKER HAVUZU"nun em-genişliği. Buton da küçük ekranda orantılı küçülür
+                (clamp'li text/padding) → hiçbir ekranda sarma/taşma olmaz. */}
             <div
-               className="flex items-start justify-between gap-3 px-4 pt-3 pb-5"
+               className="flex items-start justify-between gap-4 px-4 pt-3 pb-5"
                style={{ opacity: headerOpacity, pointerEvents: headerOpacity > 0.1 ? 'auto' : 'none' }}
             >
                <div className="min-w-0 flex-1">
                   <h1
-                     className="font-sport font-black text-white uppercase italic tracking-tighter leading-none"
-                     style={{ fontSize: 'clamp(1.6rem, 8.5vw, 2.75rem)' }}
+                     className="font-sport font-black text-white uppercase italic tracking-tighter leading-none whitespace-nowrap"
+                     style={{ fontSize: 'clamp(1.25rem, calc((100vw - 204px) / 6.7), 2.75rem)' }}
                   >
                      JOKER <span className="text-turf-500">HAVUZU</span>
                   </h1>
@@ -181,7 +194,7 @@ export const JokerPool: React.FC = () => {
                </div>
                <button
                   onClick={() => setIsProfileModalOpen(true)}
-                  className={`flex-shrink-0 mt-1 border text-white rounded-xl font-bold transition-colors px-3 py-2 text-xs whitespace-nowrap ${
+                  className={`flex-shrink-0 mt-1 border text-white rounded-xl font-bold transition-colors px-[clamp(8px,2.8vw,12px)] py-2 text-[clamp(10px,3.1vw,12px)] whitespace-nowrap ${
                      currentUser?.isJoker
                         ? 'bg-slate-800/90 border-slate-600'
                         : 'bg-turf-600 border-turf-500 shadow-neon'
@@ -222,7 +235,9 @@ export const JokerPool: React.FC = () => {
                         </div>
                      </div>
                   ) : (
-                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                     <div className="flex flex-col gap-4">
+                        {/* Koşulsuz tek kolon: her kart tam satır — hiçbir ekran boyutunda
+                            yan yana sıkışma/kırpılma olamaz (mobil ilke: her cihazda aynı görüntü). */}
                         {visibleJokers.map((player) => (
                            <JokerCard
                               key={player.id}
@@ -232,20 +247,20 @@ export const JokerPool: React.FC = () => {
                            />
                         ))}
                         {visibleJokers.length === 0 && (
-                           <div className="col-span-2 text-center py-12 text-slate-400 bg-slate-800/50 rounded-3xl border border-dashed border-slate-700">
-                              <MapPin className="w-8 h-8 mx-auto mb-3 text-slate-600" />
-                              <p>Yakınınızda joker oyuncu bulunamadı.</p>
-                           </div>
+                           // Ağ hatasıyla boş kalan liste ≠ "yakında joker yok" — sebep + retry.
+                           loadError === 'network' ? (
+                              <OfflineEmptyState onRetry={refetch} />
+                           ) : (
+                              <div className="text-center py-12 text-slate-400 bg-slate-800/50 rounded-3xl border border-dashed border-slate-700">
+                                 <MapPin className="w-8 h-8 mx-auto mb-3 text-slate-600" />
+                                 <p>Yakınınızda joker oyuncu bulunamadı.</p>
+                              </div>
+                           )
                         )}
-                        {(hasMore || loadingMore) && (
-                           <div className="col-span-2 flex justify-center pt-2 pb-4">
-                              <button
-                                 onClick={loadMore}
-                                 disabled={loadingMore}
-                                 className="px-6 py-3 bg-slate-800 border border-slate-700 text-white rounded-2xl font-semibold text-sm hover:bg-slate-700 disabled:opacity-50 transition-colors"
-                              >
-                                 {loadingMore ? 'Yükleniyor...' : 'Daha Fazla Göster'}
-                              </button>
+                        {/* Infinite-scroll alt göstergesi (Marketplace deseni) */}
+                        {loadingMore && (
+                           <div className="flex items-center justify-center py-4">
+                              <LoadingSpinner />
                            </div>
                         )}
                      </div>

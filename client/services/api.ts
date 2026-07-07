@@ -50,8 +50,12 @@ api.interceptors.response.use(
                         await clearAuthSession();
                         window.dispatchEvent(new CustomEvent('auth:sessionExpired'));
                     } else if (!ve.response) {
-                        // Server tamamen erişilemez — kullanıcıyı login ekranına yönlendir
-                        window.dispatchEvent(new CustomEvent('auth:sessionExpired'));
+                        // Ağ hatası ≠ auth hatası: sunucuya ERİŞİLEMEDİ, token'ın geçersizliği
+                        // kanıtlanmadı — oturum DÜŞÜRÜLMEZ (eski davranış kullanıcıyı ağ
+                        // kesintisinde yanlışlıkla login'e atıyordu). verifyAxios ayrı instance
+                        // olduğundan NetworkContext'in api interceptor'ından geçmez; offline
+                        // sinyalini bu event taşır.
+                        window.dispatchEvent(new CustomEvent('network:apiNetworkError'));
                     }
                 } finally {
                     setTimeout(() => { isVerifyingAuth = false; }, 5000);
