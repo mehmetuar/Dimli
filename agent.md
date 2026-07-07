@@ -1971,3 +1971,126 @@ Uçak modu aç → banner anında; kapat → ≤12sn'de yeşil "Bağlandı" + li
 LAN server durdur → gezinti banner + cache'li sayfalar bayat veri, cache'sizler "Bağlantı yok + Tekrar Dene".
 iOS çentik arkası dikişsiz; Android status bar altı. 401+kesinti kombinasyonunda login'e atılmama.
 Hesap değişiminde önceki kullanıcının kanal/takım cache'inin görünmemesi (userId zarfı).
+
+---
+
+## 51. Takımım turu: kadro oyuncu kartı + buton renk düzeni + banner metni + kayıt autofocus + /teams hassas alan temizliği (2026-07-07)
+
+> 4 kullanıcı isteği + keşifte bulunan güvenlik açığı (kullanıcı onaylı). Tümü JS/TS —
+> native kod DEĞİŞMEDİ (yeni pod/gradle yok); değişikliklerin cihaza gitmesi için yine de
+> yeni uygulama sürümü gerekir (JS bundle app içinde paketli). Server → Render deploy.
+
+### A. Offline banner metni (client/components/OfflineBanner.tsx)
+- "İnternet bağlantısı yok — son veriler gösteriliyor" → "İnternet bağlantısı yok" (kullanıcı kararı).
+  §50'deki banner davranışı aynen; yalnız metin kısaldı.
+
+### B. Takımım aksiyon butonları renk kararı (TeamActionButtons.tsx)
+- "Takım İstekleri" mavi → **amber→koyu turuncu** (`from-amber-600 to-orange-700`,
+  `shadow-amber-600/20`, border kaldırıldı — diğer iki butonla aynı yapı). Gerekçe: onay-bekliyor
+  anlamı turuncu; **işletme tarafının parlak turuncusu (orange-500 #f97316) ile karışmasın** diye
+  daha derin/mat ton seçildi (AskUserQuestion ile 3 seçenekten kullanıcı seçimi).
+- Yaklaşan Maçlar (`turf-600→green-600`) ve Geçmiş Maçlar (`purple-600→indigo-600`) dokunulmadı.
+
+### C. Kadro'da oyuncu bilgi kartı (MyTeam)
+- Kadro satırına dokunma → **paylaşılan `PlayerDetailModal`** (JokerPool kartıyla aynı tasarım)
+  salt-bilgi modunda (aksiyon prop'suz); kendine dokununca `isMe` + "Profili Düzenle" →
+  `/settings/profile` (ProfileHeaderCard deseni). 3-nokta butonu `e.stopPropagation()` ile
+  aksiyon sheet'ini açmaya devam eder.
+- `useMyTeam.mapRoster` kart alanlarıyla genişledi (secondaryPosition/location/birthDate/foot/
+  nationality/favoritePitchIds←favoriteBusinessIds); create yolundaki mükerrer inline map
+  `mapRoster`'a bağlandı (tek kaynak). `useTeamModals`'a `playerCardModal` state'i eklendi.
+- Misafir oyuncular bölümü dokunulmadı (guestPlayers MyTeam'de sabit `[]`).
+
+### D. GÜVENLİK — /teams yanıtlarında hassas alan temizliği (server/src/teams/teams.service.ts)
+- **Açık:** `GET /teams`, `GET /teams/:id`, `GET /teams/search/:term` (üçü de GUARD'SIZ/anonim)
+  oyuncu ve kaptanların TAM user entity'sini döndürüyordu: **password hash, email, phone,
+  pushToken, GPS lat/lng, chat-ban alanları, phoneVerified** sızıyordu.
+- **Çözüm:** `sanitizeUser` helper + `SENSITIVE_USER_FIELDS` listesi; üç okuma yolunda players +
+  captain temizlenir. **KALICI KURAL: User'a yeni hassas kolon eklenirse bu listeye de ekle!**
+- Güvenli çünkü: alanlar "absent" bırakılır (null yazılmaz) → `Team.players` OneToMany ve
+  `Team.captain` OneToOne **cascade'siz**, `save(team)` bu nesneleri yazmaz (FK yalnız id'den).
+  İşletme panelindeki kaptan-telefonu özelliği **reservations** payload'ından gelir — etkilenmez.
+- Doğrulama: local 3100 + curl → 3 uçta da sızıntı alanları YOK, kart alanları (birthDate/foot/
+  nationality/favoriteBusinessIds...) duruyor; işlevsel akışlar (rol değişimi/atma) FK id'lerle çalışır.
+
+### E. Kayıt sihirbazı adım 1'de otomatik klavye (UsernameStep.tsx)
+- Mount + 350ms (animate-step-in 0.32s bitişi) → `inputRef.focus()`; Android'de ek olarak
+  `Keyboard.show()` (Android-only API) — programatik focus bazı cihazlarda IME açmayabiliyor.
+- **KALICI BİLGİ (iOS klavye):** Capacitor çekirdeği `keyboardShouldRequireUserInteraction=false`
+  ayarlar (CAPBridgeViewController.swift + WKWebView swizzle) → **iOS'ta programatik focus klavyeyi
+  HER ZAMAN açar**; jest bağlamı gerekmiyor (OtpInput'un effect-focus'u zaten kanıt).
+  FilterBar'daki "yalnız jest içindeki taze mount+autoFocus güvenilir" notu bu nedenle fazla temkinli.
+- Adım 1'e geri dönüşte de (key={step} remount) aynı davranış — bilinçli/tutarlı.
+
+### Doğrulama
+- server `npm run build` ✓ + eslint (teams.service) ✓; client `tsc --noEmit` (yalnız ön-var-olan
+  LocationStep) + `vite build` + `cap copy` (ios+android) ✓. Cihaz testi: kadro kartı (kendisi/
+  arkadaş/3-nokta ayrımı), buton renkleri, banner metni, Kayıt Ol → klavye (iOS+Android).
+
+---
+
+## 52. Takım İstekleri yalnız bekleyenler + yardımcı kaptan 409 guard'ı (2026-07-07)
+
+> Kullanıcı kararı: Takım İstekleri = "cevap bekleyen istekler" ekranı; kabul edilenler listeden
+> düşer. Ayrıca 3. yardımcı kaptan denemesinde sahte "YENİ YARDIMCI!" başarısı düzeltildi.
+
+### A. Takım İstekleri: yalnız PENDING
+- **Meydan okumalar** (`challenges.service.findActiveOutgoingByTeamId`): `status IN
+  (PENDING,ACCEPTED)` → yalnız `PENDING`. `/challenges/team/:id/active` tek tüketici =
+  TeamRequestsModal. Marketplace/PitchBooking "zaten meydan okundu" göstergesi FARKLI endpoint
+  (`/challenges/team/:id`, tüm statüler) — ona DOKUNMA.
+- **Joker davetleri** (`notifications.service.getTeamJokerInvites`): MATCH_GROUP chat üyelerinden
+  `JOINED` türetme bloğu KALDIRILDI — yalnız bekleyen JOKER_INVITE bildirimleri döner; bekleyeni
+  kalmayan maç grupları `jokers.length===0 → continue` ile gizlenir. Tek tüketici aynı modal.
+- Client'ta değişiklik yok (STATUS_LABEL/pill/sayaçlar otomatik uyumlu).
+
+### B. Yardımcı kaptan sınırı — SESSİZ ATLAMA YOK kuralı
+- **KÖK NEDEN:** `teams.service.updatePlayerRole` (VICE) ve `updateViceCaptains` (add) 2 sınırına
+  takılınca sessizce atlayıp 200 dönüyordu; client her 200'de başarı modalı basıyordu.
+- **KALICI KURAL:** limit/iş kuralı ihlalinde sessiz no-op + 200 DÖNME — `ConflictException`
+  (Türkçe mesajla) fırlat ki istemci sahte başarı göstermesin. İki metotta da:
+  `'Bir takımda en fazla 2 yardımcı kaptan olabilir.'` (zaten-yardımcıysa idempotent kalır).
+- Bonus tutarlılık: kaptan yapılan oyuncu `viceCaptainIds`'ten düşürülür (hayalet slot bitti).
+- **Client:** `SuccessModal`'a amber `VICE_LIMIT` uyarı tipi (başlık "YARDIMCI SINIRI",
+  AlertTriangle); `useTeamRoster.handlePromotePlayer` VICE'ta ①API öncesi ön-kontrol
+  (`viceCaptainIds.length>=2` → modal, istek atılmaz), ②catch'te `409` → aynı modal
+  (bayat state yarışı), diğer hatalar mevcut kırmızı banner.
+
+### DB bulgusu (soruşturma, canlı değil LOKAL)
+- "Şahin United KABUL EDİLDİ" satırı seed/test artığıydı: iki challenge AYNI mikrosaniyede
+  (tek transaction = elle toplu insert), kabul akışının yan etkileri (chat/rezervasyon/CONFIRMED/
+  bildirim) hiç yoktu. Uygulama hatası DEĞİL. Lokal DB'den silindi (tek seferlik DELETE).
+  Teşhis ipucu: gerçek kabul = `challenges.updateStatus` → maç CONFIRMED + chat + rezervasyon.
+
+### Doğrulama
+- Lokal 3100 + kaptan JWT'siyle curl: `/challenges/.../active` yalnız PENDING ✓;
+  `/notifications/joker-invites/...` yalnız PENDING jokerli 2 grup ✓; 2 yardımcı doluyken
+  3.'ye VICE → **HTTP 409** + mesaj, DB değişmedi ✓. server build+lint ✓; client tsc
+  (yalnız LocationStep) + build + cap copy ✓. Native kod değişmedi → yeni sürüm JS bundle taşır.
+
+---
+
+## 53. Rakip modal birleştirme + JokerPool akışkan başlık + kadro sırası + VICE_LIMIT kalıcı (2026-07-07)
+
+> 4 küçük istek, hepsi client-only (server yok; yeni sürüm JS bundle taşır).
+
+- **Sahalar "Rakibi Görüntüle" → paylaşılan modal:** PitchBooking'in YEREL
+  `components/TeamDetailModal.tsx`'i SİLİNDİ; `PitchBooking.tsx` artık paylaşılan
+  `components/Modals/TeamDetailModal`'ı kullanır (Marketplace/Notifications ile aynı desen:
+  `isOpen + teamId + currentUserId`; `viewingTeam` state'i ve ActiveMatchesList dokunulmadı —
+  `viewingTeam.id` geçilir). Paylaşılan modalın tüketicileri artık 3: Marketplace,
+  Notifications, PitchBooking.
+- **JokerPool başlığı (KALICI desen — buton + başlık aynı satırda):** başlık `whitespace-nowrap`
+  + `fontSize: clamp(1.25rem, calc((100vw - 204px) / 6.7), 2.75rem)` (204px = maks buton +
+  padding + gap-4 + nefes payı — başlık butona yapışmasın, kullanıcı kararı; 6.7 = başlığın
+  em-genişliği); buton `text-[clamp(10px,3.1vw,12px)] px-[clamp(8px,2.8vw,12px)]`.
+  Küçük ekranda ikisi birden orantılı küçülür, sarma imkânsız.
+  Yanında buton olan akışkan başlıklar için bu "kalan-genişlik calc'li clamp" desenini kullan
+  (salt-vw clamp buton genişliğini bilemez).
+- **Kadro sıralaması:** `TeamRoster.tsx` — useMemo'lu stable sort: kendisi → kaptan →
+  yardımcılar → diğerleri (kendisi kaptansa birleşir). captainId fallback'li
+  (`myTeam.captainId || myTeam.captain?.id`); yardımcı atama `setMyTeam` ile anında yeniden sıralar.
+- **VICE_LIMIT kalıcı modal:** `useMyTeam`'deki 3sn otomatik temizleme efekti
+  `successType === 'VICE_LIMIT'` için atlanır (kullanıcı TAMAM ile kapatır); diğer sonuç
+  modalları 3sn davranışını korur.
+- Doğrulama: tsc (yalnız ön-var-olan LocationStep) + vite build + cap copy (ios+android) ✓.
