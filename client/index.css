@@ -177,6 +177,57 @@
   animation: pulseGlow 4s ease-in-out infinite;
 }
 
+/* ── Login "gece halısahası": kendini çizen saha çizgileri (floodlit tebeşir) ── */
+
+/* Orta saha çemberi: stroke-dashoffset ile TAM kapanan daire.
+   dash = çevre (inline strokeDasharray/Offset) → to:0'da boşluksuz kapanır. pathLength ve
+   non-scaling-stroke YOK (iOS/WebKit'te bu ikili + dash → çizim tam kapanmıyor). */
+@keyframes pitchDrawClose {
+  to { stroke-dashoffset: 0; }
+}
+
+.pitch-draw {
+  animation: pitchDrawClose 1.4s cubic-bezier(0.6, 0, 0.2, 1) both;
+}
+
+/* Düz yatay çizgi (orta saha): merkezden dışa doğru çizilir (scaleX — GPU). */
+@keyframes pitchLineH {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
+.pitch-line-h {
+  transform: scaleX(0);
+  transform-origin: center;
+  animation: pitchLineH 0.7s cubic-bezier(0.6, 0, 0.2, 1) both;
+  will-change: transform;
+}
+
+/* Ceza sahası: dash-draw YOK (komple çizili SVG); gol çizgisinden yukarı clip-path wipe. */
+@keyframes pitchWipeUp {
+  from { clip-path: inset(100% 0 0 0); }
+  to   { clip-path: inset(0 0 0 0); }
+}
+
+.pitch-wipe-up {
+  animation: pitchWipeUp 0.8s cubic-bezier(0.6, 0, 0.2, 1) 0.85s both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pitch-draw {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+  .pitch-line-h {
+    animation: none;
+    transform: none;
+  }
+  .pitch-wipe-up {
+    animation: none;
+    clip-path: none;
+  }
+}
+
 /* ── Auth sihirbazı: kurumsal-sade adım geçişi + hata sarsıntısı ───────── */
 
 @keyframes stepIn {
