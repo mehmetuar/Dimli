@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { User } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
+import { Keyboard } from '@capacitor/keyboard';
 
 const scrollInputIntoView = (e: React.FocusEvent<HTMLInputElement>) => {
     setTimeout(() => {
@@ -15,6 +17,22 @@ interface UsernameStepProps {
 
 export const UsernameStep: React.FC<UsernameStepProps> = ({ formData, handleChange, fieldErrors }) => {
     const error = fieldErrors.username;
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    // Sihirbaz açılır açılmaz klavye açık başlar (adım 1'e geri dönüşte de — remount).
+    // iOS: Capacitor çekirdeği keyboardShouldRequireUserInteraction=false ayarlar
+    // (CAPBridgeViewController) → programatik focus klavyeyi açar (OtpInput deseni).
+    // Android: programatik focus IME'yi her cihazda açmayabilir → Keyboard.show()
+    // (Android-only API) garantiler. 350ms: animate-step-in (0.32s) bitişi +
+    // scrollInputIntoView ritmiyle uyum.
+    useEffect(() => {
+        const t = setTimeout(() => {
+            inputRef.current?.focus();
+            if (Capacitor.getPlatform() === 'android') Keyboard.show().catch(() => { });
+        }, 350);
+        return () => clearTimeout(t);
+    }, []);
+
     // Başlık layout header'ında (AuthWizardLayout); kök animasyonu da layout'un
     // keyed animate-step-in sarmalayıcısı üstlenir — burada tekrar etme (çift animasyon).
     return (
@@ -26,6 +44,7 @@ export const UsernameStep: React.FC<UsernameStepProps> = ({ formData, handleChan
                 <div className="relative">
                     <User className={`absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 transition-colors ${error ? 'text-red-400' : 'text-slate-500'}`} />
                     <input
+                        ref={inputRef}
                         type="text"
                         name="username"
                         value={formData.username}
