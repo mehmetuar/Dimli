@@ -57,8 +57,14 @@ export const BusinessListItem = React.memo<BusinessListItemProps>(({
                 className="aspect-video relative cursor-pointer group"
                 onClick={() => setExpandedBusinessId(isExpanded ? null : business.id)}
             >
-                {/* Kart görseli: işletme fotoğrafı; eski işletmelerde (coverImageUrl boş) ilk saha fotoğrafına düşer */}
-                <img src={business.coverImageUrl || displayPitch?.imageUrl || "https://images.unsplash.com/photo-1529900748604-07564a03e7a6?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80"} alt={business.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                {/* Kart görseli: Kapalıyken (işletme liste görünümü) öncelik işletme kapak fotoğrafında. Açıkken (saha detayları) öncelik saha fotoğrafında. */}
+                <img 
+                    src={isExpanded 
+                        ? (displayPitch?.imageUrl || business.coverImageUrl || "https://images.unsplash.com/photo-1529900748604-07564a03e7a6?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80") 
+                        : (business.coverImageUrl || displayPitch?.imageUrl || "https://images.unsplash.com/photo-1529900748604-07564a03e7a6?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80")} 
+                    alt={business.name} 
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+                />
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/20 to-transparent"></div>
 
                 {displayPitch && (
@@ -112,7 +118,7 @@ export const BusinessListItem = React.memo<BusinessListItemProps>(({
                             {distanceKm !== undefined && (
                                 <div className="flex items-center gap-1 bg-turf-600/20 border border-turf-500/40 px-2.5 py-1 rounded-full shrink-0">
                                     <Navigation className="w-3 h-3 text-turf-400" />
-                                    <span className="text-xs font-black text-turf-300">{distanceKm} km</span>
+                                    <span className="text-xs font-black text-white">{distanceKm} km</span>
                                 </div>
                             )}
                         </div>
