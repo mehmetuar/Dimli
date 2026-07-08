@@ -2297,3 +2297,89 @@ buraya taşındı), `extractPublicId(url)` (public_id regex'i artık tek yerde �
   `remove` edilen tek sahayı geri alamaz). Owner self-delete ettiyse owner+abonelik hard-delete →
   restore edilen işletme müşteriye görünmez + yeniden kayıtta **çift-kayıt riski**. İptal edilen
   bekleyen kayıtlar restore'da geri gelmez (zaman-duyarlı, kabul edilebilir). → ayrı tur.
+
+---
+
+## 58. Takımım modalları revizyonu + veri çekme denetimi (2026-07-08)
+
+### Modal düzeltmeleri (`client/pages/customer/MyTeam/components/`)
+- **Kapatma butonu 3 modalda (Geçmiş/İstekler/Yaklaşan) basılamıyordu — kök neden z-index:**
+  başlık satırı da `z-10` ve DOM'da butondan SONRA geldiği için butonun büyük bölümünü örtüp
+  dokunuşları yutuyordu. Çözüm: buton `z-20` + `p-3` (48×48 hit area). Bu header deseninde yeni
+  buton eklerken başlık katmanının üstünde kalmasına dikkat.
+- **RatingModal `MatchHistoryModal` backdrop'unun İÇİNE render ediliyordu** → yıldıza her dokunuş
+  backdrop `onClick={onClose}`'a kabarcıklanıp geçmiş maçlar modalını kapatıyordu (puanlama
+  imkânsızdı). Çözüm: portal fragment'ında **kardeş** katman olarak render. Kural: tam-ekran alt
+  modal, backdrop-tıkla-kapan bir üst modalın çocuğu OLMAMALI (ya kardeş ya `stopPropagation`).
+- Geçmiş maç kartı kompaktlaştırıldı: durum tam-genişlik üst çubuğa taşındı ("Değerlendirildi"
+  taşması bitti — dar ekranda sığmayan sağ rozet deseni yerine bar + `truncate`), puanlar barda
+  mini rozet (5 yıldız satırı kalktı), bilgiler tek `divide-y` konteynerde, fontlar `clamp()`.
+- Takım İstekleri kartı: takım adı + durum pill'i aynı satıra alındı, boşluklar sıkıldı.
+  Dış "Takım İstekleri" butonu turuncudan laciverte (`from-blue-600 to-indigo-700`) çevrildi —
+  modal içi mavi tonlarla tutarlılık (turuncu = işletme tarafı rengiyle karışıyordu gerekçesi
+  artık geçersiz).
+
+### Veri çekme denetimi (rapor: `docs/takimim-veri-cekme-raporu.md`)
+- Uygulanan: `useMyTeam.fetchUser`'dan **kullanılmayan `getPitches()`** ve **çift `GET
+  /ratings/history`** (modal zaten her açılışta çekiyor) kaldırıldı → açılış 4 → 2 istek.
+- Açık aksiyonlar (öncelikli): `/ratings/history` LİMİTSİZ (sayfalama şart, en kritik);
+  `teams.findOne` oyuncuları 2 kez sorguluyor + üretimde `console.log`; `/reservations/upcoming`
+  tüm `timeSlots`'u join'liyor (bitiş = başlangıç+1sa, `addOneHour` yeter); ev sahibi saha kartı
+  tüm yarıçap listesinden besleniyor (tekil `GET /businesses/:id` + edit-modunda lazy liste;
+  ayrıca ev işletmesi yarıçap dışındaysa kart yanlışlıkla "İşletme Seç" gösteriyor).
+
+---
+
+## 59. Takımım ölçeklenebilirlik turu: 4 öncelikli aksiyon uygulandı (2026-07-08)
+
+`docs/takimim-veri-cekme-raporu.md` P1/P2 aksiyonlarının tamamı + `findAll` bonus'u.
+**Geriye uyumluluk ilkesi:** sahadaki kurulu sürümler bozulmaz — sunucu önce deploy edilir.
+
+### A1 — `teams.service.ts` findOne/findAll (sunucu)
+- Ortak `loadTeamPlayers(teamId)`: oyuncular TEK sorgu, **dar select** (User kolonları eksi
+  SENSITIVE_USER_FIELDS — hassas kolonlar DB'den hiç çekilmez), `user.team` join'i YOK →
+  `players[].team` (oyuncu başına gömülü tam takım nesnesi) payload'dan kalktı (tüketicisi
+  yoktu; skaler `teamId` duruyor; kullanıcı onayı alındı). `findOne`'daki çift oyuncu
+  yüklemesi (relations + QueryBuilder) teke indi; üretim `console.log`'u silindi.
+  `sanitizeUser` savunma katmanı olarak duruyor.
+
+### A2 — `GET /ratings/history` sayfalama (sunucu+client)
+- **Sözleşme:** `limit` param YOKSA eski düz dizi (eski client'lar); VARSA
+  `{items,total,hasMore}` (business paged zarfı; cap 1-50, default 20).
+- `ratings.service.ts`: `fetchMatchHistoryPage` çekirdeği — QueryBuilder
+  `(teamId OR opponentTeamId) AND APPROVED AND slotTime<now`, `ORDER BY slotTime DESC`,
+  paged yolda `take/skip + getManyAndCount`. JS dedup + JS sort SİLİNDİ (tek OR sorgusu
+  duplikat üretemez; sıralama SQL'de).
+- `reservation.entity.ts`: **`@Index(['opponentTeamId','status'])`** eklendi (OR'un ikinci
+  kolu indekssizdi — canlı DB'de doğrulandı). synchronize boot'ta kurar (CONCURRENTLY değil,
+  kısa yazma kilidi — mevcut boyutta önemsiz).
+- Client: `api.ts getMatchHistoryPaged` (eski sunucuda düz-dizi fallback'i),
+  `useMyTeam` birikmeli sayfa state'i (gen/fetching ref guard'ları usePitchBooking deseni),
+  MatchHistoryModal sonsuz kaydırma (<600px eşiği) + başlık `total` (artık dizi uzunluğu değil).
+  **`applyRatingResult` hook'ta** — puanlamanın optimistic güncellemesi birikmeli listede
+  yaşar; modal-lokal state kaldırıldı (sayfa append'i güncellemeyi silemiyordu bug'ı önlendi).
+
+### A3 — `/reservations/upcoming` timeSlots join'i kalktı (sunucu+client)
+- `reservation-query.service.ts findUpcomingByTeam`: `pitch.timeSlots` join'i yerine getMany
+  sonrası TEK `timeSlotRepository.find({pitchId: In(...)})` + İstanbul "HH:mm" eşlemesi
+  (`istanbulDisplayParts`, §29). Yanıtta: `pitch.timeSlots = [eşleşen] | []` (ESKİ client'ın
+  `.find()`'ı çalışmaya devam eder) + **üst-düzey `endTime: string|null`** (yeni client).
+- ⚠️ **+1 saat VARSAYMA:** canlı DB'de 2 saatlik (12:00→14:00) ve gece-aşan (23:00→00:00)
+  slotlar var. Lokal testte 2sa slot → endTime 07:00 (06:00 değil) doğrulandı.
+- Client `UpcomingMatchesModal`: `match.endTime ?? timeSlots-lookup ?? addOneHour` zinciri.
+- `reservations.module.ts`'e `TimeSlot` forFeature eklendi.
+
+### A4 — Ev sahibi işletme kartı (yalnız client)
+- Kart artık `getBusinesses({ids:[homeBusinessId]})` tekil fetch'i (TeamDetailModal deseni,
+  yeni endpoint yok); **yarıçap listesi yalnız "Değiştir" (isEditingPitch) modunda** lazy
+  çekiliyor (`isBusinessListLoading` spinner'ı ile). BUG FIX: ev işletmesi seçili yarıçapın
+  dışındaysa kart yanlışlıkla "İşletme Seç" gösteriyordu. Offline: `TEAM_CACHE_KEY` zarfına
+  opsiyonel `homeBusiness` anahtarı eklendi (fetchUser yazarken zarfı spread'le korur).
+
+### Doğrulama (lokal dev sunucu :3919, lokal dev DB — canlıya YAZILMADI)
+- Legacy history düz dizi + DESC; limit=2/offset sayfaları çakışmasız, total/hasMore doğru;
+  limit cap çalışıyor. /teams/:id: hassas alan yok, players[].team yok, playedMatchCount var.
+  upcoming: timeSlots 0/1 elemanlı, endTime gece-aşan ve 2sa slotta doğru. businesses?ids OK.
+  server build + client tsc/build temiz. Test satırları lokal DB'den geri silindi.
+
+### Açık kalanlar (rapor P3): modal verilerine kısa-TTL cache; users/me→teams/:id waterfall.
