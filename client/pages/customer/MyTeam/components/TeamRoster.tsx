@@ -93,8 +93,6 @@ export const TeamRoster: React.FC<TeamRosterProps> = ({
                                 <div className="text-slate-500 text-[10px] uppercase font-bold">{player.position}</div>
                             </div>
 
-                            <div className="text-white font-sport font-bold text-lg mr-2">{player.rating}</div>
-
                             {(() => {
                                 if (player.id === currentUser.id) return false;
                                 if (isCaptain) return true;

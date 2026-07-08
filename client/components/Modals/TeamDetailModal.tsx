@@ -194,7 +194,14 @@ export const TeamDetailModal: React.FC<TeamDetailModalProps> = ({ isOpen, onClos
                                     )}
                                 </h3>
                                 <div className="space-y-2">
-                                    {roster.map(player => {
+                                    {[...roster].sort((a, b) => {
+                                        const rank = (p: Player) =>
+                                            p.id === currentUserId ? 0
+                                                : p.id === team.captainId ? 1
+                                                    : team.viceCaptainIds?.includes(p.id) ? 2
+                                                        : 3;
+                                        return rank(a) - rank(b);
+                                    }).map(player => {
                                         const isMe = currentUserId === player.id;
                                         return (
                                             <div
@@ -217,7 +224,6 @@ export const TeamDetailModal: React.FC<TeamDetailModalProps> = ({ isOpen, onClos
                                                     </div>
                                                     <div className="text-[clamp(0.55rem,2.2vw,0.65rem)] text-slate-500 uppercase font-black tracking-wide">{player.position}</div>
                                                 </div>
-                                                <div className={`font-black text-[clamp(0.8rem,3.5vw,0.875rem)] ${isMe ? 'text-turf-400' : 'text-turf-500'} flex-shrink-0`}>{player.rating}</div>
                                             </div>
                                         );
                                     })}
