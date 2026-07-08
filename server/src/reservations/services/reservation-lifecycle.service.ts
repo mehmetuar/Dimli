@@ -9,12 +9,15 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   DataSource,
+  EntityManager,
   Repository,
   DeepPartial,
   Between,
   Not,
   Equal,
+  In,
   IsNull,
+  MoreThanOrEqual,
 } from 'typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { Reservation, ReservationStatus } from '../entities/reservation.entity';
@@ -854,6 +857,173 @@ export class ReservationLifecycleService {
 
       return reservation;
     });
+  }
+
+  /**
+   * İşletme kapanınca (owner hesap silme) veya bir saha kaldırılınca (plan küçültme
+   * saha-seçimi dahil) o saha(lar)a bağlı GELECEKTEKİ bekleyen kayıtları iptal eder
+   * ve ilgili takımları bilgilendirir:
+   *  - PENDING rezervasyonlar ("onay bekliyor") → CANCELLED + MATCH_GROUP sistem mesajı
+   *    + joker temizliği + oyuncu bildirimi.
+   *  - PENDING ilanlar ("rakip aranıyor" / rezervasyonsuz kendi_aramizda) → CANCELLED
+   *    + kaptan/oyuncu bildirimi.
+   * Kesinleşmiş (APPROVED) maçlar silmeyi zaten engellediği için buraya düşmez; geçmiş
+   * kayıtlara dokunulmaz (cron onları EXPIRED yapıyor). Çağıranın transaction `manager`'ı
+   * içinde çalışır — durum geçişleri manager ile, bildirimler approve() emsalindeki gibi
+   * best-effort (kendi transaction'ını açmaz).
+   */
+  async cancelPendingForPitches(
+    pitchIds: string[],
+    ctx: {
+      scope: 'BUSINESS_CLOSED' | 'PITCH_REMOVED';
+      businessName: string;
+      pitchNameById?: Map<string, string>;
+    },
+    manager: EntityManager,
+  ): Promise<void> {
+    if (!pitchIds || pitchIds.length === 0) return;
+    const { scope, businessName } = ctx;
+    const now = new Date();
+
+    // "{İşletme} kapandığı için" veya "{İşletme} - {Saha} kaldırıldığı için" öneki.
+    const reasonPrefix = (pitchId: string, pitchFallback?: string | null) => {
+      if (scope === 'BUSINESS_CLOSED') return `${businessName} kapandığı için`;
+      const pitchName =
+        ctx.pitchNameById?.get(pitchId) || pitchFallback || 'Saha';
+      return `${businessName} - ${pitchName} kaldırıldığı için`;
+    };
+
+    // ── 1) Bekleyen rezervasyonlar ("onay bekliyor") ──
+    const pendingReservations = await manager.find(Reservation, {
+      where: {
+        pitchId: In(pitchIds),
+        status: ReservationStatus.PENDING,
+        slotTime: MoreThanOrEqual(now),
+      },
+      relations: [
+        'pitch',
+        'team',
+        'team.players',
+        'opponentTeam',
+        'opponentTeam.players',
+      ],
+    });
+
+    const handledAnnouncementIds = new Set<string>();
+
+    for (const res of pendingReservations) {
+      if (res.matchAnnouncementId)
+        handledAnnouncementIds.add(res.matchAnnouncementId);
+
+      const parts = istanbulDisplayParts(new Date(res.slotTime));
+      const whenStr = `${parts.displayDateWithYear} ${parts.dayName} ${parts.time}`;
+      const message = `${reasonPrefix(res.pitchId, res.pitch?.name)} ${whenStr} saatindeki onay bekleyen saha talebiniz iptal edildi. Yakındaki diğer sahalara göz atabilirsiniz.`;
+
+      // MATCH_GROUP sohbetine sistem mesajı + joker temizliği (varsa). Ayrı push
+      // bildirimi gittiğinden skipPush=true (çift push olmasın).
+      if (res.matchAnnouncementId) {
+        await this.support.sendSystemMessage(
+          manager,
+          res.matchAnnouncementId,
+          res.team,
+          message,
+          { type: scope, reservationId: res.id },
+          true,
+        );
+        await this.support.cleanupJokersOnMatchCancel(
+          manager,
+          res.matchAnnouncementId,
+          [res.teamId, res.opponentTeamId],
+          `${reasonPrefix(res.pitchId, res.pitch?.name)} katıldığınız maç iptal edildi.`,
+          res.id,
+        );
+      }
+
+      // İlgili takım(lar)ın oyuncularına (dedup) bildirim.
+      const seen = new Set<string>();
+      const players: User[] = [
+        ...(res.team?.players ?? []),
+        ...(res.opponentTeam?.players ?? []),
+      ];
+      for (const player of players) {
+        if (!player?.id || seen.has(player.id)) continue;
+        seen.add(player.id);
+        await this.notificationsService.create({
+          userId: player.id,
+          type: 'SYSTEM',
+          title: 'Saha Talebiniz İptal Edildi',
+          message,
+          relatedId: res.id,
+          read: false,
+          metadata: { type: scope, reservationId: res.id },
+        });
+      }
+    }
+
+    if (pendingReservations.length > 0) {
+      await manager.update(
+        Reservation,
+        { id: In(pendingReservations.map((r) => r.id)) },
+        { status: ReservationStatus.CANCELLED },
+      );
+    }
+
+    // ── 2) Bekleyen ilanlar (rakip_araniyor + rezervasyonsuz kendi_aramizda) ──
+    const pendingAnnouncements = await manager.find(MatchAnnouncement, {
+      where: { pitchId: In(pitchIds), status: 'PENDING' },
+      relations: ['team', 'team.captain', 'team.players'],
+    });
+
+    // Yalnız gelecekteki ilanlar (İstanbul date+time >= şimdi). Geçmiş ilanlar cron
+    // ile zaten EXPIRED oluyor; onlara dokunma.
+    const nowParts = istanbulDisplayParts(now);
+    const futureAnnouncements = pendingAnnouncements.filter(
+      (a) =>
+        a.date > nowParts.dateStr ||
+        (a.date === nowParts.dateStr && a.time >= nowParts.time),
+    );
+
+    for (const ann of futureAnnouncements) {
+      // kendi_aramizda ilanının rezervasyonu 1. adımda ele alındıysa tekrar bildirim
+      // gönderme — durum geçişi aşağıdaki toplu update ile yine yapılır.
+      if (handledAnnouncementIds.has(ann.id)) continue;
+
+      const parts = istanbulDisplayParts(
+        istanbulDateTimeToUtc(ann.date, ann.time),
+      );
+      const whenStr = `${parts.displayDateWithYear} ${parts.dayName} ${parts.time}`;
+      const isRakip = !ann.matchType || ann.matchType === 'rakip_araniyor';
+      const title = isRakip ? 'İlan Kaldırıldı' : 'Maç Talebiniz İptal Edildi';
+      const kind = isRakip
+        ? `'Rakip Aranıyor' ilanınız kaldırıldı`
+        : `onay bekleyen maç talebiniz iptal edildi`;
+      const message = `${reasonPrefix(ann.pitchId)} ${whenStr} saatindeki ${kind}. Yakındaki diğer sahalara göz atabilirsiniz.`;
+
+      const recipients = new Set<string>();
+      const captainId = ann.team?.captain?.id || ann.team?.captainId;
+      if (captainId) recipients.add(captainId);
+      for (const p of ann.team?.players ?? []) if (p?.id) recipients.add(p.id);
+
+      for (const userId of recipients) {
+        await this.notificationsService.create({
+          userId,
+          type: 'SYSTEM',
+          title,
+          message,
+          relatedId: ann.id,
+          read: false,
+          metadata: { type: scope, announcementId: ann.id },
+        });
+      }
+    }
+
+    if (futureAnnouncements.length > 0) {
+      await manager.update(
+        MatchAnnouncement,
+        { id: In(futureAnnouncements.map((a) => a.id)) },
+        { status: 'CANCELLED' },
+      );
+    }
   }
 
   async revokeConfirmation(id: string) {

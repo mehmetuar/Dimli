@@ -2253,3 +2253,47 @@ buraya taşındı), `extractPublicId(url)` (public_id regex'i artık tek yerde �
   temizlik oraya bağlanmalı.
 - **Geçmiş yetim Cloudinary dosyaları:** team/user hard-delete olduğundan geçmişte silinmiş
   kayıtların asset'leri DB'den türetilemez; bu düzeltme yalnız bundan sonrası için önleme sağlar.
+
+---
+
+## 57. İşletme/saha silince bekleyen "onay bekliyor" + "rakip aranıyor" iptali & bildirim (2026-07-08)
+
+> Boşluk: işletme sahibi hesabını silince (`deleteAccount`) veya bir saha kaldırılınca
+> (`pitches.remove`; plan küçültme saha-seçimi de bunu çağırır) o saha(lar)a bağlı **bekleyen**
+> `Reservation` (PENDING = "onay bekliyor") ve **PENDING `MatchAnnouncement`** ("rakip aranıyor")
+> öksüz kalıyordu — ilan Maç Pazarı JOIN'inden (`b.deletedAt IS NULL`) sessizce düşüyor ama takıma
+> **bildirim gitmiyordu**; `kendi_aramizda` sohbeti + "onay bekleniyor" durumu boşuna asılıydı.
+> "Kesinleşmiş (APPROVED) maç varsa silinemez" kontrolü zaten vardı (deleteAccount: ileri tarihli
+> APPROVED sayımı; pitches.remove: `getFutureApprovedConflicts` → 409) — bu akış onun **altındaki**
+> bekleyen durumları temizler.
+
+### Çözüm — ortak yardımcı `cancelPendingForPitches`
+- `reservation-lifecycle.service.ts` `cancelPendingForPitches(pitchIds, ctx, manager)` (facade
+  `reservations.service.ts` üzerinden dışa açık). Mevcut `approve()` iptal+bildirim deseninin
+  (§sekmesi: rakip PENDING rezervasyon→REJECTED + `rakip_araniyor`→CANCELLED) silme'ye genellemesi.
+- **Yalnız GELECEKTEKİ** kayıtlar (rez. `slotTime >= now`; ilan İstanbul date+time >= now —
+  geçmişi cron zaten EXPIRED yapıyor). Durum geçişleri **toplu** `update(In(ids))`, `manager` ile
+  transaction içinde; bildirimler `notificationsService.create` (approve() gibi best-effort).
+- Rezervasyon → `CANCELLED`; MATCH_GROUP varsa `support.sendSystemMessage(skipPush=true)` + öksüz
+  joker için `support.cleanupJokersOnMatchCancel`; iki takımın oyuncularına (dedup) bildirim.
+- İlan → `CANCELLED`; kaptan+oyunculara bildirim. `kendi_aramizda` ilanı 1. adımda rezervasyonuyla
+  ele alındıysa **tekrar bildirim yok** (`handledAnnouncementIds` guard), yalnız durum geçişi.
+- Tarih/saat: `istanbulDisplayParts` (agent.md §29 — çıplak `toLocale*` yasak).
+
+### Bağlama + bildirim
+- `deleteAccount`: sahalar soft-delete edilmeden ÖNCE, `queryRunner.manager` ile
+  `scope:'BUSINESS_CLOSED'`. `pitches.remove`: soft-delete öncesi kendi transaction'ında
+  `scope:'PITCH_REMOVED'` (+ `pitchNameById`). `PitchesService` artık `ReservationsService` inject
+  ediyor → **`PitchesModule` `ReservationsModule` import eder** (döngü yok: ReservationsModule
+  Pitches'i import etmiyor).
+- Yeni `metadata.type`: **`BUSINESS_CLOSED` / `PITCH_REMOVED`** → `notifications.service.ts`
+  `userSystemPushTypes` whitelist'ine eklendi (SYSTEM bildirimi FCM push da gider). Metin: detaylı +
+  yönlendirici ("{işletme}/{saha} kapandığı/kaldırıldığı için {tarih saat} … Yakındaki diğer sahalara
+  göz atabilirsiniz."). `notification.entity.ts` union DEĞİŞMEDİ (SYSTEM + metadata.type serbest).
+
+### ⏳ Restore (geri yükleme) — AÇIK eksikler (bu turda YALNIZ raporlandı, kod yok)
+- Geri yükleme yalnız **admin** (`admin-business.service.restoreBusiness`, işletme + TÜM sahaları
+  un-soft-delete). **Owner self-restore YOK**; **tek-saha restore yolu HİÇ YOK** (owner da admin de
+  `remove` edilen tek sahayı geri alamaz). Owner self-delete ettiyse owner+abonelik hard-delete →
+  restore edilen işletme müşteriye görünmez + yeniden kayıtta **çift-kayıt riski**. İptal edilen
+  bekleyen kayıtlar restore'da geri gelmez (zaman-duyarlı, kabul edilebilir). → ayrı tur.

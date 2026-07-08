@@ -205,6 +205,8 @@ export class NotificationsService {
       'ANNOUNCEMENT_SLOT_TAKEN',
       'MATCH_RESTORED_TO_PENDING',
       'BUSINESS_NOTE',
+      'BUSINESS_CLOSED',
+      'PITCH_REMOVED',
     ]);
     const isUserPush =
       saved.userId &&
