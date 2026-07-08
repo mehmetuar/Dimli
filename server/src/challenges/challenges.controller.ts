@@ -22,11 +22,7 @@ export class ChallengesController {
     @Body() dto: { toMatchId: string; note?: string },
     @Request() req: { user: { id: string } },
   ) {
-    return this.challengesService.create(
-      req.user.id,
-      dto.toMatchId,
-      dto.note,
-    );
+    return this.challengesService.create(req.user.id, dto.toMatchId, dto.note);
   }
 
   @Get('match/:matchId')

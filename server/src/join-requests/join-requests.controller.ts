@@ -53,7 +53,10 @@ export class JoinRequestsController {
 
   @UseGuards(JwtAuthGuard)
   @Patch(':id/accept')
-  async accept(@Param('id') id: string, @Request() req: { user: Express.User }) {
+  async accept(
+    @Param('id') id: string,
+    @Request() req: { user: Express.User },
+  ) {
     const joinRequest = await this.joinRequestsService.findById(id);
 
     // Yalnızca kaptan veya yardımcı kaptan kabul edebilir
@@ -87,7 +90,10 @@ export class JoinRequestsController {
 
   @UseGuards(JwtAuthGuard)
   @Patch(':id/reject')
-  async reject(@Param('id') id: string, @Request() req: { user: Express.User }) {
+  async reject(
+    @Param('id') id: string,
+    @Request() req: { user: Express.User },
+  ) {
     const joinRequest = await this.joinRequestsService.findById(id);
 
     // Yalnızca kaptan veya yardımcı kaptan reddedebilir

@@ -167,7 +167,10 @@ export class RatingsService {
     // Yeni katılan oyuncu, katılmadan ÖNCE oynanan maçları değerlendiremez:
     // teamJoinedAt doluysa slotTime hem <oneHourAgo hem >=teamJoinedAt olmalı.
     // null (eski üye) ise yalnız <oneHourAgo — mevcut davranış korunur.
-    const slotFilter = this.buildSlotFilter(oneHourAgo, user.teamJoinedAt);
+    const slotFilter = this.buildSlotFilter(
+      oneHourAgo,
+      user.teamJoinedAt as Date | null,
+    );
 
     // Find played APPROVED reservations: filter slotTime at DB level
     const played = await this.reservationRepo.find({
@@ -434,7 +437,9 @@ export class RatingsService {
         fairPlayScore: fairPlayRating?.score ?? null,
         // Değerlendirme yalnız katılım-sonrası maçlarda önerilir.
         needsBusinessRating:
-          participated && !reservation.pitch.business.deletedAt && !isBusinessRated,
+          participated &&
+          !reservation.pitch.business.deletedAt &&
+          !isBusinessRated,
         // Rakip silinmişse fair-play skoru istenmez (opponentTeamDeleted)
         needsFairPlayRating:
           participated &&

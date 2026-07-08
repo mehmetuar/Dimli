@@ -324,14 +324,15 @@ export class BusinessOwnerService {
       ]);
       for (const res of allSlotReservations) {
         if (res.teamId && res.team) {
-          res.team.playedMatchCount = matchCounts.get(res.teamId) ?? 0;
-          res.team.playerCount = playerCounts.get(res.teamId) ?? 0;
+          res.team.playedMatchCount =
+            matchCounts.get(res.teamId as string) ?? 0;
+          res.team.playerCount = playerCounts.get(res.teamId as string) ?? 0;
         }
         if (res.opponentTeamId && res.opponentTeam) {
           res.opponentTeam.playedMatchCount =
-            matchCounts.get(res.opponentTeamId) ?? 0;
+            matchCounts.get(res.opponentTeamId as string) ?? 0;
           res.opponentTeam.playerCount =
-            playerCounts.get(res.opponentTeamId) ?? 0;
+            playerCounts.get(res.opponentTeamId as string) ?? 0;
         }
       }
     }

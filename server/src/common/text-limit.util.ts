@@ -11,6 +11,8 @@ export function assertNoteWithinLimit(
 ): void {
   if (note == null) return;
   if (note.length > maxChars) {
-    throw new BadRequestException(`${label} en fazla ${maxChars} karakter olabilir.`);
+    throw new BadRequestException(
+      `${label} en fazla ${maxChars} karakter olabilir.`,
+    );
   }
 }
