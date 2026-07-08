@@ -19,6 +19,7 @@ import {
 import { PitchChangeRequest } from './entities/pitch-change-request.entity';
 import { Subscription } from '../subscription/entities/subscription.entity';
 import { BusinessOwner } from '../business-owner/entities/business-owner.entity';
+import { ReservationsService } from '../reservations/reservations.service';
 
 @Injectable()
 export class PitchesService {
@@ -35,6 +36,7 @@ export class PitchesService {
     private subscriptionRepository: Repository<Subscription>,
     @InjectRepository(BusinessOwner)
     private businessOwnerRepository: Repository<BusinessOwner>,
+    private reservationsService: ReservationsService,
   ) {}
 
   async create(createPitchDto: CreatePitchDto, ownerId: string) {
@@ -204,7 +206,7 @@ export class PitchesService {
   }
 
   async remove(id: string, ownerId: string) {
-    await this.assertPitchOwnedBy(id, ownerId); // yoksa 404 / sahibi değilse 403
+    const pitch = await this.assertPitchOwnedBy(id, ownerId); // yoksa 404 / sahibi değilse 403
 
     const conflicts = await this.getFutureApprovedConflicts(id);
     if (conflicts.length > 0) {
@@ -214,10 +216,30 @@ export class PitchesService {
       });
     }
 
-    await this.pitchesRepository.update(id, {
-      isActive: false,
-      deletedAt: new Date(),
+    // Bildirim metni için işletme adı (saha işletmeye bağlı).
+    const owner = await this.businessOwnerRepository.findOne({
+      where: { business: { id: pitch.businessId } },
+      relations: ['business'],
     });
+    const businessName = owner?.business?.name || 'İşletme';
+
+    // Saha soft-delete edilmeden ÖNCE bu sahaya bağlı bekleyen "onay bekliyor"
+    // rezervasyonlarını ve "rakip aranıyor" ilanlarını iptal et + takımları
+    // bilgilendir — tek transaction'da atomik. Plan küçültme saha-seçim akışı da
+    // bu yolu (api.delete('/pitches/:id')) kullanır.
+    await this.pitchesRepository.manager.transaction(async (m) => {
+      await this.reservationsService.cancelPendingForPitches(
+        [id],
+        {
+          scope: 'PITCH_REMOVED',
+          businessName,
+          pitchNameById: new Map([[id, pitch.name]]),
+        },
+        m,
+      );
+      await m.update(Pitch, { id }, { isActive: false, deletedAt: new Date() });
+    });
+
     return { success: true };
   }
 

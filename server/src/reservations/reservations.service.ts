@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { EntityManager } from 'typeorm';
 import { CreateReservationDto } from './dto/create-reservation.dto';
 import { ReservationQueryService } from './services/reservation-query.service';
 import { ReservationLifecycleService } from './services/reservation-lifecycle.service';
@@ -93,6 +94,18 @@ export class ReservationsService {
 
   sendBusinessNote(reservationId: string, note: string) {
     return this.lifecycle.sendBusinessNote(reservationId, note);
+  }
+
+  cancelPendingForPitches(
+    pitchIds: string[],
+    ctx: {
+      scope: 'BUSINESS_CLOSED' | 'PITCH_REMOVED';
+      businessName: string;
+      pitchNameById?: Map<string, string>;
+    },
+    manager: EntityManager,
+  ) {
+    return this.lifecycle.cancelPendingForPitches(pitchIds, ctx, manager);
   }
 
   // ─── Saat teklifi (Proposal) ────────────────────────────────────────────────

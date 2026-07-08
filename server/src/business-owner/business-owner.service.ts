@@ -581,6 +581,15 @@ export class BusinessOwnerService {
         if (owner.business.pitches && owner.business.pitches.length > 0) {
           const pitchIds = owner.business.pitches.map((p) => p.id);
 
+          // Bu saha(lar)a bağlı GELECEKTEKİ bekleyen rezervasyon ("onay bekliyor") ve
+          // "rakip aranıyor" ilanlarını iptal et + ilgili takımları bilgilendir.
+          // Kesinleşmiş (APPROVED) maçlar zaten yukarıda silmeyi engelledi.
+          await this.reservationsService.cancelPendingForPitches(
+            pitchIds,
+            { scope: 'BUSINESS_CLOSED', businessName: owner.business.name },
+            queryRunner.manager,
+          );
+
           // Bekleyen saha değişiklik talepleri artık anlamsız — temizle
           await queryRunner.manager.delete(PitchChangeRequest, {
             pitchId: In(pitchIds),

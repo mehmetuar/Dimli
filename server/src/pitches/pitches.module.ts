@@ -8,6 +8,7 @@ import { Reservation } from '../reservations/entities/reservation.entity';
 import { PitchChangeRequest } from './entities/pitch-change-request.entity';
 import { Subscription } from '../subscription/entities/subscription.entity';
 import { BusinessOwner } from '../business-owner/entities/business-owner.entity';
+import { ReservationsModule } from '../reservations/reservations.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { BusinessOwner } from '../business-owner/entities/business-owner.entity'
       Subscription,
       BusinessOwner,
     ]),
+    ReservationsModule,
   ],
   controllers: [PitchesController],
   providers: [PitchesService],
