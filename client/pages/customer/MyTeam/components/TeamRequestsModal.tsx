@@ -89,7 +89,7 @@ export const TeamRequestsModal: React.FC<TeamRequestsModalProps> = ({
         <button
             onClick={() => setTab(key)}
             className={`flex-1 py-3 text-[11px] sm:text-xs font-bold uppercase tracking-wider rounded-xl transition-all !whitespace-nowrap ${
-                tab === key ? 'bg-turf-500 text-white shadow-lg shadow-turf-500/20' : 'text-slate-500 hover:text-slate-300'
+                tab === key ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-slate-500 hover:text-slate-300'
             }`}
         >
             {label} {count > 0 && <span className={tab === key ? "opacity-90" : "opacity-70"}>({count})</span>}
@@ -106,11 +106,13 @@ export const TeamRequestsModal: React.FC<TeamRequestsModalProps> = ({
                     {/* Header */}
                     <div className="p-6 border-b border-slate-700/50 relative overflow-hidden shrink-0">
                         <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 to-slate-900" />
+                        {/* z-20: başlık satırı da z-10 — buton altta kalırsa dokunuşları başlık yutar */}
                         <button
                             onClick={onClose}
-                            className="absolute top-4 right-4 bg-slate-900/50 p-2 rounded-full text-slate-400 hover:text-white hover:bg-slate-700 transition-colors z-10 backdrop-blur-sm"
+                            aria-label="Kapat"
+                            className="absolute top-3 right-3 bg-slate-900/50 p-3 rounded-full text-slate-400 hover:text-white hover:bg-slate-700 active:bg-slate-700 transition-colors z-20 backdrop-blur-sm shadow-sm"
                         >
-                            <X className="w-5 h-5" />
+                            <X className="w-6 h-6" />
                         </button>
                         <div className="flex items-center gap-3 relative z-10">
                             <div className="bg-blue-500/20 p-3 rounded-2xl border border-blue-500/20 shadow-lg shadow-blue-500/10">
@@ -259,37 +261,38 @@ const ChallengeCard: React.FC<{ challenge: any; canCancel: boolean; onCancel: ()
         <div className="bg-slate-900/40 rounded-3xl border border-blue-500/10 overflow-hidden relative group hover:border-blue-500/30 transition-all duration-300">
             <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
             
-            <div className="px-4 sm:px-5 py-3.5 flex items-center justify-between gap-3 border-b border-slate-700/40 relative z-10">
-                <div className="flex items-center gap-3 min-w-0">
+            {/* Takım adı + durum aynı satırda: dikey boşluk minimum, pill sağa yaslı */}
+            <div className="px-4 py-3 flex items-center justify-between gap-2 border-b border-slate-700/40 relative z-10">
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
                     <div className="bg-blue-500/10 p-2 rounded-xl shrink-0">
                         <Swords className="w-4 h-4 text-blue-400" />
                     </div>
-                    <span className="text-white font-bold text-[clamp(13px,4vw,15px)] truncate">{opponent}</span>
+                    <span className="text-white font-bold text-[clamp(13px,4vw,15px)] leading-tight truncate">{opponent}</span>
                 </div>
                 <StatusPill status={challenge.status} />
             </div>
-            
-            <div className="p-4 sm:p-5 space-y-3 relative z-10">
-                <div className="flex items-center gap-3 bg-slate-800/40 p-3 rounded-2xl border border-slate-700/30">
+
+            <div className="p-3.5 space-y-2.5 relative z-10">
+                <div className="flex items-center gap-3 bg-slate-800/40 px-3 py-2.5 rounded-2xl border border-slate-700/30">
                     <Calendar className="w-4 h-4 text-turf-400 shrink-0" />
                     <div className="min-w-0">
-                        <div className="text-white font-bold text-sm truncate">{formatMatchDate(challenge.match?.date, challenge.match?.time)}</div>
-                        <div className="text-slate-400 text-xs truncate mt-0.5">{timeRange(challenge.match?.time)}</div>
+                        <div className="text-white font-bold text-[clamp(12px,3.6vw,14px)] truncate">{formatMatchDate(challenge.match?.date, challenge.match?.time)}</div>
+                        <div className="text-slate-400 text-[clamp(10px,3vw,12px)] truncate mt-0.5">{timeRange(challenge.match?.time)}</div>
                     </div>
                 </div>
-                
-                <div className="flex items-center gap-3 bg-slate-800/40 p-3 rounded-2xl border border-slate-700/30">
+
+                <div className="flex items-center gap-3 bg-slate-800/40 px-3 py-2.5 rounded-2xl border border-slate-700/30">
                     <MapPin className="w-4 h-4 text-sky-400 shrink-0" />
                     <div className="min-w-0">
-                        <div className="text-white font-bold text-sm truncate">{business}</div>
-                        <div className="text-slate-400 text-xs truncate mt-0.5">{district ? `${pitch} · ${district}` : pitch}</div>
+                        <div className="text-white font-bold text-[clamp(12px,3.6vw,14px)] truncate">{business}</div>
+                        <div className="text-slate-400 text-[clamp(10px,3vw,12px)] truncate mt-0.5">{district ? `${pitch} · ${district}` : pitch}</div>
                     </div>
                 </div>
 
                 {canCancel && (
                     <button
                         onClick={onCancel}
-                        className="w-full mt-2 bg-slate-800/80 border border-red-500/20 text-red-400 hover:bg-red-500/10 hover:border-red-500/30 font-bold text-[clamp(12px,3.5vw,14px)] py-3 rounded-xl transition-all"
+                        className="w-full mt-1 bg-slate-800/80 border border-red-500/20 text-red-400 hover:bg-red-500/10 hover:border-red-500/30 font-bold text-[clamp(12px,3.5vw,14px)] py-2.5 rounded-xl transition-all"
                     >
                         İsteği Geri Çek
                     </button>
@@ -315,15 +318,15 @@ const JokerGroupCard: React.FC<{
         <div className="bg-slate-900/40 rounded-3xl border border-turf-500/10 overflow-hidden relative group hover:border-turf-500/30 transition-all duration-300">
             <div className="absolute inset-0 bg-gradient-to-br from-turf-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
 
-            <div className="px-4 sm:px-5 py-4 border-b border-slate-700/40 relative z-10">
-                <div className="flex items-center gap-3 min-w-0 mb-3">
+            <div className="px-4 py-3 border-b border-slate-700/40 relative z-10">
+                <div className="flex items-center gap-2.5 min-w-0 mb-2">
                     <div className="bg-turf-500/10 p-2 rounded-xl shrink-0">
                         <Users className="w-4 h-4 text-turf-400" />
                     </div>
-                    <span className="text-white font-bold text-[clamp(14px,4.5vw,16px)] leading-tight truncate">{title}</span>
+                    <span className="text-white font-bold text-[clamp(13px,4vw,15px)] leading-tight truncate">{title}</span>
                 </div>
-                
-                <div className="flex flex-col gap-2">
+
+                <div className="flex flex-col gap-1.5">
                     <div className="flex items-center gap-2 text-[clamp(11px,3.2vw,12px)] text-slate-300 bg-slate-800/40 py-1.5 px-3 rounded-lg w-fit border border-slate-700/30">
                         <Calendar className="w-3.5 h-3.5 text-turf-400" />
                         <span className="font-medium">{formatMatchDate(group.date, group.time)}</span>
@@ -348,7 +351,7 @@ const JokerGroupCard: React.FC<{
                         <div
                             key={`${j.jokerId}-${j.status}`}
                             onClick={() => onPlayerTap(j)}
-                            className="bg-slate-800/60 rounded-2xl p-3 sm:p-4 hover:bg-slate-800/80 transition-colors cursor-pointer border border-slate-700/30 hover:border-slate-600 flex flex-col gap-3"
+                            className="bg-slate-800/60 rounded-2xl p-3 hover:bg-slate-800/80 transition-colors cursor-pointer border border-slate-700/30 hover:border-slate-600 flex flex-col gap-2"
                         >
                             <div className="flex items-center justify-between gap-2">
                                 <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded-md bg-slate-900/50 ${st.cls}`}>

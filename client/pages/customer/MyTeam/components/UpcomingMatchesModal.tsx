@@ -5,11 +5,14 @@ import { useModalBodyClass } from '../../../../utils/useModalBodyClass';
 import { useLocationContext } from '../../../../contexts/LocationContext';
 import { calculateDistance } from '../../../../utils/location';
 import { teamInitialsAvatar } from '../../../../utils/teamColors';
+import { addOneHour } from '../../../../utils/time';
 
 interface UpcomingMatch {
     id: string;
     slotTime: string;
     status: string;
+    /** Sunucunun eşleşen slottan hesapladığı bitiş saati ("HH:mm"); eski sunucuda yok */
+    endTime?: string | null;
     pitch?: {
         name?: string;
         timeSlots?: { startTime: string; endTime: string }[];
@@ -85,11 +88,13 @@ export const UpcomingMatchesModal: React.FC<UpcomingMatchesModalProps> = ({
                 <div className="p-6 border-b border-slate-700/50 relative overflow-hidden shrink-0">
                     <div className="absolute inset-0 bg-gradient-to-br from-turf-600/20 to-slate-900" />
                     
+                    {/* z-20: başlık satırı da z-10 — buton altta kalırsa dokunuşları başlık yutar */}
                     <button
                         onClick={onClose}
-                        className="absolute top-4 right-4 bg-slate-900/50 p-2 rounded-full text-slate-400 hover:text-white hover:bg-slate-700 transition-colors z-10 backdrop-blur-sm"
+                        aria-label="Kapat"
+                        className="absolute top-3 right-3 bg-slate-900/50 p-3 rounded-full text-slate-400 hover:text-white hover:bg-slate-700 active:bg-slate-700 transition-colors z-20 backdrop-blur-sm shadow-sm"
                     >
-                        <X className="w-5 h-5" />
+                        <X className="w-6 h-6" />
                     </button>
 
                     <div className="flex items-center gap-3 relative z-10">
@@ -126,10 +131,11 @@ export const UpcomingMatchesModal: React.FC<UpcomingMatchesModalProps> = ({
                         </div>
                     ) : (
                         matches.map((match) => {
-                            // Find the matching time slot for the end time
+                            // Bitiş saati: sunucu endTime → (eski sunucu) timeSlots lookup → +1sa
                             const slotStartTime = formatTime(match.slotTime);
-                            const timeSlot = match.pitch?.timeSlots?.find(ts => ts.startTime === slotStartTime);
-                            const endTime = timeSlot?.endTime;
+                            const endTime = match.endTime
+                                ?? match.pitch?.timeSlots?.find(ts => ts.startTime === slotStartTime)?.endTime
+                                ?? addOneHour(slotStartTime);
 
                             const businessName = match.pitch?.business?.name || 'İşletme';
                             const pitchName = match.pitch?.name || 'Saha';

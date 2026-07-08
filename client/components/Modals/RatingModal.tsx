@@ -89,7 +89,7 @@ export const RatingModal: React.FC<RatingModalProps> = ({ pending, onSubmit, onS
         : 'Gönder';
 
     return (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center px-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+        <div className="fixed inset-0 z-[80] flex items-center justify-center px-4 bg-black/80 backdrop-blur-sm animate-fade-in">
             <div className="w-full max-w-sm bg-slate-800 rounded-3xl border border-slate-700 shadow-2xl overflow-hidden">
                 {/* Header */}
                 <div className="bg-gradient-to-b from-slate-900 to-slate-800 px-5 py-4 border-b border-turf-600/20">

@@ -28,11 +28,10 @@ export const TeamActionButtons: React.FC<TeamActionButtonsProps> = ({
 
             {/* Takım İstekleri: giden meydan okumalar + joker davetleri (sekmeli modal).
                 Tüm üyelere görünür; iptal/geri al yalnız kaptan/yardımcıda (modal içinde).
-                Renk: onay bekleyen istekler → turuncu; işletme tarafının parlak
-                turuncusu (orange-500) ile karışmasın diye amber→koyu turuncu tonu. */}
+                Renk: lacivert — modal içi mavi/lacivert tonlarıyla tutarlı. */}
             <button
                 onClick={() => setIsTeamRequestsOpen(true)}
-                className="w-full bg-gradient-to-r from-amber-600 to-orange-700 text-white font-bold py-3 rounded-xl hover:from-amber-500 hover:to-orange-600 transition-all shadow-lg shadow-amber-600/20 flex items-center justify-center gap-2"
+                className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 text-white font-bold py-3 rounded-xl hover:from-blue-500 hover:to-indigo-600 transition-all shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2"
             >
                 <Swords className="w-5 h-5" />
                 Takım İstekleri

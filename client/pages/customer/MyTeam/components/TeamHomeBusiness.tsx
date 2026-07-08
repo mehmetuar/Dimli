@@ -6,7 +6,11 @@ import { LocationAccessGate } from '../../../../components/LocationAccessGate';
 
 interface TeamHomeBusinessProps {
     myTeam: Team;
+    /** Yalnız edit-modu seçim listesi (lazy — "Değiştir"e basılınca çekilir) */
     businesses: Business[];
+    isBusinessListLoading: boolean;
+    /** Kartın veri kaynağı — yarıçap listesinden bağımsız tekil fetch */
+    homeBusiness: Business | null;
     isCaptain: boolean;
     isEditingPitch: boolean;
     setIsEditingPitch: (isEditing: boolean) => void;
@@ -19,11 +23,13 @@ interface TeamHomeBusinessProps {
 }
 
 export const TeamHomeBusiness: React.FC<TeamHomeBusinessProps> = ({
-    myTeam, businesses, isCaptain, isEditingPitch, setIsEditingPitch,
+    myTeam, businesses, isBusinessListLoading, homeBusiness, isCaptain, isEditingPitch, setIsEditingPitch,
     handleSetHomeBusiness, setIsCreateMatchModalOpen,
     isLocationFilterOpen, setIsLocationFilterOpen, locationFilter, applyLocationFilter
 }) => {
-    const selectedHomeBusiness = businesses.find(b => b.id === myTeam?.homeBusinessId);
+    // Eski hali yarıçap listesinden find() yapıyordu — ev işletmesi yarıçap
+    // dışındaysa kart yanlışlıkla boş görünüyordu; artık tekil fetch sonucu.
+    const selectedHomeBusiness = homeBusiness;
 
     return (
         <>
@@ -38,7 +44,7 @@ export const TeamHomeBusiness: React.FC<TeamHomeBusinessProps> = ({
                         onClick={() => setIsEditingPitch(!isEditingPitch)}
                         className="text-xs bg-slate-700 hover:bg-slate-600 text-white px-3 py-1 rounded-lg transition-colors"
                     >
-                        {selectedHomeBusiness ? 'Değiştir' : 'İşletme Seç'}
+                        {myTeam?.homeBusinessId ? 'Değiştir' : 'İşletme Seç'}
                     </button>
                 )}
             </div>
@@ -56,7 +62,11 @@ export const TeamHomeBusiness: React.FC<TeamHomeBusinessProps> = ({
                         </button>
                     </div>
                     <LocationAccessGate contentLabel="işletmeleri" compact>
-                        {businesses.length === 0 ? (
+                        {isBusinessListLoading ? (
+                            <div className="flex justify-center py-6">
+                                <div className="w-6 h-6 border-2 border-turf-500 border-t-transparent rounded-full animate-spin" />
+                            </div>
+                        ) : businesses.length === 0 ? (
                             <div className="text-center py-6 text-slate-500 text-xs flex flex-col items-center gap-2">
                                 <MapPin className="w-5 h-5" />
                                 Yakınında işletme bulunamadı.

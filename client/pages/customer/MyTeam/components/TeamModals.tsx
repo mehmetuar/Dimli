@@ -19,7 +19,12 @@ interface TeamModalsProps {
     isUpcomingLoading: boolean;
     handleCreateTeam: (data: any) => void;
     matchHistory: MatchHistoryItem[];
+    matchHistoryTotal: number;
+    hasMoreMatchHistory: boolean;
     isMatchHistoryLoading: boolean;
+    isLoadingMoreHistory: boolean;
+    loadMoreMatchHistory: () => void;
+    applyRatingResult: (reservationId: string, businessScore: number, fairPlayScore: number | null) => void;
     isLeader: boolean;
     successMessage: string;
     successType: SuccessType | null;
@@ -29,7 +34,8 @@ interface TeamModalsProps {
 
 export const TeamModals: React.FC<TeamModalsProps> = ({
     modals, myTeam, roster, upcomingMatches, isUpcomingLoading, handleCreateTeam,
-    matchHistory, isMatchHistoryLoading, isLeader,
+    matchHistory, matchHistoryTotal, hasMoreMatchHistory, isMatchHistoryLoading,
+    isLoadingMoreHistory, loadMoreMatchHistory, applyRatingResult, isLeader,
     successMessage, successType, setSuccessMessage, setSuccessType
 }) => {
     return (
@@ -77,7 +83,12 @@ export const TeamModals: React.FC<TeamModalsProps> = ({
                 isOpen={modals.isMatchHistoryOpen}
                 onClose={() => modals.setIsMatchHistoryOpen(false)}
                 matches={matchHistory}
+                total={matchHistoryTotal}
+                hasMore={hasMoreMatchHistory}
                 isLoading={isMatchHistoryLoading}
+                isLoadingMore={isLoadingMoreHistory}
+                onLoadMore={loadMoreMatchHistory}
+                applyRatingResult={applyRatingResult}
                 teamFairPlayScore={myTeam?.fairPlayScore || 5.0}
             />
 
