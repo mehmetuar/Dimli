@@ -62,10 +62,36 @@ export class ReservationQueryService {
     const now = new Date();
     return this.reservationRepository
       .createQueryBuilder('reservation')
-      .leftJoinAndSelect('reservation.pitch', 'pitch')
-      .leftJoinAndSelect('pitch.business', 'business')
-      .leftJoinAndSelect('reservation.team', 'team')
-      .leftJoinAndSelect('reservation.opponentTeam', 'opponentTeam')
+      .leftJoin('reservation.pitch', 'pitch')
+      .leftJoin('pitch.business', 'business')
+      .leftJoin('pitch.timeSlots', 'timeSlots')
+      .leftJoin('reservation.team', 'team')
+      .leftJoin('reservation.opponentTeam', 'opponentTeam')
+      .select([
+        'reservation.id',
+        'reservation.slotTime',
+        'reservation.status',
+        'pitch.id',
+        'pitch.name',
+        'timeSlots.startTime',
+        'timeSlots.endTime',
+        'business.id',
+        'business.name',
+        'business.latitude',
+        'business.longitude',
+        'team.id',
+        'team.name',
+        'team.logoUrl',
+        'team.primaryColor',
+        'team.secondaryColor',
+        'team.level',
+        'opponentTeam.id',
+        'opponentTeam.name',
+        'opponentTeam.logoUrl',
+        'opponentTeam.primaryColor',
+        'opponentTeam.secondaryColor',
+        'opponentTeam.level',
+      ])
       .where('reservation.status = :status', {
         status: ReservationStatus.APPROVED,
       })
