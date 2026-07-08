@@ -15,6 +15,7 @@ import { SubscriptionModule } from '../subscription/subscription.module';
 import { ChatChannel } from '../chat/chat-channel.entity';
 import { ChatParticipant } from '../chat/chat-participant.entity';
 import { Pitch } from '../pitches/entities/pitch.entity';
+import { TimeSlot } from '../pitches/entities/time-slot.entity';
 import { BusinessOwner } from '../business-owner/entities/business-owner.entity';
 import { MatchAnnouncement } from '../match-announcements/match-announcement.entity';
 import { User } from '../users/user.entity';
@@ -27,6 +28,7 @@ import { User } from '../users/user.entity';
       ChatChannel,
       ChatParticipant,
       Pitch,
+      TimeSlot,
       BusinessOwner,
       MatchAnnouncement,
       User,

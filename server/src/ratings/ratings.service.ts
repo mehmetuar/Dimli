@@ -167,10 +167,7 @@ export class RatingsService {
     // Yeni katılan oyuncu, katılmadan ÖNCE oynanan maçları değerlendiremez:
     // teamJoinedAt doluysa slotTime hem <oneHourAgo hem >=teamJoinedAt olmalı.
     // null (eski üye) ise yalnız <oneHourAgo — mevcut davranış korunur.
-    const slotFilter = this.buildSlotFilter(
-      oneHourAgo,
-      user.teamJoinedAt as Date | null,
-    );
+    const slotFilter = this.buildSlotFilter(oneHourAgo, user.teamJoinedAt);
 
     // Find played APPROVED reservations: filter slotTime at DB level
     const played = await this.reservationRepo.find({
@@ -347,48 +344,67 @@ export class RatingsService {
     }
   }
 
+  // ESKİ sözleşme (sahadaki kurulu sürümler): düz dizi, tüm geçmiş — imza değişmez.
   async getMatchHistory(userId: string): Promise<MatchHistoryItem[]> {
-    const user = await this.userRepo.findOne({ where: { id: userId } });
-    if (!user || !user.teamId) return [];
+    const { items } = await this.fetchMatchHistoryPage(userId);
+    return items;
+  }
 
-    const now = new Date();
+  // Sayfalı sözleşme — business findNearbyPaged zarfının aynısı ({items,total,hasMore}).
+  async getMatchHistoryPaged(
+    userId: string,
+    limit: number,
+    offset: number,
+  ): Promise<{ items: MatchHistoryItem[]; total: number; hasMore: boolean }> {
+    const { items, total } = await this.fetchMatchHistoryPage(userId, {
+      limit,
+      offset,
+    });
+    return { items, total, hasMore: offset + limit < total };
+  }
+
+  private async fetchMatchHistoryPage(
+    userId: string,
+    opts?: { limit: number; offset: number },
+  ): Promise<{ items: MatchHistoryItem[]; total: number }> {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user || !user.teamId) return { items: [], total: 0 };
 
     // Maç geçmişi takımın TAMAMINI gösterir (yalnız üst sınır) — yeni üye de takımın
     // gerçek geçmişini/sayısını görür. Katılım öncesi maçlar listede kalır ama
     // değerlendirilemez (aşağıda per-maç `participated` ile kapılanır). teamJoinedAt'e
     // göre filtreleme YALNIZ değerlendirme yetkisi için; görüntüleme için DEĞİL.
-    const slotFilter = LessThan(now);
+    // Sıralama SQL'de (slotTime DESC) — sayfalama tutarlılığı için şart.
+    const qb = this.reservationRepo
+      .createQueryBuilder('r')
+      .leftJoinAndSelect('r.pitch', 'pitch')
+      .leftJoinAndSelect('pitch.business', 'business')
+      .leftJoinAndSelect('r.team', 'team')
+      .leftJoinAndSelect('r.opponentTeam', 'opponentTeam')
+      .where('(r.teamId = :teamId OR r.opponentTeamId = :teamId)', {
+        teamId: user.teamId,
+      })
+      .andWhere('r.status = :status', { status: ReservationStatus.APPROVED })
+      .andWhere('r.slotTime < :now', { now: new Date() })
+      .orderBy('r.slotTime', 'DESC');
 
-    // Geçmiş tüm APPROVED rezervasyonları getir (hem ev sahibi hem misafir olarak)
-    const played = await this.reservationRepo.find({
-      where: [
-        {
-          status: ReservationStatus.APPROVED,
-          teamId: user.teamId,
-          slotTime: slotFilter,
-        },
-        {
-          status: ReservationStatus.APPROVED,
-          opponentTeamId: user.teamId,
-          slotTime: slotFilter,
-        },
-      ],
-      relations: ['pitch', 'pitch.business', 'team', 'opponentTeam'],
-    });
+    let played: Reservation[];
+    let total: number;
+    if (opts) {
+      [played, total] = await qb
+        .take(opts.limit)
+        .skip(opts.offset)
+        .getManyAndCount();
+    } else {
+      played = await qb.getMany();
+      total = played.length;
+    }
 
-    if (played.length === 0) return [];
+    if (played.length === 0) return { items: [], total };
 
-    // Duplikatları temizle
-    const seen = new Set<string>();
-    const uniquePlayed = played.filter((r) => {
-      if (seen.has(r.id)) return false;
-      seen.add(r.id);
-      return true;
-    });
+    const reservationIds = played.map((r) => r.id);
 
-    const reservationIds = uniquePlayed.map((r) => r.id);
-
-    // Bu kullanıcının bu rezervasyonlar için yaptığı tüm rating'leri getir
+    // Bu kullanıcının YALNIZ bu sayfadaki rezervasyonlar için rating'leri
     const existingRatings = await this.ratingRepo.find({
       where: {
         ratedByUserId: userId,
@@ -404,7 +420,7 @@ export class RatingsService {
 
     const results: MatchHistoryItem[] = [];
 
-    for (const reservation of uniquePlayed) {
+    for (const reservation of played) {
       if (!reservation.pitch?.business) continue;
 
       const opp = this.resolveOpponent(reservation, user.teamId);
@@ -450,11 +466,7 @@ export class RatingsService {
       });
     }
 
-    // En yeniden eskiye sırala
-    results.sort(
-      (a, b) => new Date(b.slotTime).getTime() - new Date(a.slotTime).getTime(),
-    );
-    return results;
+    return { items: results, total };
   }
 
   /**

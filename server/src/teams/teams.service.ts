@@ -145,16 +145,41 @@ export class TeamsService implements OnModuleInit {
     return copy as unknown as T;
   }
 
+  // Takım oyuncularını TEK sorguda, yalnız hassas-olmayan kolonlarla yükler:
+  // SENSITIVE_USER_FIELDS DB'den hiç ÇEKİLMEZ (sanitizeUser yine de savunma
+  // katmanı olarak kalır) ve user.team join'i yok → oyuncu başına gömülü tam
+  // takım nesnesi payload'a girmez (players[].team'i okuyan tüketici yok;
+  // skaler teamId yeterli).
+  private loadTeamPlayers(teamId: string): Promise<User[]> {
+    return this.usersService['usersRepository']
+      .createQueryBuilder('user')
+      .select([
+        'user.id',
+        'user.username',
+        'user.full_name',
+        'user.position',
+        'user.location',
+        'user.birthDate',
+        'user.secondaryPosition',
+        'user.foot',
+        'user.nationality',
+        'user.favoriteBusinessIds',
+        'user.rating',
+        'user.avatarUrl',
+        'user.teamId',
+        'user.teamJoinedAt',
+        'user.isJoker',
+        'user.sharesFee',
+      ])
+      .where('user.teamId = :teamId', { teamId })
+      .getMany();
+  }
+
   async findAll(): Promise<Team[]> {
     const teams = await this.teamsRepository.find({ relations: ['captain'] });
 
-    // For each team, manually load players using query builder
     for (const team of teams) {
-      const players = await this.usersService['usersRepository']
-        .createQueryBuilder('user')
-        .leftJoinAndSelect('user.team', 'team')
-        .where('team.id = :teamId', { teamId: team.id })
-        .getMany();
+      const players = await this.loadTeamPlayers(team.id);
       team.players = players.map((u) => this.sanitizeUser(u));
       if (team.captain) team.captain = this.sanitizeUser(team.captain);
     }
@@ -205,23 +230,16 @@ export class TeamsService implements OnModuleInit {
   }
 
   async findOne(id: string): Promise<Team | null> {
+    // players relation'ı YÜKLENMEZ — aşağıda loadTeamPlayers zaten dar
+    // select'le çekiyor (eski hali aynı oyuncuları iki kez sorguluyordu).
     const team = await this.teamsRepository.findOne({
       where: { id },
-      relations: ['captain', 'players'],
+      relations: ['captain'],
     });
 
     if (!team) return null;
 
-    // Manually load players using query builder to find all users with this team
-    const players = await this.usersService['usersRepository']
-      .createQueryBuilder('user')
-      .leftJoinAndSelect('user.team', 'team')
-      .where('team.id = :teamId', { teamId: team.id })
-      .getMany();
-
-    console.log(
-      `🔍 DEBUG: Found ${players.length} players for team ${team.name}`,
-    );
+    const players = await this.loadTeamPlayers(team.id);
 
     // Map User entity to Player interface structure (hassas alanlar temizlenir)
     team.players = players.map((user) =>

@@ -22,6 +22,9 @@ export enum ReservationStatus {
 
 @Index(['pitchId', 'slotTime'])
 @Index(['teamId', 'status'])
+// Geçmiş/yaklaşan maç sorguları (teamId OR opponentTeamId) filtreler — OR'un
+// ikinci kolu indekssiz kalınca veri büyüyünce seq-scan olur.
+@Index(['opponentTeamId', 'status'])
 @Entity()
 export class Reservation {
   @PrimaryGeneratedColumn('uuid')

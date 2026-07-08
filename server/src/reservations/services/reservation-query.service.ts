@@ -1,18 +1,23 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, Repository } from 'typeorm';
+import { Between, In, Repository } from 'typeorm';
 import { Reservation, ReservationStatus } from '../entities/reservation.entity';
+import { TimeSlot } from '../../pitches/entities/time-slot.entity';
 import {
   addIstanbulDays,
   istanbulDateTimeToUtc,
+  istanbulDisplayParts,
 } from '../../common/turkey-time.util';
 
-// Saf okuma sorguları (mutasyon/transaction yok). reservationRepository dışında bağımlılığı yok.
+// Saf okuma sorguları (mutasyon/transaction yok).
+// Bağımlılıklar: reservationRepository + timeSlotRepository (upcoming endTime eşlemesi).
 @Injectable()
 export class ReservationQueryService {
   constructor(
     @InjectRepository(Reservation)
     private reservationRepository: Repository<Reservation>,
+    @InjectRepository(TimeSlot)
+    private timeSlotRepository: Repository<TimeSlot>,
   ) {}
 
   async findAll() {
@@ -60,11 +65,10 @@ export class ReservationQueryService {
 
   async findUpcomingByTeam(teamId: string) {
     const now = new Date();
-    return this.reservationRepository
+    const rows = await this.reservationRepository
       .createQueryBuilder('reservation')
       .leftJoin('reservation.pitch', 'pitch')
       .leftJoin('pitch.business', 'business')
-      .leftJoin('pitch.timeSlots', 'timeSlots')
       .leftJoin('reservation.team', 'team')
       .leftJoin('reservation.opponentTeam', 'opponentTeam')
       .select([
@@ -73,8 +77,6 @@ export class ReservationQueryService {
         'reservation.status',
         'pitch.id',
         'pitch.name',
-        'timeSlots.startTime',
-        'timeSlots.endTime',
         'business.id',
         'business.name',
         'business.latitude',
@@ -104,6 +106,38 @@ export class ReservationQueryService {
       )
       .orderBy('reservation.slotTime', 'ASC')
       .getMany();
+
+    // Bitiş saati: sahanın TÜM slot şablonunu join'lemek yerine (eski hali —
+    // saha başına 7-19 satır payload) yalnız maç saatine denk düşen slot bulunur.
+    // +1 saat VARSAYILAMAZ: canlı veride 2 saatlik (12:00→14:00) ve gece aşan
+    // (23:00→00:00) slotlar var. Saat eşlemesi İstanbul TZ'de yapılır (§29 —
+    // çıplak toLocale* yasak). Geriye uyumluluk: eski client
+    // pitch.timeSlots.find(...) kullanır → eşleşen slot 1 elemanlı dizi olarak
+    // bırakılır; yeni client üst-düzey endTime alanını okur.
+    const pitchIds = [
+      ...new Set(rows.map((r) => r.pitch?.id).filter(Boolean)),
+    ] as string[];
+    const slots = pitchIds.length
+      ? await this.timeSlotRepository.find({
+          where: { pitchId: In(pitchIds) },
+        })
+      : [];
+    const slotsByPitch = new Map<string, TimeSlot[]>();
+    for (const s of slots) {
+      const list = slotsByPitch.get(s.pitchId) ?? [];
+      list.push(s);
+      slotsByPitch.set(s.pitchId, list);
+    }
+
+    return rows.map((r) => {
+      const startHHmm = istanbulDisplayParts(r.slotTime).time;
+      const matched =
+        (r.pitch?.id ? slotsByPitch.get(r.pitch.id) : undefined)?.find(
+          (s) => s.startTime === startHHmm,
+        ) ?? null;
+      if (r.pitch) r.pitch.timeSlots = matched ? [matched] : [];
+      return { ...r, endTime: matched?.endTime ?? null };
+    });
   }
 
   async findByPitchAndDateRange(pitchId: string, date: string) {
