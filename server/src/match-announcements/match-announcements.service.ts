@@ -89,6 +89,8 @@ export class MatchAnnouncementsService {
       );
     }
 
+    const teamId: string = user.team.id;
+
     // Saha onaylı ve aktif olmalı
     const pitchForCheck =
       await this.matchAnnouncementsRepository.manager.findOne(Pitch, {
@@ -105,13 +107,13 @@ export class MatchAnnouncementsService {
       );
     }
 
-    console.log('✅ Using teamId:', user.team.id);
+    console.log('✅ Using teamId:', teamId);
 
     // Check for duplicate announcement (same team, pitch, time, date)
     const existingAnnouncement =
       await this.matchAnnouncementsRepository.findOne({
         where: {
-          teamId: user.team.id,
+          teamId: teamId,
           pitchId: data.pitchId,
           time: data.time,
           date: data.date,
@@ -130,7 +132,7 @@ export class MatchAnnouncementsService {
     if (!data.matchType || data.matchType === 'rakip_araniyor') {
       const rakipCount = await this.matchAnnouncementsRepository.count({
         where: {
-          teamId: user.team.id,
+          teamId: teamId,
           matchType: 'rakip_araniyor',
           status: 'PENDING',
         },
@@ -147,7 +149,7 @@ export class MatchAnnouncementsService {
     if (data.matchType === 'kendi_aramizda') {
       const kendiCount = await this.matchAnnouncementsRepository.count({
         where: {
-          teamId: user.team.id,
+          teamId: teamId,
           matchType: 'kendi_aramizda',
           status: 'PENDING',
         },
@@ -208,7 +210,7 @@ export class MatchAnnouncementsService {
     // Kesinleşmiş maç saati çakışma kontrolü
     const conflictingMatch =
       await this.reservationsService.hasConflictingApprovedMatch(
-        user.team.id,
+        teamId,
         slotDateTime,
       );
     if (conflictingMatch) {
@@ -237,7 +239,7 @@ export class MatchAnnouncementsService {
 
     const announcement = this.matchAnnouncementsRepository.create({
       ...data,
-      teamId: user.team.id,
+      teamId: teamId,
       status: 'PENDING',
     });
 
@@ -257,7 +259,7 @@ export class MatchAnnouncementsService {
       try {
         // For "Kendi Aramızda" matches, all team members should be in the chat
         const players = await this.usersRepository.find({
-          where: { teamId: user.team.id },
+          where: { teamId: teamId },
         });
 
         const participants = players && players.length > 0 ? players : [user];
@@ -331,7 +333,7 @@ export class MatchAnnouncementsService {
         // Create pending reservation
         await this.reservationsService.create({
           pitchId: saved.pitchId,
-          teamId: user.team.id,
+          teamId: teamId,
           slotTime: slotDateTime,
           type: 'MATCH',
           matchAnnouncementId: saved.id,
@@ -610,7 +612,9 @@ export class MatchAnnouncementsService {
         { matchAnnouncementId: In(ids), status: ReservationStatus.PENDING },
         { status: ReservationStatus.EXPIRED },
       );
-      console.log(`✅ ${ids.length} announcement(s) marked as EXPIRED (batch).`);
+      console.log(
+        `✅ ${ids.length} announcement(s) marked as EXPIRED (batch).`,
+      );
     }
 
     // İstek/davet "ölü artıkları"nı temizle (geçmiş maçlar) — birikmeyi önler.

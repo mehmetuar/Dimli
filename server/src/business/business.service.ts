@@ -24,7 +24,7 @@ export class BusinessService {
     private subscriptionService: SubscriptionService,
   ) {}
 
-  private mapWithOwnerPhone(b: Business & { distanceKm?: number }): any {
+  private mapWithOwnerPhone(b: Business & { distanceKm?: number }) {
     return {
       ...b,
       ownerPhone: b.owner?.phone ?? null,

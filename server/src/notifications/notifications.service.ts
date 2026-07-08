@@ -314,7 +314,8 @@ export class NotificationsService {
       !!inviterTeam &&
       (inviterTeam.captainId === inviterId ||
         (inviterTeam.viceCaptainIds || []).includes(inviterId));
-    if (!isTeamLeader || !matchTeamIds.includes(inviterTeam.id)) {
+    const inviterTeamId: string = String(inviterTeam?.id);
+    if (!isTeamLeader || !matchTeamIds.includes(inviterTeamId)) {
       throw new ForbiddenException(
         'Bu maça joker daveti göndermek için iki takımdan birinin kaptanı veya yardımcı kaptanı olmalısınız.',
       );
@@ -644,9 +645,9 @@ export class NotificationsService {
     try {
       const challengeIds = new Set<string>();
       for (const n of targets) {
+        const metaChallengeId = n.metadata?.challengeId;
         if (isUuid(n.relatedId)) challengeIds.add(n.relatedId);
-        else if (isUuid(n.metadata?.challengeId))
-          challengeIds.add(n.metadata.challengeId);
+        else if (isUuid(metaChallengeId)) challengeIds.add(metaChallengeId);
       }
       const challenges = challengeIds.size
         ? await this.challengesRepository.find({
@@ -681,9 +682,11 @@ export class NotificationsService {
               : undefined;
             if (channel) matchId = channel.relatedMatchId;
           }
-        } else if (isUuid(n.metadata?.challengeId)) {
-          matchId =
-            challengeById.get(n.metadata.challengeId)?.toMatchId ?? null;
+        } else {
+          const metaChallengeId = n.metadata?.challengeId;
+          if (isUuid(metaChallengeId)) {
+            matchId = challengeById.get(metaChallengeId)?.toMatchId ?? null;
+          }
         }
         if (matchId) matchIdByNotif.set(n.id, matchId);
       }

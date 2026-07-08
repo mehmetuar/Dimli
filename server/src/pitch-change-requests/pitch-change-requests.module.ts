@@ -19,7 +19,10 @@ import { Notification } from '../notifications/notification.entity';
       Notification,
     ]),
   ],
-  controllers: [PitchChangeRequestsController, BusinessChangeRequestsController],
+  controllers: [
+    PitchChangeRequestsController,
+    BusinessChangeRequestsController,
+  ],
   providers: [PitchChangeRequestsService],
   exports: [PitchChangeRequestsService],
 })

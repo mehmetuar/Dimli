@@ -185,7 +185,7 @@ export class ChatService {
     );
 
     // 1) matchAnnouncementId ile bağlı rezervasyonlar (primary) — tek sorgu
-    const reservationByMatchId = new Map<string, any>();
+    const reservationByMatchId = new Map<string, Reservation>();
     if (matchIds.length) {
       const primaryReservations = await this.reservationRepository.find({
         where: { matchAnnouncementId: In(matchIds) },
@@ -197,7 +197,7 @@ export class ChatService {
     }
 
     // 2) Maç ilanları — fallback + requiredPlayerCount + avatar (teamId/matchType) tek sorguda
-    const matchById = new Map<string, any>();
+    const matchById = new Map<string, MatchAnnouncement>();
     if (matchIds.length) {
       const matches = await this.matchAnnouncementRepository.find({
         where: { id: In(matchIds) },
@@ -230,7 +230,7 @@ export class ChatService {
       const fallbackReservations = await this.reservationRepository.find({
         where: { teamId: In(fallbackTeamIds), type: 'MATCH' as any },
       });
-      const fallbackByTeamSlot = new Map<string, any>();
+      const fallbackByTeamSlot = new Map<string, Reservation>();
       for (const r of fallbackReservations) {
         fallbackByTeamSlot.set(
           `${r.teamId}|${new Date(r.slotTime).getTime()}`,
@@ -257,20 +257,21 @@ export class ChatService {
     // 5) Oyuncu sayıları — tek GROUP BY (getTeamPlayerCount ×N yerine)
     const playerCountByTeam = new Map<string, number>();
     if (teamIds.length) {
-      const countRows: any[] = await this.userRepository.manager.query(
-        `SELECT team_id, COUNT(*)::int AS count FROM "user" WHERE team_id = ANY($1) GROUP BY team_id`,
-        [teamIds],
-      );
+      const countRows: { team_id: string; count: string }[] =
+        await this.userRepository.manager.query(
+          `SELECT team_id, COUNT(*)::int AS count FROM "user" WHERE team_id = ANY($1) GROUP BY team_id`,
+          [teamIds],
+        );
       for (const row of countRows)
         playerCountByTeam.set(row.team_id, Number(row.count));
     }
 
     // 6) Avatar için takım kayıtları — tek sorgu
-    const teamById = new Map<string, any>();
+    const teamById = new Map<string, Team>();
     if (teamIds.length) {
       const teams = await this.teamRepository.find({
         where: { id: In(teamIds) },
-        select: ['id', 'name', 'logoUrl', 'primaryColor'] as any,
+        select: ['id', 'name', 'logoUrl', 'primaryColor'],
       });
       for (const t of teams) teamById.set(t.id, t);
     }
@@ -312,7 +313,7 @@ export class ChatService {
               ? (playerCountByTeam.get(reservation.opponentTeamId) ?? 0)
               : undefined,
             requiredPlayerCount: match?.playerCount ?? null,
-          } as any;
+          };
         } else if (match) {
           // FALLBACK: rezervasyon yok → maç durumunu yansıt (eski maçlar)
           try {
@@ -321,7 +322,7 @@ export class ChatService {
               status: match.status === 'CONFIRMED' ? 'APPROVED' : 'PENDING',
               slotTime: slotDateTime,
               teamId: match.teamId,
-            } as any;
+            };
           } catch {
             // ignore date parse errors
           }
@@ -331,8 +332,8 @@ export class ChatService {
         if (channel.type === 'MATCH_GROUP') {
           if (userTeamId && reservationData) {
             if (
-              userTeamId !== (reservationData as any).teamId &&
-              userTeamId !== (reservationData as any).opponentTeamId
+              userTeamId !== reservationData.teamId &&
+              userTeamId !== reservationData.opponentTeamId
             ) {
               isJoker = true;
             }
@@ -358,9 +359,8 @@ export class ChatService {
       if (channel.type === 'MATCH_GROUP' && channel.relatedMatchId) {
         const matchForType = matchById.get(channel.relatedMatchId);
         if (matchForType) {
-          const homeTeamId =
-            (reservationData as any)?.teamId || matchForType.teamId;
-          const awayTeamId = (reservationData as any)?.opponentTeamId || null;
+          const homeTeamId = reservationData?.teamId || matchForType.teamId;
+          const awayTeamId = reservationData?.opponentTeamId || null;
 
           const homeTeam = homeTeamId ? teamById.get(homeTeamId) : null;
           const awayTeam = awayTeamId ? teamById.get(awayTeamId) : null;
