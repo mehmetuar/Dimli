@@ -112,6 +112,8 @@ export class TeamsService implements OnModuleInit {
 
     // Update the user explicitly to point to the newly created team
     managedUser.team = savedTeam;
+    // Kaptan takımı kurduğu an katılmış sayılır.
+    managedUser.teamJoinedAt = new Date();
     await this.usersService['usersRepository'].save(managedUser);
 
     // Return the full team with relations
@@ -263,6 +265,8 @@ export class TeamsService implements OnModuleInit {
 
     // Set the team on the user (this is the ManyToOne side, which owns the foreign key)
     user.team = team;
+    // Katılış anını damgala → yeni oyuncu yalnız bu tarihten sonraki maçları değerlendirebilir.
+    user.teamJoinedAt = new Date();
 
     // We need to save the user to persist the team relationship
     // Since usersService doesn't have an update method, we'll use the repository
@@ -344,6 +348,15 @@ export class TeamsService implements OnModuleInit {
     }
 
     const savedTeam = await this.teamsRepository.save(team);
+
+    // Atılan oyuncunun takım bağını ve katılış damgasını kesin olarak temizle
+    // (FK User tarafında; OneToMany dizisini süzmek cascade'siz olduğu için tek başına yetmez).
+    const removedUser = await this.usersService.findById(playerId);
+    if (removedUser) {
+      removedUser.team = null as any;
+      removedUser.teamJoinedAt = null;
+      await this.usersService['usersRepository'].save(removedUser);
+    }
 
     // Atılan oyuncu, davet linkiyle bu takıma tekrar otomatik katılamasın
     await this.teamBansService.banPlayer(teamId, playerId);
@@ -500,6 +513,8 @@ export class TeamsService implements OnModuleInit {
 
     // Remove teamId from user
     user.team = null as any;
+    // Takımdan ayrılınca katılış damgası da temizlenir (yeniden katılırsa yeniden damgalanır).
+    user.teamJoinedAt = null;
     await this.usersService['usersRepository'].save(user);
   }
 

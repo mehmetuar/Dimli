@@ -3,9 +3,17 @@ import {
   ConflictException,
   BadRequestException,
   NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In, LessThan } from 'typeorm';
+import {
+  Repository,
+  In,
+  LessThan,
+  MoreThanOrEqual,
+  And,
+  FindOperator,
+} from 'typeorm';
 import { Rating } from './rating.entity';
 import {
   Reservation,
@@ -14,6 +22,9 @@ import {
 import { Business } from '../business/entities/business.entity';
 import { Team } from '../teams/team.entity';
 import { User } from '../users/user.entity';
+import { ChatChannel } from '../chat/chat-channel.entity';
+import { ChatParticipant } from '../chat/chat-participant.entity';
+import { ChatMessage } from '../chat/chat-message.entity';
 import { CreateRatingDto } from './dto/create-rating.dto';
 
 export interface PendingRating {
@@ -49,6 +60,13 @@ export interface MatchHistoryItem {
   needsFairPlayRating: boolean;
 }
 
+/** Kullanıcının JOKER olarak oynadığı bir maç (Hesap › Joker Geçmişi). */
+export interface JokerMatchHistoryItem extends MatchHistoryItem {
+  /** Joker'in o maçta adına oynadığı takım (davet eden takım). */
+  invitingTeamId: string | null;
+  invitingTeamName: string | null;
+}
+
 @Injectable()
 export class RatingsService {
   constructor(
@@ -62,6 +80,12 @@ export class RatingsService {
     private teamRepo: Repository<Team>,
     @InjectRepository(User)
     private userRepo: Repository<User>,
+    @InjectRepository(ChatChannel)
+    private chatChannelRepo: Repository<ChatChannel>,
+    @InjectRepository(ChatParticipant)
+    private chatParticipantRepo: Repository<ChatParticipant>,
+    @InjectRepository(ChatMessage)
+    private chatMessageRepo: Repository<ChatMessage>,
   ) {}
 
   /**
@@ -114,11 +138,30 @@ export class RatingsService {
     };
   }
 
+  /**
+   * slotTime için where operatörü kurar. Üst sınır (before) her zaman uygulanır;
+   * teamJoinedAt doluysa alt sınır da eklenir → oyuncu yalnız katıldıktan sonra oynanan
+   * maçları görür. null (eski üye) ise yalnız üst sınır uygulanır (geriye dönük uyumlu).
+   */
+  private buildSlotFilter(
+    before: Date,
+    teamJoinedAt: Date | null | undefined,
+  ): FindOperator<Date> {
+    return teamJoinedAt
+      ? And(LessThan(before), MoreThanOrEqual(teamJoinedAt))
+      : LessThan(before);
+  }
+
   async getPendingRatings(userId: string): Promise<PendingRating[]> {
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user || !user.teamId) return [];
 
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+
+    // Yeni katılan oyuncu, katılmadan ÖNCE oynanan maçları değerlendiremez:
+    // teamJoinedAt doluysa slotTime hem <oneHourAgo hem >=teamJoinedAt olmalı.
+    // null (eski üye) ise yalnız <oneHourAgo — mevcut davranış korunur.
+    const slotFilter = this.buildSlotFilter(oneHourAgo, user.teamJoinedAt);
 
     // Find played APPROVED reservations: filter slotTime at DB level
     const played = await this.reservationRepo.find({
@@ -126,12 +169,12 @@ export class RatingsService {
         {
           status: ReservationStatus.APPROVED,
           teamId: user.teamId,
-          slotTime: LessThan(oneHourAgo),
+          slotTime: slotFilter,
         },
         {
           status: ReservationStatus.APPROVED,
           opponentTeamId: user.teamId,
-          slotTime: LessThan(oneHourAgo),
+          slotTime: slotFilter,
         },
       ],
       relations: ['pitch', 'pitch.business', 'team', 'opponentTeam'],
@@ -218,6 +261,32 @@ export class RatingsService {
       throw new ConflictException('Bu maç için zaten değerlendirme yapıldı.');
     }
 
+    // Katılım doğrulaması (otoriter): çağıran bu maçta gerçekten yer almış olmalı.
+    // Aksi halde yeni katılan/ayrılmış bir oyuncu ya da bayat/kötü niyetli bir istek
+    // oynamadığı maça puan üretemez. İki geçerli yol: (1) takım üyesi ve maç katılıştan
+    // sonra oynanmış, (2) o maça joker olarak katılmış.
+    const reservation = await this.reservationRepo.findOne({
+      where: { id: dto.reservationId },
+    });
+    if (!reservation) {
+      throw new NotFoundException('Maç bulunamadı.');
+    }
+    const rater = await this.userRepo.findOne({ where: { id: userId } });
+    const isTeamMember =
+      !!rater?.teamId &&
+      (reservation.teamId === rater.teamId ||
+        reservation.opponentTeamId === rater.teamId) &&
+      (!rater.teamJoinedAt ||
+        reservation.slotTime.getTime() >= rater.teamJoinedAt.getTime());
+    if (!isTeamMember) {
+      const wasJoker = await this.wasJokerInMatch(userId, reservation);
+      if (!wasJoker) {
+        throw new ForbiddenException(
+          'Bu maçta yer almadığınız için değerlendirme yapamazsınız.',
+        );
+      }
+    }
+
     // Fair-play hedefi takım SİLİNMİŞSE değerlendirme kabul edilmez (öksüz rating oluşmasın).
     // Rakip artık mevcut değil → bayat client submit'i temiz reddedilir.
     if (dto.type === 'FAIRPLAY') {
@@ -275,18 +344,21 @@ export class RatingsService {
 
     const now = new Date();
 
+    // Yeni katılan oyuncu, katılmadan ÖNCE oynanan maçları görmez/değerlendiremez.
+    const slotFilter = this.buildSlotFilter(now, user.teamJoinedAt);
+
     // Geçmiş tüm APPROVED rezervasyonları getir (hem ev sahibi hem misafir olarak)
     const played = await this.reservationRepo.find({
       where: [
         {
           status: ReservationStatus.APPROVED,
           teamId: user.teamId,
-          slotTime: LessThan(now),
+          slotTime: slotFilter,
         },
         {
           status: ReservationStatus.APPROVED,
           opponentTeamId: user.teamId,
-          slotTime: LessThan(now),
+          slotTime: slotFilter,
         },
       ],
       relations: ['pitch', 'pitch.business', 'team', 'opponentTeam'],
@@ -350,6 +422,201 @@ export class RatingsService {
         // Rakip silinmişse fair-play skoru istenmez (opponentTeamDeleted)
         needsFairPlayRating:
           opp.hadOpponent && !opp.opponentTeamDeleted && !isFairPlayRated,
+      });
+    }
+
+    // En yeniden eskiye sırala
+    results.sort(
+      (a, b) => new Date(b.slotTime).getTime() - new Date(a.slotTime).getTime(),
+    );
+    return results;
+  }
+
+  /**
+   * Bir maçın MATCH_GROUP kanalını bulur (relatedMatchId = maç ilanı id). Joker katılımı
+   * bu kanal üzerinden takip edilir. Rezervasyonun maç ilanı yoksa (ör. direkt/kendi aramızda)
+   * joker olamaz → null.
+   */
+  private async findMatchGroupChannel(
+    reservation: Reservation,
+  ): Promise<ChatChannel | null> {
+    if (!reservation.matchAnnouncementId) return null;
+    return this.chatChannelRepo.findOne({
+      where: {
+        relatedMatchId: reservation.matchAnnouncementId,
+        type: 'MATCH_GROUP',
+      },
+    });
+  }
+
+  /**
+   * Kullanıcı bu maça JOKER olarak katıldı mı? Joker = maçın MATCH_GROUP sohbetine katılmış
+   * ama teamId'si maçın iki takımından biri OLMAYAN kullanıcı. (Takım üyeleri de kanalda olur;
+   * onları teamId eşleşmesiyle eleriz.) Çıkarılmış olsa da (deletedAt dolu) maçta yer aldığı
+   * için katılım geçerli sayılır.
+   */
+  private async wasJokerInMatch(
+    userId: string,
+    reservation: Reservation,
+  ): Promise<boolean> {
+    const channel = await this.findMatchGroupChannel(reservation);
+    if (!channel) return false;
+    const participant = await this.chatParticipantRepo.findOne({
+      where: { channelId: channel.id, userId },
+    });
+    if (!participant) return false;
+    // Takım üyesiyse joker değildir (o maç zaten takım geçmişinde ele alınır).
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    const isMember =
+      !!user?.teamId &&
+      (reservation.teamId === user.teamId ||
+        reservation.opponentTeamId === user.teamId);
+    return !isMember;
+  }
+
+  /**
+   * Kullanıcının JOKER olarak oynadığı geçmiş maçlar (Hesap › Joker Geçmişi). Joker,
+   * oynadığı sahayı (işletme) ve adına oynadığı takımın RAKİBİNİ (fair-play) puanlayabilir.
+   */
+  async getJokerMatchHistory(userId: string): Promise<JokerMatchHistoryItem[]> {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) return [];
+
+    // Kullanıcının katılımcı olduğu tüm kanallar → MATCH_GROUP olanları çöz.
+    const participations = await this.chatParticipantRepo.find({
+      where: { userId },
+    });
+    const channelIds = [...new Set(participations.map((p) => p.channelId))];
+    if (channelIds.length === 0) return [];
+
+    const channels = await this.chatChannelRepo.find({
+      where: { id: In(channelIds), type: 'MATCH_GROUP' },
+    });
+    // relatedMatchId (maç ilanı id) → kanal eşlemesi
+    const matchIdToChannel = new Map<string, ChatChannel>();
+    for (const c of channels) {
+      if (c.relatedMatchId) matchIdToChannel.set(c.relatedMatchId, c);
+    }
+    const matchAnnouncementIds = [...matchIdToChannel.keys()];
+    if (matchAnnouncementIds.length === 0) return [];
+
+    const now = new Date();
+    // Bu maç ilanlarına bağlı oynanmış (APPROVED, geçmiş) rezervasyonlar
+    const reservations = await this.reservationRepo.find({
+      where: {
+        matchAnnouncementId: In(matchAnnouncementIds),
+        status: ReservationStatus.APPROVED,
+        slotTime: LessThan(now),
+      },
+      relations: ['pitch', 'pitch.business', 'team', 'opponentTeam'],
+    });
+    if (reservations.length === 0) return [];
+
+    // Kullanıcı bu maçlarda JOKER mı (takım üyesiyse takım geçmişine ait, buraya girmez)
+    const jokerReservations = reservations.filter((r) => {
+      if (!r.pitch?.business) return false;
+      const isMember =
+        !!user.teamId &&
+        (r.teamId === user.teamId || r.opponentTeamId === user.teamId);
+      return !isMember;
+    });
+    if (jokerReservations.length === 0) return [];
+
+    const reservationIds = jokerReservations.map((r) => r.id);
+
+    // Kullanıcının bu rezervasyonlar için mevcut puanları
+    const existingRatings = await this.ratingRepo.find({
+      where: { ratedByUserId: userId, reservationId: In(reservationIds) },
+    });
+    const doneSet = new Set(
+      existingRatings.map((r) => `${r.reservationId}_${r.type}`),
+    );
+    const scoreMap = new Map<string, { type: string; score: number }[]>();
+    for (const r of existingRatings) {
+      if (!scoreMap.has(r.reservationId)) scoreMap.set(r.reservationId, []);
+      scoreMap.get(r.reservationId)!.push({ type: r.type, score: r.score });
+    }
+
+    // Joker'in her maçta adına oynadığı takımı JOKER_JOINED sistem mesajından çöz
+    const channelIdsForMatches = jokerReservations
+      .map((r) => matchIdToChannel.get(r.matchAnnouncementId)?.id)
+      .filter((id): id is string => !!id);
+    const jokerJoinedMsgs = channelIdsForMatches.length
+      ? await this.chatMessageRepo.find({
+          where: {
+            channelId: In(channelIdsForMatches),
+            isSystemMessage: true,
+          },
+        })
+      : [];
+    // channelId → invitingTeamId (bu joker için)
+    const invitingTeamByChannel = new Map<string, string>();
+    for (const msg of jokerJoinedMsgs) {
+      if (
+        msg.metadata?.type === 'JOKER_JOINED' &&
+        msg.metadata?.jokerId === userId &&
+        msg.metadata?.invitingTeamId
+      ) {
+        invitingTeamByChannel.set(
+          msg.channelId,
+          msg.metadata.invitingTeamId as string,
+        );
+      }
+    }
+
+    const results: JokerMatchHistoryItem[] = [];
+    for (const reservation of jokerReservations) {
+      const business = reservation.pitch.business;
+      const channel = matchIdToChannel.get(reservation.matchAnnouncementId);
+      const invitingTeamId = channel
+        ? (invitingTeamByChannel.get(channel.id) ?? null)
+        : null;
+
+      // Adına oynadığı takım bilinmiyorsa rakip belirlenemez → yalnız işletme puanı sunulur.
+      const opp = invitingTeamId
+        ? this.resolveOpponent(reservation, invitingTeamId)
+        : {
+            hadOpponent: false,
+            opponentTeamId: null,
+            opponentTeamName: null,
+            opponentTeamDeleted: false,
+          };
+
+      const invitingTeamName =
+        invitingTeamId === reservation.teamId
+          ? (reservation.team?.name ?? null)
+          : invitingTeamId === reservation.opponentTeamId
+            ? (reservation.opponentTeam?.name ?? null)
+            : null;
+
+      const ratings = scoreMap.get(reservation.id) || [];
+      const businessRating = ratings.find((r) => r.type === 'BUSINESS');
+      const fairPlayRating = ratings.find((r) => r.type === 'FAIRPLAY');
+      const isBusinessRated = !!businessRating;
+      const isFairPlayRated = !!fairPlayRating;
+
+      results.push({
+        reservationId: reservation.id,
+        slotTime: reservation.slotTime.toISOString(),
+        pitchName: reservation.pitch.name,
+        businessName: business.name,
+        businessId: business.id,
+        businessDeleted: !!business.deletedAt,
+        opponentTeamId: opp.opponentTeamId,
+        opponentTeamName: opp.opponentTeamName,
+        opponentTeamDeleted: opp.opponentTeamDeleted,
+        invitingTeamId,
+        invitingTeamName,
+        isBusinessRated,
+        isFairPlayRated,
+        businessScore: businessRating?.score ?? null,
+        fairPlayScore: fairPlayRating?.score ?? null,
+        needsBusinessRating:
+          !business.deletedAt && !doneSet.has(`${reservation.id}_BUSINESS`),
+        needsFairPlayRating:
+          opp.hadOpponent &&
+          !opp.opponentTeamDeleted &&
+          !doneSet.has(`${reservation.id}_FAIRPLAY`),
       });
     }
 

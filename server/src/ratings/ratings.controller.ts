@@ -27,6 +27,12 @@ export class RatingsController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('joker-history')
+  getJokerHistory(@Request() req: { user: Express.User }) {
+    return this.ratingsService.getJokerMatchHistory(req.user.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Post()
   submit(@Request() req: { user: Express.User }, @Body() dto: CreateRatingDto) {
     return this.ratingsService.submitRating(req.user.id, dto);

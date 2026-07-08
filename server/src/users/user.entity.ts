@@ -71,6 +71,13 @@ export class User {
   @Column({ nullable: true, name: 'team_id' })
   teamId: string;
 
+  // Kullanıcının mevcut takıma katıldığı an. Yeni katılan oyuncu yalnızca bu tarihten
+  // SONRA oynanan maçları değerlendirebilir (katılmadan önceki maçları görmez/puanlamaz).
+  // null = eski üye (özellik öncesi katılmış) → filtre uygulanmaz, geçmişin tamamını görür.
+  // Takımdan ayrılınca/atılınca null'lanır.
+  @Column({ type: 'timestamptz', nullable: true })
+  teamJoinedAt: Date | null;
+
   @Column({ default: false })
   phoneVerified: boolean;
 
