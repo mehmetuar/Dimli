@@ -3,6 +3,7 @@ import {
   HttpException,
   HttpStatus,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
@@ -86,6 +87,16 @@ export class MatchAnnouncementsService {
     if (!user || !user.team) {
       throw new BadRequestException(
         'Maç ilanı oluşturmak için bir takımda olmalısınız.',
+      );
+    }
+
+    // Yalnızca kaptan veya yardımcı kaptan ilan oluşturabilir
+    const isLeader =
+      user.team.captainId === userId ||
+      (user.team.viceCaptainIds || []).includes(userId);
+    if (!isLeader) {
+      throw new ForbiddenException(
+        'Maç ilanı oluşturmak için takım kaptanı veya yardımcı kaptanı olmanız gerekiyor.',
       );
     }
 

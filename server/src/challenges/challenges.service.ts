@@ -9,6 +9,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Brackets, Repository } from 'typeorm';
 import { Challenge } from './challenge.entity';
 import { MatchAnnouncement } from '../match-announcements/match-announcement.entity';
+import { User } from '../users/user.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 import { MatchAnnouncementsService } from '../match-announcements/match-announcements.service';
 import { TeamsService } from '../teams/teams.service';
@@ -27,6 +28,8 @@ export class ChallengesService {
     private challengesRepository: Repository<Challenge>,
     @InjectRepository(MatchAnnouncement)
     private matchAnnouncementsRepository: Repository<MatchAnnouncement>,
+    @InjectRepository(User)
+    private usersRepository: Repository<User>,
     private notificationsService: NotificationsService,
     private matchAnnouncementsService: MatchAnnouncementsService,
     private teamsService: TeamsService,
@@ -35,13 +38,35 @@ export class ChallengesService {
   ) {}
 
   async create(
-    fromTeamId: string,
+    fromUserId: string,
     toMatchId: string,
     note?: string,
   ): Promise<Challenge> {
     // Not: en fazla 50 karakter — hem Meydan Okuma hem Maç Teklifi bu uçtan geçer
     assertNoteWithinLimit(note, 50, 'Not');
-    // 0. Check for existing pending challenge
+
+    // 0. Kullanıcının takımını ve liderlik durumunu doğrula
+    const fromUser = await this.usersRepository.findOne({
+      where: { id: fromUserId },
+      relations: ['team'],
+    });
+    if (!fromUser?.team) {
+      throw new ForbiddenException(
+        'Meydan okuma göndermek için bir takımda olmalısınız.',
+      );
+    }
+    const fromTeam = fromUser.team;
+    const isLeader =
+      fromTeam.captainId === fromUserId ||
+      (fromTeam.viceCaptainIds || []).includes(fromUserId);
+    if (!isLeader) {
+      throw new ForbiddenException(
+        'Meydan okuma yalnızca takım kaptanı veya yardımcı kaptanı tarafından gönderilebilir.',
+      );
+    }
+    const fromTeamId = fromTeam.id;
+
+    // 1. Duplicate challenge kontrolü
     const existingChallenge = await this.challengesRepository.findOne({
       where: {
         fromTeamId,
@@ -56,7 +81,7 @@ export class ChallengesService {
       );
     }
 
-    // 1. Fetch Match Announcement (challenge kaydından ÖNCE — slot uygunluğu için)
+    // 2. Fetch Match Announcement (challenge kaydından ÖNCE — slot uygunluğu için)
     const match = await this.matchAnnouncementsRepository.findOne({
       where: { id: toMatchId },
       relations: ['team', 'team.captain'],
@@ -64,7 +89,7 @@ export class ChallengesService {
 
     if (!match) throw new NotFoundException('Maç bulunamadı.');
 
-    // 1b. Slot kapalı/dolu mu? (sabit/manuel kapatma veya başka takımca onaylı maç) —
+    // 2b. Slot kapalı/dolu mu? (sabit/manuel kapatma veya başka takımca onaylı maç) —
     // kapalı slottaki ilana meydan okuma gönderilmesini anında engelle (gönderen
     // kullanıcı uyarıyı send anında görür).
     await this.reservationsService.assertSlotAvailable(
@@ -72,7 +97,7 @@ export class ChallengesService {
       istanbulDateTimeToUtc(match.date, match.time),
     );
 
-    // 2. Create Challenge Record
+    // 3. Create Challenge Record
     const challenge = this.challengesRepository.create({
       fromTeamId,
       toMatchId,
@@ -81,12 +106,12 @@ export class ChallengesService {
     });
     const savedChallenge = await this.challengesRepository.save(challenge);
 
-    // 3. Fetch Challenger Team Name
+    // 4. Fetch Challenger Team Name
     const challengerTeam = await this.teamsService.findOne(fromTeamId);
     if (!challengerTeam)
       throw new NotFoundException('Meydan okuyan takım bulunamadı.');
 
-    // 4. Create Notification for Target Team Captain
+    // 5. Create Notification for Target Team Captain
     await this.notificationsService.create({
       userId: match.team.captain.id,
       type: 'CHALLENGE',
@@ -226,13 +251,35 @@ export class ChallengesService {
   async updateStatus(
     id: string,
     status: 'ACCEPTED' | 'REJECTED',
+    actingUserId?: string,
   ): Promise<Challenge> {
-    await this.challengesRepository.update(id, { status });
+    // Önce challenge + match (ev sahibi takım) yükle — yetki kontrolü için
     const challenge = await this.challengesRepository.findOne({
       where: { id },
+      relations: ['match', 'match.team'],
     });
 
     if (!challenge) throw new NotFoundException('Meydan okuma bulunamadı.');
+
+    // Yetki: ev sahibi takımın kaptanı veya yardımcı kaptanı olmalı
+    if (actingUserId) {
+      const hostTeam = challenge.match?.team;
+      const hostTeamId = hostTeam?.id ?? challenge.match?.teamId;
+      const fullHostTeam = hostTeamId
+        ? await this.teamsService.findOne(hostTeamId)
+        : null;
+      const isLeader =
+        !!fullHostTeam &&
+        (fullHostTeam.captainId === actingUserId ||
+          (fullHostTeam.viceCaptainIds || []).includes(actingUserId));
+      if (!isLeader) {
+        throw new ForbiddenException(
+          'Bu meydan okumayı yalnızca ev sahibi takımın kaptanı veya yardımcı kaptanı kabul/reddedebilir.',
+        );
+      }
+    }
+
+    await this.challengesRepository.update(id, { status });
 
     // Delete the original challenge notification
     const notification = await this.notificationsService[

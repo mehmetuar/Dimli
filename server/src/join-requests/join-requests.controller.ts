@@ -9,6 +9,7 @@ import {
   Request,
   HttpCode,
   HttpStatus,
+  ForbiddenException,
 } from '@nestjs/common';
 import { JoinRequestsService } from './join-requests.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -52,8 +53,21 @@ export class JoinRequestsController {
 
   @UseGuards(JwtAuthGuard)
   @Patch(':id/accept')
-  async accept(@Param('id') id: string, @Request() _req) {
+  async accept(@Param('id') id: string, @Request() req: { user: Express.User }) {
     const joinRequest = await this.joinRequestsService.findById(id);
+
+    // Yalnızca kaptan veya yardımcı kaptan kabul edebilir
+    const team = await this.teamsService.findOne(joinRequest.teamId);
+    const isLeader =
+      !!team &&
+      (team.captainId === req.user.id ||
+        (team.viceCaptainIds || []).includes(req.user.id));
+    if (!isLeader) {
+      throw new ForbiddenException(
+        'Katılma isteğini yalnızca takım kaptanı veya yardımcı kaptanı kabul edebilir.',
+      );
+    }
+
     await this.teamsService.addPlayer(joinRequest.teamId, joinRequest.userId);
     await this.chatService.addUserToTeamActiveMatchChannels(
       joinRequest.userId,
@@ -73,7 +87,21 @@ export class JoinRequestsController {
 
   @UseGuards(JwtAuthGuard)
   @Patch(':id/reject')
-  async reject(@Param('id') id: string) {
+  async reject(@Param('id') id: string, @Request() req: { user: Express.User }) {
+    const joinRequest = await this.joinRequestsService.findById(id);
+
+    // Yalnızca kaptan veya yardımcı kaptan reddedebilir
+    const team = await this.teamsService.findOne(joinRequest.teamId);
+    const isLeader =
+      !!team &&
+      (team.captainId === req.user.id ||
+        (team.viceCaptainIds || []).includes(req.user.id));
+    if (!isLeader) {
+      throw new ForbiddenException(
+        'Katılma isteğini yalnızca takım kaptanı veya yardımcı kaptanı reddedebilir.',
+      );
+    }
+
     return this.joinRequestsService.updateStatus(id, 'REJECTED');
   }
 

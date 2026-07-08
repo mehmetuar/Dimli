@@ -19,10 +19,11 @@ export class ChallengesController {
 
   @Post()
   async create(
-    @Body() dto: { fromTeamId: string; toMatchId: string; note?: string },
+    @Body() dto: { toMatchId: string; note?: string },
+    @Request() req: { user: { id: string } },
   ) {
     return this.challengesService.create(
-      dto.fromTeamId,
+      req.user.id,
       dto.toMatchId,
       dto.note,
     );
@@ -34,13 +35,19 @@ export class ChallengesController {
   }
 
   @Patch(':id/accept')
-  async accept(@Param('id') id: string) {
-    return this.challengesService.updateStatus(id, 'ACCEPTED');
+  async accept(
+    @Param('id') id: string,
+    @Request() req: { user: { id: string } },
+  ) {
+    return this.challengesService.updateStatus(id, 'ACCEPTED', req.user.id);
   }
 
   @Patch(':id/reject')
-  async reject(@Param('id') id: string) {
-    return this.challengesService.updateStatus(id, 'REJECTED');
+  async reject(
+    @Param('id') id: string,
+    @Request() req: { user: { id: string } },
+  ) {
+    return this.challengesService.updateStatus(id, 'REJECTED', req.user.id);
   }
 
   @Get('team/:teamId')

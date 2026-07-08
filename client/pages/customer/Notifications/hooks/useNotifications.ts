@@ -75,12 +75,14 @@ export const useNotifications = () => {
     const isFetchingRef = useRef(false);
     const fetchGenRef = useRef(0);
 
-    // Kaptanlık: sistemdeki TÜM takımları çekip client'ta filtrelemek yerine
-    // ortak currentUser'dan türetilir (useMarketplace.isAuthorized emsali) —
-    // tek-takım modelinde kaptan olunan takım = kendi takımı.
-    const myTeamId = currentUser?.team && currentUser.team.captainId === currentUser.id
-        ? currentUser.team.id
-        : null;
+    // Kaptanlık ve yardımcı kaptanlık: kaptan veya viceCaptainIds içinde olan kullanıcı
+    // maç istekleri + katılma istekleri sekmelerini görür ve işlem yapabilir.
+    const isTeamLeader =
+        currentUser?.team &&
+        (currentUser.team.captainId === currentUser.id ||
+            (currentUser.team.viceCaptainIds || []).includes(currentUser.id));
+    const myTeamId = isTeamLeader ? currentUser.team.id : null;
+
 
     // Bildirim listesi — 20'şerli sunucu sayfalama + append + id-dedup.
     const fetchNotifications = useCallback(async (reset: boolean) => {
