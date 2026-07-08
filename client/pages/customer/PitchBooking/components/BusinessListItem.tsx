@@ -57,7 +57,8 @@ export const BusinessListItem = React.memo<BusinessListItemProps>(({
                 className="aspect-video relative cursor-pointer group"
                 onClick={() => setExpandedBusinessId(isExpanded ? null : business.id)}
             >
-                <img src={displayPitch?.imageUrl || "https://images.unsplash.com/photo-1529900748604-07564a03e7a6?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80"} alt={business.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                {/* Kart görseli: işletme fotoğrafı; eski işletmelerde (coverImageUrl boş) ilk saha fotoğrafına düşer */}
+                <img src={business.coverImageUrl || displayPitch?.imageUrl || "https://images.unsplash.com/photo-1529900748604-07564a03e7a6?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80"} alt={business.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/20 to-transparent"></div>
 
                 {displayPitch && (

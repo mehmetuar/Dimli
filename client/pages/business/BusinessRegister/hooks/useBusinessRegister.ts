@@ -32,6 +32,8 @@ export interface RegisterBusinessData {
     business: {
         name: string; city: string; district: string; address: string;
         latitude: number; longitude: number; openTime: string; closeTime: string;
+        // İşletme kartı görseli — photoFile submit'te yüklenir, sunucuya yalnız URL gider
+        coverImageUrl: string; photoFile: File | null;
     };
     pitches: ReturnType<typeof makePitch>[];
     selectedPitchCount: number;
@@ -82,6 +84,7 @@ export const useBusinessRegister = () => {
             name: '', city: '', district: '', address: '',
             latitude: 0, longitude: 0,
             openTime: '09:00', closeTime: '23:00',
+            coverImageUrl: '', photoFile: null,
         },
         pitches: [makePitch(0)],
         selectedPitchCount: 1,
@@ -192,6 +195,9 @@ export const useBusinessRegister = () => {
         if (step === 4) {
             // İşletme Detayları
             if (!formData.business.name.trim()) errors['business.name'] = 'İşletme adı zorunludur';
+            if (!formData.business.photoFile && !formData.business.coverImageUrl) {
+                errors['business.coverImageUrl'] = 'İşletme fotoğrafı zorunludur';
+            }
         }
 
         if (step === 5) {
@@ -269,25 +275,49 @@ export const useBusinessRegister = () => {
             // ADIM 1: Satın alma — başarısız / iptal olursa hata fırlar, kayıt YAPILMAZ
             const rcAnonymousId = await purchasePlan(formData.planType);
 
-            // ADIM 2: Fotoğraf yükle
-            const pitchesWithImages = await Promise.all(
-                formData.pitches.map(async (pitch) => {
-                    if (pitch.photoFile) {
+            // ADIM 2: Fotoğraf yükle (sahalar + işletme kartı görseli)
+            const [pitchesWithImages, businessCoverUrl] = await Promise.all([
+                Promise.all(
+                    formData.pitches.map(async (pitch) => {
+                        if (pitch.photoFile) {
+                            const fd = new FormData();
+                            fd.append('file', pitch.photoFile);
+                            const res = await api.post('/files/upload', fd, {
+                                headers: { 'Content-Type': 'multipart/form-data' },
+                            });
+                            return { ...pitch, imageUrl: res.data.url };
+                        }
+                        return pitch;
+                    })
+                ),
+                (async () => {
+                    if (formData.business.photoFile) {
                         const fd = new FormData();
-                        fd.append('file', pitch.photoFile);
+                        fd.append('file', formData.business.photoFile);
                         const res = await api.post('/files/upload', fd, {
                             headers: { 'Content-Type': 'multipart/form-data' },
                         });
-                        return { ...pitch, imageUrl: res.data.url };
+                        return res.data.url as string;
                     }
-                    return pitch;
-                })
-            );
+                    return formData.business.coverImageUrl;
+                })(),
+            ]);
 
             // ADIM 3: Satın alma başarılı → kayıt API'sini çağır
+            // business açık alanlarla kurulur — photoFile (File) sunucuya sızmamalı.
             const payload = {
                 owner: formData.owner,
-                business: formData.business,
+                business: {
+                    name: formData.business.name,
+                    city: formData.business.city,
+                    district: formData.business.district,
+                    address: formData.business.address,
+                    latitude: formData.business.latitude,
+                    longitude: formData.business.longitude,
+                    openTime: formData.business.openTime,
+                    closeTime: formData.business.closeTime,
+                    coverImageUrl: businessCoverUrl,
+                },
                 pitches: pitchesWithImages.map(p => ({
                     name: p.name,
                     type: p.type,

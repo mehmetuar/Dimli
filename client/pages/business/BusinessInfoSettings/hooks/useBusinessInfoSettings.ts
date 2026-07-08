@@ -41,6 +41,13 @@ export const useBusinessInfoSettings = () => {
     // Form state
     const [formData, setFormData] = useState(EMPTY_FORM_DATA);
 
+    // İşletme fotoğrafı — formData'dan AYRI tutulur: PATCH gövdesine karışmamalı,
+    // değişikliği yalnız admin onaylı change-request akışından geçer.
+    const [coverImageUrl, setCoverImageUrl] = useState('');
+    const [pendingChangeRequests, setPendingChangeRequests] = useState<any[]>([]);
+    const [submittingPhoto, setSubmittingPhoto] = useState(false);
+    const [changeRequestSentModal, setChangeRequestSentModal] = useState(false);
+
     useEffect(() => {
         fetchBusinessData();
     }, []);
@@ -69,6 +76,13 @@ export const useBusinessInfoSettings = () => {
             if (b.latitude && b.longitude) {
                 setMapCoords({ lat: b.latitude, lng: b.longitude });
                 if (b.city || b.district) setMapLocationLabel(`${b.city || ''} / ${b.district || ''}`);
+            }
+            setCoverImageUrl(b.coverImageUrl || '');
+            try {
+                const pendingResp = await api.get(`/businesses/${bId}/change-requests/pending`);
+                setPendingChangeRequests(pendingResp.data || []);
+            } catch {
+                // Bekleyen istekler alınamazsa sayfa yine açılır; rozet görünmez.
             }
             setLoading(false);
         } catch (error) {
@@ -171,7 +185,34 @@ export const useBusinessInfoSettings = () => {
         setFormData(prev => ({ ...prev, [field]: value }));
     };
 
+    // Fotoğraf değişikliği → admin onay isteği gönder (saha fotoğrafı akışıyla aynı desen)
+    const handleSubmitPhotoRequest = async (imageUrl: string) => {
+        if (!businessId) return;
+        setSubmittingPhoto(true);
+        try {
+            await api.post(`/businesses/${businessId}/change-requests`, {
+                requestedData: { imageUrl },
+            });
+            setChangeRequestSentModal(true);
+            const updated = await api.get(`/businesses/${businessId}/change-requests/pending`);
+            setPendingChangeRequests(updated.data || []);
+        } catch (error) {
+            console.error('Error submitting business photo request:', error);
+            alert('Fotoğraf isteği gönderilirken hata oluştu.');
+        } finally {
+            setSubmittingPhoto(false);
+        }
+    };
+
+    const hasPendingPhoto = pendingChangeRequests.some(r => r.type === 'BUSINESS_PHOTO_UPDATE');
+
     return {
+        // İşletme fotoğrafı
+        coverImageUrl,
+        hasPendingPhoto,
+        submittingPhoto,
+        handleSubmitPhotoRequest,
+        changeRequestSentModal, setChangeRequestSentModal,
         navigate,
         loading,
         saving,
