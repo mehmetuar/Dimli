@@ -79,6 +79,8 @@ export class ReservationQueryService {
         'business.name',
         'business.latitude',
         'business.longitude',
+        'business.address',
+        'business.district',
         'team.id',
         'team.name',
         'team.logoUrl',

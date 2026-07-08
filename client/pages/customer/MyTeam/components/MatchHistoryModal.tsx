@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Trophy, Star, CheckCircle, Building2, Shield, MapPin, Users } from 'lucide-react';
+import { X, Trophy, Star, CheckCircle, Building2, Shield, MapPin, Users, Calendar, Clock } from 'lucide-react';
 import { MatchHistoryItem, PendingRating } from '../../../../types';
 import { RatingModal } from '../../../../components/Modals/RatingModal';
 import api from '../../../../services/api';
@@ -26,7 +26,6 @@ export const MatchHistoryModal: React.FC<MatchHistoryModalProps> = ({
 
     useModalBodyClass(isOpen);
 
-    // matches prop değişince local kopyayı güncelle
     React.useEffect(() => {
         setLocalMatches(matches);
     }, [matches]);
@@ -34,15 +33,14 @@ export const MatchHistoryModal: React.FC<MatchHistoryModalProps> = ({
     if (!isOpen) return null;
 
     const totalMatches = localMatches.length;
-    const ratedCount = localMatches.filter(m => m.isBusinessRated).length;
 
     const formatDate = (isoStr: string) => {
         const d = new Date(isoStr);
         return {
             day: d.toLocaleDateString('tr-TR', { day: '2-digit' }),
-            month: d.toLocaleDateString('tr-TR', { month: 'short' }).toUpperCase(),
+            month: d.toLocaleDateString('tr-TR', { month: 'long' }),
             time: d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }),
-            full: d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' }),
+            full: d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', weekday: 'long' }),
         };
     };
 
@@ -89,10 +87,9 @@ export const MatchHistoryModal: React.FC<MatchHistoryModalProps> = ({
                 });
             }
         } catch {
-            // 409 duplicate ise zaten yapılmış, sessizce geç
+            // silent fail on duplicate
         }
 
-        // Yerel state'i güncelle
         setLocalMatches(prev =>
             prev.map(m =>
                 m.reservationId === reservationId
@@ -115,203 +112,189 @@ export const MatchHistoryModal: React.FC<MatchHistoryModalProps> = ({
         setSelectedForRating(null);
     };
 
-    // Portal → body: TeamProfile scroll konteynerine hapsolmasın (backdrop tüm ekranı kaplasın)
     return createPortal(
-        <div className="fixed inset-0 z-[70] flex items-center justify-center px-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-            <div className="bg-slate-800 w-full max-w-2xl max-h-[85vh] rounded-3xl border border-slate-700 overflow-hidden relative shadow-2xl animate-scale-in flex flex-col">
+        <div className="fixed inset-0 z-[70] flex items-center justify-center px-4 bg-black/80 backdrop-blur-sm animate-fade-in" onClick={onClose}>
+            <div 
+                className="bg-slate-800 w-full max-w-lg max-h-[85vh] rounded-[2.5rem] border border-slate-700/50 overflow-hidden relative shadow-2xl flex flex-col animate-slide-up"
+                onClick={(e) => e.stopPropagation()}
+            >
 
                 {/* Header */}
-                <div className="p-5 border-b border-slate-700 bg-gradient-to-br from-slate-800 to-slate-900">
+                <div className="p-6 border-b border-slate-700/50 relative overflow-hidden shrink-0">
+                    <div className="absolute inset-0 bg-gradient-to-br from-purple-600/20 to-slate-900" />
+                    
                     <button
                         onClick={onClose}
-                        className="absolute top-4 right-4 bg-slate-900/50 p-2 rounded-full text-slate-400 hover:text-white hover:bg-slate-700 transition-colors z-10"
+                        className="absolute top-4 right-4 bg-slate-900/50 p-2 rounded-full text-slate-400 hover:text-white hover:bg-slate-700 transition-colors z-10 backdrop-blur-sm"
                     >
                         <X className="w-5 h-5" />
                     </button>
 
-                    <div className="flex items-center gap-3 mb-4 min-w-0">
-                        <div className="bg-purple-500/10 p-3 rounded-xl border border-purple-500/20 flex-shrink-0">
+                    <div className="flex items-center gap-3 relative z-10 mb-5">
+                        <div className="bg-purple-500/20 p-3 rounded-2xl border border-purple-500/20 shadow-lg shadow-purple-500/10">
                             <Trophy className="w-6 h-6 text-purple-400" />
                         </div>
-                        <div className="min-w-0">
-                            <h3 className="font-sport font-bold text-white uppercase italic tracking-wide truncate" style={{ fontSize: 'clamp(1rem, 4.5vw, 1.25rem)' }}>
+                        <div className="pr-10 min-w-0 flex-1">
+                            <h3 className="text-[clamp(16px,5vw,22px)] font-sport font-black text-white uppercase italic tracking-wide truncate">
                                 Geçmiş Maçlar
                             </h3>
-                            <p className="text-slate-400 truncate" style={{ fontSize: 'clamp(0.7rem, 3vw, 0.875rem)' }}>{totalMatches} maç oynandı</p>
+                            <p className="text-[clamp(11px,3vw,13px)] text-slate-400 truncate">
+                                Toplam {totalMatches} maç oynandı
+                            </p>
                         </div>
                     </div>
 
-                    {/* İki istatistik kartı */}
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="bg-slate-900/60 p-3 rounded-xl text-center border border-slate-700/50">
-                            <div className="text-white font-sport font-bold" style={{ fontSize: 'clamp(1.25rem, 6vw, 1.5rem)' }}>{totalMatches}</div>
-                            <div className="text-slate-500 font-bold uppercase mt-0.5 whitespace-nowrap" style={{ fontSize: 'clamp(0.55rem, 2.4vw, 0.75rem)' }}>Toplam Maç</div>
+                    {/* Stats */}
+                    <div className="grid grid-cols-2 gap-3 relative z-10">
+                        <div className="bg-slate-900/40 p-4 rounded-2xl border border-slate-700/50 flex flex-col items-center justify-center backdrop-blur-sm">
+                            <div className="text-white font-sport font-black text-[clamp(20px,5vw,28px)] leading-none">{totalMatches}</div>
+                            <div className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mt-1.5">Toplam Maç</div>
                         </div>
-                        <div className="bg-slate-900/60 p-3 rounded-xl text-center border border-slate-700/50">
-                            <div className="flex items-center justify-center gap-1">
-                                <Star className="text-green-500 fill-green-500 flex-shrink-0" style={{ width: 'clamp(0.85rem, 3.6vw, 1rem)', height: 'clamp(0.85rem, 3.6vw, 1rem)' }} />
-                                <span className="text-green-500 font-sport font-bold" style={{ fontSize: 'clamp(1.25rem, 6vw, 1.5rem)' }}>
+                        <div className="bg-slate-900/40 p-4 rounded-2xl border border-slate-700/50 flex flex-col items-center justify-center backdrop-blur-sm">
+                            <div className="flex items-center gap-1.5">
+                                <Star className="w-5 h-5 text-green-500 fill-green-500" />
+                                <span className="text-green-400 font-sport font-black text-[clamp(20px,5vw,28px)] leading-none">
                                     {(teamFairPlayScore || 5.0).toFixed(1)}
                                 </span>
                             </div>
-                            <div className="text-slate-500 font-bold uppercase mt-0.5 whitespace-nowrap" style={{ fontSize: 'clamp(0.55rem, 2.4vw, 0.75rem)' }}>Fair Play Puanı</div>
+                            <div className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mt-1.5">Fair Play Puanı</div>
                         </div>
                     </div>
                 </div>
 
-                {/* Maç Listesi */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                {/* Match List */}
+                <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
                     {isLoading ? (
-                        <div className="flex items-center justify-center py-16">
-                            <div className="text-slate-500 text-sm animate-pulse">Maçlar yükleniyor...</div>
+                        <div className="flex flex-col items-center justify-center py-16 gap-4">
+                            <div className="w-10 h-10 border-3 border-purple-500 border-t-transparent rounded-full animate-spin" />
+                            <p className="text-slate-400 text-sm font-bold animate-pulse">Yükleniyor...</p>
                         </div>
                     ) : localMatches.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-16 gap-3">
-                            <div className="bg-slate-700/50 p-4 rounded-2xl">
-                                <Trophy className="w-10 h-10 text-slate-600" />
+                        <div className="flex flex-col items-center justify-center py-16 gap-4 text-center">
+                            <div className="bg-slate-900/50 p-6 rounded-[2rem] border border-slate-700/50 shadow-inner">
+                                <Trophy className="w-12 h-12 text-slate-600" />
                             </div>
-                            <p className="text-slate-500 text-sm font-medium">Henüz oynanan maç bulunmuyor</p>
+                            <div>
+                                <p className="text-white font-black text-lg mb-1">Geçmiş maç yok</p>
+                                <p className="text-slate-400 text-sm max-w-[260px] mx-auto">
+                                    Henüz oynanan maç bulunmuyor.
+                                </p>
+                            </div>
                         </div>
                     ) : (
                         localMatches.map((match) => {
                             const dt = formatDate(match.slotTime);
                             const isFullyRated = match.isBusinessRated && (!match.needsFairPlayRating || match.isFairPlayRated);
                             const needsRating = match.needsBusinessRating || match.needsFairPlayRating;
+                            const opponent = match.opponentTeamDeleted ? `(Silinmiş) ${match.opponentTeamName || 'Takım'}` : match.opponentTeamName;
 
                             return (
                                 <div
                                     key={match.reservationId}
-                                    className={`bg-slate-900/50 border rounded-2xl overflow-hidden transition-colors ${
+                                    className={`bg-slate-900/40 rounded-3xl border overflow-hidden relative group transition-all duration-300 ${
                                         isFullyRated
-                                            ? 'border-turf-500/20'
+                                            ? 'border-turf-500/20 hover:border-turf-500/40'
                                             : needsRating
-                                            ? 'border-indigo-500/30'
-                                            : 'border-slate-700'
+                                            ? 'border-purple-500/30 hover:border-purple-500/50 shadow-[0_0_15px_rgba(168,85,247,0.1)]'
+                                            : 'border-slate-700/50 hover:border-slate-600'
                                     }`}
                                 >
-                                    <div className="flex items-stretch">
-                                        {/* Sol: Tarih bloğu — koyu ton arka plan, beyaz gün sayısı, ekranla ölçeklenir */}
-                                        <div
-                                            className="bg-slate-800/60 flex flex-col items-center justify-center flex-shrink-0 border-r border-slate-700/50"
-                                            style={{ width: 'clamp(46px, 13.5vw, 64px)', padding: 'clamp(0.5rem, 2vw, 1rem) clamp(0.25rem, 1vw, 0.5rem)' }}
-                                        >
-                                            <span className="text-white font-sport font-black leading-none" style={{ fontSize: 'clamp(1.1rem, 5.2vw, 1.5rem)' }}>{dt.day}</span>
-                                            <span className="text-turf-400 font-bold uppercase mt-0.5" style={{ fontSize: 'clamp(0.55rem, 2.4vw, 0.7rem)' }}>{dt.month}</span>
-                                            <span className="text-slate-400 mt-1" style={{ fontSize: 'clamp(0.5rem, 2.1vw, 0.625rem)' }}>{dt.time}</span>
-                                        </div>
+                                    <div className={`absolute inset-0 bg-gradient-to-br opacity-0 group-hover:opacity-100 transition-opacity ${
+                                        needsRating ? 'from-purple-500/5' : isFullyRated ? 'from-turf-500/5' : 'from-slate-500/5'
+                                    } to-transparent`} />
 
-                                        {/* Orta: Maç bilgileri — yalnız burası daralır/truncate olur */}
-                                        <div className="flex-1 min-w-0" style={{ padding: 'clamp(0.5rem, 2vw, 0.75rem)' }}>
-                                            <div className="flex items-center gap-1.5 mb-1 min-w-0">
-                                                <MapPin className="text-slate-500 flex-shrink-0" style={{ width: 'clamp(0.7rem, 3vw, 0.85rem)', height: 'clamp(0.7rem, 3vw, 0.85rem)' }} />
-                                                <span className="text-slate-300 font-semibold truncate" style={{ fontSize: 'clamp(0.6rem, 2.7vw, 0.75rem)' }}>
-                                                    {match.pitchName}
-                                                </span>
-                                                <span className="text-slate-600 flex-shrink-0" style={{ fontSize: 'clamp(0.6rem, 2.7vw, 0.75rem)' }}>·</span>
-                                                <span className="text-slate-500 truncate" style={{ fontSize: 'clamp(0.6rem, 2.7vw, 0.75rem)' }}>{match.businessName}</span>
+                                    <div className="p-4 sm:p-5 relative z-10 flex flex-col gap-4">
+                                        
+                                        {/* Top Section: Date & Status */}
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div className="flex items-center gap-3 bg-slate-800/60 p-2.5 rounded-2xl border border-slate-700/50 shrink-0">
+                                                <div className="bg-slate-900/80 rounded-xl px-3 py-2 flex flex-col items-center justify-center min-w-[3.5rem] border border-slate-700/50">
+                                                    <span className="text-white font-sport font-black text-lg leading-none">{dt.day}</span>
+                                                    <span className="text-turf-400 font-bold text-[9px] uppercase mt-1">{dt.month}</span>
+                                                </div>
+                                                <div className="pr-2">
+                                                    <div className="text-slate-300 text-xs font-medium flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> {dt.time}</div>
+                                                </div>
                                             </div>
 
-                                            <div className="flex items-center gap-1.5 mb-1.5 min-w-0">
-                                                <Users className="text-slate-500 flex-shrink-0" style={{ width: 'clamp(0.7rem, 3vw, 0.85rem)', height: 'clamp(0.7rem, 3vw, 0.85rem)' }} />
-                                                <span className="text-slate-400 truncate" style={{ fontSize: 'clamp(0.6rem, 2.7vw, 0.75rem)' }}>
-                                                    {match.opponentTeamDeleted
-                                                        ? `vs ${match.opponentTeamName || 'Silinmiş takım'}`
-                                                        : match.opponentTeamName
-                                                        ? `vs ${match.opponentTeamName}`
-                                                        : 'Kendi Aramızda'}
-                                                </span>
+                                            <div className="shrink-0 flex flex-col items-end">
+                                                {isFullyRated ? (
+                                                    <div className="bg-turf-500/10 border border-turf-500/20 px-3 py-1.5 rounded-lg flex items-center gap-1.5">
+                                                        <CheckCircle className="w-3.5 h-3.5 text-turf-400" />
+                                                        <span className="text-turf-400 font-bold text-[9px] uppercase tracking-wider">Değerlendirildi</span>
+                                                    </div>
+                                                ) : needsRating ? (
+                                                    <button
+                                                        onClick={() => openRatingForMatch(match)}
+                                                        className="bg-purple-600 hover:bg-purple-500 text-white font-bold text-[11px] uppercase tracking-wider px-4 py-2 rounded-xl transition-all shadow-lg shadow-purple-600/20 active:scale-95 border border-purple-500"
+                                                    >
+                                                        Değerlendir
+                                                    </button>
+                                                ) : !match.participated ? (
+                                                    <span className="bg-slate-800 border border-slate-700 text-slate-400 font-bold text-[10px] uppercase px-3 py-1.5 rounded-lg">Katılmadın</span>
+                                                ) : match.businessDeleted ? (
+                                                    <span className="bg-slate-800 border border-slate-700 text-slate-400 font-bold text-[10px] uppercase px-3 py-1.5 rounded-lg">Kapandı</span>
+                                                ) : (
+                                                    <span className="bg-slate-800 border border-slate-700 text-slate-400 font-bold text-[10px] uppercase px-3 py-1.5 rounded-lg">Rakipsiz</span>
+                                                )}
                                             </div>
-                                            {match.opponentTeamDeleted && (
-                                                <p className="text-amber-500/80 font-medium mb-1.5 -mt-0.5 truncate" style={{ fontSize: 'clamp(0.55rem, 2.3vw, 0.65rem)' }}>
-                                                    Bu takım artık mevcut değil
-                                                </p>
-                                            )}
-
-                                            {/* Rating bilgisi - Yapıldıysa göster */}
-                                            {isFullyRated && (
-                                                <div className="flex items-center gap-3 flex-wrap">
-                                                    {match.businessScore !== null && (
-                                                        <div className="flex items-center gap-1">
-                                                            <Building2 className="text-yellow-500 flex-shrink-0" style={{ width: 'clamp(0.7rem, 3vw, 0.85rem)', height: 'clamp(0.7rem, 3vw, 0.85rem)' }} />
-                                                            <div className="flex gap-0.5">
-                                                                {[1,2,3,4,5].map(s => (
-                                                                    <Star
-                                                                        key={s}
-                                                                        className={s <= (match.businessScore || 0) ? 'text-yellow-400 fill-yellow-400' : 'text-slate-600'}
-                                                                        style={{ width: 'clamp(0.55rem, 2.4vw, 0.7rem)', height: 'clamp(0.55rem, 2.4vw, 0.7rem)' }}
-                                                                    />
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                    {match.fairPlayScore !== null && (
-                                                        <div className="flex items-center gap-1">
-                                                            <Shield className="text-green-500 flex-shrink-0" style={{ width: 'clamp(0.7rem, 3vw, 0.85rem)', height: 'clamp(0.7rem, 3vw, 0.85rem)' }} />
-                                                            <div className="flex gap-0.5">
-                                                                {[1,2,3,4,5].map(s => (
-                                                                    <Star
-                                                                        key={s}
-                                                                        className={s <= (match.fairPlayScore || 0) ? 'text-green-500 fill-green-500' : 'text-slate-600'}
-                                                                        style={{ width: 'clamp(0.55rem, 2.4vw, 0.7rem)', height: 'clamp(0.55rem, 2.4vw, 0.7rem)' }}
-                                                                    />
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )}
                                         </div>
 
-                                        {/* Sağ: Durum — tek satır, asla wrap/sıkışma; ekranla küçülür */}
-                                        <div className="flex items-center justify-center flex-shrink-0" style={{ padding: 'clamp(0.5rem, 2vw, 0.75rem)' }}>
-                                            {isFullyRated ? (
-                                                <div className="flex flex-col items-center gap-1">
-                                                    <CheckCircle className="text-turf-400" style={{ width: 'clamp(1rem, 4.5vw, 1.25rem)', height: 'clamp(1rem, 4.5vw, 1.25rem)' }} />
-                                                    <span className="text-turf-400 font-bold uppercase text-center whitespace-nowrap leading-none" style={{ fontSize: 'clamp(0.5rem, 2.1vw, 0.62rem)' }}>
-                                                        Değerlendirildi
-                                                    </span>
+                                        {/* Details Section */}
+                                        <div className="flex flex-col gap-2.5">
+                                            <div className="flex items-center gap-3 bg-slate-800/40 p-3 rounded-2xl border border-slate-700/30">
+                                                <MapPin className="w-4 h-4 text-blue-400 shrink-0" />
+                                                <div className="min-w-0">
+                                                    <div className="text-white font-bold text-sm truncate">{match.pitchName}</div>
+                                                    <div className="text-slate-400 text-xs truncate mt-0.5">{match.businessName}</div>
                                                 </div>
-                                            ) : needsRating ? (
-                                                <button
-                                                    onClick={() => openRatingForMatch(match)}
-                                                    className="bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-bold rounded-xl transition-all whitespace-nowrap"
-                                                    style={{ fontSize: 'clamp(0.6rem, 2.6vw, 0.72rem)', padding: 'clamp(0.4rem, 1.6vw, 0.55rem) clamp(0.6rem, 2.6vw, 0.9rem)' }}
-                                                >
-                                                    Değerlendir
-                                                </button>
-                                            ) : !match.participated ? (
-                                                <span className="text-slate-500 font-bold uppercase text-center whitespace-nowrap" style={{ fontSize: 'clamp(0.5rem, 2.1vw, 0.62rem)' }}>
-                                                    Katılmadın
-                                                </span>
-                                            ) : match.businessDeleted ? (
-                                                <span className="text-slate-500 font-bold uppercase text-center whitespace-nowrap" style={{ fontSize: 'clamp(0.5rem, 2.1vw, 0.62rem)' }}>
-                                                    Kapandı
-                                                </span>
-                                            ) : (
-                                                <span className="text-slate-500 font-bold uppercase text-center whitespace-nowrap" style={{ fontSize: 'clamp(0.5rem, 2.1vw, 0.62rem)' }}>
-                                                    Rakip Yok
-                                                </span>
-                                            )}
+                                            </div>
+
+                                            <div className="flex items-center gap-3 bg-slate-800/40 p-3 rounded-2xl border border-slate-700/30">
+                                                <Users className="w-4 h-4 text-orange-400 shrink-0" />
+                                                <div className="min-w-0">
+                                                    <div className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">Rakip Takım</div>
+                                                    <div className={`font-bold text-sm truncate mt-0.5 ${match.opponentTeamDeleted ? 'text-amber-500/80' : 'text-white'}`}>
+                                                        {opponent || 'Kendi Aramızda'}
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
+
+                                        {/* Ratings Display */}
+                                        {isFullyRated && (match.businessScore || match.fairPlayScore) ? (
+                                            <div className="flex flex-wrap items-center gap-3 pt-1 border-t border-slate-700/30 mt-1">
+                                                {match.businessScore !== null && (
+                                                    <div className="flex items-center gap-2 bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-700/50">
+                                                        <Building2 className="w-3.5 h-3.5 text-yellow-500" />
+                                                        <div className="flex gap-0.5">
+                                                            {[1,2,3,4,5].map(s => (
+                                                                <Star key={s} className={`w-3 h-3 ${s <= (match.businessScore || 0) ? 'text-yellow-400 fill-yellow-400' : 'text-slate-600'}`} />
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                {match.fairPlayScore !== null && (
+                                                    <div className="flex items-center gap-2 bg-slate-800/50 px-3 py-1.5 rounded-lg border border-slate-700/50">
+                                                        <Shield className="w-3.5 h-3.5 text-green-500" />
+                                                        <div className="flex gap-0.5">
+                                                            {[1,2,3,4,5].map(s => (
+                                                                <Star key={s} className={`w-3 h-3 ${s <= (match.fairPlayScore || 0) ? 'text-green-500 fill-green-500' : 'text-slate-600'}`} />
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ) : null}
+
                                     </div>
                                 </div>
                             );
                         })
                     )}
                 </div>
-
-                {/* Footer */}
-                <div className="p-4 border-t border-slate-700 bg-slate-900/50">
-                    <button
-                        onClick={onClose}
-                        className="w-full bg-slate-700 text-white font-bold py-3 rounded-xl hover:bg-slate-600 transition-colors"
-                    >
-                        Kapat
-                    </button>
-                </div>
             </div>
 
-            {/* Inline Rating Modal — Geçmiş maçtan değerlendirme */}
             {selectedForRating && (
                 <RatingModal
                     key={selectedForRating.reservationId}

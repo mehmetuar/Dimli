@@ -17,6 +17,8 @@ interface UpcomingMatch {
             name?: string;
             latitude?: number;
             longitude?: number;
+            address?: string;
+            district?: string;
         };
     };
     team?: {
@@ -180,11 +182,62 @@ export const UpcomingMatchesModal: React.FC<UpcomingMatchesModalProps> = ({
                                         </div>
 
                                         {/* Teams Section */}
-                                        <div className="flex items-center justify-between gap-2 mb-5">
-                                            {/* My Team */}
-                                            <div className="flex flex-col items-center gap-2 flex-1 min-w-0">
+                                        {otherTeam ? (
+                                            <div className="flex items-center justify-between gap-2 mb-5">
+                                                {/* My Team */}
+                                                <div className="flex flex-col items-center gap-2 flex-1 min-w-0">
+                                                    <div
+                                                        className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center text-xl sm:text-2xl font-black text-white shadow-lg border border-slate-700 overflow-hidden relative"
+                                                        style={{
+                                                            background: myTeam?.primaryColor
+                                                                ? `linear-gradient(135deg, ${myTeam.primaryColor}, ${myTeam.secondaryColor || myTeam.primaryColor})`
+                                                                : 'linear-gradient(135deg, #1e40af, #3b82f6)',
+                                                        }}
+                                                    >
+                                                        {myTeam?.logoUrl ? (
+                                                            <img src={myTeam.logoUrl} alt="" className="w-full h-full object-cover" onError={(e) => { const el = e.currentTarget; el.onerror = null; el.src = teamInitialsAvatar(myTeam?.name); }} />
+                                                        ) : (
+                                                            myTeam?.name?.charAt(0) || 'S'
+                                                        )}
+                                                    </div>
+                                                    <span className="text-white font-bold text-xs sm:text-sm text-center leading-tight truncate w-full">
+                                                        {myTeam?.name || 'Takımınız'}
+                                                    </span>
+                                                </div>
+
+                                                {/* VS Badge */}
+                                                <div className="flex flex-col items-center shrink-0 px-1 sm:px-2">
+                                                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center shadow-xl">
+                                                        <Swords className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400" />
+                                                    </div>
+                                                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-1">VS</span>
+                                                </div>
+
+                                                {/* Opponent Team */}
+                                                <div className="flex flex-col items-center gap-2 flex-1 min-w-0">
+                                                    <div
+                                                        className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center text-xl sm:text-2xl font-black text-white shadow-lg border border-slate-700 overflow-hidden relative"
+                                                        style={{
+                                                            background: otherTeam.primaryColor
+                                                                ? `linear-gradient(135deg, ${otherTeam.primaryColor}, ${otherTeam.secondaryColor || otherTeam.primaryColor})`
+                                                                : 'linear-gradient(135deg, #dc2626, #f87171)',
+                                                        }}
+                                                    >
+                                                        {otherTeam.logoUrl ? (
+                                                            <img src={otherTeam.logoUrl} alt="" className="w-full h-full object-cover" onError={(e) => { const el = e.currentTarget; el.onerror = null; el.src = teamInitialsAvatar(otherTeam?.name); }} />
+                                                        ) : (
+                                                            otherTeam.name.charAt(0)
+                                                        )}
+                                                    </div>
+                                                    <span className="text-white font-bold text-xs sm:text-sm text-center leading-tight truncate w-full">
+                                                        {otherTeam.name}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-col items-center justify-center gap-3 mb-5 py-2">
                                                 <div
-                                                    className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center text-xl sm:text-2xl font-black text-white shadow-lg border border-slate-700 overflow-hidden relative"
+                                                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl flex items-center justify-center text-2xl sm:text-3xl font-black text-white shadow-lg border border-slate-700 overflow-hidden relative"
                                                     style={{
                                                         background: myTeam?.primaryColor
                                                             ? `linear-gradient(135deg, ${myTeam.primaryColor}, ${myTeam.secondaryColor || myTeam.primaryColor})`
@@ -197,53 +250,16 @@ export const UpcomingMatchesModal: React.FC<UpcomingMatchesModalProps> = ({
                                                         myTeam?.name?.charAt(0) || 'S'
                                                     )}
                                                 </div>
-                                                <span className="text-white font-bold text-xs sm:text-sm text-center leading-tight truncate w-full">
-                                                    {myTeam?.name || 'Takımınız'}
-                                                </span>
-                                            </div>
-
-                                            {/* VS Badge */}
-                                            <div className="flex flex-col items-center shrink-0 px-1 sm:px-2">
-                                                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center shadow-xl">
-                                                    <Swords className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400" />
+                                                <div className="text-center">
+                                                    <span className="text-white font-bold text-sm sm:text-base leading-tight block">
+                                                        {myTeam?.name || 'Takımınız'}
+                                                    </span>
+                                                    <span className="text-slate-400 font-bold text-xs mt-1 block">
+                                                        Kendi Aramızda
+                                                    </span>
                                                 </div>
-                                                <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mt-1">VS</span>
                                             </div>
-
-                                            {/* Opponent Team */}
-                                            <div className="flex flex-col items-center gap-2 flex-1 min-w-0">
-                                                {otherTeam ? (
-                                                    <>
-                                                        <div
-                                                            className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center text-xl sm:text-2xl font-black text-white shadow-lg border border-slate-700 overflow-hidden relative"
-                                                            style={{
-                                                                background: otherTeam.primaryColor
-                                                                    ? `linear-gradient(135deg, ${otherTeam.primaryColor}, ${otherTeam.secondaryColor || otherTeam.primaryColor})`
-                                                                    : 'linear-gradient(135deg, #dc2626, #f87171)',
-                                                            }}
-                                                        >
-                                                            {otherTeam.logoUrl ? (
-                                                                <img src={otherTeam.logoUrl} alt="" className="w-full h-full object-cover" onError={(e) => { const el = e.currentTarget; el.onerror = null; el.src = teamInitialsAvatar(otherTeam?.name); }} />
-                                                            ) : (
-                                                                otherTeam.name.charAt(0)
-                                                            )}
-                                                        </div>
-                                                        <span className="text-white font-bold text-xs sm:text-sm text-center leading-tight truncate w-full">
-                                                            {otherTeam.name}
-                                                        </span>
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-slate-800/80 border border-dashed border-slate-600 flex items-center justify-center">
-                                                            <Users className="w-6 h-6 text-slate-500" />
-                                                        </div>
-                                                        <span className="text-slate-400 font-bold text-xs sm:text-sm text-center leading-tight truncate w-full">
-                                                            Kendi Aramızda
-                                                        </span>
-                                                    </>
-                                                )}
-                                            </div>
-                                        </div>
+                                        )}
 
                                         {/* Business & Location Info */}
                                         <div className="bg-slate-900/50 p-3 sm:p-4 rounded-2xl border border-slate-800 flex items-center gap-3 sm:gap-4">
@@ -253,6 +269,11 @@ export const UpcomingMatchesModal: React.FC<UpcomingMatchesModalProps> = ({
                                             <div className="flex-1 min-w-0">
                                                 <div className="text-white font-bold text-sm truncate">{businessName}</div>
                                                 <div className="text-slate-400 text-xs truncate mt-0.5">{pitchName}</div>
+                                                {match.pitch?.business?.address && (
+                                                    <div className="text-slate-500 text-[10px] truncate mt-0.5">
+                                                        {match.pitch.business.address}
+                                                    </div>
+                                                )}
                                             </div>
                                             {distanceKm != null && (
                                                 <div className="shrink-0 bg-slate-800 border border-slate-700 px-2.5 py-1.5 rounded-full flex items-center gap-1.5 shadow-sm">
