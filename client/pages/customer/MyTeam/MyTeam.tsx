@@ -39,9 +39,10 @@ export const MyTeam: React.FC = () => {
     }, [location.state]);
     const {
         currentUser, isLoading, teamResolved, loadError, fetchUser, myTeam, setMyTeam, roster, setRoster,
-        businesses, bio, setBio, isEditingBio, setIsEditingBio,
+        businesses, isBusinessListLoading, homeBusiness, bio, setBio, isEditingBio, setIsEditingBio,
         upcomingMatches, isUpcomingLoading, fetchUpcomingMatches,
-        matchHistory, isMatchHistoryLoading, fetchMatchHistory,
+        matchHistory, matchHistoryTotal, hasMoreMatchHistory, isMatchHistoryLoading,
+        isLoadingMoreHistory, fetchMatchHistory, loadMoreMatchHistory, applyRatingResult,
         successMessage, setSuccessMessage, successType, setSuccessType, errorMessage, setErrorMessage,
         handleSaveBio, handleSetHomeBusiness, handleCreateTeam, handleLeaveTeam,
         isLocationFilterOpen, setIsLocationFilterOpen, locationFilter, applyLocationFilter,
@@ -118,7 +119,12 @@ export const MyTeam: React.FC = () => {
                 isUpcomingLoading={isUpcomingLoading}
                 handleCreateTeam={handleCreateTeam}
                 matchHistory={matchHistory}
+                matchHistoryTotal={matchHistoryTotal}
+                hasMoreMatchHistory={hasMoreMatchHistory}
                 isMatchHistoryLoading={isMatchHistoryLoading}
+                isLoadingMoreHistory={isLoadingMoreHistory}
+                loadMoreMatchHistory={loadMoreMatchHistory}
+                applyRatingResult={applyRatingResult}
                 isLeader={isCaptain || isViceCaptain}
                 successMessage={successMessage}
                 successType={successType}
@@ -160,6 +166,8 @@ export const MyTeam: React.FC = () => {
                     <TeamHomeBusiness
                         myTeam={myTeam}
                         businesses={businesses}
+                        isBusinessListLoading={isBusinessListLoading}
+                        homeBusiness={homeBusiness}
                         isCaptain={isCaptain}
                         isEditingPitch={modals.isEditingPitch}
                         setIsEditingPitch={modals.setIsEditingPitch}

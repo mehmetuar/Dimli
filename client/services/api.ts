@@ -141,6 +141,23 @@ export const getBusinessesPaged = async (params: {
     return data ?? { items: [], total: 0, hasMore: false };
 };
 
+// Geçmiş maçlar (takım) — sayfalı. Aynı /ratings/history endpoint'i; `limit`
+// verilince sunucu { items, total, hasMore } döner (getBusinessesPaged deseni).
+export const getMatchHistoryPaged = async (params: {
+    limit?: number;
+    offset?: number;
+}): Promise<{ items: any[]; total: number; hasMore: boolean }> => {
+    const { limit = 20, offset = 0 } = params;
+    const response = await api.get('/ratings/history', { params: { limit, offset } });
+    const data = response.data;
+    // Geriye dönük uyumluluk: eski sunucu limit'i yok sayıp DÜZ DİZİ döner →
+    // tüm listeyi tek sayfa gibi sun (hasMore=false).
+    if (Array.isArray(data)) {
+        return { items: data, total: data.length, hasMore: false };
+    }
+    return data ?? { items: [], total: 0, hasMore: false };
+};
+
 // Konum-önce + sayfalı + sunucu-taraflı sıralama/tarih — Maç Pazarı listesi.
 // Aynı /match-announcements endpoint'i; `paged=1` verilince sunucu
 // { items, total, hasMore } döner (getBusinessesPaged deseni).

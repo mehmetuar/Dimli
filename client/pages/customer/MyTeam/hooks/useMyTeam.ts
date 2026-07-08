@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api, { getPitches, getBusinesses } from '../../../../services/api';
-import { Team, Player, Pitch, Business, MatchHistoryItem } from '../../../../types';
+import api, { getBusinesses, getMatchHistoryPaged } from '../../../../services/api';
+import { Team, Player, Business, MatchHistoryItem } from '../../../../types';
 import { SuccessType } from '../../../../components/Modals/SuccessModal';
 import { useLocationContext } from '../../../../contexts/LocationContext';
 import { LocationFilter } from '../../../../components/Modals/LocationFilterModal';
@@ -49,8 +49,13 @@ export const useMyTeam = (modals: any) => {
     const [roster, setRoster] = useState<Partial<Player>[]>(
         () => mapRoster((readObjectCache<{ team: any }>(TEAM_CACHE_KEY)?.team?.players) ?? []),
     );
-    const [pitches, setPitches] = useState<Pitch[]>([]);
     const [businesses, setBusinesses] = useState<Business[]>([]);
+    const [isBusinessListLoading, setIsBusinessListLoading] = useState(false);
+    // Ev sahibi işletme kartı: yarıçap listesinden BAĞIMSIZ tekil kayıt.
+    // Çevrimdışı açılış için takım zarfındaki opsiyonel anahtardan hydrate edilir.
+    const [homeBusiness, setHomeBusiness] = useState<Business | null>(
+        () => readObjectCache<{ team: Team | null; homeBusiness?: Business | null }>(TEAM_CACHE_KEY)?.homeBusiness ?? null,
+    );
     const [isLocationFilterOpen, setIsLocationFilterOpen] = useState(false);
     const [bio, setBio] = useState(
         () => readObjectCache<{ team: any }>(TEAM_CACHE_KEY)?.team?.description ?? '',
@@ -58,8 +63,15 @@ export const useMyTeam = (modals: any) => {
     const [isEditingBio, setIsEditingBio] = useState(false);
     const [upcomingMatches, setUpcomingMatches] = useState<any[]>([]);
     const [isUpcomingLoading, setIsUpcomingLoading] = useState(false);
+    // Geçmiş maçlar: sayfalı + birikmeli (sonsuz kaydırma). Guard'lar usePitchBooking deseni.
     const [matchHistory, setMatchHistory] = useState<MatchHistoryItem[]>([]);
+    const [matchHistoryTotal, setMatchHistoryTotal] = useState(0);
+    const [hasMoreMatchHistory, setHasMoreMatchHistory] = useState(false);
     const [isMatchHistoryLoading, setIsMatchHistoryLoading] = useState(false);
+    const [isLoadingMoreHistory, setIsLoadingMoreHistory] = useState(false);
+    const historyFetchingRef = useRef(false);
+    const historyGenRef = useRef(0);      // reset, uçuştaki eski yanıtı geçersiz kılar
+    const historyOffsetRef = useRef(0);
 
     // Success/Error messages
     const [successMessage, setSuccessMessage] = useState('');
@@ -86,12 +98,8 @@ export const useMyTeam = (modals: any) => {
             const user = response.data;
             setCurrentUser(user);
 
-            const [pitchesData, historyResponse] = await Promise.all([
-                getPitches(),
-                api.get('/ratings/history'),
-            ]);
-            setPitches(pitchesData);
-            setMatchHistory(historyResponse.data || []);
+            // Geçmiş maçlar sayfa açılışında ÇEKİLMEZ: modal her açılışta
+            // fetchMatchHistory() ile zaten çeker (eski hali çift istekti).
 
             if (user.team) {
                 const teamResponse = await api.get(`/teams/${user.team.id}`);
@@ -100,8 +108,12 @@ export const useMyTeam = (modals: any) => {
                 setMyTeam(fullTeam);
                 setBio(fullTeam.description || '');
                 if (fullTeam.players) setRoster(mapRoster(fullTeam.players));
-                // Çevrimdışı açılış için son bilinen takım saklanır.
-                writeObjectCache(TEAM_CACHE_KEY, { team: fullTeam });
+                // Çevrimdışı açılış için son bilinen takım saklanır
+                // (zarftaki homeBusiness anahtarı korunur — onu kendi effect'i yazar).
+                writeObjectCache(TEAM_CACHE_KEY, {
+                    ...(readObjectCache<Record<string, unknown>>(TEAM_CACHE_KEY) ?? {}),
+                    team: fullTeam,
+                });
             } else {
                 // Takımsız kullanıcı: bayat takım önbelleği kalmasın (ayrılma/silme sonrası).
                 setMyTeam(undefined);
@@ -125,24 +137,59 @@ export const useMyTeam = (modals: any) => {
     // Ağ geri gelince profil + takım tazele (banner yeşil onayıyla eşzamanlı).
     useOnReconnect(fetchUser);
 
-    // Konum değişince işletmeleri yeniden çek — PitchBooking ile aynı pattern
+    // Ev sahibi işletme: tekil ids fetch'i (TeamDetailModal deseni) — kart, yarıçap
+    // listesine bağımlı DEĞİL. Ev işletmesi seçili yarıçapın dışında kalsa bile dolar;
+    // silinmiş/pasif işletmede sunucu boş döner → kart "seç" durumuna düşer.
     useEffect(() => {
+        const businessId = myTeam?.homeBusinessId;
+        if (!businessId) {
+            setHomeBusiness(null);
+            return;
+        }
+        let cancelled = false;
+        (async () => {
+            try {
+                const data = await getBusinesses({ ids: [businessId] });
+                if (cancelled) return;
+                const found: Business | null = Array.isArray(data) ? (data[0] ?? null) : null;
+                setHomeBusiness(found);
+                // Çevrimdışı açılışta kart dolu gelsin (takım zarfına opsiyonel anahtar).
+                writeObjectCache(TEAM_CACHE_KEY, {
+                    ...(readObjectCache<Record<string, unknown>>(TEAM_CACHE_KEY) ?? {}),
+                    homeBusiness: found,
+                });
+            } catch (error) {
+                // Ağ hatasında son bilinen (cache) değer korunur.
+                console.error('Failed to fetch home business:', error);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [myTeam?.homeBusinessId]);
+
+    // İşletme listesi YALNIZ "Değiştir" (edit) modunda çekilir — sayfa açılışında
+    // yarıçaptaki tüm işletmeleri çekmek gereksizdi (kart artık tekil fetch).
+    // Edit modu açıkken konum/yarıçap değişirse yeniden çekilir.
+    useEffect(() => {
+        if (!modals.isEditingPitch) return;
         if (!coords) {
             setBusinesses([]);
             return;
         }
         let cancelled = false;
         const fetchBusinessesWithCoords = async () => {
+            setIsBusinessListLoading(true);
             try {
                 const data = await getBusinesses({ lat: coords.lat, lng: coords.lng, radius });
                 if (!cancelled) setBusinesses(data);
             } catch (error) {
                 console.error('Failed to fetch businesses:', error);
+            } finally {
+                if (!cancelled) setIsBusinessListLoading(false);
             }
         };
         fetchBusinessesWithCoords();
         return () => { cancelled = true; };
-    }, [coords, radius]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [modals.isEditingPitch, coords, radius]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const fetchUpcomingMatches = async () => {
         if (!myTeam?.id) return;
@@ -157,16 +204,61 @@ export const useMyTeam = (modals: any) => {
         }
     };
 
-    const fetchMatchHistory = async () => {
-        setIsMatchHistoryLoading(true);
+    const HISTORY_PAGE_SIZE = 20;
+
+    // reset=true → sayfa 0'dan (modal açılışı); reset=false → sonraki sayfayı ekle.
+    const fetchMatchHistory = async (reset = true) => {
+        if (!reset && historyFetchingRef.current) return;
+        historyFetchingRef.current = true;
+        const gen = reset ? ++historyGenRef.current : historyGenRef.current;
+        const offset = reset ? 0 : historyOffsetRef.current;
+        if (reset) setIsMatchHistoryLoading(true);
+        else setIsLoadingMoreHistory(true);
         try {
-            const response = await api.get('/ratings/history');
-            setMatchHistory(response.data || []);
+            const page = await getMatchHistoryPaged({ limit: HISTORY_PAGE_SIZE, offset });
+            if (gen !== historyGenRef.current) return; // bayat yanıt (reset araya girdi)
+            setMatchHistory(prev => (reset ? page.items : [...prev, ...page.items]));
+            historyOffsetRef.current = offset + page.items.length;
+            setMatchHistoryTotal(page.total);
+            setHasMoreMatchHistory(page.hasMore);
         } catch (error) {
             console.error('Failed to fetch match history:', error);
         } finally {
-            setIsMatchHistoryLoading(false);
+            if (gen === historyGenRef.current) {
+                setIsMatchHistoryLoading(false);
+                setIsLoadingMoreHistory(false);
+            }
+            historyFetchingRef.current = false;
         }
+    };
+
+    const loadMoreMatchHistory = () => {
+        if (!hasMoreMatchHistory || historyFetchingRef.current) return;
+        fetchMatchHistory(false);
+    };
+
+    // Puanlama sonucunu birikmeli listeye işler. Modal-lokal state yerine burada:
+    // sonraki sayfa append'leri bu güncellemeyi SİLEMEZ (aynı state'te yaşarlar).
+    const applyRatingResult = (
+        reservationId: string,
+        businessScore: number,
+        fairPlayScore: number | null,
+    ) => {
+        setMatchHistory(prev =>
+            prev.map(m =>
+                m.reservationId === reservationId
+                    ? {
+                          ...m,
+                          isBusinessRated: true,
+                          isFairPlayRated: m.needsFairPlayRating ? true : m.isFairPlayRated,
+                          businessScore: businessScore > 0 ? businessScore : m.businessScore,
+                          fairPlayScore: fairPlayScore ?? m.fairPlayScore,
+                          needsBusinessRating: false,
+                          needsFairPlayRating: false,
+                      }
+                    : m,
+            ),
+        );
     };
 
     const handleSaveBio = async () => {
@@ -185,6 +277,8 @@ export const useMyTeam = (modals: any) => {
         try {
             const response = await api.patch(`/teams/${myTeam.id}/home-business`, { homeBusinessId: businessId });
             setMyTeam(response.data);
+            // Kart anında dolsun (liste elemanı elimizde); effect ids fetch'iyle doğrular.
+            setHomeBusiness(businesses.find(b => b.id === businessId) ?? null);
             modals.setIsEditingPitch(false);
             setSuccessMessage('Favori işletme başarıyla güncellendi!');
         } catch (error) {
@@ -277,9 +371,10 @@ export const useMyTeam = (modals: any) => {
 
     return {
         currentUser, isLoading, teamResolved, loadError, fetchUser, myTeam, setMyTeam, roster, setRoster,
-        pitches, businesses, bio, setBio, isEditingBio, setIsEditingBio,
+        businesses, isBusinessListLoading, homeBusiness, bio, setBio, isEditingBio, setIsEditingBio,
         upcomingMatches, isUpcomingLoading, fetchUpcomingMatches,
-        matchHistory, isMatchHistoryLoading, fetchMatchHistory,
+        matchHistory, matchHistoryTotal, hasMoreMatchHistory, isMatchHistoryLoading,
+        isLoadingMoreHistory, fetchMatchHistory, loadMoreMatchHistory, applyRatingResult,
         successMessage, setSuccessMessage, successType, setSuccessType, errorMessage, setErrorMessage,
         handleSaveBio, handleSetHomeBusiness, handleCreateTeam, handleLeaveTeam,
         isLocationFilterOpen, setIsLocationFilterOpen,
