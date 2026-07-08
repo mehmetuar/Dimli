@@ -58,6 +58,12 @@ export interface MatchHistoryItem {
   fairPlayScore: number | null;
   needsBusinessRating: boolean;
   needsFairPlayRating: boolean;
+  /**
+   * Maç kullanıcının takıma katılımından SONRA mı oynandı (teamJoinedAt).
+   * false → görüntülenir ama değerlendirilemez ("Katılmadın"). Eski üye
+   * (teamJoinedAt null) için her zaman true.
+   */
+  participated: boolean;
 }
 
 /** Kullanıcının JOKER olarak oynadığı bir maç (Hesap › Joker Geçmişi). */
@@ -344,8 +350,11 @@ export class RatingsService {
 
     const now = new Date();
 
-    // Yeni katılan oyuncu, katılmadan ÖNCE oynanan maçları görmez/değerlendiremez.
-    const slotFilter = this.buildSlotFilter(now, user.teamJoinedAt);
+    // Maç geçmişi takımın TAMAMINI gösterir (yalnız üst sınır) — yeni üye de takımın
+    // gerçek geçmişini/sayısını görür. Katılım öncesi maçlar listede kalır ama
+    // değerlendirilemez (aşağıda per-maç `participated` ile kapılanır). teamJoinedAt'e
+    // göre filtreleme YALNIZ değerlendirme yetkisi için; görüntüleme için DEĞİL.
+    const slotFilter = LessThan(now);
 
     // Geçmiş tüm APPROVED rezervasyonları getir (hem ev sahibi hem misafir olarak)
     const played = await this.reservationRepo.find({
@@ -403,6 +412,12 @@ export class RatingsService {
       const isBusinessRated = !!businessRating;
       const isFairPlayRated = !!fairPlayRating;
 
+      // Kullanıcı bu maçta yer aldı mı: katılıştan sonra oynandıysa (veya eski üye).
+      // Katılım öncesi maçlar görüntülenir ama değerlendirilemez.
+      const participated =
+        !user.teamJoinedAt ||
+        reservation.slotTime.getTime() >= user.teamJoinedAt.getTime();
+
       results.push({
         reservationId: reservation.id,
         slotTime: reservation.slotTime.toISOString(),
@@ -417,11 +432,16 @@ export class RatingsService {
         isFairPlayRated,
         businessScore: businessRating?.score ?? null,
         fairPlayScore: fairPlayRating?.score ?? null,
+        // Değerlendirme yalnız katılım-sonrası maçlarda önerilir.
         needsBusinessRating:
-          !reservation.pitch.business.deletedAt && !isBusinessRated,
+          participated && !reservation.pitch.business.deletedAt && !isBusinessRated,
         // Rakip silinmişse fair-play skoru istenmez (opponentTeamDeleted)
         needsFairPlayRating:
-          opp.hadOpponent && !opp.opponentTeamDeleted && !isFairPlayRated,
+          participated &&
+          opp.hadOpponent &&
+          !opp.opponentTeamDeleted &&
+          !isFairPlayRated,
+        participated,
       });
     }
 
@@ -617,6 +637,8 @@ export class RatingsService {
           opp.hadOpponent &&
           !opp.opponentTeamDeleted &&
           !doneSet.has(`${reservation.id}_FAIRPLAY`),
+        // Joker o maçta bizzat oynadı → daima değerlendirebilir.
+        participated: true,
       });
     }
 

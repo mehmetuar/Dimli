@@ -264,6 +264,8 @@ export interface MatchHistoryItem {
   fairPlayScore: number | null;
   needsBusinessRating: boolean;
   needsFairPlayRating: boolean;
+  /** Maç kullanıcının katılımından sonra mı oynandı — false ise "Katılmadın", değerlendirilemez. */
+  participated: boolean;
 }
 
 /** Kullanıcının JOKER olarak oynadığı bir maç (Hesap › Joker Geçmişi). */

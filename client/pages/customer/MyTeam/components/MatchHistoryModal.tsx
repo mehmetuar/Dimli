@@ -279,6 +279,10 @@ export const MatchHistoryModal: React.FC<MatchHistoryModalProps> = ({
                                                 >
                                                     Değerlendir
                                                 </button>
+                                            ) : !match.participated ? (
+                                                <span className="text-slate-500 font-bold uppercase text-center whitespace-nowrap" style={{ fontSize: 'clamp(0.5rem, 2.1vw, 0.62rem)' }}>
+                                                    Katılmadın
+                                                </span>
                                             ) : match.businessDeleted ? (
                                                 <span className="text-slate-500 font-bold uppercase text-center whitespace-nowrap" style={{ fontSize: 'clamp(0.5rem, 2.1vw, 0.62rem)' }}>
                                                     Kapandı

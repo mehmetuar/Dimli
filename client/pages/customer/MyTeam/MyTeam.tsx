@@ -147,7 +147,7 @@ export const MyTeam: React.FC = () => {
                         handleLeaveTeam={handleLeaveTeam}
                     />
 
-                    <TeamStatsRow myTeam={myTeam} matchCount={matchHistory.length} />
+                    <TeamStatsRow myTeam={myTeam} matchCount={myTeam.playedMatchCount ?? 0} />
 
                     <TeamActionButtons
                         fetchUpcomingMatches={fetchUpcomingMatches}
