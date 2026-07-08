@@ -64,7 +64,7 @@ export const BusinessLoginForm: React.FC<BusinessLoginFormProps> = ({
                             style={{ width: 'clamp(16px, 4vh, 20px)', height: 'clamp(16px, 4vh, 20px)' }}
                         />
                         <input
-                            className="w-full pl-11 pr-4 rounded-2xl bg-slate-800/40 border border-slate-700/80 text-white focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-colors font-bold"
+                            className="w-full pl-11 pr-4 rounded-2xl bg-slate-900/50 border border-white/10 text-white focus:outline-none focus:border-orange-500 focus:shadow-[0_0_15px_rgba(249,115,22,0.3)] transition-all font-bold"
                             style={{ height: 'clamp(36px, 6.5vh, 56px)', fontSize: 'clamp(0.85rem, 2.2vh, 1rem)' }}
                             id="email"
                             type="email"
@@ -94,7 +94,7 @@ export const BusinessLoginForm: React.FC<BusinessLoginFormProps> = ({
                             type={showPassword ? 'text' : 'password'}
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            className="w-full pl-11 pr-12 rounded-2xl bg-slate-800/40 border border-slate-700/80 text-white focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-colors font-bold"
+                            className="w-full pl-11 pr-12 rounded-2xl bg-slate-900/50 border border-white/10 text-white focus:outline-none focus:border-orange-500 focus:shadow-[0_0_15px_rgba(249,115,22,0.3)] transition-all font-bold"
                             style={{ height: 'clamp(36px, 6.5vh, 56px)', fontSize: 'clamp(0.85rem, 2.2vh, 1rem)' }}
                             placeholder="••••••••"
                             required
@@ -125,8 +125,12 @@ export const BusinessLoginForm: React.FC<BusinessLoginFormProps> = ({
                 <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full bg-orange-600 text-white rounded-2xl font-display font-bold uppercase tracking-wider shadow-lg shadow-black/30 border border-orange-400/15 active:bg-orange-700 active:scale-[0.97] transition-all disabled:opacity-80 disabled:active:scale-100 flex items-center justify-center gap-2"
-                    style={{ height: 'clamp(40px, 7.5vh, 58px)', fontSize: 'clamp(0.85rem, 2.4vh, 1.125rem)' }}
+                    className="w-full bg-gradient-to-b from-orange-500 to-orange-600 text-white rounded-2xl font-display font-bold uppercase tracking-wider border border-orange-400/25 active:from-orange-600 active:to-orange-700 active:scale-[0.97] transition-all disabled:opacity-80 disabled:active:scale-100 flex items-center justify-center gap-2"
+                    style={{
+                        height: 'clamp(40px, 7.5vh, 58px)',
+                        fontSize: 'clamp(0.85rem, 2.4vh, 1.125rem)',
+                        boxShadow: '0 10px 30px -10px rgba(249,115,22,0.55), inset 0 1px 0 rgba(255,255,255,0.15)'
+                    }}
                 >
                     {isSubmitting ? (
                         <>

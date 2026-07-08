@@ -25,10 +25,11 @@ export const BusinessLogin: React.FC = () => {
 
     return (
         <div
-            className="fixed left-0 right-0 w-full bg-gradient-to-b from-slate-800 to-slate-900 overflow-hidden flex flex-col flip-perspective"
+            className="fixed left-0 right-0 w-full overflow-hidden flex flex-col flip-perspective"
             style={{
                 top: 'calc(-1 * env(safe-area-inset-top))',
                 bottom: 'calc(-1 * env(safe-area-inset-bottom))',
+                background: 'radial-gradient(130% 90% at 50% 15%, #2a1005 0%, #0f0a14 45%, #050408 80%, #020204 100%)',
             }}
         >
             <div

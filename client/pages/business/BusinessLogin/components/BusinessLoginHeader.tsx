@@ -1,4 +1,5 @@
 import React from 'react';
+import { CorporateGridBackground } from '../../../../components/UI/CorporateGridBackground';
 
 interface BusinessLoginHeaderProps {
     keyboardOpen: boolean;
@@ -15,19 +16,18 @@ export const BusinessLoginHeader: React.FC<BusinessLoginHeaderProps> = ({ keyboa
                 overflow: 'hidden',
             }}
         >
-            {/* Logo üzerine sol-üst / sağ-üst hafif turuncu spot ışığı */}
+            {/* Hexagon Grid Background */}
+            <div className="absolute inset-0 z-0 flex justify-center pointer-events-none transition-all duration-200" style={{ width: '100%', height: '100%' }}>
+                <CorporateGridBackground keyboardOpen={keyboardOpen} />
+            </div>
+
+            {/* Merkezi Turuncu Glow */}
             <div
-                className="absolute inset-0 pointer-events-none"
+                className="absolute inset-0 pointer-events-none transition-all duration-200"
                 style={{
-                    background: 'radial-gradient(circle at top left, rgba(249,115,22,0.14), transparent 55%)',
-                    filter: 'blur(20px)',
-                }}
-            />
-            <div
-                className="absolute inset-0 pointer-events-none"
-                style={{
-                    background: 'radial-gradient(circle at top right, rgba(249,115,22,0.14), transparent 55%)',
-                    filter: 'blur(20px)',
+                    background: 'radial-gradient(circle at 50% 30%, rgba(249,115,22,0.18), transparent 60%)',
+                    filter: 'blur(30px)',
+                    opacity: keyboardOpen ? 0.6 : 1,
                 }}
             />
             <img
@@ -37,6 +37,7 @@ export const BusinessLoginHeader: React.FC<BusinessLoginHeaderProps> = ({ keyboa
                 style={{
                     width: keyboardOpen ? 'clamp(40px, 11vw, 56px)' : 'clamp(60px, 16vw, 90px)',
                     height: 'auto',
+                    filter: 'drop-shadow(0 0 25px rgba(249,115,22,0.4))',
                 }}
             />
             <h1
@@ -48,14 +49,6 @@ export const BusinessLoginHeader: React.FC<BusinessLoginHeaderProps> = ({ keyboa
             >
                 İŞLETME PANELİ
             </h1>
-            {!keyboardOpen && (
-                <p
-                    className="relative z-10 text-slate-400 animate-enter-up transition-all duration-200"
-                    style={{ fontSize: 'clamp(0.7rem, 2.5vw, 0.875rem)', marginTop: '4px' }}
-                >
-                    DİMLİ Business
-                </p>
-            )}
         </div>
     );
 };
