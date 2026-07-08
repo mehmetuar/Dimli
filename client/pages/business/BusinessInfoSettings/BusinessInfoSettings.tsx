@@ -88,7 +88,7 @@ export const BusinessInfoSettings: React.FC = () => {
                 style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
             >
                 <div
-                    className="px-4 py-5 space-y-4"
+                    className="px-4 py-5 space-y-6"
                     style={{ paddingBottom: `calc(${keyboardHeight}px + env(safe-area-inset-bottom) + 1.25rem)` }}
                 >
                     {success && (
@@ -97,94 +97,98 @@ export const BusinessInfoSettings: React.FC = () => {
                         </div>
                     )}
 
-                    {/* ── İşletme Fotoğrafı (değişiklik admin onayına düşer) ──── */}
-                    <div className="bg-slate-800/70 rounded-2xl border border-slate-700/60 overflow-hidden"
-                        style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.25)' }}>
-                        <div className="px-4 py-3.5 border-b border-slate-700/50"
-                            style={{ background: 'linear-gradient(90deg, rgba(249,115,22,0.06) 0%, transparent 100%)' }}>
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2.5">
-                                    <div className="p-1.5 bg-orange-500/15 rounded-lg border border-orange-500/20">
-                                        <Image className="w-4 h-4 text-orange-400" />
-                                    </div>
-                                    <h2 className="text-[clamp(13px,3.8vw,15px)] font-black text-white">İşletme Fotoğrafı</h2>
-                                </div>
-                                {hasPendingPhoto && (
-                                    <div className="flex items-center gap-1.5 bg-yellow-500/10 border border-yellow-500/25 px-2.5 py-1 rounded-full">
-                                        <Clock className="w-3 h-3 text-yellow-400" />
-                                        <span className="text-[clamp(9px,2.5vw,11px)] text-yellow-400 font-bold">İnceleme bekliyor</span>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        {pendingPhotoUrl ? (
-                            <>
-                                <img src={pendingPhotoUrl} alt="Önizleme" className="w-full aspect-video object-cover" />
-                                <div className="px-4 py-3.5 flex gap-2.5 bg-slate-900/30">
-                                    <button
-                                        type="button"
-                                        disabled={submittingPhoto}
-                                        onClick={() => setPendingPhotoUrl(null)}
-                                        className="flex-1 bg-slate-700/80 hover:bg-slate-600 disabled:opacity-50 text-white text-sm font-bold px-3 py-3 rounded-xl transition-colors"
-                                        style={{ WebkitTapHighlightColor: 'transparent' }}
-                                    >
-                                        İptal
-                                    </button>
-                                    <button
-                                        type="button"
-                                        disabled={submittingPhoto}
-                                        onClick={async () => { await handleSubmitPhotoRequest(pendingPhotoUrl); setPendingPhotoUrl(null); }}
-                                        className="flex-1 flex items-center justify-center gap-2 bg-orange-600 hover:bg-orange-500 disabled:bg-slate-600 text-white text-sm font-bold px-3 py-3 rounded-xl transition-colors"
-                                        style={{ WebkitTapHighlightColor: 'transparent' }}
-                                    >
-                                        <Camera className="w-4 h-4" />
-                                        {submittingPhoto ? 'Gönderiliyor...' : 'Onay İsteği Gönder'}
-                                    </button>
-                                </div>
-                            </>
-                        ) : (
-                            <>
-                                {coverImageUrl ? (
-                                    <img src={coverImageUrl} alt={formData.name} className="w-full aspect-video object-cover" />
-                                ) : (
-                                    <div className="w-full aspect-video bg-slate-900/60 flex flex-col items-center justify-center gap-2">
-                                        <Image className="w-10 h-10 text-slate-600" />
-                                        <span className="text-[clamp(10px,2.8vw,12px)] text-slate-600 font-medium">Fotoğraf yok</span>
-                                    </div>
-                                )}
-                                {!hasPendingPhoto && (
-                                    <div className="px-4 py-3.5 bg-slate-900/30">
-                                        <button
-                                            type="button"
-                                            disabled={uploadingPhoto || submittingPhoto}
-                                            onClick={() => photoInputRef.current?.click()}
-                                            className="w-full flex items-center justify-center gap-2 bg-slate-700/80 hover:bg-slate-600 disabled:opacity-50 text-white text-sm font-bold px-3 py-3 rounded-xl transition-colors"
-                                            style={{ WebkitTapHighlightColor: 'transparent' }}
-                                        >
-                                            <Camera className="w-4 h-4" />
-                                            {uploadingPhoto ? 'Yükleniyor...' : 'Fotoğrafı Güncelle'}
-                                        </button>
-                                    </div>
-                                )}
-                            </>
-                        )}
-                    </div>
-
-                    {/* Gizli file input */}
-                    <input
-                        ref={photoInputRef}
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={handlePhotoFileChange}
-                    />
-
-                    <form onSubmit={handleSubmit} className="space-y-4">
+                    <form onSubmit={handleSubmit} className="space-y-6">
                         <BusinessInfoForm
                             formData={formData}
                             onChange={handleChange}
                             onOpenMapModal={openMapModal}
+                        />
+
+                        {/* ── İşletme Fotoğrafı (değişiklik admin onayına düşer) ──── */}
+                        <div className="space-y-3">
+                            <label className="block text-[clamp(11px,3vw,13px)] font-black uppercase tracking-widest text-slate-400 pl-2">
+                                Fotoğraf (Vitrin)
+                            </label>
+                            <div className="bg-slate-900/50 backdrop-blur-md rounded-2xl border border-white/5 overflow-hidden shadow-[0_8px_30px_rgba(0,0,0,0.15)]">
+                                <div className="px-4 py-3.5 border-b border-white/5"
+                                    style={{ background: 'linear-gradient(90deg, rgba(249,115,22,0.06) 0%, transparent 100%)' }}>
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2.5">
+                                            <div className="p-1.5 bg-orange-500/10 rounded-lg border border-orange-500/20">
+                                                <Image className="w-4 h-4 text-orange-400" />
+                                            </div>
+                                            <h2 className="text-[clamp(12px,3.5vw,14px)] font-black text-white">İşletme Fotoğrafı</h2>
+                                        </div>
+                                        {hasPendingPhoto && (
+                                            <div className="flex items-center gap-1.5 bg-yellow-500/10 border border-yellow-500/20 px-2.5 py-1 rounded-full">
+                                                <Clock className="w-3 h-3 text-yellow-400 drop-shadow-sm" />
+                                                <span className="text-[clamp(9px,2.5vw,10px)] text-yellow-400 font-bold uppercase tracking-wider">İnceleme Bekliyor</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {pendingPhotoUrl ? (
+                                    <>
+                                        <img src={pendingPhotoUrl} alt="Önizleme" className="w-full aspect-video object-cover" />
+                                        <div className="p-3 flex gap-2.5 bg-slate-950/40">
+                                            <button
+                                                type="button"
+                                                disabled={submittingPhoto}
+                                                onClick={() => setPendingPhotoUrl(null)}
+                                                className="flex-1 bg-slate-800/80 hover:bg-slate-700 disabled:opacity-50 text-white text-[13px] font-bold px-3 py-3 rounded-xl transition-colors"
+                                                style={{ WebkitTapHighlightColor: 'transparent' }}
+                                            >
+                                                İptal
+                                            </button>
+                                            <button
+                                                type="button"
+                                                disabled={submittingPhoto}
+                                                onClick={async () => { await handleSubmitPhotoRequest(pendingPhotoUrl); setPendingPhotoUrl(null); }}
+                                                className="flex-1 flex items-center justify-center gap-2 bg-orange-600 hover:bg-orange-500 disabled:bg-slate-600 text-white text-[13px] font-bold px-3 py-3 rounded-xl transition-colors shadow-lg shadow-orange-500/20"
+                                                style={{ WebkitTapHighlightColor: 'transparent' }}
+                                            >
+                                                <Camera className="w-4 h-4" />
+                                                {submittingPhoto ? 'Gönderiliyor...' : 'Onay İsteği Gönder'}
+                                            </button>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        {coverImageUrl ? (
+                                            <img src={coverImageUrl} alt={formData.name} className="w-full aspect-video object-cover" />
+                                        ) : (
+                                            <div className="w-full aspect-video bg-slate-950/40 flex flex-col items-center justify-center gap-2">
+                                                <Image className="w-10 h-10 text-slate-600" />
+                                                <span className="text-[clamp(10px,2.8vw,12px)] text-slate-500 font-medium">Fotoğraf yok</span>
+                                            </div>
+                                        )}
+                                        {!hasPendingPhoto && (
+                                            <div className="p-3 bg-slate-950/40">
+                                                <button
+                                                    type="button"
+                                                    disabled={uploadingPhoto || submittingPhoto}
+                                                    onClick={() => photoInputRef.current?.click()}
+                                                    className="w-full flex items-center justify-center gap-2 bg-slate-800/80 hover:bg-slate-700 disabled:opacity-50 text-white text-[13px] font-bold px-3 py-3.5 rounded-xl transition-colors"
+                                                    style={{ WebkitTapHighlightColor: 'transparent' }}
+                                                >
+                                                    <Camera className="w-4 h-4" />
+                                                    {uploadingPhoto ? 'Yükleniyor...' : 'Fotoğrafı Güncelle'}
+                                                </button>
+                                            </div>
+                                        )}
+                                    </>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Gizli file input */}
+                        <input
+                            ref={photoInputRef}
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={handlePhotoFileChange}
                         />
 
                         <button

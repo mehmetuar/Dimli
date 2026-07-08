@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Building2, MapPin, Lock, LogOut, ChevronRight, CreditCard, Settings, MessageSquareText } from 'lucide-react';
 import { BusinessNavbar } from '../../../components/Business/BusinessNavbar';
 import { ConfirmModal } from '../../../components/Modals/ConfirmModal';
+import { CorporateGridBackground } from '../../../components/UI/CorporateGridBackground';
 import { useAuth } from '../../../contexts/AuthContext';
 
 export const BusinessSettingsHub: React.FC = () => {
@@ -78,10 +79,11 @@ export const BusinessSettingsHub: React.FC = () => {
 
             {/* Header */}
             <div
-                className="flex-shrink-0 border-b border-slate-700/60"
+                className="relative flex-shrink-0 border-b border-slate-700/60 overflow-hidden"
                 style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)', boxShadow: '0 4px 24px rgba(0,0,0,0.4)' }}
             >
-                <div className="px-4 py-5 flex flex-col items-center">
+                <CorporateGridBackground />
+                <div className="relative z-10 px-4 py-6 flex flex-col items-center">
                     <div className="flex items-center gap-2 mb-1">
                         <div className="p-1.5 bg-orange-500/15 rounded-lg border border-orange-500/20">
                             <Settings className="w-4 h-4 text-orange-400" />
@@ -100,18 +102,18 @@ export const BusinessSettingsHub: React.FC = () => {
                     <button
                         key={item.path}
                         onClick={() => navigate(item.path)}
-                        className={`w-full p-4 rounded-2xl border ${item.borderColor} bg-slate-800/60 flex items-center gap-4 transition-all active:scale-[0.98] active:bg-slate-700/60`}
-                        style={{ WebkitTapHighlightColor: 'transparent', boxShadow: '0 4px 16px rgba(0,0,0,0.25)' }}
+                        className={`w-full p-4 rounded-2xl border ${item.borderColor} bg-slate-800/60 flex items-center gap-4 transition-all active:scale-[0.97] active:bg-slate-700/60 group hover:border-slate-600`}
+                        style={{ WebkitTapHighlightColor: 'transparent', boxShadow: '0 4px 20px -2px rgba(0,0,0,0.3)' }}
                     >
-                        <div className={`w-[52px] h-[52px] rounded-xl bg-gradient-to-br ${item.iconGradient} border ${item.iconBorder} flex items-center justify-center flex-shrink-0 ${item.color}`}
+                        <div className={`w-[52px] h-[52px] rounded-xl bg-gradient-to-br ${item.iconGradient} border ${item.iconBorder} flex items-center justify-center flex-shrink-0 ${item.color} group-hover:scale-105 transition-all`}
                             style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)' }}>
-                            <item.icon className="w-6 h-6" />
+                            <item.icon className="w-6 h-6 drop-shadow-md" />
                         </div>
                         <div className="flex-1 text-left min-w-0">
-                            <h3 className="text-[clamp(13px,3.8vw,16px)] font-bold text-white leading-tight">{item.title}</h3>
+                            <h3 className="text-[clamp(13px,3.8vw,16px)] font-bold text-slate-100 leading-tight group-active:text-white transition-colors">{item.title}</h3>
                             <p className="text-[clamp(10px,2.8vw,12px)] text-slate-400 mt-0.5 leading-relaxed">{item.description}</p>
                         </div>
-                        <ChevronRight className={`w-4 h-4 ${item.chevronColor} flex-shrink-0`} />
+                        <ChevronRight className={`w-5 h-5 ${item.chevronColor} flex-shrink-0 transition-colors`} />
                     </button>
                 ))}
 
@@ -125,17 +127,18 @@ export const BusinessSettingsHub: React.FC = () => {
                 {/* Logout Button */}
                 <button
                     onClick={() => setShowConfirm(true)}
-                    className="w-full p-4 rounded-2xl border border-red-500/25 bg-slate-800/60 flex items-center gap-4 transition-all active:scale-[0.98] active:bg-red-500/10"
-                    style={{ WebkitTapHighlightColor: 'transparent', boxShadow: '0 4px 16px rgba(0,0,0,0.25)' }}
+                    className="w-full p-4 rounded-2xl border border-red-500/10 bg-slate-900/50 flex items-center gap-4 transition-all active:scale-[0.97] active:bg-red-950/30 group hover:border-red-500/30"
+                    style={{ WebkitTapHighlightColor: 'transparent', boxShadow: '0 4px 20px -2px rgba(0,0,0,0.5)' }}
                 >
-                    <div className="w-[52px] h-[52px] rounded-xl bg-gradient-to-br from-red-500/15 to-red-600/5 border border-red-500/25 flex items-center justify-center flex-shrink-0 text-red-400">
-                        <LogOut className="w-6 h-6" />
+                    <div className="w-[52px] h-[52px] rounded-xl bg-gradient-to-br from-slate-800 to-slate-900 border border-white/10 flex items-center justify-center flex-shrink-0 text-red-500 group-active:text-red-400 group-hover:shadow-[0_0_15px_rgba(239,68,68,0.2)] transition-all"
+                        style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)' }}>
+                        <LogOut className="w-6 h-6 drop-shadow-md" />
                     </div>
                     <div className="flex-1 text-left min-w-0">
-                        <h3 className="text-[clamp(13px,3.8vw,16px)] font-bold text-red-400 leading-tight">Çıkış Yap</h3>
+                        <h3 className="text-[clamp(13px,3.8vw,16px)] font-bold text-red-400 leading-tight group-active:text-red-300 transition-colors">Çıkış Yap</h3>
                         <p className="text-[clamp(10px,2.8vw,12px)] text-slate-500 mt-0.5">Güvenli bir şekilde oturumu kapat</p>
                     </div>
-                    <ChevronRight className="w-4 h-4 text-red-500/50 flex-shrink-0" />
+                    <ChevronRight className="w-5 h-5 text-slate-600 flex-shrink-0 group-active:text-red-500 transition-colors" />
                 </button>
             </div>
             </div>

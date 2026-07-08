@@ -1,6 +1,5 @@
-import React from 'react';
-import { MapPin, Lock, Building2, FileText } from 'lucide-react';
-import { fieldLabel, fieldInput, fieldTextarea, fieldIcon, helperText } from '../../shared/formStyles';
+import React, { useState } from 'react';
+import { MapPin, Lock, Building2, FileText, Pencil, Check } from 'lucide-react';
 
 interface BusinessInfoFormProps {
     formData: {
@@ -15,94 +14,148 @@ interface BusinessInfoFormProps {
     onOpenMapModal: () => void;
 }
 
-const labelClass = 'block font-bold uppercase italic tracking-wide text-slate-300 mb-2';
-
 export const BusinessInfoForm: React.FC<BusinessInfoFormProps> = ({
     formData,
     onChange,
     onOpenMapModal,
 }) => {
+    const [isEditingGeneral, setIsEditingGeneral] = useState(false);
+
     return (
-        <div className="bg-slate-800 rounded-3xl border border-slate-700 shadow-lg space-y-4" style={{ padding: 'clamp(16px, 3vw, 20px)' }}>
-            {/* İşletme Adı */}
-            <div>
-                <label className={labelClass} style={fieldLabel}>
-                    İşletme Adı <span className="text-red-500">*</span>
+        <div className="space-y-6">
+            {/* Genel Bilgiler Grubu */}
+            <div className="space-y-3">
+                <div className="flex items-center justify-between px-2">
+                    <label className="text-[clamp(11px,3vw,13px)] font-black uppercase tracking-widest text-slate-400">
+                        Genel Bilgiler
+                    </label>
+                    <button
+                        type="button"
+                        onClick={() => setIsEditingGeneral(!isEditingGeneral)}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-colors shadow-sm ${
+                            isEditingGeneral 
+                                ? 'bg-green-500/20 text-green-400 border border-green-500/30' 
+                                : 'bg-orange-500/10 text-orange-400 border border-orange-500/20 hover:bg-orange-500/20'
+                        }`}
+                        style={{ WebkitTapHighlightColor: 'transparent' }}
+                    >
+                        {isEditingGeneral ? (
+                            <>
+                                <Check className="w-3 h-3" /> Bitti
+                            </>
+                        ) : (
+                            <>
+                                <Pencil className="w-3 h-3" /> Düzenle
+                            </>
+                        )}
+                    </button>
+                </div>
+                
+                <div className="bg-slate-800/60 backdrop-blur-md rounded-2xl border border-slate-700/50 overflow-hidden shadow-lg p-4 space-y-4">
+                    
+                    {/* İşletme Adı */}
+                    <div className={!isEditingGeneral ? 'opacity-80' : ''}>
+                        <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2 pl-1">
+                            İşletme Adı <span className="text-orange-500">*</span>
+                        </label>
+                        <div className={`flex items-center gap-3 rounded-xl p-3 transition-all ${
+                            isEditingGeneral 
+                                ? 'bg-slate-700/40 border border-slate-500/60 focus-within:border-orange-500 focus-within:ring-1 focus-within:ring-orange-500 shadow-inner' 
+                                : 'bg-slate-900/40 border border-transparent'
+                        }`}>
+                            <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center shrink-0 border border-orange-500/20">
+                                <Building2 className="w-4 h-4 text-orange-400" />
+                            </div>
+                            <input
+                                type="text"
+                                value={formData.name}
+                                onChange={(e) => onChange('name', e.target.value)}
+                                placeholder="İşletme adınızı girin"
+                                required
+                                disabled={!isEditingGeneral}
+                                className="flex-1 bg-transparent border-none text-white font-bold text-[clamp(13px,3.5vw,15px)] focus:outline-none focus:ring-0 placeholder:text-slate-500 p-0 disabled:opacity-100"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Açık Adres */}
+                    <div className={!isEditingGeneral ? 'opacity-80' : ''}>
+                        <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2 pl-1">
+                            Açık Adres
+                        </label>
+                        <div className={`flex items-start gap-3 rounded-xl p-3 transition-all ${
+                            isEditingGeneral 
+                                ? 'bg-slate-700/40 border border-slate-500/60 focus-within:border-orange-500 focus-within:ring-1 focus-within:ring-orange-500 shadow-inner' 
+                                : 'bg-slate-900/40 border border-transparent'
+                        }`}>
+                            <div className="w-8 h-8 rounded-lg bg-slate-600/30 flex items-center justify-center shrink-0 mt-0.5 border border-slate-500/30">
+                                <FileText className="w-4 h-4 text-slate-300" />
+                            </div>
+                            <textarea
+                                value={formData.address}
+                                onChange={(e) => onChange('address', e.target.value)}
+                                rows={3}
+                                placeholder="Sokak, cadde, bina no gibi detaylı adres bilgisini girin…"
+                                disabled={!isEditingGeneral}
+                                className="flex-1 bg-transparent border-none text-white font-medium text-[clamp(13px,3.5vw,15px)] focus:outline-none focus:ring-0 placeholder:text-slate-500 p-0 resize-none leading-relaxed disabled:opacity-100"
+                            />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Konum Grubu */}
+            <div className="space-y-3">
+                <label className="block text-[clamp(11px,3vw,13px)] font-black uppercase tracking-widest text-slate-400 pl-2">
+                    Konum Bilgisi
                 </label>
-                <div className="relative">
-                    <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" style={fieldIcon} />
-                    <input
-                        type="text"
-                        value={formData.name}
-                        onChange={(e) => onChange('name', e.target.value)}
-                        placeholder="İşletme adınızı girin"
-                        required
-                        className="w-full pl-11 pr-4 bg-slate-900 border border-slate-700 rounded-xl text-white font-medium focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-colors placeholder:text-slate-600"
-                        style={fieldInput}
-                    />
-                </div>
-            </div>
-
-            {/* Şehir / İlçe — salt-okunur; yalnızca aşağıdaki Harita Konumu ile güncellenir */}
-            <div>
-                <label className={labelClass} style={fieldLabel}>Şehir / İlçe</label>
-                {formData.city ? (
-                    <div className="flex items-center gap-2.5 bg-slate-900/60 border border-slate-700 rounded-xl px-4 py-3">
-                        <Lock className="text-green-400 shrink-0" style={fieldIcon} />
+                
+                <div className="bg-slate-900/50 backdrop-blur-md rounded-2xl border border-white/5 overflow-hidden shadow-[0_8px_30px_rgba(0,0,0,0.15)] divide-y divide-white/5">
+                    
+                    {/* Harita Butonu */}
+                    <button
+                        type="button"
+                        onClick={onOpenMapModal}
+                        className="w-full relative p-4 flex items-center gap-4 hover:bg-white/5 transition-colors group text-left"
+                    >
+                        <div className="w-10 h-10 rounded-xl bg-orange-600/20 border border-orange-500/30 flex items-center justify-center shrink-0 shadow-[0_0_10px_rgba(249,115,22,0.1)] group-hover:bg-orange-500/30 transition-colors relative">
+                            <div className="absolute inset-0 bg-orange-400/10 blur-md rounded-xl" />
+                            <MapPin className="relative z-10 w-5 h-5 text-orange-400 drop-shadow-[0_0_3px_rgba(249,115,22,0.5)]" />
+                        </div>
                         <div className="flex-1 min-w-0">
-                            <p className="text-slate-500 font-bold uppercase mb-0.5" style={{ fontSize: 'clamp(0.58rem, 1.4vh, 0.65rem)' }}>Tespit Edilen Konum</p>
-                            <p className="font-bold text-green-400 truncate" style={helperText}>
-                                {formData.city}{formData.district ? ` / ${formData.district}` : ''}
-                            </p>
+                            <div className="text-white font-bold text-base mb-0.5 truncate drop-shadow-sm">
+                                {formData.latitude ? 'Konumu Güncelle' : 'Haritadan Konum Seç'}
+                            </div>
+                            <div className="text-slate-500 font-medium text-xs truncate font-mono">
+                                {formData.latitude
+                                    ? `${Number(formData.latitude).toFixed(5)}, ${Number(formData.longitude).toFixed(5)}`
+                                    : 'Henüz haritadan işaretlenmedi'}
+                            </div>
+                        </div>
+                        <span className="text-orange-400 font-bold text-[10px] shrink-0 tracking-widest uppercase">Düzenle &rarr;</span>
+                    </button>
+
+                    {/* Tespit Edilen Şehir/İlçe */}
+                    <div className="relative p-4 flex items-center gap-4 bg-slate-950/20">
+                        <div className="w-10 h-10 rounded-xl bg-green-500/10 border border-green-500/20 flex items-center justify-center shrink-0">
+                            <Lock className="w-4 h-4 text-green-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-0.5">
+                                Tespit Edilen Şehir / İlçe
+                            </div>
+                            {formData.city ? (
+                                <div className="text-green-400 font-bold text-sm truncate drop-shadow-[0_0_4px_rgba(74,222,128,0.3)]">
+                                    {formData.city}{formData.district ? ` / ${formData.district}` : ''}
+                                </div>
+                            ) : (
+                                <div className="text-slate-600 font-medium text-sm truncate italic">
+                                    Haritadan konum seçilince otomatik dolar
+                                </div>
+                            )}
                         </div>
                     </div>
-                ) : (
-                    <div className="bg-slate-900/60 border border-slate-700 rounded-xl px-4 py-3">
-                        <p className="text-slate-500 font-bold uppercase mb-0.5" style={{ fontSize: 'clamp(0.58rem, 1.4vh, 0.65rem)' }}>Konum</p>
-                        <p className="text-slate-400" style={helperText}>Henüz konum seçilmemiş — aşağıdaki Harita Konumu ile belirleyin.</p>
-                    </div>
-                )}
-            </div>
-
-            {/* Adres */}
-            <div>
-                <label className={labelClass} style={fieldLabel}>Açık Adres</label>
-                <div className="relative">
-                    <FileText className="absolute left-3.5 top-3.5 text-slate-500 pointer-events-none" style={fieldIcon} />
-                    <textarea
-                        value={formData.address}
-                        onChange={(e) => onChange('address', e.target.value)}
-                        rows={3}
-                        placeholder="Sokak, cadde, bina no gibi detaylı adres bilgisini girin…"
-                        className="w-full pl-11 pr-4 py-3.5 bg-slate-900 border border-slate-700 rounded-xl text-white font-medium focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-colors placeholder:text-slate-600 resize-none"
-                        style={fieldTextarea}
-                    />
                 </div>
-            </div>
-
-            {/* Harita Konumu */}
-            <div>
-                <label className={labelClass} style={fieldLabel}>Harita Konumu</label>
-                <button
-                    type="button"
-                    onClick={onOpenMapModal}
-                    className="w-full bg-slate-900 border border-slate-700 hover:border-orange-500 text-white p-4 rounded-xl flex items-center gap-3 transition-all group"
-                >
-                    <div className="w-10 h-10 rounded-lg bg-orange-600/20 border border-orange-500/30 flex items-center justify-center group-hover:bg-orange-600/30 transition-colors shrink-0">
-                        <MapPin className="w-5 h-5 text-orange-400" />
-                    </div>
-                    <div className="text-left flex-1 min-w-0">
-                        <div className="font-bold truncate" style={helperText}>
-                            {formData.latitude ? 'Konumu Güncelle' : 'Haritadan Konum Seç'}
-                        </div>
-                        <div className="text-slate-500 font-mono mt-0.5 truncate" style={{ fontSize: 'clamp(0.6rem, 1.5vh, 0.72rem)' }}>
-                            {formData.latitude
-                                ? `${Number(formData.latitude).toFixed(5)}, ${Number(formData.longitude).toFixed(5)}`
-                                : 'Henüz konum seçilmemiş'}
-                        </div>
-                    </div>
-                    <span className="text-orange-400 font-bold shrink-0" style={{ fontSize: 'clamp(0.6rem, 1.5vh, 0.72rem)' }}>DÜZENLE →</span>
-                </button>
             </div>
         </div>
     );
