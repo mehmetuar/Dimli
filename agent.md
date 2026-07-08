@@ -2167,3 +2167,89 @@ Hesap değişiminde önceki kullanıcının kanal/takım cache'inin görünmemes
   `PitchCenterCircle` `coreCenterY=0.415` ile %41.5'e alındı → D çemberin tam ortasında.
 - Doğrulama: PIL kompozisyon önizlemesi (tam daire + D merkezde + komple ceza sahası) + `npm run
   build` (tsc + vite) temiz.
+
+## 55. İşletme fotoğrafı (coverImageUrl) — kayıt + onaylı değişiklik + müşteri kartı (2026-07-08)
+
+### Kavram
+- İşletmeye ait 1 kart görseli: `businesses.coverImageUrl` (kolon zaten vardı, bu turda akışlara
+  bağlandı; `logoUrl` hâlâ KULLANILMIYOR). Müşteri "Sahalar" listesindeki kapalı kart artık işletme
+  fotoğrafını gösterir (`BusinessListItem.tsx` — fallback zinciri: `business.coverImageUrl ||
+  displayPitch?.imageUrl || unsplash`); genişletilmiş görünümdeki saha sekmeleri/saha fotoğrafları
+  değişmedi.
+
+### Kayıt (Adım 4 — İşletme Detayları)
+- `BusinessDetailsStep.tsx`: gizli file input + `ImageCropModal` (16:9) + önizleme/Değiştir/Kaldır.
+  İstemcide ZORUNLU (`business.coverImageUrl` step-4 validasyonu, `useBusinessRegister.ts`).
+- Submit: işletme fotoğrafı saha fotoğraflarıyla birlikte `/files/upload`'a yüklenir; payload'daki
+  `business` nesnesi AÇIK alanlarla kurulur (photoFile File nesnesi sunucuya sızmaz).
+- Sunucu DTO'da `coverImageUrl` **@IsOptional** — sahadaki eski mobil binary'ler göndermiyor
+  (zorunlu yapılırsa eski sürümden kayıt kırılır); tüm kullanıcılar güncellenince @IsNotEmpty
+  yapılabilir. Kayıtta ayrı foto onayı YOK (işletme zaten pending → admin başvuruda görür,
+  `BusinessInfoSection.tsx`'te görüntülenir).
+
+### Onaylı değişiklik akışı (saha fotoğrafı akışının genellemesi)
+- `pitch_change_requests` GENELLEŞTİRİLDİ: `pitch_id` artık NULLABLE + yeni tip
+  `BUSINESS_PHOTO_UPDATE` (pitch_id NULL taşır). **KALICI KISIT: entity'ye Business'a ManyToOne
+  EKLEME** — `business_id` varchar, `businesses.id` uuid; synchronize FK üretirken tip
+  uyuşmazlığıyla patlar. Admin listesinde işletme adı `businessId` üzerinden toplu lookup ile
+  çözülür (`admin-pitch-review.service.getChangeRequests`).
+- Endpoint'ler: `POST /businesses/:id/change-requests` `{requestedData:{imageUrl}}` +
+  `GET /businesses/:id/change-requests/pending` (`business-change-requests.controller.ts`,
+  pitch-change-requests modülünde). Aynı tip bekleyen istek otomatik iptal edilir.
+- İşletme paneli: `BusinessInfoSettings` sayfasında "İşletme Fotoğrafı" kartı (pitch-settings foto
+  bölümünün aynası: crop → upload → önizleme → "Onay İsteği Gönder" → "İnceleme bekliyor" rozeti).
+  `coverImageUrl` hook'ta formData'dan AYRI state'te — `PATCH /businesses/:id` gövdesine karışmaz;
+  `UpdateBusinessDto` beyaz listesine coverImageUrl BİLİNÇLİ eklenmedi (onaysız değişiklik kapalı).
+- Admin panel: `ChangeRequestsPage` yeni tipi "İşletme Fotoğrafı" etiketiyle gösterir; eski/yeni
+  karşılaştırma modalı iki foto tipinde de aynı; pitchName null ise "· —" görünmez.
+
+### KRİTİK: paylaşımlı Cloudinary asset koruması
+- Onayda eski görsel artık `safeDestroyCloudinary()` ile silinir (admin-pitch-review.service —
+  HEM saha HEM işletme foto dallarında): URL hâlâ herhangi bir `pitches.imageUrl` veya
+  `businesses.coverImageUrl`'de geçiyorsa SİLİNMEZ. Neden: seed'de 4 işletmenin cover'ı = 1 no'lu
+  saha fotoğrafı (aynı asset) ve işletme aynı görseli hem sahaya hem işletmeye yükleyebilir —
+  körlemesine silme diğer kaydın görselini kırardı.
+
+### Tek seferlik canlı DB işlemi (2026-07-08, kullanıcı onayıyla — §9 istisnası)
+- Aktif 4 işletmeye (Haliç, Şahin, Seyda, Tepekent) "1 No'lu Saha" fotoğrafı
+  `businesses.coverImageUrl`'e kopyalandı (idempotent UPDATE, `coverImageUrl IS NULL` koşullu,
+  4 satır). Şema değişikliği (`pitch_id DROP NOT NULL`) deploy'da synchronize ile uygulanacak.
+
+## 56. Silme akışlarında Cloudinary temizliği + merkezi CloudinaryService (2026-07-08)
+
+### Sorun
+Foto DEĞİŞTİRİLİRKEN eski görsel Cloudinary'den siliniyordu (client `deleteCloudImage` →
+`POST /files/delete-cloud`; admin foto onayında yerel `safeDestroyCloudinary`), ama SİLME
+akışlarında (takım silme, hesap silme) logo/avatar Cloudinary'de yetim kalıyordu.
+
+### Merkezi CloudinaryService (`server/src/files/cloudinary.service.ts`, yeni)
+Tek Cloudinary erişim noktası: `cloudinary.config()` (files.controller'daki top-level config
+buraya taşındı), `extractPublicId(url)` (public_id regex'i artık tek yerde — eskiden files.controller
++ admin-pitch-review'da kopyalıydı), `destroy(url)` (koşulsuz), `safeDestroy(url)` (referans-sayımlı).
+- **safeDestroy** URL'yi `team.logoUrl` + `user.avatarUrl` + `businesses.coverImageUrl` +
+  `businesses.logoUrl` + `pitches.imageUrl` kolonlarında sayar; toplam 0 ise siler. Paylaşımlı
+  görseli (aynı asset birden çok kayıtta) korur.
+- `FilesModule` artık `TypeOrmModule.forFeature([Team, User, Business, Pitch])` + CloudinaryService
+  provide/export eder. **KALICI: FilesModule hiçbir feature modül import ETMEZ** (yalnız entity) →
+  onu import eden Teams/Users/Admin modüllerinde dairesel bağımlılık oluşmaz.
+
+### Eklenen temizlik (KAPSAM: yalnız hard-delete akışlar — kullanıcı kararı)
+- **Takım silme** (`teams.service.deleteTeam`): `purgeTeam` COMMIT'inden SONRA
+  `cloudinaryService.safeDestroy(team.logoUrl)`. `purgeTeam` saf DB temizliği kalır (users.service
+  `purgeTeamRaw` kopyasıyla senkron).
+- **Hesap silme** (`users.service.deleteAccount`): tüm DB silme adımlarından SONRA
+  `safeDestroy(user.avatarUrl)`; kullanıcı tek üyeli takım kaptanıysa purge edilen takımın
+  `logoUrl`'i purge ÖNCESİ yakalanıp o da `safeDestroy` edilir.
+- **Neden silme SONRASI:** silinen kaydın kendi referansı sayıma girmesin (0 → silinir) + transaction
+  rollback olursa (aktif maç engeli/FK) resim yanlışlıkla silinmesin. Hatalar yutulur (best-effort).
+- **DRY:** admin-pitch-review'daki yerel `safeDestroyCloudinary` kaldırıldı → merkezi
+  `cloudinaryService.safeDestroy` (AdminModule → FilesModule). Foto onayı davranışı en az eskisi
+  kadar korumalı (artık team/user kolonlarına da bakar).
+
+### KAPSAM DIŞI (bilerek)
+- **İşletme/saha soft-delete** (`business-owner.service.deleteAccount` işletmeyi `deletedAt` ile
+  arşivler, admin `restoreBusiness` ile geri yükler; `pitches.remove` de soft-delete) resimleri
+  KORUNUR — restore edilince görsel sağlam kalsın. İleride admin "arşivden kalıcı sil" eklenirse
+  temizlik oraya bağlanmalı.
+- **Geçmiş yetim Cloudinary dosyaları:** team/user hard-delete olduğundan geçmişte silinmiş
+  kayıtların asset'leri DB'den türetilemez; bu düzeltme yalnız bundan sonrası için önleme sağlar.

@@ -1,6 +1,6 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { User, Settings, LogOut, ChevronRight, Building2 } from 'lucide-react';
+import { User, Settings, LogOut, ChevronRight, Building2, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useModalBodyClass } from '../../../../utils/useModalBodyClass';
 import { useAuth } from '../../../../contexts/AuthContext';
@@ -8,9 +8,10 @@ import { useAuth } from '../../../../contexts/AuthContext';
 interface ProfileSettingsMenuProps {
     isMenuOpen: boolean;
     setIsMenuOpen: (isOpen: boolean) => void;
+    onOpenJokerHistory: () => void;
 }
 
-export const ProfileSettingsMenu: React.FC<ProfileSettingsMenuProps> = ({ isMenuOpen, setIsMenuOpen }) => {
+export const ProfileSettingsMenu: React.FC<ProfileSettingsMenuProps> = ({ isMenuOpen, setIsMenuOpen, onOpenJokerHistory }) => {
     const navigate = useNavigate();
     const { logout } = useAuth();
     useModalBodyClass(isMenuOpen);
@@ -57,6 +58,20 @@ export const ProfileSettingsMenu: React.FC<ProfileSettingsMenuProps> = ({ isMenu
                         <div className="text-left flex-1">
                             <div className="font-bold text-base">Favori İşletmelerim</div>
                             <div className="text-xs text-slate-400">Tercih ettiğin sahaları seç</div>
+                        </div>
+                        <ChevronRight className="w-5 h-5 text-slate-500" />
+                    </button>
+
+                    <button
+                        onClick={() => { setIsMenuOpen(false); onOpenJokerHistory(); }}
+                        className="w-full flex items-center gap-4 p-4 rounded-2xl bg-slate-700/50 hover:bg-slate-700 text-white transition-all active:scale-95"
+                    >
+                        <div className="bg-amber-500/20 p-2 rounded-full text-amber-400">
+                            <Sparkles className="w-6 h-6" />
+                        </div>
+                        <div className="text-left flex-1">
+                            <div className="font-bold text-base">Joker Geçmişi</div>
+                            <div className="text-xs text-slate-400">Joker olarak oynadığın maçlar</div>
                         </div>
                         <ChevronRight className="w-5 h-5 text-slate-500" />
                     </button>

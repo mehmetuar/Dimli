@@ -4,10 +4,12 @@ import { LoadingSpinner } from '../../../components/UI/LoadingSpinner';
 
 // Hooks
 import { useUserProfile } from './hooks/useUserProfile';
+import { useJokerHistory } from './hooks/useJokerHistory';
 
 // Components
 import { ProfileHeaderCard } from './components/ProfileHeaderCard';
 import { ProfileSettingsMenu } from './components/ProfileSettingsMenu';
+import { JokerHistoryModal } from './components/JokerHistoryModal';
 import { LocationPermissionSheet } from '../../../components/LocationPermissionSheet';
 
 export const UserProfile: React.FC = () => {
@@ -26,6 +28,14 @@ export const UserProfile: React.FC = () => {
         calculateAge
     } = useUserProfile();
 
+    const { matches: jokerMatches, isLoading: isJokerHistoryLoading, fetchJokerMatches } = useJokerHistory();
+    const [isJokerHistoryOpen, setIsJokerHistoryOpen] = React.useState(false);
+
+    const handleOpenJokerHistory = React.useCallback(() => {
+        setIsJokerHistoryOpen(true);
+        fetchJokerMatches();
+    }, [fetchJokerMatches]);
+
     // Tam ekran spinner yalnız GERÇEK ilk yüklemede (cache boş + ilk fetch sürüyor);
     // sıcak cache'te sayfa anında render olur, veri arkada tazelenir.
     if (isLoading && !currentUser) {
@@ -43,6 +53,15 @@ export const UserProfile: React.FC = () => {
             <ProfileSettingsMenu
                 isMenuOpen={isMenuOpen}
                 setIsMenuOpen={setIsMenuOpen}
+                onOpenJokerHistory={handleOpenJokerHistory}
+            />
+
+            {/* Joker Geçmişi */}
+            <JokerHistoryModal
+                isOpen={isJokerHistoryOpen}
+                onClose={() => setIsJokerHistoryOpen(false)}
+                matches={jokerMatches}
+                isLoading={isJokerHistoryLoading}
             />
 
             {/* Main Profile Card (Avatar, Name, Stats) */}

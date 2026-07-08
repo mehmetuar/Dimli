@@ -266,6 +266,13 @@ export interface MatchHistoryItem {
   needsFairPlayRating: boolean;
 }
 
+/** Kullanıcının JOKER olarak oynadığı bir maç (Hesap › Joker Geçmişi). */
+export interface JokerMatchHistoryItem extends MatchHistoryItem {
+  /** Joker'in o maçta adına oynadığı takım (davet eden takım). */
+  invitingTeamId: string | null;
+  invitingTeamName: string | null;
+}
+
 export enum ReservationStatus {
   PENDING = 'PENDING',
   APPROVED = 'APPROVED',
