@@ -71,6 +71,7 @@ export default function AdminApplicationDetail() {
                         editBusiness={editBusiness}
                         setEditBusiness={setEditBusiness}
                         editMode={editMode}
+                        coverImageUrl={app.coverImageUrl}
                     />
                 </div>
 

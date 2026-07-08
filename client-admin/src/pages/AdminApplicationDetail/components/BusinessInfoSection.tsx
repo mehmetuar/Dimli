@@ -7,9 +7,10 @@ interface BusinessInfoSectionProps {
     editBusiness: Record<string, string>;
     setEditBusiness: (updater: (prev: Record<string, string>) => Record<string, string>) => void;
     editMode: boolean;
+    coverImageUrl?: string | null;
 }
 
-const BusinessInfoSection: React.FC<BusinessInfoSectionProps> = ({ editBusiness, setEditBusiness, editMode }) => (
+const BusinessInfoSection: React.FC<BusinessInfoSectionProps> = ({ editBusiness, setEditBusiness, editMode, coverImageUrl }) => (
     <Section title="İşletme Bilgileri" icon={<IconBuilding size={13} />}>
         <Row label="İşletme Adı" value={editBusiness.name}     editMode={editMode} onChange={v => setEditBusiness(p => ({ ...p, name: v }))} />
         <Row label="Şehir"       value={editBusiness.city}     editMode={editMode} onChange={v => setEditBusiness(p => ({ ...p, city: v }))} />
@@ -39,6 +40,18 @@ const BusinessInfoSection: React.FC<BusinessInfoSectionProps> = ({ editBusiness,
                 </div>
             </div>
         )}
+        <div className="py-2">
+            <p className="text-slate-400 text-xs mb-1.5">İşletme Fotoğrafı</p>
+            {coverImageUrl ? (
+                <img
+                    src={coverImageUrl}
+                    alt="İşletme fotoğrafı"
+                    className="w-full max-w-[280px] aspect-video object-cover rounded-lg border border-slate-600/60"
+                />
+            ) : (
+                <p className="text-slate-500 text-xs italic">Fotoğraf yüklenmemiş</p>
+            )}
+        </div>
     </Section>
 );
 

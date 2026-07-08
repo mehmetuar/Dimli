@@ -2,7 +2,7 @@ import { useState } from 'react';
 import adminApi from '../../../services/adminApi';
 import { usePaginatedList } from '../../../hooks/usePaginatedList';
 
-type RequestType = 'CUSTOM_FACILITY' | 'PHOTO_UPDATE';
+type RequestType = 'CUSTOM_FACILITY' | 'PHOTO_UPDATE' | 'BUSINESS_PHOTO_UPDATE';
 type RequestStatus = 'pending' | 'approved' | 'rejected';
 
 export interface ChangeRequest {
@@ -14,8 +14,9 @@ export interface ChangeRequest {
     rejectionReason?: string;
     createdAt: string;
     reviewedAt?: string;
-    pitchId: string;
-    pitchName?: string;
+    // BUSINESS_PHOTO_UPDATE isteklerinde pitch alanları null (istek işletmeye ait)
+    pitchId: string | null;
+    pitchName?: string | null;
     businessId: string;
     businessName?: string;
 }

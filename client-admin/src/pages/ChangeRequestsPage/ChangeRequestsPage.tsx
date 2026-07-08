@@ -3,12 +3,13 @@ import SearchInput from '../../components/SearchInput';
 import Pagination from '../../components/Pagination';
 import { useChangeRequests } from './hooks/useChangeRequests';
 
-type RequestType = 'CUSTOM_FACILITY' | 'PHOTO_UPDATE';
+type RequestType = 'CUSTOM_FACILITY' | 'PHOTO_UPDATE' | 'BUSINESS_PHOTO_UPDATE';
 type RequestStatus = 'pending' | 'approved' | 'rejected';
 
 const TYPE_LABELS: Record<RequestType, string> = {
     CUSTOM_FACILITY: 'Manuel İmkan',
     PHOTO_UPDATE: 'Fotoğraf Güncelleme',
+    BUSINESS_PHOTO_UPDATE: 'İşletme Fotoğrafı',
 };
 
 const STATUS_STYLES: Record<RequestStatus, string> = {
@@ -88,7 +89,7 @@ export default function ChangeRequestsPage() {
                                     </span>
                                 </div>
                                 <p className="text-[#dde8f5] font-bold text-sm truncate">
-                                    {req.businessName ?? '—'} · {req.pitchName ?? '—'}
+                                    {req.businessName ?? '—'}{req.pitchName ? ` · ${req.pitchName}` : ''}
                                 </p>
                                 <p className="text-[#7b9ab8] text-xs mt-0.5">
                                     {new Date(req.createdAt).toLocaleDateString('tr-TR', {
@@ -126,7 +127,7 @@ export default function ChangeRequestsPage() {
                                     {TYPE_LABELS[selectedRequest.type]} İsteği
                                 </h2>
                                 <p className="text-[#7b9ab8] text-xs mt-0.5">
-                                    {selectedRequest.businessName} · {selectedRequest.pitchName}
+                                    {selectedRequest.businessName}{selectedRequest.pitchName ? ` · ${selectedRequest.pitchName}` : ''}
                                 </p>
                             </div>
                             <button onClick={closeRequest} className="text-slate-500 hover:text-slate-200 transition-colors p-1">
@@ -157,7 +158,7 @@ export default function ChangeRequestsPage() {
                                 </div>
                             )}
 
-                            {selectedRequest.type === 'PHOTO_UPDATE' && (
+                            {(selectedRequest.type === 'PHOTO_UPDATE' || selectedRequest.type === 'BUSINESS_PHOTO_UPDATE') && (
                                 <div className="grid grid-cols-2 gap-3">
                                     <div className="bg-slate-800/60 rounded-xl overflow-hidden border border-slate-700/40">
                                         <p className="text-[#7b9ab8] text-xs font-bold px-3 py-2 uppercase tracking-wider">Mevcut Fotoğraf</p>
