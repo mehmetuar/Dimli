@@ -3,11 +3,12 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { v2 as cloudinary } from 'cloudinary';
+import { CloudinaryService } from '../../files/cloudinary.service';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Pitch } from '../../pitches/entities/pitch.entity';
 import { PitchChangeRequest } from '../../pitches/entities/pitch-change-request.entity';
+import { Business } from '../../business/entities/business.entity';
 import { Notification } from '../../notifications/notification.entity';
 import { BusinessOwner } from '../../business-owner/entities/business-owner.entity';
 import { FacilitiesService } from '../../facilities/facilities.service';
@@ -22,11 +23,14 @@ export class AdminPitchReviewService {
     private pitchRepository: Repository<Pitch>,
     @InjectRepository(PitchChangeRequest)
     private changeRequestRepository: Repository<PitchChangeRequest>,
+    @InjectRepository(Business)
+    private businessRepository: Repository<Business>,
     @InjectRepository(Notification)
     private notificationRepository: Repository<Notification>,
     @InjectRepository(BusinessOwner)
     private businessOwnerRepository: Repository<BusinessOwner>,
     private readonly facilitiesService: FacilitiesService,
+    private readonly cloudinaryService: CloudinaryService,
   ) {}
 
   // ─── Change Requests ─────────────────────────────────────────────────────
@@ -57,6 +61,20 @@ export class AdminPitchReviewService {
     itemsQb.orderBy('r.createdAt', 'DESC').skip(skip).take(p.limit);
     const requests = await itemsQb.getMany();
 
+    // BUSINESS_PHOTO_UPDATE satırlarında pitch NULL → işletme adı pitch.business
+    // join'inden gelemez; businessId üzerinden toplu lookup yapılır.
+    const orphanBizIds = [
+      ...new Set(requests.filter((r) => !r.pitch).map((r) => r.businessId)),
+    ];
+    const bizNameMap = new Map<string, string>();
+    if (orphanBizIds.length > 0) {
+      const bizList = await this.businessRepository.find({
+        where: { id: In(orphanBizIds) },
+        select: ['id', 'name'],
+      });
+      for (const b of bizList) bizNameMap.set(b.id, b.name);
+    }
+
     const items = requests.map((r) => ({
       id: r.id,
       type: r.type,
@@ -67,9 +85,9 @@ export class AdminPitchReviewService {
       createdAt: r.createdAt,
       reviewedAt: r.reviewedAt,
       pitchId: r.pitchId,
-      pitchName: r.pitch?.name,
+      pitchName: r.pitch?.name ?? null,
       businessId: r.businessId,
-      businessName: r.pitch?.business?.name,
+      businessName: r.pitch?.business?.name ?? bizNameMap.get(r.businessId),
     }));
 
     return paginate(items, total, p.page, p.limit);
@@ -82,7 +100,7 @@ export class AdminPitchReviewService {
     });
     if (!request) throw new NotFoundException('İstek bulunamadı.');
 
-    if (request.type === 'CUSTOM_FACILITY') {
+    if (request.type === 'CUSTOM_FACILITY' && request.pitchId) {
       const pitch = await this.pitchRepository.findOne({
         where: { id: request.pitchId },
       });
@@ -100,26 +118,22 @@ export class AdminPitchReviewService {
           request.requestedData.facility as string,
         );
       }
-    } else if (request.type === 'PHOTO_UPDATE') {
+    } else if (request.type === 'PHOTO_UPDATE' && request.pitchId) {
       const oldImageUrl = request.pitch?.imageUrl;
       await this.pitchRepository.update(request.pitchId, {
         imageUrl: request.requestedData.imageUrl,
       });
-      if (oldImageUrl && oldImageUrl.includes('cloudinary.com')) {
-        const match = oldImageUrl.match(
-          /\/upload\/(?:v\d+\/)?(.+?)(?:\.[^.]+)?$/,
-        );
-        if (match) {
-          cloudinary.uploader
-            .destroy(match[1])
-            .catch((err) =>
-              console.error(
-                'Failed to delete old pitch image from Cloudinary:',
-                err,
-              ),
-            );
-        }
-      }
+      await this.cloudinaryService.safeDestroy(oldImageUrl);
+    } else if (request.type === 'BUSINESS_PHOTO_UPDATE') {
+      const business = await this.businessRepository.findOne({
+        where: { id: request.businessId },
+      });
+      if (!business) throw new NotFoundException('İşletme bulunamadı.');
+      const oldImageUrl = business.coverImageUrl;
+      await this.businessRepository.update(request.businessId, {
+        coverImageUrl: request.requestedData.imageUrl,
+      });
+      await this.cloudinaryService.safeDestroy(oldImageUrl);
     }
 
     await this.changeRequestRepository.update(requestId, {
@@ -132,7 +146,9 @@ export class AdminPitchReviewService {
       'PITCH_CHANGE_APPROVED',
       request.type === 'CUSTOM_FACILITY'
         ? `"${request.requestedData.facility}" imkanı onaylandı ve sahanıza eklendi.`
-        : 'Saha fotoğrafı değişikliğiniz onaylandı ve yayınlandı.',
+        : request.type === 'BUSINESS_PHOTO_UPDATE'
+          ? 'İşletme fotoğrafı değişikliğiniz onaylandı ve yayınlandı.'
+          : 'Saha fotoğrafı değişikliğiniz onaylandı ve yayınlandı.',
       requestId,
     );
 
@@ -159,7 +175,9 @@ export class AdminPitchReviewService {
       'PITCH_CHANGE_REJECTED',
       request.type === 'CUSTOM_FACILITY'
         ? `"${request.requestedData.facility}" imkan isteğiniz reddedildi. Sebep: ${reason}`
-        : `Saha fotoğrafı değişiklik isteğiniz reddedildi. Sebep: ${reason}`,
+        : request.type === 'BUSINESS_PHOTO_UPDATE'
+          ? `İşletme fotoğrafı değişiklik isteğiniz reddedildi. Sebep: ${reason}`
+          : `Saha fotoğrafı değişiklik isteğiniz reddedildi. Sebep: ${reason}`,
       requestId,
     );
 

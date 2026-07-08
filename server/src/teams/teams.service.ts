@@ -23,6 +23,7 @@ import {
 } from '../reservations/entities/reservation.entity';
 import { JoinRequestsService } from '../join-requests/join-requests.service';
 import { TeamBansService } from '../team-bans/team-bans.service';
+import { CloudinaryService } from '../files/cloudinary.service';
 
 @Injectable()
 export class TeamsService implements OnModuleInit {
@@ -38,6 +39,7 @@ export class TeamsService implements OnModuleInit {
     @Inject(forwardRef(() => JoinRequestsService))
     private joinRequestsService: JoinRequestsService,
     private teamBansService: TeamBansService,
+    private cloudinaryService: CloudinaryService,
   ) {}
 
   async onModuleInit() {
@@ -578,6 +580,11 @@ export class TeamsService implements OnModuleInit {
         HttpStatus.BAD_REQUEST,
       );
     }
+
+    // Takım DB'den silindikten SONRA logosunu Cloudinary'den temizle (transaction dışı,
+    // referans-sayımlı: aynı görsel başka kayıtta yoksa siler). Hata yutulur — silme
+    // başarıyla tamamlandı, foto temizliği best-effort.
+    await this.cloudinaryService.safeDestroy(team.logoUrl);
   }
 
   /**

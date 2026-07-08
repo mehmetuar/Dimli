@@ -13,13 +13,10 @@ import { memoryStorage } from 'multer';
 import { Readable } from 'stream';
 import { v2 as cloudinary } from 'cloudinary';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { CloudinaryService } from './cloudinary.service';
 
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
-
+// Cloudinary config CloudinaryService constructor'ında yapılır (tek nokta); global singleton
+// olduğu için buradaki upload_stream de aynı config'i kullanır.
 function uploadToCloudinary(buffer: Buffer): Promise<string> {
   return new Promise((resolve, reject) => {
     const upload = cloudinary.uploader.upload_stream(
@@ -43,6 +40,8 @@ function uploadToCloudinary(buffer: Buffer): Promise<string> {
 
 @Controller('files')
 export class FilesController {
+  constructor(private readonly cloudinaryService: CloudinaryService) {}
+
   @Post('upload')
   @UseInterceptors(
     FileInterceptor('file', {
@@ -74,17 +73,7 @@ export class FilesController {
   @Post('delete-cloud')
   async deleteCloudFile(@Body('url') url: string) {
     if (!url) throw new BadRequestException('URL gerekli');
-    try {
-      // Extract public_id from Cloudinary URL
-      // e.g. https://res.cloudinary.com/cloud/image/upload/v123/dimli/logos/abcdef.jpg
-      const match = url.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\.[^.]+)?$/);
-      if (!match) throw new BadRequestException('Geçersiz Cloudinary URL');
-      const publicId = match[1];
-      await cloudinary.uploader.destroy(publicId);
-      return { success: true };
-    } catch (err) {
-      console.error('Cloudinary delete error:', err);
-      throw new InternalServerErrorException('Görsel silinemedi');
-    }
+    await this.cloudinaryService.destroy(url);
+    return { success: true };
   }
 }

@@ -11,6 +11,7 @@ import { ChatModule } from '../chat/chat.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { JoinRequestsModule } from '../join-requests/join-requests.module';
 import { TeamBansModule } from '../team-bans/team-bans.module';
+import { FilesModule } from '../files/files.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { TeamBansModule } from '../team-bans/team-bans.module';
     forwardRef(() => NotificationsModule),
     forwardRef(() => JoinRequestsModule),
     TeamBansModule,
+    FilesModule,
   ],
   providers: [TeamsService],
   controllers: [TeamsController],

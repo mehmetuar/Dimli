@@ -2,8 +2,10 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PitchChangeRequestsService } from './pitch-change-requests.service';
 import { PitchChangeRequestsController } from './pitch-change-requests.controller';
+import { BusinessChangeRequestsController } from './business-change-requests.controller';
 import { PitchChangeRequest } from '../pitches/entities/pitch-change-request.entity';
 import { Pitch } from '../pitches/entities/pitch.entity';
+import { Business } from '../business/entities/business.entity';
 import { BusinessOwner } from '../business-owner/entities/business-owner.entity';
 import { Notification } from '../notifications/notification.entity';
 
@@ -12,11 +14,12 @@ import { Notification } from '../notifications/notification.entity';
     TypeOrmModule.forFeature([
       PitchChangeRequest,
       Pitch,
+      Business,
       BusinessOwner,
       Notification,
     ]),
   ],
-  controllers: [PitchChangeRequestsController],
+  controllers: [PitchChangeRequestsController, BusinessChangeRequestsController],
   providers: [PitchChangeRequestsService],
   exports: [PitchChangeRequestsService],
 })

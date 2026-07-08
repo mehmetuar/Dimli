@@ -8,6 +8,7 @@ import { JoinRequest } from '../join-requests/join-request.entity';
 import { Notification } from '../notifications/notification.entity';
 import { Team } from '../teams/team.entity';
 import { GeoModule } from '../geo/geo.module';
+import { FilesModule } from '../files/files.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { GeoModule } from '../geo/geo.module';
       Team,
     ]),
     GeoModule,
+    FilesModule,
   ],
   providers: [UsersService],
   controllers: [UsersController],

@@ -18,6 +18,7 @@ import { User } from '../users/user.entity';
 import { UserReport } from '../user-reports/user-report.entity';
 import { FacilitiesModule } from '../facilities/facilities.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { FilesModule } from '../files/files.module';
 import { AdminStatsCacheService } from './services/admin-stats-cache.service';
 import { AdminAuthService } from './services/admin-auth.service';
 import { AdminStatisticsService } from './services/admin-statistics.service';
@@ -44,6 +45,7 @@ import { AdminBusinessService } from './services/admin-business.service';
     ]),
     FacilitiesModule,
     NotificationsModule,
+    FilesModule,
     JwtModule.register({
       secret: process.env.ADMIN_JWT_SECRET || 'ADMIN_SECRET_KEY',
       signOptions: { expiresIn: '8h' },

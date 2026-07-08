@@ -20,6 +20,7 @@ import { Notification } from '../notifications/notification.entity';
 import { Team } from '../teams/team.entity';
 import { ReverseGeocodeService } from '../geo/reverse-geocode.service';
 import { normalizeUsername } from './username.util';
+import { CloudinaryService } from '../files/cloudinary.service';
 
 @Injectable()
 export class UsersService {
@@ -35,6 +36,7 @@ export class UsersService {
     @InjectRepository(Team)
     private teamRepository: Repository<Team>,
     private reverseGeocode: ReverseGeocodeService,
+    private cloudinaryService: CloudinaryService,
   ) {}
 
   normalizePhone(phone: string): string {
@@ -410,6 +412,10 @@ export class UsersService {
       [userId],
     );
 
+    // Tek üyeli takım kaptanı silinince o takım da purge edilir → logosunu Cloudinary'den
+    // temizlemek için URL'yi purge ÖNCESİ yakala (silme sonrası referans-sayımlı sil).
+    let purgedTeamLogoUrl: string | null = null;
+
     // 6. Takım kaptanlığı devret / kullanıcıyı takımdan çıkar
     const userWithTeam = await this.usersRepository.findOne({
       where: { id: userId },
@@ -435,6 +441,7 @@ export class UsersService {
             // vakası), bağlı kayıtları koparıp takımı sil.
             // teams.service.ts purgeTeam ile aynı SQL sırası (dairesel modül
             // bağımlılığı kurmamak için burada raw uygulanır).
+            purgedTeamLogoUrl = team.logoUrl;
             await this.purgeTeamRaw(team.id, team.name);
           } else {
             // Raw SQL — TypeORM update() undefined değerini NULL yazmaz
@@ -483,6 +490,13 @@ export class UsersService {
       userPhone: user.phone,
       userUsername: user.username,
     });
+
+    // 9. Kullanıcı (ve varsa purge edilen tek üyeli takım) DB'den silindikten SONRA
+    //    görselleri Cloudinary'den temizle — referans-sayımlı (paylaşımlı URL korunur),
+    //    hata yutulur (silme zaten tamamlandı).
+    await this.cloudinaryService.safeDestroy(user.avatarUrl);
+    if (purgedTeamLogoUrl)
+      await this.cloudinaryService.safeDestroy(purgedTeamLogoUrl);
   }
 
   async seedFeet(): Promise<string> {

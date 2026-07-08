@@ -69,6 +69,13 @@ class RegisterBusinessDetailsDto {
   @IsString()
   @IsOptional()
   closeTime?: string;
+
+  // Müşteri listesindeki işletme kartı görseli. Yeni istemci sürümü zorunlu tutar;
+  // sahadaki eski mobil binary'ler göndermediği için sunucuda @IsOptional kalmalı
+  // (tüm kullanıcılar güncellenince @IsNotEmpty yapılabilir).
+  @IsString()
+  @IsOptional()
+  coverImageUrl?: string;
 }
 
 class RegisterPitchDto {

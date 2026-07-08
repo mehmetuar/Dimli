@@ -1,11 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import {
   PitchChangeRequest,
   PitchChangeData,
 } from '../pitches/entities/pitch-change-request.entity';
 import { Pitch } from '../pitches/entities/pitch.entity';
+import { Business } from '../business/entities/business.entity';
 import { BusinessOwner } from '../business-owner/entities/business-owner.entity';
 import { Notification } from '../notifications/notification.entity';
 
@@ -16,6 +17,8 @@ export class PitchChangeRequestsService {
     private changeRequestRepository: Repository<PitchChangeRequest>,
     @InjectRepository(Pitch)
     private pitchRepository: Repository<Pitch>,
+    @InjectRepository(Business)
+    private businessRepository: Repository<Business>,
     @InjectRepository(BusinessOwner)
     private businessOwnerRepository: Repository<BusinessOwner>,
     @InjectRepository(Notification)
@@ -68,6 +71,52 @@ export class PitchChangeRequestsService {
     });
   }
 
+  // İşletme kapak fotoğrafı (businesses.coverImageUrl) değişikliği — saha akışıyla
+  // aynı yaşam döngüsü, pitch_id NULL taşır.
+  async createBusinessPhotoRequest(
+    businessId: string,
+    requestedData: PitchChangeData,
+  ): Promise<PitchChangeRequest> {
+    const business = await this.businessRepository.findOne({
+      where: { id: businessId },
+    });
+    if (!business) throw new NotFoundException('İşletme bulunamadı.');
+
+    await this.changeRequestRepository.update(
+      {
+        businessId,
+        pitchId: IsNull(),
+        type: 'BUSINESS_PHOTO_UPDATE',
+        status: 'pending',
+      },
+      {
+        status: 'rejected',
+        rejectionReason: 'Yeni istek ile değiştirildi',
+        reviewedAt: new Date(),
+      },
+    );
+
+    const request = this.changeRequestRepository.create({
+      pitchId: null,
+      businessId,
+      type: 'BUSINESS_PHOTO_UPDATE',
+      status: 'pending',
+      requestedData,
+      currentData: { imageUrl: business.coverImageUrl },
+    });
+
+    return this.changeRequestRepository.save(request);
+  }
+
+  async getPendingForBusiness(
+    businessId: string,
+  ): Promise<PitchChangeRequest[]> {
+    return this.changeRequestRepository.find({
+      where: { businessId, pitchId: IsNull(), status: 'pending' },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
   async getAllPending(): Promise<any[]> {
     const requests = await this.changeRequestRepository.find({
       where: { status: 'pending' },
@@ -97,7 +146,7 @@ export class PitchChangeRequestsService {
     if (!request) throw new NotFoundException('İstek bulunamadı.');
 
     // Apply the change to the pitch
-    if (request.type === 'CUSTOM_FACILITY') {
+    if (request.type === 'CUSTOM_FACILITY' && request.pitchId) {
       const pitch = await this.pitchRepository.findOne({
         where: { id: request.pitchId },
       });
@@ -112,9 +161,13 @@ export class PitchChangeRequestsService {
           ],
         });
       }
-    } else if (request.type === 'PHOTO_UPDATE') {
+    } else if (request.type === 'PHOTO_UPDATE' && request.pitchId) {
       await this.pitchRepository.update(request.pitchId, {
         imageUrl: request.requestedData.imageUrl,
+      });
+    } else if (request.type === 'BUSINESS_PHOTO_UPDATE') {
+      await this.businessRepository.update(request.businessId, {
+        coverImageUrl: request.requestedData.imageUrl,
       });
     }
 

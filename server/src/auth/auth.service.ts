@@ -571,6 +571,8 @@ export class AuthService {
       business.longitude = data.business.longitude;
       if (data.business.openTime) business.openTime = data.business.openTime;
       if (data.business.closeTime) business.closeTime = data.business.closeTime;
+      if (data.business.coverImageUrl)
+        business.coverImageUrl = data.business.coverImageUrl;
 
       const savedBusiness = await queryRunner.manager.save(business);
 
