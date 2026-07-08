@@ -20,16 +20,17 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
 
     const content = (
         <div className="flex flex-col items-center justify-center gap-4">
-            <div className="relative">
-                {/* Outer Ring */}
-                <div className={`${sizeClasses[size]} rounded-full border-4 border-slate-700 border-t-turf-500 animate-spin`}></div>
-
-                {/* Inner Pulse (Only for md/lg) */}
-                {size !== 'sm' && (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="w-2 h-2 bg-turf-500 rounded-full animate-pulse"></div>
-                    </div>
-                )}
+            <div className={`${sizeClasses[size]} flex items-center justify-center`}>
+                <LottiePlayer
+                    src="/animations/rolling-football.json"
+                    loop
+                    autoplay
+                    ariaLabel={text || 'Yükleniyor'}
+                    style={{ width: '100%', height: '100%' }}
+                    fallback={
+                        <div className={`${sizeClasses[size]} rounded-full border-4 border-slate-700 border-t-turf-500 animate-spin`} />
+                    }
+                />
             </div>
 
             {/* Text */}
