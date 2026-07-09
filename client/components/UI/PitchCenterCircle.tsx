@@ -78,22 +78,6 @@ export const PitchCenterCircle: React.FC<PitchCenterCircleProps> = ({
                     strokeWidth={1.5}
                 />
             </svg>
-
-            {/* Orta nokta */}
-            <div
-                className="absolute rounded-full animate-fade-in"
-                style={{
-                    top: cy,
-                    left: '50%',
-                    width: '6px',
-                    height: '6px',
-                    transform: 'translate(-50%, -50%)',
-                    background: HERO_LINE,
-                    filter: HERO_GLOW,
-                    animationDelay: '0.6s',
-                    animationFillMode: 'both',
-                }}
-            />
         </div>
     );
 };

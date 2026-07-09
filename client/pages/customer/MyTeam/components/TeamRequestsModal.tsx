@@ -100,7 +100,7 @@ export const TeamRequestsModal: React.FC<TeamRequestsModalProps> = ({
         <>
             <div className="fixed inset-0 z-[70] flex items-center justify-center px-4 bg-black/80 backdrop-blur-sm animate-fade-in" onClick={onClose}>
                 <div 
-                    className="bg-slate-800 w-full max-w-lg max-h-[85vh] rounded-[2.5rem] border border-slate-700/50 overflow-hidden relative shadow-2xl flex flex-col animate-slide-up"
+                    className="bg-slate-800 w-full max-w-lg max-h-[85vh] rounded-3xl border border-slate-700/50 overflow-hidden relative shadow-2xl flex flex-col animate-slide-up"
                     onClick={(e) => e.stopPropagation()}
                 >
                     {/* Header */}
@@ -187,7 +187,7 @@ export const TeamRequestsModal: React.FC<TeamRequestsModalProps> = ({
             {/* İç onay katmanı (z-[90] → modalın üstünde) */}
             {confirm && (
                 <div className="fixed inset-0 z-[90] flex items-center justify-center px-6 bg-black/70 backdrop-blur-sm animate-fade-in">
-                    <div className="bg-slate-800 w-full max-w-xs rounded-[2rem] border border-slate-700/80 p-6 text-center shadow-2xl animate-scale-in">
+                    <div className="bg-slate-800 w-full max-w-xs rounded-3xl border border-slate-700/80 p-6 text-center shadow-2xl animate-scale-in">
                         <p className="text-white font-bold text-sm mb-6 leading-relaxed">{confirm.message}</p>
                         <div className="flex gap-3">
                             <button

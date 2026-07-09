@@ -71,7 +71,7 @@ export const TeamDetailModal: React.FC<TeamDetailModalProps> = ({ isOpen, onClos
     // (agent.md §35) — backdrop tüm viewport'u ve tab bar'ı örter.
     return createPortal(
         <div className="fixed inset-0 z-[60] flex items-center justify-center px-4 bg-black/90 backdrop-blur-sm animate-fade-in">
-            <div className="bg-slate-800 w-full max-w-lg rounded-[2.5rem] border border-slate-700/50 overflow-hidden relative shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[85vh] animate-slide-up">
+            <div className="bg-slate-800 w-full max-w-lg rounded-3xl border border-slate-700/50 overflow-hidden relative shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[85vh] animate-slide-up">
 
                 {/* Close Button */}
                 <button

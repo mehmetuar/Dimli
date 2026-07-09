@@ -111,7 +111,7 @@ export const MatchHistoryModal: React.FC<MatchHistoryModalProps> = ({
         <>
         <div className="fixed inset-0 z-[70] flex items-center justify-center px-4 bg-black/80 backdrop-blur-sm animate-fade-in" onClick={onClose}>
             <div 
-                className="bg-slate-800 w-full max-w-lg max-h-[85vh] rounded-[2.5rem] border border-slate-700/50 overflow-hidden relative shadow-2xl flex flex-col animate-slide-up"
+                className="bg-slate-800 w-full max-w-lg max-h-[85vh] rounded-3xl border border-slate-700/50 overflow-hidden relative shadow-2xl flex flex-col animate-slide-up"
                 onClick={(e) => e.stopPropagation()}
             >
 
