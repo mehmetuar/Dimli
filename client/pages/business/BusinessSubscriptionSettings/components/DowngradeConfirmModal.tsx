@@ -7,13 +7,14 @@ interface DowngradeConfirmModalProps {
     targetPlanLabel: string;
     targetPlanPrice: number;
     effectiveDateLabel: string;
+    removalCount?: number;
     loading: boolean;
     onClose: () => void;
     onConfirm: () => void;
 }
 
 export const DowngradeConfirmModal: React.FC<DowngradeConfirmModalProps> = ({
-    visible, targetPlanLabel, targetPlanPrice, effectiveDateLabel, loading, onClose, onConfirm,
+    visible, targetPlanLabel, targetPlanPrice, effectiveDateLabel, removalCount = 0, loading, onClose, onConfirm,
 }) => {
     if (!visible) return null;
     return (
@@ -29,6 +30,11 @@ export const DowngradeConfirmModal: React.FC<DowngradeConfirmModalProps> = ({
                         Bu değişiklik, mevcut faturalama döneminizin sonunda{effectiveDateLabel ? ` (${effectiveDateLabel})` : ''} geçerli olacaktır.
                         O tarihe kadar mevcut planınızın tüm avantajlarından yararlanmaya devam edersiniz.
                     </p>
+                    {removalCount > 0 && (
+                        <p className="text-orange-300/90 text-xs leading-relaxed mt-3 bg-orange-500/10 border border-orange-500/20 rounded-xl px-3 py-2.5 text-left">
+                            Seçtiğiniz {removalCount === 1 ? 'saha' : `${removalCount} saha`}, onayınızla birlikte pasife alınacak; dilerseniz{effectiveDateLabel ? ` ${effectiveDateLabel} tarihine` : ' fatura dönemi sonuna'} kadar ayarlardan tekrar aktifleştirip rezervasyon almaya devam edebilirsiniz. {effectiveDateLabel ? `${effectiveDateLabel} tarihinde` : 'Fatura dönemi sonunda'} {removalCount === 1 ? 'saha' : 'sahalar'} otomatik olarak silinecektir ve bu tarih sonrası için rezervasyon kabul edilmez.
+                        </p>
+                    )}
                 </div>
                 <div className="flex gap-3 px-6 pt-2 pb-6">
                     <button

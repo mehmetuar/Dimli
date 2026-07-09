@@ -28,7 +28,9 @@ export const useBusinessSubscriptionSettings = () => {
     const [downgradeLoading, setDowngradeLoading] = useState(false);
     const [toast, setToast] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
-    const removedPitchIdsRef = useRef<Set<string>>(new Set());
+    // Düşürme akışında SEÇİLEN saha ID'leri — silme/pasifleştirme YOK; asıl
+    // işlem satın alma tamamlanınca schedule-downgrade'de sunucuda yapılır.
+    const selectedPitchIdsRef = useRef<string[]>([]);
     const downgradePurchaseRef = useRef<string | null>(null);
 
     useEffect(() => { fetchSubscription(); fetchPitches(); }, []);
@@ -76,8 +78,8 @@ export const useBusinessSubscriptionSettings = () => {
         if (newPitchCount < currentPitchCount) {
             setDowngradeTarget(planType);
             downgradePurchaseRef.current = null;
+            selectedPitchIdsRef.current = [];
             if (usedPitchCount > newPitchCount) {
-                removedPitchIdsRef.current = new Set();
                 setSelectionConflict(null);
                 setShowPitchSelection(true);
             } else {
@@ -110,32 +112,31 @@ export const useBusinessSubscriptionSettings = () => {
         }
     };
 
+    // Saha seçimi "onayla": YALNIZ sunucu ön-doğrulaması (yan etkisiz) —
+    // saha burada silinmez/pasifleşmez; Vazgeç her adımda gerçekten geri döner.
     const handlePitchSelectionConfirm = async (selectedIds: string[]) => {
+        if (!downgradeTarget) return;
         setSelectionLoading(true);
         setSelectionConflict(null);
         try {
-            for (const pitchId of selectedIds) {
-                if (removedPitchIdsRef.current.has(pitchId)) continue;
-                try {
-                    await api.delete(`/pitches/${pitchId}`);
-                    removedPitchIdsRef.current.add(pitchId);
-                } catch (err: any) {
-                    if (err?.response?.status === 409) {
-                        const data = err.response.data;
-                        setSelectionConflict({
-                            pitchId,
-                            conflicts: data?.message?.conflicts || data?.conflicts || [],
-                        });
-                        return;
-                    }
-                    throw err;
-                }
-            }
-            await fetchPitches();
+            await api.post('/pitches/downgrade-precheck', {
+                planType: downgradeTarget,
+                pitchIds: selectedIds,
+            });
+            selectedPitchIdsRef.current = selectedIds;
             setShowPitchSelection(false);
             setShowDowngradeConfirm(true);
-        } catch {
-            showToast('Saha kaldırılırken bir hata oluştu.', 'error');
+        } catch (err: any) {
+            if (err?.response?.status === 409) {
+                const data = err.response.data;
+                setSelectionConflict({
+                    pitchId: data?.pitchId ?? selectedIds[0],
+                    conflicts: data?.conflicts || data?.message?.conflicts || [],
+                });
+                return;
+            }
+            const msg = err?.response?.data?.message;
+            showToast(typeof msg === 'string' ? msg : 'Saha seçimi doğrulanamadı. Lütfen tekrar deneyin.', 'error');
         } finally {
             setSelectionLoading(false);
         }
@@ -152,17 +153,42 @@ export const useBusinessSubscriptionSettings = () => {
                 downgradePurchaseRef.current = rcCustomerId;
             }
 
-            await api.post('/subscription/schedule-downgrade', { ownerId, planType: downgradeTarget, rcCustomerId });
+            // Satın alma TAMAMLANDIKTAN sonra tek istek: abonelik pending
+            // alanları + seçilen sahalar (pasif + fatura sonunda silinecek).
+            await api.post('/pitches/schedule-downgrade', {
+                planType: downgradeTarget,
+                rcCustomerId,
+                pitchIds: selectedPitchIdsRef.current,
+            });
             await linkRevenueCatUser(ownerId);
 
+            const hadPitches = selectedPitchIdsRef.current.length > 0;
             downgradePurchaseRef.current = null;
-            showToast('Plan düşürme talebiniz alındı.', 'success');
+            selectedPitchIdsRef.current = [];
+            showToast(
+                hadPitches && effectiveDateLabel
+                    ? `Plan düşürme planlandı. Seçilen saha ${effectiveDateLabel} tarihinde otomatik silinecek.`
+                    : 'Plan düşürme talebiniz alındı.',
+                'success',
+            );
             await fetchSubscription();
             await fetchPitches();
             setShowDowngradeConfirm(false);
             setDowngradeTarget(null);
         } catch (err: any) {
-            if (downgradePurchaseRef.current) {
+            if (err?.response?.status === 409 && downgradePurchaseRef.current) {
+                // Seçilen sahada X sonrası kesinleşmiş maç oluşmuş — satın alma
+                // korunur, kullanıcı başka saha seçip yeniden onaylar (tekrar
+                // satın alma İSTENMEZ, downgradePurchaseRef dolu kalır).
+                const data = err.response.data;
+                setSelectionConflict({
+                    pitchId: data?.pitchId ?? selectedPitchIdsRef.current[0],
+                    conflicts: data?.conflicts || data?.message?.conflicts || [],
+                });
+                setShowDowngradeConfirm(false);
+                setShowPitchSelection(true);
+                showToast('Seçilen sahada kesinleşmiş maçlar oluştu. Lütfen başka bir saha seçin.', 'error');
+            } else if (downgradePurchaseRef.current) {
                 showToast('Satın alma tamamlandı ancak abonelik güncellenemedi. Lütfen "Onayla" ile tekrar deneyin.', 'error');
             } else {
                 // Ham İngilizce RevenueCat mesajı yerine Türkçe; iptalde sessiz geç

@@ -186,6 +186,11 @@ const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelected
             setErrorMessage(closedDayMessage(selectedPitch, date) ?? 'Bu saha seçili tarihte kapalı.');
             return;
         }
+        // Silinmesi planlanan sahada X sonrası ön-kontrolü (sunucu da 409 döner).
+        if (isAfterScheduledCutoff(date, time)) {
+            setErrorMessage(scheduledOfflineMsg ?? 'Bu saha seçilen tarihte hizmet dışı olacaktır.');
+            return;
+        }
         setIsLoading(true);
         setErrorMessage('');
         try {
@@ -239,6 +244,20 @@ const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelected
     // "İLANI YAYINLA" butonunu pasifleştiriyor hem gün-adlı uyarı gösteriyoruz.
     const selectedPitchClosed = selectedPitch ? isPitchClosedOnDate(selectedPitch, date) : false;
     const selectedPitchClosedMsg = selectedPitch ? closedDayMessage(selectedPitch, date) : null;
+
+    // Plan düşürmede silinmesi planlanan saha: X ve sonrası için ilan açılamaz
+    // (sunucu 409 PITCH_SCHEDULED_OFFLINE ile de reddeder — bu erken engel).
+    // Slot saatleri İstanbul'dur; Türkiye sabit UTC+3, DST yok.
+    const scheduledCutoff = selectedPitch?.scheduledDeletionAt
+        ? new Date(selectedPitch.scheduledDeletionAt)
+        : null;
+    const isAfterScheduledCutoff = (d: string, t: string): boolean =>
+        !!scheduledCutoff && !!d && !!t &&
+        new Date(`${d}T${t}:00+03:00`) >= scheduledCutoff;
+    const scheduledOfflineBlocked = isAfterScheduledCutoff(date, time);
+    const scheduledOfflineMsg = scheduledCutoff
+        ? `Bu saha ${scheduledCutoff.toLocaleDateString('tr-TR', { timeZone: 'Europe/Istanbul', day: 'numeric', month: 'long', year: 'numeric' })} tarihinden itibaren hizmet dışı olacaktır. Lütfen daha erken bir tarih veya başka bir saha seçin.`
+        : null;
 
     const getSelectedBusiness = () => {
         if (selectedBusinessId) return businesses.find(b => b.id === selectedBusinessId);
@@ -579,9 +598,16 @@ const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelected
                             </div>
                         )}
 
+                        {!selectedPitchClosed && scheduledOfflineBlocked && (
+                            <div className="mb-3 flex items-center gap-2 bg-amber-950/40 border border-amber-900/50 text-amber-400 px-4 py-2.5 rounded-xl">
+                                <Info className="w-4 h-4 shrink-0" />
+                                <p className="text-sm font-bold">{scheduledOfflineMsg}</p>
+                            </div>
+                        )}
+
                         <button
                             onClick={handleSubmit}
-                            disabled={!selectedPitchId || !date || !time || isLoading || selectedPitchClosed}
+                            disabled={!selectedPitchId || !date || !time || isLoading || selectedPitchClosed || scheduledOfflineBlocked}
                             className="w-full bg-turf-600 disabled:bg-slate-700 disabled:text-slate-500 text-white font-black uppercase italic py-4 rounded-xl text-lg shadow-lg shadow-turf-600/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2"
                         >
                             {isLoading ? <LoadingSpinner size="sm" /> : <><Trophy className="w-5 h-5" /> İlanı Yayınla</>}

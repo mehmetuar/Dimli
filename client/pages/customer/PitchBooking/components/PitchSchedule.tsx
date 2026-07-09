@@ -26,6 +26,24 @@ export const PitchSchedule: React.FC<PitchScheduleProps> = ({
     // tek kaynak: utils/pitchClosed (sunucu turkey-time.util ile aynı, UTC-güvenli)
     const isPitchClosed = isPitchClosedOnDate(selectedPitch, selectedDate);
 
+    // Plan düşürmede silinmesi planlanan saha: X ve sonrası slotlar kapalı
+    // (sunucudaki PITCH_SCHEDULED_OFFLINE guard'ının client karşılığı).
+    const deletionCutoff = selectedPitch.scheduledDeletionAt
+        ? new Date(selectedPitch.scheduledDeletionAt)
+        : null;
+    const deletionDateLabel = deletionCutoff
+        ? deletionCutoff.toLocaleDateString('tr-TR', {
+              timeZone: 'Europe/Istanbul',
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric',
+          })
+        : '';
+    // Slot başlangıcı İstanbul saatidir (Türkiye sabit UTC+3, DST yok).
+    const isSlotAfterCutoff = (startTime: string): boolean =>
+        !!deletionCutoff &&
+        new Date(`${selectedDate}T${startTime}:00+03:00`) >= deletionCutoff;
+
     return (
         <>
         <DirectionsConfirmModal
@@ -60,6 +78,16 @@ export const PitchSchedule: React.FC<PitchScheduleProps> = ({
                     </a>
                 </div>
             </div>
+
+            {/* ── Silinmesi planlanan saha uyarısı ── */}
+            {deletionCutoff && (
+                <div className="flex items-start gap-2 bg-amber-500/10 border border-amber-500/30 rounded-xl px-3 py-2.5 mb-3">
+                    <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                    <p className="text-amber-200/90 text-xs leading-relaxed">
+                        Bu saha <span className="font-bold text-amber-300">{deletionDateLabel}</span> tarihinden itibaren hizmet dışı olacaktır. Bu tarih ve sonrası için rezervasyon veya ilan oluşturulamaz.
+                    </p>
+                </div>
+            )}
 
             {/* ── SAHA KAPALI overlay ── */}
             {isPitchClosed && (
@@ -99,6 +127,23 @@ export const PitchSchedule: React.FC<PitchScheduleProps> = ({
                                     <span className="text-[10px] font-bold opacity-75 mt-0.5">{slot.endTime}</span>
                                 )}
                                 <span className="text-[10px] font-bold mt-1.5 tracking-widest uppercase">GEÇTİ</span>
+                            </div>
+                        );
+                    }
+
+                    // Silinme tarihi (X) ve sonrası: slot tamamen kapalı — sunucu
+                    // guard'ı da (409 PITCH_SCHEDULED_OFFLINE) aynı isteği reddeder.
+                    if (isSlotAfterCutoff(slot.startTime)) {
+                        return (
+                            <div
+                                key={slotIdx}
+                                className="p-3 rounded-xl border border-amber-900/50 bg-slate-800/30 text-amber-700 opacity-60 cursor-not-allowed flex flex-col items-center justify-center min-h-[80px]"
+                            >
+                                <span className="text-[15px] sm:text-base font-black tracking-tighter leading-none">{slot.startTime}</span>
+                                {slot.endTime && (
+                                    <span className="text-[10px] font-bold opacity-75 mt-0.5">{slot.endTime}</span>
+                                )}
+                                <span className="text-[9px] font-bold mt-1.5 tracking-wider uppercase">HİZMET DIŞI</span>
                             </div>
                         );
                     }

@@ -1,14 +1,18 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, IsNull, Not, Repository } from 'typeorm';
 import {
   Subscription,
   SubscriptionStatus,
 } from './entities/subscription.entity';
+import { Pitch } from '../pitches/entities/pitch.entity';
+import { BusinessOwner } from '../business-owner/entities/business-owner.entity';
+import { Notification } from '../notifications/notification.entity';
 
 export const SUBSCRIPTION_PLANS: Record<
   string,
@@ -23,9 +27,19 @@ export const SUBSCRIPTION_PLANS: Record<
 
 @Injectable()
 export class SubscriptionService {
+  private readonly logger = new Logger(SubscriptionService.name);
+
   constructor(
     @InjectRepository(Subscription)
     private subscriptionRepository: Repository<Subscription>,
+    // Yalnız entity repo'ları — SubscriptionModule yaprak kalmalı (Notifications/
+    // Pitches modül importu ReservationsModule üzerinden döngü yaratır, agent.md).
+    @InjectRepository(Pitch)
+    private pitchRepository: Repository<Pitch>,
+    @InjectRepository(BusinessOwner)
+    private businessOwnerRepository: Repository<BusinessOwner>,
+    @InjectRepository(Notification)
+    private notificationRepository: Repository<Notification>,
   ) {}
 
   getPlans() {
@@ -127,7 +141,9 @@ export class SubscriptionService {
       subscription.pricePerMonth = plan.pricePerMonth;
       subscription.pendingPlanType = null;
       subscription.pendingPlanEffectiveAt = null;
-      return this.subscriptionRepository.save(subscription);
+      const saved = await this.subscriptionRepository.save(subscription);
+      await this.clearScheduledPitchDeletions(ownerId);
+      return saved;
     }
 
     const trialEndsAt = new Date();
@@ -141,24 +157,92 @@ export class SubscriptionService {
     subscription.pendingPlanEffectiveAt = null;
     if (!subscription.trialEndsAt) subscription.trialEndsAt = trialEndsAt;
 
-    return this.subscriptionRepository.save(subscription);
+    const saved = await this.subscriptionRepository.save(subscription);
+    await this.clearScheduledPitchDeletions(ownerId);
+    return saved;
+  }
+
+  /**
+   * Plan anında değişince (confirm-purchase = yükseltme/yeniden satın alma)
+   * bekleyen düşürme iptal olur → silinmesi planlanmış sahalar geri aktif
+   * edilir ve owner bilgilendirilir. Koşullu UPDATE, silme cron'uyla yarışta
+   * atomiktir (cron sildiyse deletedAt IS NULL no-op yapar). Best-effort —
+   * satın alma kaydını asla bloklamaz. Webhook RENEWAL yolu bunu ÇAĞIRMAZ
+   * (orada pending plan uygulanır, planlama iptal edilmez).
+   */
+  private async clearScheduledPitchDeletions(ownerId: string): Promise<void> {
+    try {
+      const owner = await this.businessOwnerRepository.findOne({
+        where: { id: ownerId },
+        relations: ['business'],
+      });
+      const businessId = owner?.business?.id;
+      if (!businessId) return;
+
+      const scheduled = await this.pitchRepository.find({
+        where: {
+          businessId,
+          scheduledDeletionAt: Not(IsNull()),
+          deletedAt: IsNull(),
+        },
+      });
+      if (scheduled.length === 0) return;
+
+      await this.pitchRepository.update(
+        {
+          businessId,
+          scheduledDeletionAt: Not(IsNull()),
+          deletedAt: IsNull(),
+        },
+        {
+          scheduledDeletionAt: null,
+          deletionReminderSentAt: null,
+          isActive: true,
+        },
+      );
+
+      // Modül döngüsü nedeniyle NotificationsService yerine doğrudan repo —
+      // websocket/push atlanır; olay zaten kullanıcının kendi işlemi, yeni
+      // client başarı toast'ı gösterir, zil listesi sonraki fetch'te dolar.
+      for (const pitch of scheduled) {
+        await this.notificationRepository.save(
+          this.notificationRepository.create({
+            userId: ownerId,
+            type: 'PITCH_DELETION_CANCELLED',
+            title: 'Saha Silme İptal Edildi',
+            message: `Planınız güncellendiği için ${pitch.name} sahanızın silinmesi iptal edildi; saha yeniden aktifleştirildi.`,
+            relatedId: pitch.id,
+            read: false,
+            metadata: { pitchId: pitch.id },
+          }),
+        );
+      }
+    } catch (err) {
+      this.logger.error('Planlı saha silme iptali başarısız:', err);
+    }
   }
 
   async scheduleDowngrade(
     ownerId: string,
     planType: string,
     rcCustomerId: string,
+    manager?: EntityManager,
   ): Promise<Subscription> {
+    const repo =
+      manager?.getRepository(Subscription) ?? this.subscriptionRepository;
     const plan = SUBSCRIPTION_PLANS[planType];
     if (!plan) throw new NotFoundException('Geçersiz plan tipi.');
 
-    const subscription = await this.findByOwner(ownerId);
+    const subscription = await repo.findOne({ where: { ownerId } });
     if (!subscription) throw new NotFoundException('Abonelik bulunamadı.');
+    if (this.applyPendingPlanIfDue(subscription)) {
+      await repo.save(subscription);
+    }
 
     // Zaten aynı düşürme planlanmış — retry (örn. linkRevenueCatUser tekrar denemesi)
     if (subscription.pendingPlanType === planType) {
       subscription.revenuecatCustomerId = rcCustomerId;
-      return this.subscriptionRepository.save(subscription);
+      return repo.save(subscription);
     }
 
     const currentPlan = SUBSCRIPTION_PLANS[subscription.planType];
@@ -172,7 +256,7 @@ export class SubscriptionService {
     subscription.pricePerMonth = plan.pricePerMonth; // bir sonraki dönemde tahsil edilecek tutar hemen gösterilir
     subscription.revenuecatCustomerId = rcCustomerId;
 
-    return this.subscriptionRepository.save(subscription);
+    return repo.save(subscription);
   }
 
   async handleWebhook(event: any): Promise<void> {

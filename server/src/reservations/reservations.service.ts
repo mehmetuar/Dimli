@@ -99,9 +99,10 @@ export class ReservationsService {
   cancelPendingForPitches(
     pitchIds: string[],
     ctx: {
-      scope: 'BUSINESS_CLOSED' | 'PITCH_REMOVED';
+      scope: 'BUSINESS_CLOSED' | 'PITCH_REMOVED' | 'PITCH_SCHEDULED_OFFLINE';
       businessName: string;
       pitchNameById?: Map<string, string>;
+      fromTime?: Date;
     },
     manager: EntityManager,
   ) {

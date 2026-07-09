@@ -2383,3 +2383,75 @@ buraya taşındı), `extractPublicId(url)` (public_id regex'i artık tek yerde �
   server build + client tsc/build temiz. Test satırları lokal DB'den geri silindi.
 
 ### Açık kalanlar (rapor P3): modal verilerine kısa-TTL cache; users/me→teams/:id waterfall.
+
+---
+
+## 60. Plan düşürme yeniden tasarımı: ertelenmiş saha silme (scheduledDeletionAt) + Seyda veri onarımı (2026-07-09)
+
+### Olay ve kök nedenler (canlı DB ile doğrulandı)
+- Seyda Halı Saha, Basic→Starter düşürmede "2 Nolu Saha"yı seçti, onay modalında **Vazgeç**'e
+  bastı; saha yine de soft-delete edildi. **Kök neden 1:** eski akışta saha seçim modalının
+  onayı doğrudan `DELETE /pitches/:id` çağırıyordu — satın alma/schedule SONRAKİ modaldaydı,
+  iptalde geri alma yoktu. **Kök neden 2:** `business-owner.service.findOne` pitches ilişkisini
+  `deletedAt` filtresiz yüklüyordu → panelde işlem yapılamayan hayalet "SAHA KAPALI" sekmesi
+  (her aksiyon `assertPitchOwnedBy`'da 404 → "Güncelleme başarısız oldu").
+- **Tek seferlik canlı işlem (kullanıcı onaylı, §9 istisnası):** eski saha restore edildi
+  (`deletedAt=NULL, isActive=true` — geçmişi/onayı korundu), kullanıcının açtığı referanssız
+  kopya "2 Nolu Saha" hard-delete edildi. Not: sahanın saat slotları olaydan önce de boştu —
+  işletme slotları yeniden girmeli.
+
+### Yeni mimari — ertelenmiş silme (KALICI)
+- `pitches.scheduledDeletionAt` + `deletionReminderSentAt` (nullable timestamp; synchronize).
+- **Akış (yeni client):** PlanPicker → PitchSelection onayı = `POST /pitches/downgrade-precheck`
+  (**yan etkisiz** doğrulama: adet, sahiplik, X-sonrası `teamId IS NOT NULL` APPROVED çakışma →
+  409 `{message:'Kesinleşmiş maçlar var', pitchId, conflicts}`) → DowngradeConfirm onayı =
+  RevenueCat purchase → `POST /pitches/schedule-downgrade {planType, rcCustomerId, pitchIds}`.
+  Vazgeç her adımda gerçekten yan etkisiz. 409'da satın alma korunur (`downgradePurchaseRef`),
+  saha seçimi yeniden açılır — tekrar satın alma istenmez.
+- **`PitchDowngradeService` (server/src/pitches/pitch-downgrade.service.ts):** schedule tek
+  transaction (subscription satırına pessimistic kilit): seçili sahalar `isActive=false` +
+  `scheduledDeletionAt=X` (X = `expiresAt ?? trialEndsAt`; soft-delete YOK), önceki planlamadaki
+  seçilmemiş sahalar sıfırlanıp geri aktif edilir, `cancelPendingForPitches(fromTime=X,
+  scope:'PITCH_SCHEDULED_OFFLINE')` yalnız X-sonrası PENDING'leri iptal eder,
+  `SubscriptionService.scheduleDowngrade(manager)` pending alanları yazar. Owner X'e kadar
+  mevcut toggle ile sahayı geri açıp rezervasyon alabilir.
+- **Guard'lar:** `reservation-lifecycle.create()` + `match-announcements.create()` →
+  `slotTime >= scheduledDeletionAt` ise 409 `{code:'PITCH_SCHEDULED_OFFLINE', effectiveAt}`
+  (tarih `istanbulDisplayParts`). Üç rezervasyon üreticisi de (controller, kendi_aramizda,
+  challenge kabul) tek noktadan kapsanır.
+- **Saatlik cron `pitch_scheduled_deletions`:** vadesi gelen sahayı kendi transaction'ında
+  (pitch satırı kilitli + vade re-check; ⚠️ eager timeSlots yüzünden kilitli okuma QueryBuilder
+  ile — findOne+FOR UPDATE join'de patlar) siler: takımsız APPROVED bloklar iptal,
+  `RecurringClosure.isActive=false` (3AM top-up ölü sahaya slot üretmesin),
+  `cancelPendingForPitches(PITCH_REMOVED)`, soft-delete, owner'a `PITCH_DELETED`. **Emniyet
+  ağı:** geçerli plan (vadesi gelen pending dahil) sahayı hâlâ kapsıyorsa silme atlanır,
+  planlama temizlenir. Hatırlatma: X'e ≤72sa kala tek seferlik `PITCH_DELETION_REMINDER`.
+- **Yükseltme:** `confirmPurchase` (iki dal) `clearScheduledPitchDeletions` çağırır — koşullu
+  UPDATE (cron yarışına atomik) + saha geri aktif + `PITCH_DELETION_CANCELLED` (modül döngüsü
+  nedeniyle Notification repo insert'i; push yok — bilinçli). Webhook RENEWAL temizlemez.
+- **Modül kuralı (KALICI):** SubscriptionModule YAPRAK kalır (Reservations onu import ediyor);
+  orkestrasyon PitchesModule'de (Notifications+Subscription importu döngüsüz). Subscription
+  yalnız entity forFeature aldı (Pitch/BusinessOwner/Notification).
+- **Bildirim tipleri:** `businessPushTypes` + entity union'a `PITCH_DELETION_SCHEDULED/
+  REMINDER/PITCH_DELETED/PITCH_DELETION_CANCELLED`; `userSystemPushTypes`'a
+  `PITCH_SCHEDULED_OFFLINE` eklendi.
+- **Client:** owner — PitchGrid PASSIVE dalında "X'te silinecek" metni + aktif sahada amber
+  bant; PendingDowngradeBanner silinecek saha adlarını sayar. Müşteri — PitchSchedule'da amber
+  bant + X-sonrası slotlar "HİZMET DIŞI" (İstanbul: `new Date(\`${date}T${time}:00+03:00\`)`),
+  CreateMatchModal'da ön-engel + buton disable; sunucu 409'u mevcut mesaj yoluyla gösterilir.
+- **Geriye uyumluluk (kabul edilen sınırlama):** eski owner build'leri düşürmede hâlâ doğrudan
+  `DELETE /pitches/:id` çağırır (anında soft-delete) — sunucu meşru tekil silmeden ayırt edemez;
+  yeni sürüm yayılana kadar sürer. `/subscription/schedule-downgrade` bayt-bayt aynı bırakıldı.
+
+### Doğrulama (lokal :3921 + lokal DB; canlıya yalnız Faz-0 onarımı yazıldı)
+- precheck: mutlu yol / yanlış adet 400 / düşürme-değil 400 / yabancı saha 404 / auth 401 /
+  X-sonrası takımlı APPROVED 409 (X-öncesi APPROVED ve X-sonrası takımsız blok veto ETMEZ) ✓
+- schedule: pitch pasif+X, pending alanlar, X-sonrası PENDING iptal, X-öncesi dokunulmadı ✓
+- toggle ile geri açma; X-öncesi rezervasyon OLUŞTU, X-sonrası rezervasyon+ilan 409
+  `PITCH_SCHEDULED_OFFLINE` ✓; hatırlatma tek seferlik ✓; emniyet ağı (plan kapsıyorsa silme
+  yerine temizlik) ✓; tam silme simülasyonu (soft-delete+iptaller+bildirimler) ✓; yükseltme
+  temizliği + `PITCH_DELETION_CANCELLED` ✓; hayalet düzeltmesi (findOne silinmişleri dışlar) ✓;
+  TZ=UTC parite: vadesi gelen pending plan okumada uygulandı ✓. Test satırları geri silindi.
+- ⚠️ **Lokal test TZ gotcha'sı:** lokal Postgres `Europe/Istanbul` — ham SQL'de `NOW()` naive
+  kolona İstanbul duvar saati yazar, uygulama UTC okur → sahte kaymalar. Lokal test SQL'inde
+  `(NOW() AT TIME ZONE 'UTC')` kullan. Üretimde süreç+DB UTC, sorun yok (§29).

@@ -40,6 +40,17 @@ export const PitchGrid: React.FC<PitchGridProps> = ({
         return `${time} - ${endTime}`;
     };
 
+    // Plan düşürmede silinmesi planlanan sahanın silinme tarihi (İstanbul).
+    const deletionDateLabel = (value: string | null | undefined): string =>
+        value
+            ? new Date(value).toLocaleDateString('tr-TR', {
+                  timeZone: 'Europe/Istanbul',
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric',
+              })
+            : '';
+
     const activePitch = pitches[activePitchIndex];
     const scrollable = pitches.length > 4;
 
@@ -140,7 +151,15 @@ export const PitchGrid: React.FC<PitchGridProps> = ({
                                         <Lock className="w-7 h-7 text-red-400" />
                                     </div>
                                     <h3 className="text-white font-black text-lg uppercase tracking-wide mb-2">SAHA KAPALI</h3>
-                                    <p className="text-slate-400 text-sm mb-6">Bu saha şu an pasif konumdadır. Rezervasyon alınamaz.</p>
+                                    {activePitch.scheduledDeletionAt ? (
+                                        <p className="text-slate-400 text-sm mb-6 leading-relaxed">
+                                            Plan düşürme talebiniz nedeniyle bu saha{' '}
+                                            <span className="text-orange-300 font-bold">{deletionDateLabel(activePitch.scheduledDeletionAt)}</span>{' '}
+                                            tarihinde otomatik silinecek. O tarihe kadar dilerseniz ayarlardan tekrar aktifleştirip rezervasyon alabilirsiniz.
+                                        </p>
+                                    ) : (
+                                        <p className="text-slate-400 text-sm mb-6">Bu saha şu an pasif konumdadır. Rezervasyon alınamaz.</p>
+                                    )}
                                     <button
                                         onClick={() => navigate(`/business/settings/pitches/${activePitch.pitchId}`)}
                                         className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-bold px-5 py-3 rounded-xl transition-all shadow-lg shadow-orange-500/20"
@@ -160,6 +179,19 @@ export const PitchGrid: React.FC<PitchGridProps> = ({
                             )}
                         </div>
                     ) : (
+                    <>
+                    {/* Silinmesi planlanmış ama owner tarafından geri aktifleştirilmiş saha:
+                        slotlar çalışır, üstte silinme tarihi uyarısı gösterilir. */}
+                    {activePitch.scheduledDeletionAt && (
+                        <div className="flex items-start gap-2.5 bg-amber-500/10 border border-amber-500/30 rounded-xl px-3.5 py-3 mb-3">
+                            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                            <p className="text-amber-200/90 text-xs leading-relaxed">
+                                Bu saha{' '}
+                                <span className="font-bold text-amber-300">{deletionDateLabel(activePitch.scheduledDeletionAt)}</span>{' '}
+                                tarihinde plan düşürme nedeniyle otomatik silinecek — o tarihe kadar rezervasyon alabilirsiniz. Bu tarih sonrası için rezervasyon kabul edilmez.
+                            </p>
+                        </div>
+                    )}
                     <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
                         {activePitch.slots.map((slot: any, slotIdx: number) => {
                             const isPast = isPastSlot(slot.time, selectedDate);
@@ -232,6 +264,7 @@ export const PitchGrid: React.FC<PitchGridProps> = ({
                             );
                         })}
                     </div>
+                    </>
                     )}
                 </div>
             )}

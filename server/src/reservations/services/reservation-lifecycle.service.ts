@@ -202,6 +202,23 @@ export class ReservationLifecycleService {
       );
     }
 
+    // Plan düşürmede silinmesi planlanan saha: X tarihi ve sonrasına hiçbir
+    // rezervasyon oluşturulamaz (controller + kendi_aramizda + challenge-kabul
+    // hepsi buradan geçer). X öncesi normal çalışır.
+    if (
+      pitch.scheduledDeletionAt &&
+      new Date(createReservationDto.slotTime) >= pitch.scheduledDeletionAt
+    ) {
+      const offlineDate = istanbulDisplayParts(
+        pitch.scheduledDeletionAt,
+      ).displayDateWithYear;
+      throw new ConflictException({
+        message: `Bu saha ${offlineDate} tarihinden itibaren hizmet dışı olacaktır. Lütfen daha erken bir tarih veya başka bir saha seçin.`,
+        code: 'PITCH_SCHEDULED_OFFLINE',
+        effectiveAt: pitch.scheduledDeletionAt.toISOString(),
+      });
+    }
+
     // Slot kapalı/dolu mu? (sabit/manuel kapatma veya başka takımca onaylı maç)
     // Evrensel backstop: challenge-kabul, kendi_aramizda ve direkt rezervasyonun
     // hepsi buradan geçer → hiçbir rezervasyon kapalı slota düşemez.
@@ -871,25 +888,35 @@ export class ReservationLifecycleService {
    * kayıtlara dokunulmaz (cron onları EXPIRED yapıyor). Çağıranın transaction `manager`'ı
    * içinde çalışır — durum geçişleri manager ile, bildirimler approve() emsalindeki gibi
    * best-effort (kendi transaction'ını açmaz).
+   *
+   * `fromTime` (varsayılan: şimdi): yalnız bu andan İTİBAREN olan bekleyenler iptal
+   * edilir. Plan düşürmede saha X tarihinde silineceği için X öncesi bekleyenlere
+   * dokunulmaz (scope: 'PITCH_SCHEDULED_OFFLINE', fromTime=X).
    */
   async cancelPendingForPitches(
     pitchIds: string[],
     ctx: {
-      scope: 'BUSINESS_CLOSED' | 'PITCH_REMOVED';
+      scope: 'BUSINESS_CLOSED' | 'PITCH_REMOVED' | 'PITCH_SCHEDULED_OFFLINE';
       businessName: string;
       pitchNameById?: Map<string, string>;
+      fromTime?: Date;
     },
     manager: EntityManager,
   ): Promise<void> {
     if (!pitchIds || pitchIds.length === 0) return;
     const { scope, businessName } = ctx;
-    const now = new Date();
+    const fromTime = ctx.fromTime ?? new Date();
 
-    // "{İşletme} kapandığı için" veya "{İşletme} - {Saha} kaldırıldığı için" öneki.
+    // "{İşletme} kapandığı için" / "{İşletme} - {Saha} kaldırıldığı için" /
+    // "{İşletme} - {Saha} {tarih} itibarıyla hizmet dışı kalacağı için" öneki.
     const reasonPrefix = (pitchId: string, pitchFallback?: string | null) => {
       if (scope === 'BUSINESS_CLOSED') return `${businessName} kapandığı için`;
       const pitchName =
         ctx.pitchNameById?.get(pitchId) || pitchFallback || 'Saha';
+      if (scope === 'PITCH_SCHEDULED_OFFLINE') {
+        const offlineDate = istanbulDisplayParts(fromTime).displayDateWithYear;
+        return `${businessName} - ${pitchName} ${offlineDate} itibarıyla hizmet dışı kalacağı için`;
+      }
       return `${businessName} - ${pitchName} kaldırıldığı için`;
     };
 
@@ -898,7 +925,7 @@ export class ReservationLifecycleService {
       where: {
         pitchId: In(pitchIds),
         status: ReservationStatus.PENDING,
-        slotTime: MoreThanOrEqual(now),
+        slotTime: MoreThanOrEqual(fromTime),
       },
       relations: [
         'pitch',
@@ -974,13 +1001,13 @@ export class ReservationLifecycleService {
       relations: ['team', 'team.captain', 'team.players'],
     });
 
-    // Yalnız gelecekteki ilanlar (İstanbul date+time >= şimdi). Geçmiş ilanlar cron
-    // ile zaten EXPIRED oluyor; onlara dokunma.
-    const nowParts = istanbulDisplayParts(now);
+    // Yalnız fromTime ve sonrasındaki ilanlar (İstanbul date+time >= fromTime).
+    // Geçmiş ilanlar cron ile zaten EXPIRED oluyor; onlara dokunma.
+    const fromParts = istanbulDisplayParts(fromTime);
     const futureAnnouncements = pendingAnnouncements.filter(
       (a) =>
-        a.date > nowParts.dateStr ||
-        (a.date === nowParts.dateStr && a.time >= nowParts.time),
+        a.date > fromParts.dateStr ||
+        (a.date === fromParts.dateStr && a.time >= fromParts.time),
     );
 
     for (const ann of futureAnnouncements) {

@@ -210,6 +210,9 @@ export interface Pitch {
   timeSlots?: TimeSlot[];
   isActive?: boolean;
   closedDays?: string[]; // e.g. ['Sunday', 'Monday']
+  // Plan düşürmede silinmesi planlanan saha: bu tarih ve sonrasına
+  // rezervasyon/ilan oluşturulamaz (ISO string, sunucudan gelir).
+  scheduledDeletionAt?: string | null;
 }
 
 export interface PitchOwner {

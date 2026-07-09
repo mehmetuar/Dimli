@@ -143,6 +143,13 @@ export class BusinessOwnerService {
     });
 
     if (owner?.business?.pitches) {
+      // Soft-silinmiş sahalar owner yüzeylerine sızmasın — relations filtre
+      // alamadığından burada ayıklanır. (Aksi halde dashboard'da üzerinde
+      // hiçbir işlem yapılamayan hayalet "SAHA KAPALI" sekmesi oluşuyordu;
+      // tarihsel istatistikler getStats'taki AYRI sorgudan besleniyor.)
+      owner.business.pitches = owner.business.pitches.filter(
+        (p) => !p.deletedAt,
+      );
       owner.business.pitches.sort(
         (a, b) =>
           new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
@@ -193,6 +200,7 @@ export class BusinessOwnerService {
           closedReason: pitch.isActive === false ? 'PASSIVE' : 'CLOSED_DAY',
           approvalStatus: pitch.approvalStatus,
           rejectionReason: pitch.rejectionReason,
+          scheduledDeletionAt: pitch.scheduledDeletionAt ?? null,
           slots: [],
         });
         continue;
@@ -311,6 +319,7 @@ export class BusinessOwnerService {
         hasCustomSlots,
         approvalStatus: pitch.approvalStatus,
         rejectionReason: pitch.rejectionReason,
+        scheduledDeletionAt: pitch.scheduledDeletionAt ?? null,
         slots: pitchSlots,
       });
     }

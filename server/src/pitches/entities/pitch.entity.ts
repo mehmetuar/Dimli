@@ -84,6 +84,16 @@ export class Pitch {
   @Column({ type: 'timestamp', nullable: true, default: null })
   deletedAt: Date | null;
 
+  // Plan düşürmede seçilen saha bu tarihte (fatura dönemi sonu) cron ile
+  // otomatik silinir; o tarihe kadar owner yeniden aktifleştirebilir.
+  // Bu tarih ve sonrası için rezervasyon/ilan oluşturma engellenir.
+  @Column({ type: 'timestamp', nullable: true, default: null })
+  scheduledDeletionAt: Date | null;
+
+  // Silinmeden ~3 gün önce gönderilen hatırlatmanın tekrarını önler.
+  @Column({ type: 'timestamp', nullable: true, default: null })
+  deletionReminderSentAt: Date | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 }

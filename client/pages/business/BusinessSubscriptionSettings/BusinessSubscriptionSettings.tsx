@@ -99,6 +99,9 @@ export const BusinessSubscriptionSettings: React.FC = () => {
                                 <PendingDowngradeBanner
                                     subscription={subscription}
                                     pendingPlanInfo={pendingPlanInfo}
+                                    scheduledPitchNames={pitches
+                                        .filter((p: any) => p.scheduledDeletionAt)
+                                        .map((p: any) => p.name)}
                                 />
                                 <InactiveStatusWarning status={status} />
                                 <SubscriptionActionButtons
@@ -146,12 +149,14 @@ export const BusinessSubscriptionSettings: React.FC = () => {
                 visible={showPitchSelection}
                 pitches={pitches.filter((p: any) => p.approvalStatus !== 'rejected')}
                 requiredCount={requiredRemovalCount}
+                effectiveDateLabel={effectiveDateLabel}
                 loading={selectionLoading}
                 conflict={selectionConflict}
                 onClose={() => {
                     setShowPitchSelection(false);
                     setDowngradeTarget(null);
                     setSelectionConflict(null);
+                    downgradePurchaseRef.current = null;
                 }}
                 onConfirm={handlePitchSelectionConfirm}
             />
@@ -161,6 +166,7 @@ export const BusinessSubscriptionSettings: React.FC = () => {
                 targetPlanLabel={downgradeTargetPlan?.label ?? ''}
                 targetPlanPrice={downgradeTargetPlan?.price ?? 0}
                 effectiveDateLabel={effectiveDateLabel}
+                removalCount={requiredRemovalCount}
                 loading={downgradeLoading}
                 onClose={() => {
                     setShowDowngradeConfirm(false);

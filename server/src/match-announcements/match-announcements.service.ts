@@ -21,6 +21,7 @@ import { ChatService } from '../chat/chat.service';
 import { Pitch } from '../pitches/entities/pitch.entity';
 import {
   istanbulDateTimeToUtc,
+  istanbulDisplayParts,
   isPitchClosedOnDate,
   nowInIstanbul,
 } from '../common/turkey-time.util';
@@ -204,6 +205,26 @@ export class MatchAnnouncementsService {
       throw new HttpException(
         'Geçmiş bir saat için ilan oluşturamazsınız. Lütfen gelecek bir tarih ve saat seçin.',
         HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    // Plan düşürmede silinmesi planlanan saha: X tarihi ve sonrasına ilan açılamaz.
+    // rakip_araniyor rezervasyonsuz açıldığından asıl kapı burası; kendi_aramizda'nın
+    // rezervasyonu ayrıca reservations.create() guard'ına takılır.
+    if (
+      pitchForCheck.scheduledDeletionAt &&
+      slotDateTime >= pitchForCheck.scheduledDeletionAt
+    ) {
+      const offlineDate = istanbulDisplayParts(
+        pitchForCheck.scheduledDeletionAt,
+      ).displayDateWithYear;
+      throw new HttpException(
+        {
+          message: `Bu saha ${offlineDate} tarihinden itibaren hizmet dışı olacaktır. Lütfen daha erken bir tarih veya başka bir saha seçin.`,
+          code: 'PITCH_SCHEDULED_OFFLINE',
+          effectiveAt: pitchForCheck.scheduledDeletionAt.toISOString(),
+        },
+        HttpStatus.CONFLICT,
       );
     }
 

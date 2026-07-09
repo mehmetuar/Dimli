@@ -5,6 +5,7 @@ interface PitchSelectionModalProps {
     visible: boolean;
     pitches: any[];
     requiredCount: number;
+    effectiveDateLabel?: string;
     loading: boolean;
     conflict: { pitchId: string; conflicts: any[] } | null;
     onClose: () => void;
@@ -12,7 +13,7 @@ interface PitchSelectionModalProps {
 }
 
 export const PitchSelectionModal: React.FC<PitchSelectionModalProps> = ({
-    visible, pitches, requiredCount, loading, conflict, onClose, onConfirm,
+    visible, pitches, requiredCount, effectiveDateLabel, loading, conflict, onClose, onConfirm,
 }) => {
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
@@ -39,7 +40,8 @@ export const PitchSelectionModal: React.FC<PitchSelectionModalProps> = ({
                     </div>
                     <h3 className="text-xl font-bold text-white mb-2">Saha Seçimi Gerekli</h3>
                     <p className="text-slate-400 text-sm leading-relaxed">
-                        Yeni planınız {requiredCount === 1 ? '1 saha' : `${requiredCount} saha`} daha az kapasiteye sahip. Yayından kaldırmak istediğiniz {requiredCount === 1 ? 'sahayı' : 'sahaları'} seçin.
+                        Yeni planınız {requiredCount === 1 ? '1 saha' : `${requiredCount} saha`} daha az kapasiteye sahip. Kaldırılacak {requiredCount === 1 ? 'sahayı' : 'sahaları'} seçin.
+                        {' '}Seçilen {requiredCount === 1 ? 'saha' : 'sahalar'}, plan düşürme onaylandığında pasife alınır ve{effectiveDateLabel ? ` ${effectiveDateLabel} tarihinde` : ' fatura dönemi sonunda'} otomatik silinir; o tarihe kadar dilerseniz ayarlardan tekrar aktifleştirebilirsiniz.
                     </p>
                     <p className="text-orange-400 text-xs font-bold mt-2">
                         {selectedIds.length} / {requiredCount} seçildi
@@ -86,7 +88,7 @@ export const PitchSelectionModal: React.FC<PitchSelectionModalProps> = ({
                                         <div className="flex items-start gap-2">
                                             <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
                                             <p className="text-red-300 text-xs leading-relaxed">
-                                                Bu sahada kesinleşmiş maçlar var, kaldırılamıyor. Lütfen başka bir saha seçin.
+                                                Bu sahada plan geçiş tarihinden sonrasına kesinleşmiş maçlar var, bu saha kaldırılamıyor. Lütfen başka bir saha seçin.
                                             </p>
                                         </div>
                                         <div className="space-y-1.5 max-h-32 overflow-y-auto">
