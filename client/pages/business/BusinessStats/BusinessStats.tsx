@@ -13,29 +13,29 @@ const StatMetric: React.FC<{ label: string; value: string; sub?: string; isCurre
     label, value, sub, isCurrency
 }) => (
     <div className="flex flex-col items-center justify-center py-3.5 px-1 min-w-0 relative">
-        <span className="text-[clamp(9px,2.2vw,10px)] font-bold uppercase tracking-widest text-slate-400 mb-1.5 whitespace-nowrap">{label}</span>
-        <span className={`text-[clamp(16px,4.5vw,22px)] font-black leading-none whitespace-nowrap ${isCurrency ? 'text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.4)]' : 'text-white drop-shadow-sm'}`}>
+        <span className="text-[clamp(9px,2.2vw,10px)] font-bold uppercase tracking-widest text-slate-300 mb-1.5 whitespace-nowrap">{label}</span>
+        <span className={`text-[clamp(16px,4.5vw,22px)] font-black leading-none whitespace-nowrap ${isCurrency ? 'text-green-500 drop-shadow-sm' : 'text-white drop-shadow-sm'}`}>
             {value}
         </span>
-        {sub && <span className="text-[clamp(8px,2vw,9px)] text-slate-500 mt-1 font-medium whitespace-nowrap">{sub}</span>}
+        {sub && <span className="text-[clamp(8px,2vw,9px)] text-slate-400 mt-1 font-medium whitespace-nowrap">{sub}</span>}
     </div>
 );
 
 const PitchCard: React.FC<{ pitch: PitchStats }> = ({ pitch }) => (
-    <div className="bg-slate-800/80 rounded-2xl border border-white/10 overflow-hidden shadow-[0_8px_30px_rgba(0,0,0,0.12)] mb-4">
-        <div className="flex items-center justify-between px-4 py-3 bg-slate-700/50 border-b border-white/5">
+    <div className="bg-slate-700/50 rounded-2xl border border-slate-600/50 overflow-hidden shadow-[0_8px_30px_rgba(0,0,0,0.12)] mb-4">
+        <div className="flex items-center justify-between px-4 py-3 bg-slate-700/70 border-b border-slate-600/40">
             <div className="flex items-center gap-2.5">
                 <div className="w-1.5 h-1.5 bg-orange-500 rounded-full shadow-[0_0_8px_rgba(249,115,22,0.8)]" />
                 <span className="font-black italic uppercase tracking-tight text-white text-[clamp(12px,3.5vw,15px)]">
                     {pitch.pitchName}
                 </span>
             </div>
-            <div className="flex items-center gap-0.5 bg-slate-950/40 px-2 py-1 rounded-lg border border-slate-700/50">
+            <div className="flex items-center gap-0.5 bg-slate-800/60 px-2 py-1 rounded-lg border border-slate-600/50">
                 <span className="text-[clamp(11px,3vw,13px)] font-black text-orange-400 drop-shadow-[0_0_5px_rgba(249,115,22,0.3)]">
                     {pitch.pricePerHour.toLocaleString('tr-TR')}
                 </span>
                 <span className="text-[clamp(11px,3vw,13px)] font-black text-orange-400">₺</span>
-                <span className="text-[clamp(9px,2.5vw,10px)] font-bold text-slate-500">/sa</span>
+                <span className="text-[clamp(9px,2.5vw,10px)] font-bold text-slate-400">/sa</span>
             </div>
         </div>
 
@@ -43,10 +43,10 @@ const PitchCard: React.FC<{ pitch: PitchStats }> = ({ pitch }) => (
             {/* Bugün */}
             <div>
                 <div className="flex items-center gap-2 mb-2 px-1">
-                    <span className="text-[clamp(9px,2.5vw,11px)] font-black uppercase tracking-widest text-slate-400">Bugün</span>
-                    <div className="flex-1 h-px bg-slate-700/30" />
+                    <span className="text-[clamp(9px,2.5vw,11px)] font-black uppercase tracking-widest text-slate-300">Bugün</span>
+                    <div className="flex-1 h-px bg-slate-700/50" />
                 </div>
-                <div className="grid grid-cols-3 divide-x divide-slate-700/40 bg-slate-900/30 rounded-xl border border-white/5">
+                <div className="grid grid-cols-3 divide-x divide-slate-700/60 bg-slate-800/50 rounded-xl border border-slate-700/50">
                     <StatMetric label="Maç" value={String(pitch.today.confirmedCount)} />
                     <StatMetric label="Manuel" value={String(pitch.today.manualFillCount)} sub="Kapalı" />
                     <StatMetric label="Kazanç" value={formatCurrency(pitch.today.earnings)} isCurrency />
@@ -56,10 +56,10 @@ const PitchCard: React.FC<{ pitch: PitchStats }> = ({ pitch }) => (
             {/* Bu Ay */}
             <div>
                 <div className="flex items-center gap-2 mb-2 px-1">
-                    <span className="text-[clamp(9px,2.5vw,11px)] font-black uppercase tracking-widest text-slate-400">Bu Ay</span>
-                    <div className="flex-1 h-px bg-slate-700/30" />
+                    <span className="text-[clamp(9px,2.5vw,11px)] font-black uppercase tracking-widest text-slate-300">Bu Ay</span>
+                    <div className="flex-1 h-px bg-slate-700/50" />
                 </div>
-                <div className="grid grid-cols-3 divide-x divide-slate-700/40 bg-slate-900/30 rounded-xl border border-white/5">
+                <div className="grid grid-cols-3 divide-x divide-slate-700/60 bg-slate-800/50 rounded-xl border border-slate-700/50">
                     <StatMetric label="Maç" value={String(pitch.thisMonth.confirmedCount)} />
                     <StatMetric label="Manuel" value={String(pitch.thisMonth.manualFillCount)} sub="Kapalı" />
                     <StatMetric label="Kazanç" value={formatCurrency(pitch.thisMonth.earnings)} isCurrency />
@@ -173,7 +173,7 @@ export const BusinessStats: React.FC = () => {
             <div className="p-4 space-y-4 pb-business-nav">
 
                 {/* Değerlendirme Kartı */}
-                <div className="bg-slate-800/80 backdrop-blur-md rounded-2xl border border-white/10 p-4 overflow-hidden shadow-[0_8px_30px_rgba(0,0,0,0.2)]">
+                <div className="bg-slate-700/50 backdrop-blur-md rounded-2xl border border-slate-600/50 p-4 overflow-hidden shadow-[0_8px_30px_rgba(0,0,0,0.2)]">
                     <div className="flex items-center gap-4">
                         <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 relative"
                             style={{ background: 'linear-gradient(135deg, rgba(234,179,8,0.2) 0%, rgba(234,179,8,0.05) 100%)', border: '1px solid rgba(234,179,8,0.3)' }}>
@@ -185,18 +185,18 @@ export const BusinessStats: React.FC = () => {
                                 <span className="text-[clamp(28px,8vw,36px)] font-black text-white leading-none drop-shadow-sm">
                                     {stats.rating?.toFixed(1) ?? '—'}
                                 </span>
-                                <span className="text-[clamp(12px,3.5vw,14px)] font-bold text-slate-500">/ 5.0</span>
+                                <span className="text-[clamp(12px,3.5vw,14px)] font-bold text-slate-400">/ 5.0</span>
                             </div>
                             <div className="flex items-center gap-2 mt-0.5">
                                 <div className="flex gap-0.5">
                                     {[1, 2, 3, 4, 5].map((s) => (
                                         <Star
                                             key={s}
-                                            className={`w-3.5 h-3.5 ${s <= Math.round(stats.rating ?? 0) ? 'text-yellow-400 fill-yellow-400 drop-shadow-[0_0_4px_rgba(234,179,8,0.5)]' : 'text-slate-700/50 fill-slate-700/50'}`}
+                                            className={`w-3.5 h-3.5 ${s <= Math.round(stats.rating ?? 0) ? 'text-yellow-400 fill-yellow-400 drop-shadow-[0_0_4px_rgba(234,179,8,0.5)]' : 'text-slate-600/60 fill-slate-600/60'}`}
                                         />
                                     ))}
                                 </div>
-                                <span className="text-[clamp(10px,2.5vw,11px)] text-slate-400 font-medium">
+                                <span className="text-[clamp(10px,2.5vw,11px)] text-slate-300 font-medium">
                                     {stats.ratingCount} değerlendirme
                                 </span>
                             </div>
@@ -205,13 +205,13 @@ export const BusinessStats: React.FC = () => {
                 </div>
 
                 {/* Genel Toplam Kartı */}
-                <div className="bg-slate-800/80 backdrop-blur-md rounded-2xl border border-white/10 overflow-hidden shadow-[0_8px_30px_rgba(0,0,0,0.2)]">
-                    <div className="flex items-center gap-2.5 px-4 py-3.5 border-b border-white/5"
+                <div className="bg-slate-700/50 backdrop-blur-md rounded-2xl border border-slate-600/50 overflow-hidden shadow-[0_8px_30px_rgba(0,0,0,0.2)]">
+                    <div className="flex items-center gap-2.5 px-4 py-3.5 border-b border-slate-600/40"
                         style={{ background: 'linear-gradient(90deg, rgba(34,197,94,0.1) 0%, transparent 100%)' }}>
-                        <div className="p-1.5 bg-green-500/20 rounded-lg border border-green-500/20">
-                            <TrendingUp className="w-4 h-4 text-green-400 drop-shadow-[0_0_5px_rgba(74,222,128,0.5)]" />
+                        <div className="p-1.5 bg-green-500/10 rounded-lg border border-green-500/20">
+                            <TrendingUp className="w-4 h-4 text-green-500" />
                         </div>
-                        <span className="font-black italic uppercase tracking-tight text-green-400 text-[clamp(12px,3.5vw,14px)] drop-shadow-[0_0_5px_rgba(74,222,128,0.3)]">
+                        <span className="font-black italic uppercase tracking-tight text-green-500 text-[clamp(12px,3.5vw,14px)]">
                             Genel Toplam
                         </span>
                     </div>
@@ -219,10 +219,10 @@ export const BusinessStats: React.FC = () => {
                         {/* Bugün */}
                         <div>
                             <div className="flex items-center gap-2 mb-2 px-1">
-                                <span className="text-[clamp(9px,2.5vw,11px)] font-black uppercase tracking-widest text-slate-400">Bugün</span>
-                                <div className="flex-1 h-px bg-slate-700/30" />
+                                <span className="text-[clamp(9px,2.5vw,11px)] font-black uppercase tracking-widest text-slate-300">Bugün</span>
+                                <div className="flex-1 h-px bg-slate-700/50" />
                             </div>
-                            <div className="grid grid-cols-3 divide-x divide-slate-700/40 bg-slate-900/30 rounded-xl border border-white/5">
+                            <div className="grid grid-cols-3 divide-x divide-slate-700/60 bg-slate-800/50 rounded-xl border border-slate-700/50">
                                 <StatMetric label="Maç" value={String(stats.totals.today.confirmedCount)} />
                                 <StatMetric label="Manuel" value={String(stats.totals.today.manualFillCount)} sub="Kapalı" />
                                 <StatMetric label="Kazanç" value={formatCurrency(stats.totals.today.earnings)} isCurrency />
@@ -232,10 +232,10 @@ export const BusinessStats: React.FC = () => {
                         {/* Bu Ay */}
                         <div>
                             <div className="flex items-center gap-2 mb-2 px-1">
-                                <span className="text-[clamp(9px,2.5vw,11px)] font-black uppercase tracking-widest text-slate-400">Bu Ay</span>
-                                <div className="flex-1 h-px bg-slate-700/30" />
+                                <span className="text-[clamp(9px,2.5vw,11px)] font-black uppercase tracking-widest text-slate-300">Bu Ay</span>
+                                <div className="flex-1 h-px bg-slate-700/50" />
                             </div>
-                            <div className="grid grid-cols-3 divide-x divide-slate-700/40 bg-slate-900/30 rounded-xl border border-white/5">
+                            <div className="grid grid-cols-3 divide-x divide-slate-700/60 bg-slate-800/50 rounded-xl border border-slate-700/50">
                                 <StatMetric label="Maç" value={String(stats.totals.thisMonth.confirmedCount)} />
                                 <StatMetric label="Manuel" value={String(stats.totals.thisMonth.manualFillCount)} sub="Kapalı" />
                                 <StatMetric label="Kazanç" value={formatCurrency(stats.totals.thisMonth.earnings)} isCurrency />
@@ -248,8 +248,8 @@ export const BusinessStats: React.FC = () => {
                 {stats.pitches.length > 0 && (
                     <div className="space-y-3">
                         <div className="flex items-center gap-2 px-1 pt-1">
-                            <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                            <span className="text-[clamp(9px,2.5vw,11px)] font-black uppercase tracking-widest text-slate-400">
+                            <Calendar className="w-3.5 h-3.5 text-slate-300" />
+                            <span className="text-[clamp(9px,2.5vw,11px)] font-black uppercase tracking-widest text-slate-300">
                                 Saha Kırılımı
                             </span>
                         </div>
@@ -260,9 +260,9 @@ export const BusinessStats: React.FC = () => {
                 )}
 
                 {/* Bilgi notu */}
-                <div className="flex items-start gap-3 bg-slate-800/40 border border-slate-700/40 rounded-xl p-3.5">
-                    <Lock className="w-4 h-4 text-slate-500 mt-0.5 flex-shrink-0" />
-                    <p className="text-[clamp(10px,2.8vw,12px)] text-slate-400 leading-relaxed font-medium">
+                <div className="flex items-start gap-3 bg-slate-800/60 border border-slate-700/50 rounded-xl p-3.5">
+                    <Lock className="w-4 h-4 text-slate-400 mt-0.5 flex-shrink-0" />
+                    <p className="text-[clamp(10px,2.8vw,12px)] text-slate-300 leading-relaxed font-medium">
                         Kazanç hesabı kesinleşmiş maçlar üzerinden yapılır. İptal edilen maçlar otomatik düşülür.
                         Manuel kapatmalar gelir hesabına dahil edilmez.
                     </p>

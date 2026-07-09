@@ -118,7 +118,7 @@ export const BusinessDashboard: React.FC = () => {
     const isRejected = businessStatus === 'rejected';
 
     return (
-        <div className="fixed inset-0 bg-slate-900 text-white flex flex-col overflow-hidden" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+        <div className="fixed inset-0 bg-gradient-to-b from-slate-900 to-slate-800 text-white flex flex-col overflow-hidden" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
             {/* Header */}
             <DashboardHeader
                 businessName={dashboardData.businessName}
@@ -150,61 +150,63 @@ export const BusinessDashboard: React.FC = () => {
             <div className="pb-business-nav">
             {isSuspended ? (
                 /* Senaryo 2: Admin tarafından askıya alındı */
-                <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
-                    <div className="w-20 h-20 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-6">
-                        <svg className="w-10 h-10 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <div className="flex flex-col items-center justify-center px-6 py-16 text-center animate-fade-in">
+                    <div className="w-20 h-20 rounded-[28px] bg-red-500/10 border border-red-500/20 backdrop-blur-md flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(239,68,68,0.15)] relative">
+                        <div className="absolute inset-0 rounded-[28px] bg-red-500/5 blur-xl" />
+                        <svg className="relative z-10 w-10 h-10 text-red-400 drop-shadow-md" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
                         </svg>
                     </div>
-                    <h2 className="text-[clamp(18px,5vw,22px)] font-black text-white mb-3 uppercase italic">İşletmeniz Askıya Alındı</h2>
-                    <p className="text-slate-400 text-[clamp(12px,3.5vw,14px)] leading-relaxed mb-8 max-w-xs">
+                    <h2 className="text-[clamp(18px,5vw,22px)] font-black text-white mb-3 uppercase italic drop-shadow-sm">İşletmeniz Askıya Alındı</h2>
+                    <p className="text-slate-300 text-[clamp(12px,3.5vw,14px)] leading-relaxed mb-8 max-w-xs font-medium">
                         Hesabınız yönetim ekibimiz tarafından askıya alınmıştır. Daha fazla bilgi almak için lütfen destek ekibimizle iletişime geçin.
                     </p>
-                    <div className="w-full max-w-xs bg-slate-800/60 border border-slate-700 rounded-2xl px-5 py-4 text-left space-y-2">
-                        <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">Destek</p>
-                        <p className="text-white font-bold text-sm">destek@dimli.app</p>
+                    <div className="w-full max-w-xs bg-slate-800/80 backdrop-blur-md border border-white/10 rounded-2xl px-5 py-4 text-left space-y-2 shadow-lg">
+                        <p className="text-slate-400 text-xs font-black uppercase tracking-widest">Destek</p>
+                        <p className="text-white font-bold text-sm drop-shadow-sm">destek@dimli.app</p>
                     </div>
                 </div>
             ) : isRejected ? (
                 /* Senaryo 3: Başvuru reddedildi — düzelt ve tekrar onaya gönder */
-                <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
-                    <div className="w-20 h-20 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-6">
-                        <svg className="w-10 h-10 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <div className="flex flex-col items-center justify-center px-6 py-16 text-center animate-fade-in">
+                    <div className="w-20 h-20 rounded-[28px] bg-red-500/10 border border-red-500/20 backdrop-blur-md flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(239,68,68,0.15)] relative">
+                        <div className="absolute inset-0 rounded-[28px] bg-red-500/5 blur-xl" />
+                        <svg className="relative z-10 w-10 h-10 text-red-400 drop-shadow-md" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
                         </svg>
                     </div>
-                    <h2 className="text-[clamp(18px,5vw,22px)] font-black text-white mb-3 uppercase italic">Başvurunuz Reddedildi</h2>
-                    <p className="text-slate-400 text-[clamp(12px,3.5vw,14px)] leading-relaxed mb-6 max-w-xs">
+                    <h2 className="text-[clamp(18px,5vw,22px)] font-black text-white mb-3 uppercase italic drop-shadow-sm">Başvurunuz Reddedildi</h2>
+                    <p className="text-slate-300 text-[clamp(12px,3.5vw,14px)] leading-relaxed mb-6 max-w-xs font-medium">
                         İşletme başvurunuz yönetim ekibimiz tarafından reddedildi. Lütfen aşağıdaki düzeltmeleri yapıp tekrar onaya gönderin.
                     </p>
                     {rejectionReason && (
-                        <div className="w-full max-w-xs bg-red-500/5 border border-red-500/20 rounded-2xl px-5 py-4 text-left space-y-1.5 mb-8">
-                            <p className="text-red-400/80 text-xs font-bold uppercase tracking-widest">Red Nedeni</p>
+                        <div className="w-full max-w-xs bg-red-950/40 backdrop-blur-md border border-red-500/20 rounded-2xl px-5 py-4 text-left space-y-1.5 mb-8 shadow-inner shadow-red-500/5">
+                            <p className="text-red-400 text-xs font-black uppercase tracking-widest">Red Nedeni</p>
                             <p className="text-red-200 font-semibold text-[clamp(12px,3.5vw,14px)] leading-relaxed">{rejectionReason}</p>
                         </div>
                     )}
                     <div className="w-full max-w-xs flex flex-col gap-3">
                         <button
                             onClick={() => navigate('/business/settings/info')}
-                            className="bg-slate-800 hover:bg-slate-700 active:scale-95 text-white font-bold px-6 py-3.5 rounded-2xl transition-all border border-slate-700"
+                            className="bg-slate-800/80 backdrop-blur-md hover:bg-slate-700 active:scale-95 text-white font-bold px-6 py-3.5 rounded-2xl transition-all border border-white/10 shadow-lg"
                         >
                             İşletme Bilgilerini Düzenle
                         </button>
                         <button
                             onClick={() => navigate('/business/settings/pitches')}
-                            className="bg-slate-800 hover:bg-slate-700 active:scale-95 text-white font-bold px-6 py-3.5 rounded-2xl transition-all border border-slate-700"
+                            className="bg-slate-800/80 backdrop-blur-md hover:bg-slate-700 active:scale-95 text-white font-bold px-6 py-3.5 rounded-2xl transition-all border border-white/10 shadow-lg"
                         >
                             Sahaları Düzenle
                         </button>
                         <button
                             onClick={handleResubmit}
                             disabled={resubmitting}
-                            className="bg-orange-500 hover:bg-orange-600 active:scale-95 disabled:opacity-60 disabled:active:scale-100 text-white font-bold px-6 py-4 rounded-2xl transition-all shadow-lg shadow-orange-500/25 flex items-center justify-center gap-2 mt-1"
+                            className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 active:scale-95 disabled:opacity-60 disabled:active:scale-100 text-white font-bold px-6 py-4 rounded-2xl transition-all shadow-[0_0_20px_rgba(249,115,22,0.3)] flex items-center justify-center gap-2 mt-1 border border-orange-400/50"
                         >
                             {resubmitting ? (
                                 <RefreshCw className="w-5 h-5 animate-spin" />
                             ) : (
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <svg className="w-5 h-5 drop-shadow-md" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                                 </svg>
                             )}
@@ -214,36 +216,37 @@ export const BusinessDashboard: React.FC = () => {
                 </div>
             ) : !hasActiveSubscription ? (
                 /* Senaryo 1: Abonelik süresi doldu */
-                <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
-                    <div className="w-20 h-20 rounded-2xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center mb-6">
-                        <svg className="w-10 h-10 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <div className="flex flex-col items-center justify-center px-6 py-16 text-center animate-fade-in">
+                    <div className="w-20 h-20 rounded-[28px] bg-orange-500/10 border border-orange-500/20 backdrop-blur-md flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(249,115,22,0.15)] relative">
+                        <div className="absolute inset-0 rounded-[28px] bg-orange-500/10 blur-xl" />
+                        <svg className="relative z-10 w-10 h-10 text-orange-400 drop-shadow-md" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
                         </svg>
                     </div>
-                    <h2 className="text-[clamp(18px,5vw,22px)] font-black text-white mb-3 uppercase italic">Aboneliğiniz Sona Erdi</h2>
-                    <p className="text-slate-400 text-[clamp(12px,3.5vw,14px)] leading-relaxed mb-8 max-w-xs">
+                    <h2 className="text-[clamp(18px,5vw,22px)] font-black text-white mb-3 uppercase italic drop-shadow-sm">Aboneliğiniz Sona Erdi</h2>
+                    <p className="text-slate-300 text-[clamp(12px,3.5vw,14px)] leading-relaxed mb-8 max-w-xs font-medium">
                         Sahalarınızı yeniden yayına almak ve rezervasyon almak için aboneliğinizi yenileyin.
                     </p>
                     <button
                         onClick={() => navigate('/business/settings/subscription')}
-                        className="bg-orange-500 hover:bg-orange-600 active:scale-95 text-white font-bold px-8 py-4 rounded-2xl transition-all shadow-lg shadow-orange-500/25 flex items-center gap-2"
+                        className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 active:scale-95 text-white font-bold px-8 py-4 rounded-2xl transition-all shadow-[0_0_20px_rgba(249,115,22,0.3)] flex items-center gap-2 border border-orange-400/50"
                     >
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <svg className="w-5 h-5 drop-shadow-md" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" />
                         </svg>
                         Plan Seç ve Başla
                     </button>
-                    <p className="text-slate-500 text-xs mt-4">90 gün ücretsiz deneme süresi</p>
+                    <p className="text-slate-400 font-semibold text-xs mt-4">90 gün ücretsiz deneme süresi</p>
                 </div>
             ) : (
                 /* Normal dashboard: onay bekliyor banner + PitchGrid */
                 <>
                     {isPending && (
-                        <div className="mx-4 mt-4 flex items-start gap-3 bg-orange-500/10 border border-orange-500/30 px-4 py-3.5 rounded-2xl">
-                            <Clock className="text-orange-400 shrink-0 mt-0.5" size={18} />
-                            <div className="space-y-0.5">
-                                <p className="text-orange-300 text-[clamp(12px,3.5vw,14px)] font-bold">İşletmeniz Onay Bekliyor</p>
-                                <p className="text-orange-200/70 text-[clamp(10px,2.8vw,12px)] leading-relaxed">
+                        <div className="mx-4 mt-4 flex items-start gap-3 bg-slate-800/80 backdrop-blur-md border border-orange-500/30 px-4 py-3.5 rounded-2xl shadow-[0_4px_20px_rgba(249,115,22,0.15)] animate-fade-in">
+                            <Clock className="text-orange-400 shrink-0 mt-0.5 drop-shadow-md" size={20} />
+                            <div className="space-y-1">
+                                <p className="text-orange-300 text-[clamp(12px,3.5vw,14px)] font-black uppercase tracking-wide">İşletmeniz Onay Bekliyor</p>
+                                <p className="text-slate-300 text-[clamp(11px,2.8vw,12px)] leading-relaxed font-medium">
                                     Sahalarınız onaylandığında işletmeniz yayına alınacak ve rezervasyon almaya başlayabileceksiniz. Onay süreci 1-2 iş günü sürmektedir.
                                 </p>
                             </div>

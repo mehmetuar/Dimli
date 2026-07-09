@@ -72,11 +72,11 @@ export const PitchGrid: React.FC<PitchGridProps> = ({
                             key={pitch.pitchId}
                             onClick={() => setActivePitchIndex(idx)}
                             className={`
-                                ${scrollable ? 'flex-shrink-0 px-5' : 'w-full px-2'}
-                                py-2.5 rounded-xl font-black italic uppercase tracking-tight text-sm transition-all border-2
+                                ${scrollable ? 'flex-shrink-0 px-6' : 'w-full px-2'}
+                                py-3 rounded-full font-black italic uppercase tracking-wider text-[clamp(11px,3.5vw,13px)] transition-all border
                                 ${activePitchIndex === idx
-                                    ? 'bg-orange-500 border-orange-500 text-white shadow-[0_0_16px_rgba(249,115,22,0.4)]'
-                                    : 'bg-slate-700 border-slate-600 text-slate-300 hover:border-slate-400 hover:text-white'
+                                    ? 'bg-gradient-to-r from-orange-500 to-orange-600 border-orange-400/50 text-white shadow-[0_0_20px_rgba(249,115,22,0.3)]'
+                                    : 'bg-slate-600/60 backdrop-blur-md border-slate-500/50 text-slate-200 hover:bg-slate-500/60 hover:text-white hover:border-slate-400'
                                 }
                             `}
                         >
@@ -97,84 +97,88 @@ export const PitchGrid: React.FC<PitchGridProps> = ({
                     </div>
 
                     {activePitch.approvalStatus === 'pending' ? (
-                        <div className="flex flex-col items-center justify-center py-14 bg-slate-800/40 rounded-2xl border border-dashed border-orange-500/30 text-center px-6 relative overflow-hidden">
-                            <div className="w-14 h-14 bg-orange-500/10 rounded-full flex items-center justify-center mb-4 border border-orange-500/20">
-                                <Clock className="w-6 h-6 text-orange-400" />
+                        <div className="flex flex-col items-center justify-center py-14 bg-slate-800/40 backdrop-blur-md rounded-3xl border border-white/10 text-center px-6 relative overflow-hidden shadow-lg animate-fade-in">
+                            <div className="absolute inset-0 bg-gradient-to-b from-orange-500/5 to-transparent" />
+                            <div className="w-16 h-16 bg-orange-500/10 rounded-[24px] flex items-center justify-center mb-5 border border-orange-500/20 shadow-inner relative z-10">
+                                <Clock className="w-7 h-7 text-orange-400 drop-shadow-md" />
                             </div>
-                            <h3 className="text-white font-black text-[clamp(14px,4vw,18px)] uppercase tracking-wide mb-2">SAHANIZ ONAY BEKLİYOR</h3>
-                            <p className="text-slate-400 text-[clamp(11px,3vw,13px)] leading-relaxed max-w-xs mb-6">
+                            <h3 className="text-white font-black text-[clamp(15px,4.5vw,19px)] uppercase tracking-widest mb-3 relative z-10 drop-shadow-sm">SAHANIZ ONAY BEKLİYOR</h3>
+                            <p className="text-slate-300 text-[clamp(12px,3.5vw,14px)] leading-relaxed max-w-sm mb-8 relative z-10 font-medium">
                                 Saha bilgileriniz admin incelemesindedir. Onaylandığında saat slotları aktif hale gelecek ve rezervasyon almaya başlayabileceksiniz.
                             </p>
                             <button
                                 onClick={() => navigate(`/business/settings/pitches/${activePitch.pitchId}`)}
-                                className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white font-bold px-5 py-3 rounded-xl transition-all"
+                                className="flex items-center gap-2.5 bg-slate-700/80 hover:bg-slate-600/80 text-white font-bold px-6 py-3.5 rounded-2xl transition-all border border-white/10 relative z-10 shadow-lg active:scale-95"
                             >
-                                <Settings className="w-4 h-4 shrink-0" />
+                                <Settings className="w-4.5 h-4.5 shrink-0" />
                                 <span>Saha Ayarlarını Görüntüle</span>
                             </button>
                         </div>
                     ) : activePitch.approvalStatus === 'rejected' ? (
-                        <div className="flex flex-col items-center justify-center py-14 bg-slate-800/40 rounded-2xl border border-dashed border-red-500/30 text-center px-6 relative overflow-hidden">
-                            <div className="w-14 h-14 bg-red-500/10 rounded-full flex items-center justify-center mb-4 border border-red-500/20">
-                                <AlertTriangle className="w-6 h-6 text-red-400" />
+                        <div className="flex flex-col items-center justify-center py-14 bg-slate-800/40 backdrop-blur-md rounded-3xl border border-white/10 text-center px-6 relative overflow-hidden shadow-lg animate-fade-in">
+                            <div className="absolute inset-0 bg-gradient-to-b from-red-500/5 to-transparent" />
+                            <div className="w-16 h-16 bg-red-500/10 rounded-[24px] flex items-center justify-center mb-5 border border-red-500/20 shadow-inner relative z-10">
+                                <AlertTriangle className="w-7 h-7 text-red-400 drop-shadow-md" />
                             </div>
-                            <h3 className="text-white font-black text-[clamp(14px,4vw,18px)] uppercase tracking-wide mb-2">SAHANIZ REDDEDİLDİ</h3>
-                            <p className="text-red-300 text-[clamp(11px,3vw,13px)] leading-relaxed max-w-xs mb-1 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2">
+                            <h3 className="text-white font-black text-[clamp(15px,4.5vw,19px)] uppercase tracking-widest mb-3 relative z-10 drop-shadow-sm">SAHANIZ REDDEDİLDİ</h3>
+                            <p className="text-red-300 font-medium text-[clamp(12px,3.5vw,14px)] leading-relaxed max-w-sm mb-2 bg-red-950/40 border border-red-500/20 shadow-inner rounded-xl px-4 py-3 relative z-10">
                                 {activePitch.rejectionReason || 'Sebep belirtilmedi.'}
                             </p>
-                            <p className="text-slate-400 text-[clamp(11px,3vw,13px)] leading-relaxed max-w-xs mb-6 mt-2">
+                            <p className="text-slate-300 text-[clamp(12px,3.5vw,14px)] font-medium leading-relaxed max-w-sm mb-8 mt-2 relative z-10">
                                 Bilgileri düzenleyip yeniden onaya gönderebilirsiniz.
                             </p>
                             <button
                                 onClick={() => navigate(`/business/settings/pitches/${activePitch.pitchId}`)}
-                                className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-bold px-5 py-3 rounded-xl transition-all shadow-lg shadow-orange-500/20"
+                                className="flex items-center gap-2.5 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 text-white font-bold px-6 py-3.5 rounded-2xl transition-all border border-orange-400/50 relative z-10 shadow-[0_0_20px_rgba(249,115,22,0.3)] active:scale-95"
                             >
-                                <Settings className="w-4 h-4 shrink-0" />
+                                <Settings className="w-4.5 h-4.5 shrink-0" />
                                 <span>Saha Ayarlarına Git</span>
                             </button>
                         </div>
                     ) : isPending ? (
-                        <div className="flex flex-col items-center justify-center py-14 bg-slate-800/40 rounded-2xl border border-dashed border-orange-500/30 text-center px-6 relative overflow-hidden">
-                            <div className="w-14 h-14 bg-orange-500/10 rounded-full flex items-center justify-center mb-4 border border-orange-500/20">
-                                <Clock className="w-6 h-6 text-orange-400" />
+                        <div className="flex flex-col items-center justify-center py-14 bg-slate-800/40 backdrop-blur-md rounded-3xl border border-white/10 text-center px-6 relative overflow-hidden shadow-lg animate-fade-in">
+                            <div className="absolute inset-0 bg-gradient-to-b from-orange-500/5 to-transparent" />
+                            <div className="w-16 h-16 bg-orange-500/10 rounded-[24px] flex items-center justify-center mb-5 border border-orange-500/20 shadow-inner relative z-10">
+                                <Clock className="w-7 h-7 text-orange-400 drop-shadow-md" />
                             </div>
-                            <h3 className="text-white font-black text-[clamp(14px,4vw,18px)] uppercase tracking-wide mb-2">ONAY BEKLİYOR</h3>
-                            <p className="text-slate-400 text-[clamp(11px,3vw,13px)] leading-relaxed max-w-xs">
+                            <h3 className="text-white font-black text-[clamp(15px,4.5vw,19px)] uppercase tracking-widest mb-3 relative z-10 drop-shadow-sm">ONAY BEKLİYOR</h3>
+                            <p className="text-slate-300 text-[clamp(12px,3.5vw,14px)] font-medium leading-relaxed max-w-sm relative z-10">
                                 İşletmeniz onaylandığında saat slotları aktif hale gelecek ve rezervasyon almaya başlayabileceksiniz.
                             </p>
                         </div>
                     ) : activePitch.isClosed ? (
-                        <div className="flex flex-col items-center justify-center py-16 bg-slate-800/50 rounded-2xl border border-dashed border-slate-700 text-center px-6">
+                        <div className="flex flex-col items-center justify-center py-16 bg-slate-800/40 backdrop-blur-md rounded-3xl border border-white/10 text-center px-6 shadow-lg animate-fade-in relative overflow-hidden">
+                            <div className="absolute inset-0 bg-gradient-to-b from-red-500/5 to-transparent" />
                             {activePitch.closedReason === 'PASSIVE' ? (
                                 <>
-                                    <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mb-4 border border-red-500/20">
-                                        <Lock className="w-7 h-7 text-red-400" />
+                                    <div className="w-16 h-16 bg-red-500/10 rounded-[24px] flex items-center justify-center mb-5 border border-red-500/20 shadow-inner relative z-10">
+                                        <Lock className="w-7 h-7 text-red-400 drop-shadow-md" />
                                     </div>
-                                    <h3 className="text-white font-black text-lg uppercase tracking-wide mb-2">SAHA KAPALI</h3>
+                                    <h3 className="text-white font-black text-[clamp(15px,4.5vw,19px)] uppercase tracking-widest mb-3 relative z-10 drop-shadow-sm">SAHA KAPALI</h3>
                                     {activePitch.scheduledDeletionAt ? (
-                                        <p className="text-slate-400 text-sm mb-6 leading-relaxed">
+                                        <p className="text-slate-300 font-medium text-[clamp(12px,3.5vw,14px)] mb-8 leading-relaxed relative z-10">
                                             Plan düşürme talebiniz nedeniyle bu saha{' '}
-                                            <span className="text-orange-300 font-bold">{deletionDateLabel(activePitch.scheduledDeletionAt)}</span>{' '}
+                                            <span className="text-orange-400 font-black">{deletionDateLabel(activePitch.scheduledDeletionAt)}</span>{' '}
                                             tarihinde otomatik silinecek. O tarihe kadar dilerseniz ayarlardan tekrar aktifleştirip rezervasyon alabilirsiniz.
                                         </p>
                                     ) : (
-                                        <p className="text-slate-400 text-sm mb-6">Bu saha şu an pasif konumdadır. Rezervasyon alınamaz.</p>
+                                        <p className="text-slate-300 font-medium text-[clamp(12px,3.5vw,14px)] mb-8 relative z-10">Bu saha şu an pasif konumdadır. Rezervasyon alınamaz.</p>
                                     )}
                                     <button
                                         onClick={() => navigate(`/business/settings/pitches/${activePitch.pitchId}`)}
-                                        className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-bold px-5 py-3 rounded-xl transition-all shadow-lg shadow-orange-500/20"
+                                        className="flex items-center gap-2.5 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 text-white font-bold px-6 py-3.5 rounded-2xl transition-all border border-orange-400/50 relative z-10 shadow-[0_0_20px_rgba(249,115,22,0.3)] active:scale-95"
                                     >
-                                        <Settings className="w-4 h-4 shrink-0" />
+                                        <Settings className="w-4.5 h-4.5 shrink-0" />
                                         <span>Ayarlara Git</span>
                                     </button>
                                 </>
                             ) : (
                                 <>
-                                    <div className="w-16 h-16 bg-slate-700/50 rounded-full flex items-center justify-center mb-4 border border-slate-600/50">
-                                        <CalendarX className="w-7 h-7 text-slate-400" />
+                                    <div className="w-16 h-16 bg-slate-700/50 rounded-[24px] flex items-center justify-center mb-5 border border-white/10 shadow-inner relative z-10">
+                                        <CalendarX className="w-7 h-7 text-slate-400 drop-shadow-md" />
                                     </div>
-                                    <h3 className="text-white font-black text-lg uppercase tracking-wide mb-2">BUGÜN KAPALI</h3>
-                                    <p className="text-slate-400 text-sm">Bu gün için saha kapalı olarak ayarlanmıştır.</p>
+                                    <h3 className="text-white font-black text-[clamp(15px,4.5vw,19px)] uppercase tracking-widest mb-3 relative z-10 drop-shadow-sm">BUGÜN KAPALI</h3>
+                                    <p className="text-slate-300 font-medium text-[clamp(12px,3.5vw,14px)] relative z-10">Bu gün için saha kapalı olarak ayarlanmıştır.</p>
                                 </>
                             )}
                         </div>
@@ -206,27 +210,27 @@ export const PitchGrid: React.FC<PitchGridProps> = ({
                                         setSelectedSlot({ ...slot, pitchId: activePitch.pitchId });
                                     }}
                                     className={`
-                                        aspect-[1.1] p-2 rounded-2xl flex flex-col items-center justify-center border-2 transition-all relative overflow-hidden active:scale-95
+                                        aspect-[1.1] p-2 rounded-2xl flex flex-col items-center justify-center border backdrop-blur-sm transition-all relative overflow-hidden active:scale-95 shadow-sm
                                         ${isPast && slot.status === 'FULL'
-                                            ? 'bg-emerald-900/20 border-emerald-800/40'
+                                            ? 'bg-emerald-900/30 border-emerald-700/40 shadow-inner'
                                             : isPast
-                                                ? 'bg-slate-800/60 border-slate-700/40'
+                                                ? 'bg-slate-800/60 border-slate-700/50 shadow-inner'
                                                 : ''}
                                         ${!isPast && slot.status === 'EMPTY'
-                                            ? 'bg-[#131f35] border-slate-700/50 hover:border-slate-500 hover:bg-[#1a2844]'
+                                            ? 'bg-slate-700/80 border-slate-400/60 hover:border-white/40 hover:bg-slate-600'
                                             : ''}
                                         ${!isPast && slot.status === 'PENDING'
-                                            ? 'bg-orange-500/20 border-orange-500/70 shadow-[0_0_16px_rgba(249,115,22,0.2)]'
+                                            ? 'bg-orange-500/10 border-orange-500/40 shadow-[inset_0_0_20px_rgba(249,115,22,0.1),0_4px_15px_rgba(249,115,22,0.15)]'
                                             : ''}
                                         ${!isPast && slot.status === 'FULL'
-                                            ? 'bg-red-500/20 border-red-500/70 shadow-[0_0_16px_rgba(239,68,68,0.2)]'
+                                            ? 'bg-red-500/10 border-red-500/40 shadow-[inset_0_0_20px_rgba(239,68,68,0.1),0_4px_15px_rgba(239,68,68,0.15)]'
                                             : ''}
                                     `}
                                 >
                                     <span className={`
                                         font-black tracking-tighter leading-none text-center !whitespace-nowrap
                                         ${formattedTime.includes(' - ') ? 'text-[clamp(11px,3.5vw,15px)]' : 'text-[clamp(14px,4vw,20px)]'}
-                                        ${isPast ? 'text-slate-500' : 'text-white'}
+                                        ${isPast ? 'text-slate-400 drop-shadow-sm' : 'text-white'}
                                     `}>
                                         {formattedTime}
                                     </span>
@@ -234,8 +238,8 @@ export const PitchGrid: React.FC<PitchGridProps> = ({
                                     <span className={`
                                         text-[clamp(8px,2.2vw,10px)] font-bold uppercase mt-1.5 tracking-widest !whitespace-nowrap overflow-hidden text-ellipsis
                                         ${isPast
-                                            ? slot.status === 'FULL' ? 'text-emerald-600' : 'text-slate-600'
-                                            : slot.status === 'EMPTY' ? 'text-slate-400'
+                                            ? slot.status === 'FULL' ? 'text-emerald-400/80 drop-shadow-sm' : 'text-slate-500 drop-shadow-sm'
+                                            : slot.status === 'EMPTY' ? 'text-white drop-shadow-sm'
                                                 : slot.status === 'PENDING' ? 'text-orange-400'
                                                     : 'text-red-400'}
                                     `}>

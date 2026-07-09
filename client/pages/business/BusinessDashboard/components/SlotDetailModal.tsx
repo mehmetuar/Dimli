@@ -427,20 +427,20 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                                         const manualFillDate = `${selectedDate}T${selectedSlot.startTime.padStart(5, '0')}:00`;
                                         handleManualFillSlot(selectedSlot.pitchId, manualFillDate);
                                     }}
-                                    className="w-full bg-slate-700/50 hover:bg-slate-700 text-white py-[clamp(0.75rem,3vw,1rem)] px-4 rounded-xl font-bold text-[clamp(0.75rem,3.5vw,0.875rem)] transition-all flex items-center justify-center gap-2 border border-slate-600/50 hover:border-slate-500"
+                                    className="w-full bg-slate-700/50 hover:bg-slate-700 text-white py-[clamp(0.75rem,3vw,1rem)] px-4 rounded-xl font-bold text-[clamp(0.72rem,3.4vw,0.875rem)] transition-all flex items-center justify-center gap-2 border border-slate-600/50 hover:border-slate-500"
                                 >
                                     <AlertTriangle className="w-[clamp(1.1rem,4vw,1.25rem)] h-[clamp(1.1rem,4vw,1.25rem)] text-orange-400 shrink-0" />
-                                    <span className="truncate">Sadece Bu Tarihi Kapat</span>
+                                    <span className="text-center leading-tight min-w-0">Bu saati bugün için kapat</span>
                                 </button>
                                 <button
                                     onClick={() => {
                                         const slotDate = `${selectedDate}T${selectedSlot.startTime.padStart(5, '0')}:00`;
                                         handleRecurringCloseSlot(selectedSlot.pitchId, slotDate, selectedSlot.startTime, selectedSlot.endTime);
                                     }}
-                                    className="w-full bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border border-orange-500/30 py-[clamp(0.75rem,3vw,1rem)] px-4 rounded-xl font-bold text-[clamp(0.75rem,3.5vw,0.875rem)] transition-all flex items-center justify-center gap-2"
+                                    className="w-full bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border border-orange-500/30 py-[clamp(0.75rem,3vw,1rem)] px-4 rounded-xl font-bold text-[clamp(0.72rem,3.4vw,0.875rem)] transition-all flex items-center justify-center gap-2"
                                 >
                                     <Repeat className="w-[clamp(1.1rem,4vw,1.25rem)] h-[clamp(1.1rem,4vw,1.25rem)] shrink-0" />
-                                    <span className="truncate">Her {new Date(selectedDate).toLocaleDateString('tr-TR', { weekday: 'long' })} Sürekli Kapat</span>
+                                    <span className="text-center leading-tight min-w-0">Her {new Date(selectedDate).toLocaleDateString('tr-TR', { weekday: 'long' })} bu saati sürekli kapat</span>
                                 </button>
                         </div>
                     )}

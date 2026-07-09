@@ -26,12 +26,14 @@ export const CalendarPicker: React.FC<CalendarPickerProps> = ({
             selected: 'bg-orange-500 text-white ring-4 ring-orange-500/20 scale-110 z-10',
             todayBorder: 'border border-orange-500/50 text-orange-400',
             dot: 'bg-orange-500',
+            wrapper: 'bg-slate-800/50 border-slate-700/50',
         }
         : {
             hover: 'hover:bg-turf-500/20',
             selected: 'bg-turf-500 text-slate-900 ring-4 ring-turf-500/20 scale-110 z-10',
             todayBorder: 'border border-turf-500/50 text-turf-400',
             dot: 'bg-turf-500',
+            wrapper: 'bg-slate-900/50 border-slate-700/50',
         };
     const [viewDate, setViewDate] = useState(new Date(selectedDate || new Date()));
 
@@ -130,7 +132,7 @@ export const CalendarPicker: React.FC<CalendarPickerProps> = ({
     };
 
     return (
-        <div className="bg-slate-900/50 rounded-2xl p-2 sm:p-4 border border-slate-700/50 backdrop-blur-sm">
+        <div className={`${accent.wrapper} rounded-2xl p-2 sm:p-4 border backdrop-blur-sm`}>
             <div className="flex items-center justify-between mb-2 sm:mb-4">
                 <button
                     onClick={handlePrevMonth}
