@@ -211,7 +211,10 @@ export const JokerHistoryModal: React.FC<JokerHistoryModalProps> = ({
                                                         ? `vs ${match.opponentTeamName || 'Silinmiş takım'}`
                                                         : match.opponentTeamName
                                                         ? `vs ${match.opponentTeamName}`
-                                                        : 'Rakip bilgisi yok'}
+                                                        /* APPROVED joker maçında rakip yoksa maç kendi_aramizda'dır
+                                                           (invariant: rakip_araniyor ancak opponent set edilince APPROVED olur;
+                                                           canlı DB'de APPROVED+rakip_araniyor+rakipsiz = 0). */
+                                                        : 'Kendi aramızda maçı'}
                                                 </span>
                                             </div>
                                             {match.opponentTeamDeleted && (
