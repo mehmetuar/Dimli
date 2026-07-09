@@ -2,6 +2,8 @@ import {
   Controller,
   Request,
   Post,
+  Get,
+  Query,
   UseGuards,
   Body,
   UnauthorizedException,
@@ -137,6 +139,15 @@ export class AuthController {
   async businessVerifyOtp(@Body() body: { phone: string; code: string }) {
     await this.authService.verifyBusinessOwnerOtp(body.phone, body.code);
     return { verified: true };
+  }
+
+  // Kayıt adım-2 erken kontrolü (e-posta + telefon benzersizliği) — ödeme öncesi, salt-okunur.
+  @Get('business/check-availability')
+  async businessCheckAvailability(
+    @Query('email') email?: string,
+    @Query('phone') phone?: string,
+  ): Promise<{ emailAvailable: boolean; phoneAvailable: boolean }> {
+    return this.authService.checkBusinessOwnerAvailability(email, phone);
   }
 
   @Post('business/login')

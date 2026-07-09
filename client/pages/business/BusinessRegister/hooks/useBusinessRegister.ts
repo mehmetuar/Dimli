@@ -16,7 +16,8 @@ export const SUBSCRIPTION_PLANS: Record<number, { label: string; price: number; 
 
 export const makePitch = (index: number) => ({
     name: `${index + 1} No'lu Saha`,
-    type: 'Kapalı Saha',
+    type: 'INDOOR', // kanonik enum ('INDOOR'/'OUTDOOR'); etiketler UI'da gösterilir
+
     pricePerHour: 0,
     openTime: '',
     closeTime: '',
@@ -369,7 +370,7 @@ export const useBusinessRegister = () => {
 
     // ─── Navigation ───────────────────────────────────────────────────────────
 
-    const nextStep = () => {
+    const nextStep = async () => {
         setError('');
         setFieldErrors({});
 
@@ -377,8 +378,32 @@ export const useBusinessRegister = () => {
         if (!validateStep(currentStep)) return;
 
         if (currentStep === 2) {
-            if (!otpSent) { sendOtp().then(success => { if (success) setCurrentStep(3); }); }
-            else setCurrentStep(3);
+            // Erken benzersizlik kontrolü (ödeme ÖNCESİ): alınmış e-posta/telefon ile OTP göndermeden dur.
+            setIsLoading(true);
+            try {
+                const res = await api.get('/auth/business/check-availability', {
+                    params: { email: formData.owner.email, phone: formData.owner.phone },
+                });
+                const taken: Record<string, string> = {};
+                if (res.data?.emailAvailable === false) taken['owner.email'] = 'Bu e-posta adresi zaten kayıtlı.';
+                if (res.data?.phoneAvailable === false) taken['owner.phone'] = 'Bu telefon numarası zaten kayıtlı.';
+                if (Object.keys(taken).length > 0) {
+                    setFieldErrors(taken);
+                    setError('Bu bilgilerle zaten bir hesap var. Giriş yapabilirsiniz.');
+                    return;
+                }
+                // Benzersiz → OTP akışı (sendOtp telefon kontrolünü backend güvenlik ağı olarak tekrar yapar)
+                if (!otpSent) {
+                    const success = await sendOtp();
+                    if (success) setCurrentStep(3);
+                } else {
+                    setCurrentStep(3);
+                }
+            } catch (err) {
+                setError(getErrorMessage(err, 'Bir hata oluştu. Lütfen tekrar deneyin.'));
+            } finally {
+                setIsLoading(false);
+            }
             return;
         }
         if (currentStep < TOTAL_STEPS) setCurrentStep(c => c + 1);

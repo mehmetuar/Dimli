@@ -255,6 +255,27 @@ export class AuthService {
     return !!otp && new Date() < otp.expiresAt;
   }
 
+  // Kayıt adım-2 (İleri) erken benzersizlik kontrolü — ödeme ÖNCESİ. Salt-okunur.
+  // registerBusinessFull ile aynı kaynaklar (findByEmail / findByPhone) sorgulanır.
+  async checkBusinessOwnerAvailability(
+    email?: string,
+    phone?: string,
+  ): Promise<{ emailAvailable: boolean; phoneAvailable: boolean }> {
+    let emailAvailable = true;
+    let phoneAvailable = true;
+    if (email && email.trim()) {
+      emailAvailable = !(await this.businessOwnerService.findByEmail(
+        email.trim(),
+      ));
+    }
+    if (phone && phone.trim()) {
+      phoneAvailable = !(await this.businessOwnerService.findByPhone(
+        phone.trim(),
+      ));
+    }
+    return { emailAvailable, phoneAvailable };
+  }
+
   // ─── Şifremi Unuttum Akışı ──────────────────────────────────────────────────
 
   async sendPasswordResetOtp(phone: string): Promise<void> {
