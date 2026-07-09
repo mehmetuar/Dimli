@@ -151,8 +151,7 @@ export const BusinessSettingsHub: React.FC = () => {
                 message="Hesabınızdan çıkış yapmak istediğinize emin misiniz?"
                 confirmText="Çıkış Yap"
                 cancelText="İptal"
-                isDangerous={false}
-                accentColor="orange"
+                isDangerous={true}
             />
 
             <BusinessNavbar />

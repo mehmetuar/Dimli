@@ -37,7 +37,7 @@ export const BusinessNavbar: React.FC<{ hidden?: boolean }> = ({ hidden }) => {
                     style={{ marginTop: '-24px' }}
                 >
                     <div className="bg-gradient-to-tr from-orange-600 to-orange-400 w-14 h-14 rounded-xl shadow-lg shadow-orange-500/30 border-4 border-[#1e293b] rotate-45 hover:scale-110 transition-transform group flex items-center justify-center shrink-0">
-                        <img src="/Pitch.svg" alt="Panel" className="w-8 h-8 -rotate-45 drop-shadow-md object-contain" />
+                        <img src="/Pitch.svg" alt="Panel" className="w-9 h-9 -rotate-45 drop-shadow-md object-contain" />
                     </div>
                     <span className={`absolute -bottom-5 text-[10px] font-bold transition-all duration-300 ${isPanelActive ? 'text-orange-500' : 'text-slate-400'}`}>
                         Panel

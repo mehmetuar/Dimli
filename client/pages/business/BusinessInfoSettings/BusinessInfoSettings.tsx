@@ -109,8 +109,8 @@ export const BusinessInfoSettings: React.FC = () => {
                             <label className="block text-[clamp(11px,3vw,13px)] font-black uppercase tracking-widest text-slate-400 pl-2">
                                 Fotoğraf (Vitrin)
                             </label>
-                            <div className="bg-slate-900/50 backdrop-blur-md rounded-2xl border border-white/5 overflow-hidden shadow-[0_8px_30px_rgba(0,0,0,0.15)]">
-                                <div className="px-4 py-3.5 border-b border-white/5"
+                            <div className="bg-slate-800/50 backdrop-blur-md rounded-2xl border border-slate-700/50 overflow-hidden shadow-[0_8px_30px_rgba(0,0,0,0.15)]">
+                                <div className="px-4 py-3.5 border-b border-slate-700/50"
                                     style={{ background: 'linear-gradient(90deg, rgba(249,115,22,0.06) 0%, transparent 100%)' }}>
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-2.5">
@@ -131,7 +131,7 @@ export const BusinessInfoSettings: React.FC = () => {
                                 {pendingPhotoUrl ? (
                                     <>
                                         <img src={pendingPhotoUrl} alt="Önizleme" className="w-full aspect-video object-cover" />
-                                        <div className="p-3 flex gap-2.5 bg-slate-950/40">
+                                        <div className="p-3 flex gap-2.5 bg-slate-900/40">
                                             <button
                                                 type="button"
                                                 disabled={submittingPhoto}
@@ -158,13 +158,13 @@ export const BusinessInfoSettings: React.FC = () => {
                                         {coverImageUrl ? (
                                             <img src={coverImageUrl} alt={formData.name} className="w-full aspect-video object-cover" />
                                         ) : (
-                                            <div className="w-full aspect-video bg-slate-950/40 flex flex-col items-center justify-center gap-2">
+                                            <div className="w-full aspect-video bg-slate-900/40 flex flex-col items-center justify-center gap-2">
                                                 <Image className="w-10 h-10 text-slate-600" />
                                                 <span className="text-[clamp(10px,2.8vw,12px)] text-slate-500 font-medium">Fotoğraf yok</span>
                                             </div>
                                         )}
                                         {!hasPendingPhoto && (
-                                            <div className="p-3 bg-slate-950/40">
+                                            <div className="p-3 bg-slate-900/40">
                                                 <button
                                                     type="button"
                                                     disabled={uploadingPhoto || submittingPhoto}

@@ -6,8 +6,10 @@ import {
     deletePresetNote,
     PresetNote,
 } from '../../../../services/presetNotes';
+import { NOTE_CHAR_LIMITS } from '../../../../utils/noteLimits';
 
-const MAX_LEN = 500;
+// İşletme notu tek kaynağı ile aynı (backend + rezervasyon not ekranı = 100).
+const MAX_LEN = NOTE_CHAR_LIMITS.business;
 
 export const useBusinessPresetNotes = () => {
     const [notes, setNotes] = useState<PresetNote[]>([]);

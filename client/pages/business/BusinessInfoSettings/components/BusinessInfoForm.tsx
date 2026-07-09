@@ -61,7 +61,7 @@ export const BusinessInfoForm: React.FC<BusinessInfoFormProps> = ({
                         <div className={`flex items-center gap-3 rounded-xl p-3 transition-all ${
                             isEditingGeneral 
                                 ? 'bg-slate-700/40 border border-slate-500/60 focus-within:border-orange-500 focus-within:ring-1 focus-within:ring-orange-500 shadow-inner' 
-                                : 'bg-slate-900/40 border border-transparent'
+                                : 'bg-slate-800/40 border border-slate-700/40'
                         }`}>
                             <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center shrink-0 border border-orange-500/20">
                                 <Building2 className="w-4 h-4 text-orange-400" />
@@ -86,7 +86,7 @@ export const BusinessInfoForm: React.FC<BusinessInfoFormProps> = ({
                         <div className={`flex items-start gap-3 rounded-xl p-3 transition-all ${
                             isEditingGeneral 
                                 ? 'bg-slate-700/40 border border-slate-500/60 focus-within:border-orange-500 focus-within:ring-1 focus-within:ring-orange-500 shadow-inner' 
-                                : 'bg-slate-900/40 border border-transparent'
+                                : 'bg-slate-800/40 border border-slate-700/40'
                         }`}>
                             <div className="w-8 h-8 rounded-lg bg-slate-600/30 flex items-center justify-center shrink-0 mt-0.5 border border-slate-500/30">
                                 <FileText className="w-4 h-4 text-slate-300" />
@@ -110,7 +110,7 @@ export const BusinessInfoForm: React.FC<BusinessInfoFormProps> = ({
                     Konum Bilgisi
                 </label>
                 
-                <div className="bg-slate-900/50 backdrop-blur-md rounded-2xl border border-white/5 overflow-hidden shadow-[0_8px_30px_rgba(0,0,0,0.15)] divide-y divide-white/5">
+                <div className="bg-slate-800/50 backdrop-blur-md rounded-2xl border border-slate-700/50 overflow-hidden shadow-[0_8px_30px_rgba(0,0,0,0.15)] divide-y divide-slate-700/50">
                     
                     {/* Harita Butonu */}
                     <button
@@ -136,7 +136,7 @@ export const BusinessInfoForm: React.FC<BusinessInfoFormProps> = ({
                     </button>
 
                     {/* Tespit Edilen Şehir/İlçe */}
-                    <div className="relative p-4 flex items-center gap-4 bg-slate-950/20">
+                    <div className="relative p-4 flex items-center gap-4 bg-slate-900/30">
                         <div className="w-10 h-10 rounded-xl bg-green-500/10 border border-green-500/20 flex items-center justify-center shrink-0">
                             <Lock className="w-4 h-4 text-green-400" />
                         </div>
