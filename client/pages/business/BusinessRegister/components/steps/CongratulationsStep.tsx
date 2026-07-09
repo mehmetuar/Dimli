@@ -1,6 +1,7 @@
 import React from 'react';
 import { CheckCircle, Clock, Phone, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { formatTurkishPhoneDisplay } from '../../../../../utils/phone';
 
 const infoRows = [
     { icon: Clock, text: <>İnceleme süreci <strong className="text-white">1-2 iş günü</strong></> },
@@ -46,7 +47,7 @@ export const CongratulationsStep: React.FC<{ ownerPhone: string }> = ({ ownerPho
                         <Phone className="relative z-10 w-5 h-5 text-orange-400" />
                     </div>
                     <span className="text-slate-300 text-sm text-left flex-1">
-                        Sonuç <strong className="text-white">{ownerPhone}</strong> numarasına bildirilecek
+                        Sonuç <strong className="text-white">{formatTurkishPhoneDisplay(ownerPhone)}</strong> numarasına bildirilecek
                     </span>
                 </div>
             </div>

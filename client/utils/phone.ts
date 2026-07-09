@@ -21,3 +21,15 @@ export const telHref = (phone: string): string => {
     if (p.startsWith('90') && p.length === 12) return `tel:+${p}`;
     return `tel:${p}`;
 };
+
+// Profesyonel görüntü formatı: "0 (531) 601 90 60".
+// 11 haneli (05XXXXXXXXX) veya 10 haneli (5XXXXXXXXX) girişi biçimler; geçersizse ham döndürür.
+export const formatTurkishPhoneDisplay = (raw?: string | null): string => {
+    const digits = (raw || '').replace(/\D/g, '');
+    const ten =
+        digits.length === 11 && digits.startsWith('0') ? digits.slice(1) :
+        digits.length === 10 ? digits :
+        null;
+    if (!ten || ten[0] !== '5') return raw || '';
+    return `0 (${ten.slice(0, 3)}) ${ten.slice(3, 6)} ${ten.slice(6, 8)} ${ten.slice(8, 10)}`;
+};
