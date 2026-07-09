@@ -1,7 +1,8 @@
 import React, { useRef, useState } from 'react';
-import { Camera, X } from 'lucide-react';
+import { Camera, X, Store, Clock, Image as ImageIcon } from 'lucide-react';
 import { ImageCropModal } from '../../../../../components/Modals/ImageCropModal';
-import { Input } from '../RegisterSidebar';
+import { Input } from '../RegisterInput';
+import { RegisterSection, TimeButton } from '../RegisterSection';
 
 interface BusinessDetailsStepProps {
     formData: any;
@@ -10,6 +11,7 @@ interface BusinessDetailsStepProps {
     fieldErrors?: Record<string, string>;
 }
 
+// Not: kök öğeye animasyon sınıfı KOYMA — AuthWizardLayout içeriği `animate-step-in` ile sarar.
 export const BusinessDetailsStep: React.FC<BusinessDetailsStepProps> = ({
     formData,
     updateBusiness,
@@ -21,50 +23,40 @@ export const BusinessDetailsStep: React.FC<BusinessDetailsStepProps> = ({
     const photoError = fieldErrors['business.coverImageUrl'];
 
     return (
-        <div className="space-y-4 animate-fade-in">
-            <h2 className="text-lg md:text-xl font-bold text-white mb-4">İşletme Detayları</h2>
-
-            <div className="grid grid-cols-1 gap-4">
+        <div className="space-y-6">
+            {/* İşletme adı */}
+            <RegisterSection icon={Store} title="İşletme Adı" desc="Müşterilere bu adla görünürsün">
                 <Input
                     label="İşletme Adı"
+                    icon={<Store className="w-5 h-5" />}
                     value={formData.business.name}
                     onChange={(e: any) => updateBusiness('name', e.target.value)}
                     required
                     error={fieldErrors['business.name']}
                 />
-            </div>
+            </RegisterSection>
 
-            <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col gap-1">
-                    <label className="text-xs text-slate-400 font-bold uppercase ml-1">Açılış Saati</label>
-                    <button
-                        type="button"
+            {/* Çalışma saatleri */}
+            <RegisterSection icon={Clock} title="Çalışma Saatleri" desc="İşletmenin genel açılış ve kapanışı">
+                <div className="grid grid-cols-2 gap-3">
+                    <TimeButton
+                        label="Açılış"
+                        value={formData.business.openTime}
                         onClick={() => setIsTimePickerOpen({ open: true, type: 'OPEN' })}
-                        className="w-full bg-slate-800 border border-slate-700 text-white p-3 rounded-xl text-left hover:border-orange-500 transition-all font-mono font-bold text-sm min-h-[44px]"
-                    >
-                        {formData.business.openTime}
-                    </button>
-                </div>
-                <div className="flex flex-col gap-1">
-                    <label className="text-xs text-slate-400 font-bold uppercase ml-1">Kapanış Saati</label>
-                    <button
-                        type="button"
+                    />
+                    <TimeButton
+                        label="Kapanış"
+                        value={formData.business.closeTime}
                         onClick={() => setIsTimePickerOpen({ open: true, type: 'CLOSE' })}
-                        className="w-full bg-slate-800 border border-slate-700 text-white p-3 rounded-xl text-left hover:border-orange-500 transition-all font-mono font-bold text-sm min-h-[44px]"
-                    >
-                        {formData.business.closeTime}
-                    </button>
+                    />
                 </div>
-            </div>
+            </RegisterSection>
 
-            {/* İşletme fotoğrafı — müşteri listesindeki işletme kartında görünür */}
-            <div>
-                <label className={`text-xs font-bold uppercase mb-2 block ${photoError ? 'text-red-400' : 'text-slate-400'}`}>
-                    İşletme Fotoğrafı <span className="text-red-500">*</span>
-                </label>
+            {/* Kapak fotoğrafı */}
+            <RegisterSection icon={ImageIcon} title="Kapak Fotoğrafı" desc="Müşteri kartında gösterilir">
                 {formData.business.coverImageUrl ? (
-                    <div className="space-y-2">
-                        <div className="relative rounded-xl overflow-hidden border border-slate-600">
+                    <div className="space-y-3">
+                        <div className="relative rounded-2xl overflow-hidden border border-slate-600">
                             <img
                                 src={formData.business.coverImageUrl}
                                 alt="İşletme"
@@ -75,14 +67,14 @@ export const BusinessDetailsStep: React.FC<BusinessDetailsStepProps> = ({
                                     updateBusiness('photoFile', null);
                                     updateBusiness('coverImageUrl', '');
                                 }}
-                                className="absolute top-2 right-2 bg-black/60 rounded-full p-1.5"
+                                className="absolute top-2 right-2 bg-black/60 rounded-full p-1.5 active:scale-90 transition-transform"
                             >
                                 <X size={14} className="text-white" />
                             </button>
                         </div>
                         <button
                             onClick={() => fileInputRef.current?.click()}
-                            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-600 text-slate-400 hover:border-slate-500 font-bold text-sm transition-colors min-h-[44px]"
+                            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-600 text-slate-300 hover:border-orange-500/60 hover:text-orange-400 font-bold text-sm transition-colors min-h-[44px]"
                         >
                             <Camera size={16} /> Değiştir
                         </button>
@@ -91,16 +83,17 @@ export const BusinessDetailsStep: React.FC<BusinessDetailsStepProps> = ({
                     <div>
                         <button
                             onClick={() => fileInputRef.current?.click()}
-                            className={`flex flex-col items-center justify-center gap-2 w-full h-36 rounded-xl border-2 border-dashed transition-colors font-bold text-sm ${
+                            className={`flex flex-col items-center justify-center gap-2 w-full rounded-2xl border-2 border-dashed transition-colors font-bold text-sm ${
                                 photoError
-                                    ? 'border-red-500/50 text-red-400 hover:bg-red-500/10'
+                                    ? 'border-red-500/60 text-red-400 hover:bg-red-500/10'
                                     : 'border-orange-500/50 text-orange-400 hover:bg-orange-500/10'
                             }`}
+                            style={{ height: 'clamp(120px, 20vh, 160px)' }}
                         >
-                            <Camera size={24} /> Fotoğraf Ekle
+                            <Camera size={26} /> Fotoğraf Ekle
                         </button>
                         {photoError && (
-                            <p className="text-red-400 text-xs font-bold ml-1 mt-1 animate-fade-in">{photoError}</p>
+                            <p className="text-red-400 text-xs font-bold pl-1 mt-1.5 animate-fade-in">{photoError}</p>
                         )}
                     </div>
                 )}
@@ -115,14 +108,10 @@ export const BusinessDetailsStep: React.FC<BusinessDetailsStepProps> = ({
                         e.target.value = '';
                     }}
                 />
-                <p className="text-xs text-slate-500 mt-2">
-                    Bu fotoğraf müşterilere işletme kartınızda gösterilir. İsterseniz saha fotoğrafınızla aynı görseli kullanabilirsiniz.
+                <p className="text-xs text-slate-500 leading-relaxed">
+                    Bu fotoğraf müşterilere işletme kartınızda gösterilir. Dilerseniz saha fotoğrafınızla aynı görseli kullanabilirsiniz. Konum (şehir, ilçe, adres) bir sonraki adımda seçilir.
                 </p>
-            </div>
-
-            <p className="text-xs text-slate-500 mt-1">
-                Konum bilgisi (şehir, ilçe ve adres) bir sonraki adımda harita üzerinden seçilecektir.
-            </p>
+            </RegisterSection>
 
             {cropFile !== null && (
                 <ImageCropModal

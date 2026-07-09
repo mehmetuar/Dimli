@@ -2,49 +2,37 @@ import React from 'react';
 import { CheckCircle, TrendingUp, Users, Calendar, Sparkles } from 'lucide-react';
 
 const features = [
-    { icon: Calendar, text: 'Rezervasyon yönetimini kolaylaştırın' },
-    { icon: Users, text: 'Sahanızı binlerce oyuncuya duyurun' },
-    { icon: TrendingUp, text: 'Gelir takibini anlık görün' },
+    { icon: Calendar, text: 'Rezervasyon yönetimini kolaylaştır' },
+    { icon: Users, text: 'Sahanı binlerce oyuncuya duyur' },
+    { icon: TrendingUp, text: 'Gelir takibini anlık gör' },
     { icon: Sparkles, text: 'İlk 3 ay tamamen ücretsiz' },
 ];
 
+// Not: kök öğeye animasyon sınıfı KOYMA — AuthWizardLayout içeriği `animate-step-in` ile sarar.
 export const WelcomeStep: React.FC = () => {
     return (
-        <div className="flex flex-col items-center justify-center min-h-full text-center space-y-6 py-6 animate-fade-in">
-
-            {/* Logo & marka */}
-            <div className="flex flex-col items-center gap-3">
-                <div className="w-16 h-16 rounded-2xl bg-orange-600/20 border border-orange-500/30 flex items-center justify-center shadow-lg shadow-orange-900/20">
-                    <img src="/icon.png" alt="Dimli" className="w-10 h-10 object-contain" />
-                </div>
-                <div>
-                    <p className="text-orange-400 font-black italic uppercase tracking-widest text-sm">DİMLİ İŞLETME</p>
-                    <h2 className="text-2xl md:text-3xl font-black text-white leading-tight mt-1">
-                        Sahanızı dijital<br />dünyaya taşıyın.
-                    </h2>
-                </div>
-            </div>
-
-            {/* Özellikler */}
-            <div className="w-full max-w-sm space-y-2.5">
-                {features.map((f, i) => {
-                    const Icon = f.icon;
-                    return (
-                        <div
-                            key={i}
-                            className="flex items-center gap-3 bg-slate-800/70 border border-slate-700/50 px-4 py-3 rounded-xl text-left"
-                        >
-                            <div className="w-7 h-7 rounded-lg bg-orange-600/20 flex items-center justify-center shrink-0">
-                                <Icon className="text-orange-400" size={14} />
-                            </div>
-                            <span className="text-slate-200 text-sm font-medium">{f.text}</span>
-                            <CheckCircle className="text-green-500 shrink-0 ml-auto" size={15} />
+        <div className="space-y-3">
+            {features.map((f, i) => {
+                const Icon = f.icon;
+                return (
+                    <div
+                        key={i}
+                        className="flex items-center gap-3 bg-slate-800/50 backdrop-blur-md border border-slate-700/50 rounded-2xl px-4 py-3.5 text-left shadow-[0_8px_30px_rgba(0,0,0,0.15)]"
+                    >
+                        <div className="w-10 h-10 rounded-xl bg-orange-500/20 border border-orange-500/30 flex items-center justify-center shrink-0 shadow-[0_0_15px_rgba(249,115,22,0.15)] relative">
+                            <div className="absolute inset-0 rounded-xl bg-orange-400/10 blur-md" />
+                            <Icon className="relative z-10 w-5 h-5 text-orange-400 drop-shadow-[0_0_8px_rgba(249,115,22,0.6)]" />
                         </div>
-                    );
-                })}
-            </div>
-
-            <p className="text-slate-600 text-xs">Kayıt işlemi yaklaşık 5 dakika sürer.</p>
+                        <span className="text-slate-200 font-semibold flex-1" style={{ fontSize: 'clamp(0.85rem, 2.2vh, 0.95rem)' }}>
+                            {f.text}
+                        </span>
+                        <CheckCircle className="text-green-500 shrink-0" size={18} />
+                    </div>
+                );
+            })}
+            <p className="text-slate-500 text-center pt-2" style={{ fontSize: 'clamp(0.7rem, 1.8vh, 0.8rem)' }}>
+                Kayıt işlemi yaklaşık 5 dakika sürer.
+            </p>
         </div>
     );
 };

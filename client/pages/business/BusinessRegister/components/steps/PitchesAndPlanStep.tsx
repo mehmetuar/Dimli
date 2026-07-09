@@ -1,7 +1,8 @@
 import React, { useRef, useState } from 'react';
-import { Camera, TurkishLira, X, Layers, Clock, AlertCircle, Calendar } from 'lucide-react';
+import { Camera, TurkishLira, X, Layers, Clock, Calendar } from 'lucide-react';
 import { ImageCropModal } from '../../../../../components/Modals/ImageCropModal';
-import { Input } from '../RegisterSidebar';
+import { Input } from '../RegisterInput';
+import { TimeButton } from '../RegisterSection';
 import { SUBSCRIPTION_PLANS } from '../../hooks/useBusinessRegister';
 import { FacilitiesModal } from '../FacilitiesModal';
 import { TimeSlotsModal } from '../TimeSlotsModal';
@@ -33,7 +34,7 @@ interface PitchesAndPlanStepProps {
     fieldErrors?: Record<string, string>;
 }
 
-/** Saatlik ücret için özel input — 0 değerini boş gösterir */
+/** Saatlik ücret için özel input — 0 değerini boş gösterir (turuncu para ikonu + premium focus-glow) */
 const PriceInput: React.FC<{ value: number; onChange: (val: number) => void; error?: string }> = ({ value, onChange, error }) => {
     const [rawText, setRawText] = useState<string | null>(null);
     const isFocused = rawText !== null;
@@ -44,21 +45,22 @@ const PriceInput: React.FC<{ value: number; onChange: (val: number) => void; err
     };
 
     return (
-        <div className="flex flex-col gap-1 w-full min-w-0">
-            <label className="text-xs text-slate-400 font-bold uppercase ml-1 block">
-                Saatlik Ücret (TL) <span className="text-red-500">*</span>
+        <div className="flex flex-col gap-1.5 w-full min-w-0">
+            <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 pl-1">
+                Saatlik Ücret (TL) <span className="text-orange-500">*</span>
             </label>
             <div className="relative">
-                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none">
-                    <TurkishLira size={14} />
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-orange-400 pointer-events-none">
+                    <TurkishLira size={16} />
                 </div>
                 <input
                     type="text"
                     inputMode="decimal"
                     placeholder="0"
-                    className={`w-full bg-slate-800 border text-white text-sm p-3 pl-9 rounded-xl focus:outline-none transition-all font-medium min-h-[44px] ${
-                        error ? 'border-red-500 focus:border-red-400' : 'border-slate-700 focus:border-orange-500'
+                    className={`w-full bg-slate-800/40 border text-white rounded-2xl pl-11 pr-4 focus:outline-none transition-colors font-bold placeholder:text-slate-500 ${
+                        error ? 'border-red-500 focus:border-red-400' : 'border-slate-700/80 focus:border-orange-500 focus:shadow-[0_0_15px_rgba(249,115,22,0.3)]'
                     }`}
+                    style={{ fontSize: 'clamp(0.9rem, 2.3vh, 1rem)', height: 'clamp(50px, 7vh, 58px)' }}
                     value={displayValue}
                     onFocus={handleFocus}
                     onChange={(e) => {
@@ -71,12 +73,13 @@ const PriceInput: React.FC<{ value: number; onChange: (val: number) => void; err
                 />
             </div>
             {error && (
-                <p className="text-red-400 text-xs font-bold ml-1 mt-0.5 animate-fade-in">{error}</p>
+                <p className="text-red-400 text-xs font-bold pl-1 mt-0.5 animate-fade-in">{error}</p>
             )}
         </div>
     );
 };
 
+// Not: kök öğeye animasyon sınıfı KOYMA — AuthWizardLayout içeriği `animate-step-in` ile sarar.
 export const PitchesAndPlanStep: React.FC<PitchesAndPlanStepProps> = ({
     formData, updatePitch, setPitchCount, setIsTimePickerOpen, toggleFacility, toggleClosedDay, fieldErrors = {},
 }) => {
@@ -107,20 +110,21 @@ export const PitchesAndPlanStep: React.FC<PitchesAndPlanStepProps> = ({
     };
 
     return (
-        <div className="space-y-6 animate-fade-in">
+        <div className="space-y-6">
             {/* Saha sayısı seçimi */}
             <div>
-                <p className="text-xs text-slate-400 font-bold uppercase mb-3">Kaç adet sahanız var?</p>
+                <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mb-3 pl-1">Kaç adet sahanız var?</p>
                 <div className="flex gap-2 flex-wrap">
                     {PITCH_COUNT_OPTIONS.map(count => (
                         <button
                             key={count}
                             onClick={() => setPitchCount(count)}
-                            className={`px-5 py-2.5 rounded-xl font-black text-sm border-2 transition-all min-h-[44px] ${
+                            className={`px-5 rounded-2xl font-black border-2 transition-all ${
                                 selectedCount === count
                                     ? 'bg-orange-600 border-orange-500 text-white shadow-lg shadow-orange-900/30'
-                                    : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-500'
+                                    : 'bg-slate-800/40 border-slate-700/80 text-slate-400 hover:border-slate-500'
                             }`}
+                            style={{ height: 'clamp(46px, 6.5vh, 52px)', fontSize: 'clamp(0.85rem, 2.2vh, 0.95rem)' }}
                         >
                             {count === 5 ? '5+' : count}
                         </button>
@@ -129,19 +133,19 @@ export const PitchesAndPlanStep: React.FC<PitchesAndPlanStepProps> = ({
             </div>
 
             {/* Fiyat kartı */}
-            <div className="bg-gradient-to-r from-orange-600/20 to-orange-800/10 border border-orange-500/30 rounded-2xl p-4">
+            <div className="bg-gradient-to-r from-orange-600/20 to-orange-800/10 border border-orange-500/30 rounded-2xl p-4 shadow-[0_8px_30px_rgba(0,0,0,0.15)]">
                 <div className="flex items-center justify-between gap-2">
                     <div className="min-w-0">
-                        <p className="text-orange-400 font-black text-sm uppercase truncate">{plan.label} Plan</p>
-                        <p className="text-slate-300 text-xs mt-0.5">
+                        <p className="text-orange-400 font-black uppercase truncate" style={{ fontSize: 'clamp(0.8rem, 2.1vh, 0.9rem)' }}>{plan.label} Plan</p>
+                        <p className="text-slate-300 mt-0.5" style={{ fontSize: 'clamp(0.68rem, 1.7vh, 0.78rem)' }}>
                             {selectedCount === 5 ? '5 ve üzeri saha' : `${selectedCount} saha`}
                         </p>
                     </div>
                     <div className="text-right shrink-0">
-                        <p className="text-white font-black text-lg md:text-xl">
+                        <p className="text-white font-black" style={{ fontSize: 'clamp(1rem, 3vh, 1.25rem)' }}>
                             {plan.price.toLocaleString('tr-TR')} <span className="text-sm">TL/ay</span>
                         </p>
-                        <p className="text-orange-400 text-xs font-bold">İlk 3 ay ücretsiz</p>
+                        <p className="text-orange-400 font-bold" style={{ fontSize: 'clamp(0.65rem, 1.7vh, 0.75rem)' }}>İlk 3 ay ücretsiz</p>
                     </div>
                 </div>
             </div>
@@ -158,11 +162,18 @@ export const PitchesAndPlanStep: React.FC<PitchesAndPlanStepProps> = ({
                     const photoError = fieldErrors[`pitch.${index}.imageUrl`];
 
                     return (
-                        <div key={index} className="bg-slate-900/60 p-4 rounded-xl border border-slate-700 space-y-4">
-                            <h3 className="font-black text-orange-400 uppercase text-sm">{index + 1}. Saha</h3>
+                        <div key={index} className="bg-slate-800/50 backdrop-blur-md p-4 rounded-2xl border border-slate-700/50 space-y-4 shadow-[0_8px_30px_rgba(0,0,0,0.15)]">
+                            {/* Saha başlığı — turuncu numara rozeti */}
+                            <div className="flex items-center gap-2.5">
+                                <div className="w-9 h-9 rounded-xl bg-orange-500/20 border border-orange-500/30 flex items-center justify-center shrink-0 shadow-[0_0_12px_rgba(249,115,22,0.15)] relative">
+                                    <div className="absolute inset-0 rounded-xl bg-orange-400/10 blur-md" />
+                                    <span className="relative z-10 text-orange-400 font-black" style={{ fontSize: 'clamp(0.85rem, 2.2vh, 1rem)' }}>{index + 1}</span>
+                                </div>
+                                <h3 className="font-black text-white uppercase tracking-wide" style={{ fontSize: 'clamp(0.85rem, 2.2vh, 1rem)' }}>Saha</h3>
+                            </div>
 
                             {/* Temel bilgiler */}
-                            <div className="grid grid-cols-1 gap-3">
+                            <div className="space-y-3">
                                 <Input
                                     label="Saha Adı"
                                     value={pitch.name}
@@ -170,10 +181,11 @@ export const PitchesAndPlanStep: React.FC<PitchesAndPlanStepProps> = ({
                                     required
                                     error={nameError}
                                 />
-                                <div className="flex flex-col gap-1">
-                                    <label className="text-xs text-slate-400 font-bold uppercase">Saha Tipi</label>
+                                <div className="flex flex-col gap-1.5">
+                                    <label className="text-[11px] text-slate-400 font-bold uppercase tracking-wider pl-1">Saha Tipi</label>
                                     <select
-                                        className="w-full bg-slate-800 border border-slate-700 text-white text-sm p-3 rounded-xl focus:outline-none focus:border-orange-500 min-h-[44px]"
+                                        className="w-full bg-slate-800/40 border border-slate-700/80 text-white rounded-2xl px-4 focus:outline-none focus:border-orange-500 focus:shadow-[0_0_15px_rgba(249,115,22,0.3)] font-bold transition-colors"
+                                        style={{ fontSize: 'clamp(0.9rem, 2.3vh, 1rem)', height: 'clamp(50px, 7vh, 58px)' }}
                                         value={pitch.type}
                                         onChange={e => updatePitch(index, 'type', e.target.value)}
                                     >
@@ -190,13 +202,12 @@ export const PitchesAndPlanStep: React.FC<PitchesAndPlanStepProps> = ({
 
                             {/* Saha fotoğrafı */}
                             <div>
-                                <label className={`text-xs font-bold uppercase mb-2 block ${photoError ? 'text-red-400' : 'text-slate-400'}`}>
-                                    Saha Fotoğrafı <span className="text-red-500">*</span>
+                                <label className={`text-[11px] font-bold uppercase tracking-wider mb-2 block pl-1 ${photoError ? 'text-red-400' : 'text-slate-400'}`}>
+                                    Saha Fotoğrafı <span className="text-orange-500">*</span>
                                 </label>
                                 {pitch.imageUrl ? (
                                     <div className="space-y-2">
-                                        {/* Tam genişlik önizleme — settings sayfasıyla aynı boyut */}
-                                        <div className="relative rounded-xl overflow-hidden border border-slate-600">
+                                        <div className="relative rounded-2xl overflow-hidden border border-slate-600">
                                             <img
                                                 src={pitch.imageUrl}
                                                 alt="Saha"
@@ -207,14 +218,14 @@ export const PitchesAndPlanStep: React.FC<PitchesAndPlanStepProps> = ({
                                                     updatePitch(index, 'photoFile', null);
                                                     updatePitch(index, 'imageUrl', '');
                                                 }}
-                                                className="absolute top-2 right-2 bg-black/60 rounded-full p-1.5"
+                                                className="absolute top-2 right-2 bg-black/60 rounded-full p-1.5 active:scale-90 transition-transform"
                                             >
                                                 <X size={14} className="text-white" />
                                             </button>
                                         </div>
                                         <button
                                             onClick={() => fileInputRefs.current[index]?.click()}
-                                            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-600 text-slate-400 hover:border-slate-500 font-bold text-sm transition-colors min-h-[44px]"
+                                            className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-600 text-slate-300 hover:border-orange-500/60 hover:text-orange-400 font-bold text-sm transition-colors min-h-[44px]"
                                         >
                                             <Camera size={16} /> Değiştir
                                         </button>
@@ -223,16 +234,17 @@ export const PitchesAndPlanStep: React.FC<PitchesAndPlanStepProps> = ({
                                     <div>
                                         <button
                                             onClick={() => fileInputRefs.current[index]?.click()}
-                                            className={`flex flex-col items-center justify-center gap-2 w-full h-36 rounded-xl border-2 border-dashed transition-colors font-bold text-sm ${
+                                            className={`flex flex-col items-center justify-center gap-2 w-full rounded-2xl border-2 border-dashed transition-colors font-bold text-sm ${
                                                 photoError
-                                                    ? 'border-red-500/50 text-red-400 hover:bg-red-500/10'
+                                                    ? 'border-red-500/60 text-red-400 hover:bg-red-500/10'
                                                     : 'border-orange-500/50 text-orange-400 hover:bg-orange-500/10'
                                             }`}
+                                            style={{ height: 'clamp(120px, 20vh, 160px)' }}
                                         >
-                                            <Camera size={24} /> Fotoğraf Ekle
+                                            <Camera size={26} /> Fotoğraf Ekle
                                         </button>
                                         {photoError && (
-                                            <p className="text-red-400 text-xs font-bold ml-1 mt-1 animate-fade-in">{photoError}</p>
+                                            <p className="text-red-400 text-xs font-bold pl-1 mt-1.5 animate-fade-in">{photoError}</p>
                                         )}
                                     </div>
                                 )}
@@ -251,52 +263,32 @@ export const PitchesAndPlanStep: React.FC<PitchesAndPlanStepProps> = ({
 
                             {/* Saha-özel saatler */}
                             <div className="grid grid-cols-2 gap-3">
-                                <div className="flex flex-col gap-1">
-                                    <label className={`text-xs font-bold uppercase ml-1 ${openTimeError ? 'text-red-400' : 'text-slate-400'}`}>
-                                        Açılış Saati <span className="text-red-500">*</span>
-                                    </label>
-                                    <button
-                                        type="button"
-                                        onClick={() => setIsTimePickerOpen({ open: true, type: 'PITCH_OPEN', pitchIdx: index })}
-                                        className={`w-full bg-slate-800 border text-white p-3 rounded-xl text-left hover:border-orange-500 transition-all font-mono font-bold text-sm min-h-[44px] ${
-                                            openTimeError ? 'border-red-500' : 'border-slate-700'
-                                        }`}
-                                    >
-                                        {pitch.openTime || 'Seç...'}
-                                    </button>
-                                    {openTimeError && (
-                                        <p className="text-red-400 text-xs font-bold ml-1 mt-0.5 animate-fade-in">{openTimeError}</p>
-                                    )}
-                                </div>
-                                <div className="flex flex-col gap-1">
-                                    <label className={`text-xs font-bold uppercase ml-1 ${closeTimeError ? 'text-red-400' : 'text-slate-400'}`}>
-                                        Kapanış Saati <span className="text-red-500">*</span>
-                                    </label>
-                                    <button
-                                        type="button"
-                                        onClick={() => setIsTimePickerOpen({ open: true, type: 'PITCH_CLOSE', pitchIdx: index })}
-                                        className={`w-full bg-slate-800 border text-white p-3 rounded-xl text-left hover:border-orange-500 transition-all font-mono font-bold text-sm min-h-[44px] ${
-                                            closeTimeError ? 'border-red-500' : 'border-slate-700'
-                                        }`}
-                                    >
-                                        {pitch.closeTime || 'Seç...'}
-                                    </button>
-                                    {closeTimeError && (
-                                        <p className="text-red-400 text-xs font-bold ml-1 mt-0.5 animate-fade-in">{closeTimeError}</p>
-                                    )}
-                                </div>
+                                <TimeButton
+                                    label="Açılış"
+                                    required
+                                    value={pitch.openTime}
+                                    onClick={() => setIsTimePickerOpen({ open: true, type: 'PITCH_OPEN', pitchIdx: index })}
+                                    error={openTimeError}
+                                />
+                                <TimeButton
+                                    label="Kapanış"
+                                    required
+                                    value={pitch.closeTime}
+                                    onClick={() => setIsTimePickerOpen({ open: true, type: 'PITCH_CLOSE', pitchIdx: index })}
+                                    error={closeTimeError}
+                                />
                             </div>
 
                             {/* ── Saha Detayları ── */}
-                            <div className="border-t border-slate-800 pt-4 space-y-3">
-                                <p className="text-xs text-slate-400 font-black uppercase tracking-wider">Saha Detayları</p>
+                            <div className="border-t border-slate-700/60 pt-4 space-y-3">
+                                <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider pl-1">Saha Detayları</p>
 
                                 {/* İmkânları Belirle */}
                                 <div>
                                     <button
                                         type="button"
                                         onClick={() => setFacilitiesModalIdx(index)}
-                                        className={`flex items-center gap-2 w-full px-4 py-3 rounded-xl border-2 font-bold text-sm transition-all min-h-[48px] ${
+                                        className={`flex items-center gap-2 w-full px-4 py-3 rounded-2xl border-2 font-bold text-sm transition-all min-h-[48px] ${
                                             pitchFacilities.length > 0
                                                 ? 'border-orange-500/60 bg-orange-600/10 text-orange-400'
                                                 : 'border-dashed border-slate-600 text-slate-400'
@@ -329,9 +321,9 @@ export const PitchesAndPlanStep: React.FC<PitchesAndPlanStepProps> = ({
                                     <button
                                         type="button"
                                         onClick={() => setSlotsModalIdx(index)}
-                                        className={`flex items-center gap-2 w-full px-4 py-3 rounded-xl border-2 font-bold text-sm transition-all min-h-[48px] ${
+                                        className={`flex items-center gap-2 w-full px-4 py-3 rounded-2xl border-2 font-bold text-sm transition-all min-h-[48px] ${
                                             pitchSlots.length > 0
-                                                ? 'border-blue-500/60 bg-blue-600/10 text-blue-400'
+                                                ? 'border-orange-500/60 bg-orange-600/10 text-orange-400'
                                                 : 'border-dashed border-slate-600 text-slate-400'
                                         }`}
                                     >
@@ -348,7 +340,7 @@ export const PitchesAndPlanStep: React.FC<PitchesAndPlanStepProps> = ({
                                             {pitchSlots.map((s: TimeSlot) => (
                                                 <span
                                                     key={`${s.startTime}-${s.endTime}`}
-                                                    className="px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-600/20 border border-blue-500/40 text-blue-300 font-mono"
+                                                    className="px-2.5 py-1 rounded-lg text-xs font-bold bg-orange-600/20 border border-orange-500/40 text-orange-300 font-mono"
                                                 >
                                                     {s.startTime}–{s.endTime === '00:00' ? '24:00' : s.endTime}
                                                 </span>
@@ -377,7 +369,7 @@ export const PitchesAndPlanStep: React.FC<PitchesAndPlanStepProps> = ({
                                                     onClick={() => toggleClosedDay(index, day.value)}
                                                     className={`py-2.5 rounded-xl text-xs font-black transition-all border ${isClosed
                                                         ? 'bg-red-500/15 border-red-500/50 text-red-400'
-                                                        : 'bg-slate-800 border-slate-700 text-slate-400'
+                                                        : 'bg-slate-800/60 border-slate-700 text-slate-400'
                                                         }`}
                                                 >
                                                     {day.label}

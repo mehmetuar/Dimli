@@ -5,6 +5,7 @@ import { Geolocation } from '@capacitor/geolocation';
 import { locationService } from '../../../../../services/locationService';
 import { openLocationSettings } from '../../../../../utils/openLocationSettings';
 import { useKeyboardHeight } from '../../../../../utils/useKeyboardHeight';
+import { Input } from '../RegisterInput';
 
 interface LocationStepProps {
     formData: any;
@@ -122,29 +123,25 @@ export const LocationStep: React.FC<LocationStepProps> = ({
     const cityError = fieldErrors['business.city'];
 
     return (
-        <div className="space-y-4 animate-fade-in h-full flex flex-col">
-            {/* Başlık + GPS butonu */}
-            <div className="flex items-start justify-between gap-3">
-                <div>
-                    <h2 className="text-lg md:text-xl font-bold text-white mb-1">Konum Seçimi</h2>
-                    <p className="text-xs text-slate-400">
-                        Haritaya tıklayın veya{' '}
-                        <strong className="text-orange-400">Konumumu Kullan</strong> butonunu kullanın.
-                        İl ve ilçe otomatik tespit edilecektir.
-                    </p>
-                </div>
+        <div className="space-y-4 flex flex-col">
+            {/* GPS bul butonu */}
+            <div className="space-y-1.5">
                 <button
                     type="button"
                     onClick={() => handleLocateMe(false)}
                     disabled={isLocating}
-                    className="shrink-0 flex items-center gap-2 bg-orange-600 hover:bg-orange-500 disabled:bg-slate-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-orange-600/20 active:scale-95 min-h-[44px]"
+                    className="w-full flex items-center justify-center gap-2 bg-orange-600 hover:bg-orange-500 disabled:bg-slate-700 text-white font-bold rounded-2xl transition-all shadow-lg shadow-orange-600/20 active:scale-[0.98] disabled:active:scale-100"
+                    style={{ height: 'clamp(46px, 6.5vh, 54px)', fontSize: 'clamp(0.82rem, 2.1vh, 0.95rem)' }}
                 >
                     {isLocating
-                        ? <Loader2 className="w-4 h-4 animate-spin" />
-                        : <Navigation className="w-4 h-4" />
+                        ? <Loader2 className="w-5 h-5 animate-spin" />
+                        : <Navigation className="w-5 h-5" />
                     }
-                    {isLocating ? 'Bulunuyor...' : 'Konumu Bul'}
+                    {isLocating ? 'Konumun bulunuyor...' : 'Konumumu Bul'}
                 </button>
+                <p className="text-slate-500 text-center px-2" style={{ fontSize: 'clamp(0.65rem, 1.7vh, 0.75rem)' }}>
+                    Haritaya dokunarak da işaretleyebilirsin. İl ve ilçe otomatik algılanır.
+                </p>
             </div>
 
             {locationError && (
@@ -174,7 +171,7 @@ export const LocationStep: React.FC<LocationStepProps> = ({
             {/* Harita — gerçek konum bulunana kadar pulsing animasyon, default koordinat asla gösterilmez */}
             {isLocating || (!formData.business.latitude && !hasAttemptedLocation) ? (
                 <div
-                    className="rounded-xl border-2 border-slate-700 bg-slate-900/50 flex flex-col items-center justify-center gap-4"
+                    className="rounded-2xl border-2 border-slate-700 bg-slate-900/50 flex flex-col items-center justify-center gap-4"
                     style={{ height: 'min(40vh, 280px)' }}
                 >
                     <div className="relative flex items-center justify-center">
@@ -190,7 +187,7 @@ export const LocationStep: React.FC<LocationStepProps> = ({
                     </div>
                 </div>
             ) : (
-                <div className={`rounded-xl overflow-hidden border-2 relative z-[1] ${cityError ? 'border-red-500' : 'border-slate-700'}`} style={{ height: 'min(40vh, 280px)' }}>
+                <div className={`rounded-2xl overflow-hidden border-2 relative z-[1] ${cityError ? 'border-red-500' : 'border-slate-700'}`} style={{ height: 'min(40vh, 280px)' }}>
                     <APIProvider apiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY}>
                         <Map
                             defaultCenter={
@@ -227,16 +224,18 @@ export const LocationStep: React.FC<LocationStepProps> = ({
             {/* Geocoding durumu — klavye açıkken adres alanına yer açmak için gizlenir */}
             {keyboardHeight === 0 && (
                 isGeocoding ? (
-                    <div className="flex items-center gap-2 text-orange-500 animate-pulse text-xs font-bold">
+                    <div className="flex items-center gap-2 text-orange-400 animate-pulse text-xs font-bold px-1">
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
                         KONUM BİLGİSİ ALINIYOR...
                     </div>
                 ) : hasCity ? (
-                    <div className="flex items-center gap-2 bg-slate-800/60 border border-slate-700 rounded-xl px-4 py-3">
-                        <Lock className="w-3.5 h-3.5 text-green-400 shrink-0" />
+                    <div className="flex items-center gap-3 bg-slate-800/50 backdrop-blur-md border border-slate-700/50 rounded-2xl p-3.5 shadow-[0_8px_30px_rgba(0,0,0,0.15)]">
+                        <div className="w-10 h-10 rounded-xl bg-green-500/10 border border-green-500/20 flex items-center justify-center shrink-0">
+                            <Lock className="w-4 h-4 text-green-400" />
+                        </div>
                         <div className="flex-1 min-w-0">
-                            <p className="text-[10px] text-slate-500 font-bold uppercase mb-0.5">Tespit Edilen Konum (değiştirilemez)</p>
-                            <p className="text-sm font-bold text-green-400 truncate">
+                            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-0.5">Tespit Edilen Konum</p>
+                            <p className="text-sm font-bold text-green-400 truncate drop-shadow-[0_0_4px_rgba(74,222,128,0.3)]">
                                 {formData.business.city}{formData.business.district ? ` / ${formData.business.district}` : ''}
                             </p>
                         </div>
@@ -249,27 +248,20 @@ export const LocationStep: React.FC<LocationStepProps> = ({
                 ) : hasLocation ? (
                     <div className="text-xs text-slate-500 text-center">Konum bilgisi alınıyor...</div>
                 ) : (
-                    <div className="text-xs text-slate-600 text-center">Haritaya tıklayarak konumunuzu belirleyin.</div>
+                    <div className="text-xs text-slate-600 text-center">Haritaya dokunarak konumunu belirle.</div>
                 )
             )}
 
             {/* Açık Adres */}
-            <div className="flex flex-col gap-1">
-                <label className="text-xs text-slate-400 font-bold uppercase ml-1">
-                    Açık Adres <span className="text-red-500">*</span>
-                </label>
-                <textarea
-                    className={`w-full bg-slate-800 border text-white text-sm p-3 rounded-xl focus:outline-none transition-all font-medium min-h-[80px] resize-none ${
-                        addressError ? 'border-red-500 focus:border-red-400' : 'border-slate-700 focus:border-orange-500'
-                    }`}
-                    placeholder="Sokak, cadde, bina no gibi detaylı adres bilgisini girin..."
-                    value={formData.business.address}
-                    onChange={(e) => updateBusiness('address', e.target.value)}
-                />
-                {addressError && (
-                    <p className="text-red-400 text-xs font-bold ml-1 mt-0.5 animate-fade-in">{addressError}</p>
-                )}
-            </div>
+            <Input
+                label="Açık Adres"
+                textarea
+                placeholder="Sokak, cadde, bina no gibi detaylı adres bilgisini girin..."
+                value={formData.business.address}
+                onChange={(e) => updateBusiness('address', e.target.value)}
+                required
+                error={addressError}
+            />
         </div>
     );
 };

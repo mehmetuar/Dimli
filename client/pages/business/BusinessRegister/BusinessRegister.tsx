@@ -1,13 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight, ChevronLeft, Loader2 } from 'lucide-react';
+import { ChevronRight, Check } from 'lucide-react';
+import { LottiePlayer } from '../../../components/UI/LottiePlayer';
+import { AuthWizardLayout } from '../../../components/Layout/AuthWizardLayout';
 import { LocationSelectionModal } from './components/LocationSelectionModal';
 import { BusinessTimePickerModal } from '../../../components/Modals/BusinessTimePickerModal';
 
-
 import { useBusinessRegister } from './hooks/useBusinessRegister';
-import { RegisterSidebar, steps } from './components/RegisterSidebar';
-import { useKeyboardHeight } from '../../../utils/useKeyboardHeight';
 
 import { WelcomeStep } from './components/steps/WelcomeStep';
 import { OwnerInfoStep } from './components/steps/OwnerInfoStep';
@@ -18,21 +17,39 @@ import { PitchesAndPlanStep } from './components/steps/PitchesAndPlanStep';
 import { PaymentStep } from './components/steps/PaymentStep';
 import { CongratulationsStep } from './components/steps/CongratulationsStep';
 
+// Adım 1-7 sayaç/progress dahilinde; adım 8 (Tebrikler) kendi tam-ekran başarı görünümünde.
+const TOTAL_STEPS = 7;
+
+const STEP_META: { title: string; subtitle: string }[] = [
+    { title: 'Hoş Geldiniz', subtitle: 'Sahanı Dimli’ye taşı — ilk 3 ay ücretsiz' },
+    { title: 'Hesap Bilgileri', subtitle: 'İşletme sahibi hesabını oluştur' },
+    { title: 'Telefon Doğrulama', subtitle: '' }, // subtitle dinamik (maskeli telefon)
+    { title: 'İşletme Bilgileri', subtitle: 'Adı, çalışma saatleri ve kapak fotoğrafı' },
+    { title: 'Konum', subtitle: 'İşletmenin haritadaki yerini seç' },
+    { title: 'Sahalar & Plan', subtitle: 'Sahalarını ve aboneliğini ayarla' },
+    { title: 'Özet & Ödeme', subtitle: 'Planını onayla ve kaydı tamamla' },
+];
+
+/** 0555 555 55 55 → 0555 *** ** 55 (doğrulama alt başlığında gösterilir) */
+const maskPhone = (p: string): string => {
+    const d = (p || '').replace(/\D/g, '');
+    if (d.length < 6) return 'telefonuna';
+    return `${d.slice(0, 4)} *** ** ${d.slice(-2)}`;
+};
+
 export const BusinessRegister: React.FC = () => {
     const navigate = useNavigate();
-    const keyboardHeight = useKeyboardHeight();
-    const effectiveKeyboardHeight = keyboardHeight;
     const {
-        currentStep, totalSteps,
+        currentStep,
         error, isLoading,
         fieldErrors,
         isGeocoding, setIsGeocoding,
         isLocationModalOpen, setIsLocationModalOpen,
-        locationModalStep, setLocationModalStep,
+        locationModalStep,
         isTimePickerOpen, setIsTimePickerOpen,
         tempSlot, setTempSlot,
         formData,
-        otpSent, otpSending, resendCountdown, otpCode, setOtpCode,
+        otpSending, resendCountdown, otpCode, setOtpCode,
         ownerPasswordConfirm, setOwnerPasswordConfirm,
         updateOwner, updateBusiness, updatePitch,
         setPitchCount, toggleFacility, toggleClosedDay, addTimeSlot, removeTimeSlot,
@@ -40,18 +57,104 @@ export const BusinessRegister: React.FC = () => {
         handleSubmit, nextStep, prevStep,
     } = useBusinessRegister();
 
-    const isLastInputStep = currentStep === 7;
-    const isCongratsStep = currentStep === 8;
-    const isWelcomeStep = currentStep === 1;
-    const isOtpStep = currentStep === 3;
-    const hideHeader = isCongratsStep || isWelcomeStep;
+    // EULA onayı ödeme adımında; submit footer'a taşındığından state burada tutulur (hook'a dokunulmaz).
+    const [eulaAccepted, setEulaAccepted] = useState(false);
 
-    const renderStepContent = () => {
-        switch (currentStep) {
-            case 1:
-                return <WelcomeStep />;
-            case 2:
-                return (
+    // ── Adım 8: sihirbaz kabuğu dışında tam-ekran başarı görünümü ──
+    if (currentStep === 8) {
+        return (
+            <div
+                className="fixed left-0 right-0 bg-gradient-to-b from-pitch-surface to-pitch overflow-hidden flex flex-col z-50"
+                style={{ top: 'calc(-1 * env(safe-area-inset-top))', bottom: 'calc(-1 * env(safe-area-inset-bottom))' }}
+            >
+                <div
+                    className="flex-1 min-h-0 overflow-y-auto scrollbar-hide"
+                    style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
+                >
+                    <div
+                        className="min-h-full w-full max-w-md mx-auto flex flex-col"
+                        style={{ padding: 'clamp(20px, 5vh, 40px) clamp(16px, 5vw, 32px)' }}
+                    >
+                        <CongratulationsStep ownerPhone={formData.owner.phone} />
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    const onBack = currentStep === 1 ? () => navigate('/business/login') : prevStep;
+
+    const subtitle =
+        currentStep === 3
+            ? `${maskPhone(formData.owner.phone)} numarasına gönderilen kodu gir`
+            : STEP_META[currentStep - 1].subtitle;
+
+    // Tek turuncu birincil footer buton token'ı (BusinessForgotPassword `primaryButton` diliyle aynı)
+    const primaryButton = (label: string, onClick: () => void, disabled: boolean, isFinal = false) => (
+        <button
+            type="button"
+            onClick={onClick}
+            disabled={disabled}
+            className="w-full bg-orange-600 text-white rounded-2xl font-display font-bold uppercase tracking-wider shadow-lg shadow-black/30 border border-orange-400/15 active:bg-orange-700 active:scale-[0.97] transition-all disabled:opacity-50 disabled:active:scale-100 flex items-center justify-center gap-2"
+            style={{ height: 'clamp(48px, 7vh, 58px)', fontSize: 'clamp(0.9rem, 2.4vh, 1.1rem)' }}
+        >
+            {isLoading ? (
+                <>
+                    <span className="w-5 h-5 flex-shrink-0">
+                        <LottiePlayer
+                            src="/animations/rolling-football.json"
+                            loop
+                            autoplay
+                            ariaLabel="Yükleniyor"
+                            style={{ width: '100%', height: '100%' }}
+                            fallback={null}
+                        />
+                    </span>
+                    Lütfen bekle...
+                </>
+            ) : (
+                <>
+                    {label} {isFinal ? <Check className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+                </>
+            )}
+        </button>
+    );
+
+    const footer =
+        currentStep === 1 ? primaryButton('Başla', nextStep, isLoading)
+        : currentStep === 2 ? primaryButton('İleri', nextStep, isLoading)
+        : currentStep === 3 ? undefined /* OTP 6. hanede otomatik doğrulanır */
+        : currentStep === 4 ? primaryButton('İleri', nextStep, isLoading)
+        : currentStep === 5 ? primaryButton('İleri', nextStep, isLoading)
+        : currentStep === 6 ? primaryButton('İleri', nextStep, isLoading)
+        : currentStep === 7 ? (
+            // Ödeme: submit footer'da → hata butonun hemen üstünde (üst bant kaydırmayla kaçabilir)
+            <div className="space-y-2.5">
+                {error && (
+                    <p key={error} className="text-red-400 text-xs font-bold text-center bg-red-500/10 border border-red-500/40 rounded-xl p-2.5 animate-shake">
+                        {error}
+                    </p>
+                )}
+                {primaryButton('Kaydı Tamamla', handleSubmit, isLoading || !eulaAccepted, true)}
+            </div>
+        )
+        : undefined;
+
+    return (
+        <>
+            <AuthWizardLayout
+                step={currentStep}
+                totalSteps={TOTAL_STEPS}
+                accent="orange"
+                title={STEP_META[currentStep - 1].title}
+                subtitle={subtitle}
+                onBack={onBack}
+                error={currentStep === 7 ? undefined : error}
+                footer={footer}
+            >
+                {currentStep === 1 && <WelcomeStep />}
+
+                {currentStep === 2 && (
                     <OwnerInfoStep
                         formData={formData}
                         updateOwner={updateOwner}
@@ -59,9 +162,9 @@ export const BusinessRegister: React.FC = () => {
                         setPasswordConfirm={setOwnerPasswordConfirm}
                         fieldErrors={fieldErrors}
                     />
-                );
-            case 3:
-                return (
+                )}
+
+                {currentStep === 3 && (
                     <OtpVerificationStep
                         phone={formData.owner.phone}
                         otpCode={otpCode}
@@ -72,18 +175,18 @@ export const BusinessRegister: React.FC = () => {
                         onVerify={verifyOtp}
                         onResend={sendOtp}
                     />
-                );
-            case 4:
-                return (
+                )}
+
+                {currentStep === 4 && (
                     <BusinessDetailsStep
                         formData={formData}
                         updateBusiness={updateBusiness}
                         setIsTimePickerOpen={setIsTimePickerOpen}
                         fieldErrors={fieldErrors}
                     />
-                );
-            case 5:
-                return (
+                )}
+
+                {currentStep === 5 && (
                     <LocationStep
                         formData={formData}
                         updateBusiness={updateBusiness}
@@ -91,9 +194,9 @@ export const BusinessRegister: React.FC = () => {
                         setIsGeocoding={setIsGeocoding}
                         fieldErrors={fieldErrors}
                     />
-                );
-            case 6:
-                return (
+                )}
+
+                {currentStep === 6 && (
                     <PitchesAndPlanStep
                         formData={formData}
                         updatePitch={updatePitch}
@@ -106,109 +209,16 @@ export const BusinessRegister: React.FC = () => {
                         toggleClosedDay={toggleClosedDay}
                         fieldErrors={fieldErrors}
                     />
-                );
-            case 7:
-                return <PaymentStep formData={formData} isLoading={isLoading} error={error} onSubmit={handleSubmit} />;
-            case 8:
-                return <CongratulationsStep ownerPhone={formData.owner.phone} />;
-            default:
-                return null;
-        }
-    };
+                )}
 
-    return (
-        <div className="fixed inset-0 w-full bg-slate-950 overflow-hidden flex flex-col z-50 touch-none overscroll-none">
-            <div
-                className="flex-1 min-h-0 flex flex-col px-3 md:px-4 md:items-center md:justify-center bg-slate-900 md:bg-transparent transition-all duration-300 md:overflow-y-auto md:scrollbar-hide"
-                style={{
-                    // Üst güvenli alan — klavyeden bağımsız, durum çubuğunu her zaman temizler.
-                    paddingTop: 'calc(max(env(safe-area-inset-top, 0px), 24px) + 0.5rem)',
-                    // Alt — yalnızca iOS klavye kaydırması için (Android'de keyboardHeight=0 → native resize halleder).
-                    paddingBottom: effectiveKeyboardHeight > 0 ? `${effectiveKeyboardHeight}px` : 0,
-                }}
-            >
-            <div className="w-full max-w-4xl flex-1 min-h-0 md:flex-none md:min-h-[600px] bg-slate-900 rounded-2xl md:rounded-3xl border border-slate-800 shadow-2xl overflow-hidden flex flex-col md:flex-row">
-
-                <RegisterSidebar currentStep={currentStep} />
-
-                <div className="flex-1 flex flex-col p-5 md:p-10 relative min-h-0">
-                    {/* Header — welcome ve tamamlandı adımında gizle */}
-                    {!hideHeader && (
-                        <div className="flex justify-between items-center mb-5 md:mb-6">
-                            <h2 className="text-xl md:text-2xl font-black text-white italic uppercase tracking-wider">
-                                {steps.find(s => s.id === currentStep)?.title}
-                            </h2>
-                            <span className="text-slate-500 text-xs md:text-sm font-bold">
-                                {currentStep < 8 ? `Adım ${currentStep} / 7` : ''}
-                            </span>
-                        </div>
-                    )}
-
-                    {error && (
-                        <div className="bg-red-500/10 border border-red-500/50 text-red-400 p-3 rounded-xl mb-4 text-sm font-bold">
-                            {error}
-                        </div>
-                    )}
-
-                    <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1 scrollbar-hide touch-pan-y">
-                        {renderStepContent()}
-                    </div>
-
-                    {/* Navigation — OTP, payment, congrats adımlarında farklı davranış */}
-                    {!isCongratsStep && !isLastInputStep && !isOtpStep && (
-                        <div
-                            className="shrink-0 flex justify-between items-center -mx-5 md:-mx-10 -mb-5 md:-mb-10 px-5 md:px-10 py-4 border-t border-slate-800 bg-slate-900"
-                            style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}
-                        >
-                            <button
-                                onClick={() => currentStep === 1 ? navigate('/business/login') : prevStep()}
-                                className="flex items-center gap-2 px-5 py-3 rounded-xl font-bold transition-colors min-h-[44px] text-slate-400 hover:text-white hover:bg-slate-800"
-                            >
-                                <ChevronLeft size={20} /> Geri
-                            </button>
-
-                            <button
-                                onClick={nextStep}
-                                disabled={isLoading}
-                                className="bg-white text-slate-900 px-7 py-3 rounded-xl font-black flex items-center gap-2 hover:bg-slate-200 transition-colors shadow-lg shadow-white/10 disabled:opacity-50 min-h-[44px]"
-                            >
-                                {isLoading ? <Loader2 className="animate-spin" size={18} /> : <>İleri <ChevronRight size={20} /></>}
-                            </button>
-                        </div>
-                    )}
-
-                    {/* OTP adımında sadece geri butonu */}
-                    {isOtpStep && (
-                        <div
-                            className="shrink-0 -mx-5 md:-mx-10 -mb-5 md:-mb-10 px-5 md:px-10 py-4 border-t border-slate-800 bg-slate-900"
-                            style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}
-                        >
-                            <button
-                                onClick={prevStep}
-                                className="flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-slate-400 hover:text-white hover:bg-slate-800 transition-colors min-h-[44px]"
-                            >
-                                <ChevronLeft size={20} /> Geri
-                            </button>
-                        </div>
-                    )}
-
-                    {/* Ödeme adımında sadece geri butonu */}
-                    {isLastInputStep && (
-                        <div
-                            className="shrink-0 -mx-5 md:-mx-10 -mb-5 md:-mb-10 px-5 md:px-10 py-4 border-t border-slate-800 bg-slate-900"
-                            style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}
-                        >
-                            <button
-                                onClick={prevStep}
-                                className="flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-slate-400 hover:text-white hover:bg-slate-800 transition-colors min-h-[44px]"
-                            >
-                                <ChevronLeft size={20} /> Geri
-                            </button>
-                        </div>
-                    )}
-                </div>
-            </div>
-            </div>
+                {currentStep === 7 && (
+                    <PaymentStep
+                        formData={formData}
+                        eulaAccepted={eulaAccepted}
+                        setEulaAccepted={setEulaAccepted}
+                    />
+                )}
+            </AuthWizardLayout>
 
             <LocationSelectionModal
                 isOpen={isLocationModalOpen}
@@ -226,11 +236,11 @@ export const BusinessRegister: React.FC = () => {
                 isOpen={isTimePickerOpen.open}
                 onClose={() => setIsTimePickerOpen({ ...isTimePickerOpen, open: false })}
                 title={
-                    isTimePickerOpen.type === 'OPEN' ? "İŞLETME AÇILIŞ" :
-                        isTimePickerOpen.type === 'CLOSE' ? "İŞLETME KAPANIŞ" :
-                            isTimePickerOpen.type === 'PITCH_OPEN' ? "SAHA AÇILIŞ" :
-                                isTimePickerOpen.type === 'PITCH_CLOSE' ? "SAHA KAPANIŞ" :
-                                    isTimePickerOpen.type === 'SLOT_START' ? "SLOT BAŞLANGIÇ" : "SLOT BİTİŞ"
+                    isTimePickerOpen.type === 'OPEN' ? 'İŞLETME AÇILIŞ' :
+                        isTimePickerOpen.type === 'CLOSE' ? 'İŞLETME KAPANIŞ' :
+                            isTimePickerOpen.type === 'PITCH_OPEN' ? 'SAHA AÇILIŞ' :
+                                isTimePickerOpen.type === 'PITCH_CLOSE' ? 'SAHA KAPANIŞ' :
+                                    isTimePickerOpen.type === 'SLOT_START' ? 'SLOT BAŞLANGIÇ' : 'SLOT BİTİŞ'
                 }
                 initialTime={
                     isTimePickerOpen.type === 'OPEN' ? formData.business.openTime :
@@ -252,6 +262,6 @@ export const BusinessRegister: React.FC = () => {
                     }
                 }}
             />
-        </div>
+        </>
     );
 };
