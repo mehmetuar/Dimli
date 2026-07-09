@@ -97,7 +97,7 @@ export const Login: React.FC = () => {
                 <div
                     className="relative z-10 flex flex-col items-center justify-start flex-shrink-0 transition-all duration-200"
                     style={{
-                        paddingTop: keyboardOpen ? 'max(env(safe-area-inset-top), 50px)' : 'clamp(40px, 12vh, 96px)',
+                        paddingTop: keyboardOpen ? 'max(env(safe-area-inset-top), 50px)' : 'clamp(24px, 12vh, 96px)',
                         paddingBottom: 'clamp(8px, 2vh, 20px)',
                         maxHeight: keyboardOpen ? '20vh' : '46vh',
                     }}
@@ -105,7 +105,7 @@ export const Login: React.FC = () => {
                     {/* Logo + orta saha çemberi/çizgisi (çember logoya çapalı → her cihazda ortalı) */}
                     <div
                         className="relative flex items-center justify-center transition-all duration-200"
-                        style={{ width: keyboardOpen ? 'clamp(92px, 23.5vw, 132px)' : 'clamp(158px, 54vw, 258px)' }}
+                        style={{ width: keyboardOpen ? 'clamp(92px, 23.5vw, 132px)' : 'clamp(140px, min(54vw, 30vh), 258px)' }}
                     >
                         <PitchCenterCircle keyboardOpen={keyboardOpen} />
                         <img
@@ -261,10 +261,13 @@ export const Login: React.FC = () => {
                     </form>
                 </div>
 
-                {/* Footer: alt ceza sahası içinde "İşletme Hesabına Geçiş Yap" butonu */}
+                {/* Footer: alt ceza sahası içinde "İşletme Hesabına Geçiş Yap" butonu.
+                    Kutu akışta REZERVE edilir (minHeight = kutu yüksekliği) + buton en alta (justify-end) →
+                    Block B'nin alt kenarı = kutunun üst kenarı; "Kayıt Ol" hiçbir cihazda kutuya binemez. */}
                 <div
-                    className="relative z-10 flex-shrink-0 animate-enter-up [animation-delay:440ms] transition-all duration-200"
+                    className="relative z-10 flex-shrink-0 flex flex-col justify-end animate-enter-up [animation-delay:440ms] transition-all duration-200"
                     style={{
+                        minHeight: keyboardOpen ? undefined : 'clamp(140px, 26vh, 235px)',
                         padding: keyboardOpen
                             ? '0 clamp(16px, 5vw, 32px) clamp(10px, 1.5vh, 16px)'
                             : '0 clamp(16px, 5vw, 32px) clamp(20px, 3.5vh, 32px)',

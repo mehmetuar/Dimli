@@ -23,7 +23,7 @@ export const PitchGoalArea: React.FC<PitchGoalAreaProps> = ({ keyboardOpen = fal
         <div
             aria-hidden="true"
             className="absolute inset-x-0 bottom-0 pointer-events-none transition-opacity duration-500"
-            style={{ height: 'clamp(170px, 28vh, 250px)', opacity: keyboardOpen ? 0.22 : 1, zIndex: 0 }}
+            style={{ height: 'clamp(140px, 26vh, 235px)', opacity: keyboardOpen ? 0.22 : 1, zIndex: 0 }}
         >
             {/* Ceza sahası — sol/sağ dikey (gol çizgisinden yukarı çizilir) */}
             <div className="pitch-line-v" style={{ ...base, left: BOX_X, top: '24%', bottom: 0, width: LINE_W, animationDuration: '0.95s', animationDelay: '0.8s' }} />
