@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Sparkles, Star, CheckCircle, Building2, Shield, MapPin, Users } from 'lucide-react';
 import { JokerMatchHistoryItem, PendingRating } from '../../../../types';
-import { RatingModal } from '../../../../components/Modals/RatingModal';
+import { JokerRatingModal } from '../../../../components/Modals/JokerRatingModal';
 import api from '../../../../services/api';
 import { useModalBodyClass } from '../../../../utils/useModalBodyClass';
 
@@ -21,6 +21,8 @@ export const JokerHistoryModal: React.FC<JokerHistoryModalProps> = ({
 }) => {
     const [localMatches, setLocalMatches] = useState<JokerMatchHistoryItem[]>([]);
     const [selectedForRating, setSelectedForRating] = useState<PendingRating | null>(null);
+    // Joker formundaki "{takım} için oynadın" bağlamı (PendingRating bunu taşımıyor)
+    const [ratingInvitingTeam, setRatingInvitingTeam] = useState<string | null>(null);
 
     useModalBodyClass(isOpen);
 
@@ -55,6 +57,7 @@ export const JokerHistoryModal: React.FC<JokerHistoryModalProps> = ({
             opponentTeamName: match.opponentTeamName,
             opponentTeamDeleted: match.opponentTeamDeleted,
         };
+        setRatingInvitingTeam(match.invitingTeamName ?? null);
         setSelectedForRating(pending);
     };
 
@@ -296,11 +299,12 @@ export const JokerHistoryModal: React.FC<JokerHistoryModalProps> = ({
                 </div>
             </div>
 
-            {/* Inline Rating Modal — Joker maçından değerlendirme */}
+            {/* Inline Joker Rating Modal — joker maçından değerlendirme (amber, "{takım} için oynadın") */}
             {selectedForRating && (
-                <RatingModal
+                <JokerRatingModal
                     key={selectedForRating.reservationId}
                     pending={selectedForRating}
+                    invitingTeamName={ratingInvitingTeam}
                     onSubmit={handleRatingSubmit}
                     onSkip={handleRatingSkip}
                 />

@@ -235,6 +235,20 @@ function AppContent() {
     }
   };
 
+  // "Sonra Yap" ile ertelenen değerlendirmeler — otomatik açılış BİR DAHA gösterilmez
+  // (kullanıcı Geçmiş Maçlar / Joker Geçmişi'nden dilediğinde değerlendirir).
+  const getSnoozedRatings = (): string[] => {
+    try { return JSON.parse(localStorage.getItem('snoozed_ratings') || '[]'); } catch { return []; }
+  };
+
+  const markRatingSnoozed = (reservationId: string) => {
+    const snoozed = getSnoozedRatings();
+    if (!snoozed.includes(reservationId)) {
+      snoozed.push(reservationId);
+      localStorage.setItem('snoozed_ratings', JSON.stringify(snoozed));
+    }
+  };
+
   const handleSubmitRating = async (
     reservationId: string,
     businessScore: number,
@@ -269,8 +283,10 @@ function AppContent() {
   };
 
   const handleSkipRating = () => {
-    // Sadece bu oturumda kapat; localStorage'a yazma. Böylece bir sonraki açılışta tekrar gelir.
-    // Kullanıcı Geçmiş Maçlar'dan değerlendirme yapabilir.
+    // "Sonra Yap": ertelendi olarak KALICI işaretle → bir daha OTOMATİK açılmaz.
+    // Kullanıcı Geçmiş Maçlar / Joker Geçmişi'nden dilediğinde değerlendirebilir.
+    const current = pendingRatings[0];
+    if (current) markRatingSnoozed(current.reservationId);
     setPendingRatings((prev: PendingRating[]) => prev.slice(1));
   };
 
@@ -292,9 +308,10 @@ function AppContent() {
         try {
           const res = await api.get('/ratings/pending');
           if (res.data && res.data.length > 0) {
-            const handled = getHandledRatings();
+            // Hem gönderilmiş (handled) hem ertelenmiş (snoozed) olanları otomatik açılıştan çıkar
+            const suppressed = new Set([...getHandledRatings(), ...getSnoozedRatings()]);
             const filtered = (res.data as PendingRating[]).filter(
-              (r: PendingRating) => !handled.includes(r.reservationId)
+              (r: PendingRating) => !suppressed.has(r.reservationId)
             );
             if (filtered.length > 0) setPendingRatings(filtered);
           }
