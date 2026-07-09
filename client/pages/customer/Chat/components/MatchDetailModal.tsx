@@ -7,6 +7,7 @@ import { calculateDistance } from '../../../../utils/location';
 import { addOneHour } from '../../../../utils/time';
 import { DirectionsConfirmModal } from '../../PitchBooking/components/DirectionsConfirmModal';
 import { teamInitialsAvatar } from '../../../../utils/teamColors';
+import { pitchTypeShortLabel } from '../../../../utils/pitchType';
 
 interface TeamData {
     id: string;
@@ -422,7 +423,7 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({ isOpen, onCl
                                         <div className="flex-1 min-w-0">
                                             <div className="text-sm font-bold text-white truncate">{data.pitch.name}</div>
                                             <div className="text-[10px] text-slate-400 truncate">
-                                                {data.pitch.business?.name}{data.pitch.type ? ` • ${data.pitch.type === 'INDOOR' ? 'Kapalı' : 'Açık'}` : ''}
+                                                {data.pitch.business?.name}{data.pitch.type ? ` • ${pitchTypeShortLabel(data.pitch.type)}` : ''}
                                             </div>
                                         </div>
                                         {distanceKm != null && (

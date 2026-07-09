@@ -189,8 +189,8 @@ export const PitchesAndPlanStep: React.FC<PitchesAndPlanStepProps> = ({
                                         value={pitch.type}
                                         onChange={e => updatePitch(index, 'type', e.target.value)}
                                     >
-                                        <option value="Kapalı Saha">Kapalı Saha</option>
-                                        <option value="Açık Saha">Açık Saha</option>
+                                        <option value="INDOOR">Kapalı Saha</option>
+                                        <option value="OUTDOOR">Açık Saha</option>
                                     </select>
                                 </div>
                                 <PriceInput

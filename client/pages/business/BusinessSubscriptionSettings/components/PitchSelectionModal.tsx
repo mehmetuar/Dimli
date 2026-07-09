@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Trash2, Check, AlertTriangle, Loader2 } from 'lucide-react';
+import { pitchTypeLabel } from '../../../../utils/pitchType';
 
 interface PitchSelectionModalProps {
     visible: boolean;
@@ -73,7 +74,7 @@ export const PitchSelectionModal: React.FC<PitchSelectionModalProps> = ({
                                     <div className="flex-1 min-w-0">
                                         <p className="font-bold text-sm text-white truncate">{pitch.name}</p>
                                         <p className="text-slate-400 text-xs mt-0.5">
-                                            {pitch.type === 'INDOOR' ? 'Kapalı Saha' : 'Açık Saha'}
+                                            {pitchTypeLabel(pitch.type)}
                                         </p>
                                     </div>
                                     {pitch.approvalStatus === 'pending' && (

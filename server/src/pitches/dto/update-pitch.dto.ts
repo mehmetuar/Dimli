@@ -14,6 +14,10 @@ export class UpdatePitchDto {
   name?: string;
 
   @IsOptional()
+  @IsString()
+  type?: string; // 'INDOOR' | 'OUTDOOR'
+
+  @IsOptional()
   @IsNumber()
   pricePerHour?: number;
 

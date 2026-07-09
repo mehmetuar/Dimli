@@ -48,6 +48,32 @@ export const PitchGeneralForm: React.FC<PitchGeneralFormProps> = ({
                     </div>
                 </div>
 
+                {/* Saha Tipi (Açık / Kapalı) */}
+                <div>
+                    <label className="block text-[clamp(10px,2.8vw,12px)] font-bold mb-2 text-slate-400 uppercase tracking-wider">Saha Tipi</label>
+                    <div className="grid grid-cols-2 gap-2">
+                        {([{ v: 'INDOOR', label: 'Kapalı Saha' }, { v: 'OUTDOOR', label: 'Açık Saha' }] as const).map(opt => {
+                            const active = formData.type === opt.v;
+                            return (
+                                <button
+                                    key={opt.v}
+                                    type="button"
+                                    onClick={() => handleChange('type', opt.v)}
+                                    disabled={disabled}
+                                    className={`py-3.5 rounded-xl font-black text-[clamp(13px,3.6vw,15px)] border transition-all min-h-[48px] ${
+                                        active
+                                            ? 'bg-orange-600 border-orange-500 text-white shadow-lg shadow-orange-900/30'
+                                            : 'bg-slate-900/60 border-slate-700/60 text-slate-400 hover:border-orange-500/40'
+                                    } ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                    style={{ WebkitTapHighlightColor: 'transparent' }}
+                                >
+                                    {opt.label}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+
                 {/* Saatler */}
                 <div className="grid grid-cols-2 gap-3">
                     <div>

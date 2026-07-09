@@ -9,6 +9,7 @@ import {
     slotsOverlap,
     sortSlotsByNightRule as sortTimeSlotsForDisplay,
 } from '../../../../utils/nightSlot';
+import { normalizePitchType } from '../../../../utils/pitchType';
 
 interface TimePickerState {
     open: boolean;
@@ -51,6 +52,7 @@ export const useBusinessPitchSettings = () => {
 
     const [formData, setFormData] = useState({
         name: '',
+        type: 'INDOOR', // 'INDOOR' | 'OUTDOOR' (Açık/Kapalı saha)
         pricePerHour: '',
         openTime: '',
         closeTime: '',
@@ -116,6 +118,7 @@ export const useBusinessPitchSettings = () => {
             const pitch = response.data;
             setFormData({
                 name: pitch.name || '',
+                type: normalizePitchType(pitch.type), // eski etiket-değerli satırları da kanonik enum'a çevir
                 pricePerHour: pitch.pricePerHour?.toString() || '',
                 openTime: pitch.openTime || '',
                 closeTime: pitch.closeTime || '',

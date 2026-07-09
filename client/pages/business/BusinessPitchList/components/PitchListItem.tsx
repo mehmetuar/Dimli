@@ -1,5 +1,6 @@
 import React from 'react';
 import { ChevronRight, Goal, TurkishLira, Clock, AlertTriangle } from 'lucide-react';
+import { pitchTypeLabel } from '../../../../utils/pitchType';
 
 interface PitchListItemProps {
     pitch: any;
@@ -37,7 +38,7 @@ export const PitchListItem: React.FC<PitchListItemProps> = ({ pitch, onClick, is
                 </h3>
                 <div className="flex items-center gap-1.5 mt-1">
                     <span className="text-[clamp(10px,2.8vw,12px)] text-slate-400">
-                        {pitch.type === 'INDOOR' ? 'Kapalı Saha' : 'Açık Saha'}
+                        {pitchTypeLabel(pitch.type)}
                     </span>
                     <span className="text-slate-600">•</span>
                     <div className="flex items-center gap-0.5">
