@@ -45,43 +45,69 @@ export const ChallengeModal: React.FC<ChallengeModalProps> = ({ isOpen, onClose,
             portalToBody
             zClassName="z-[70]"
             panelClassName="bg-slate-800 w-full max-w-md rounded-3xl border border-slate-700 shadow-2xl shadow-turf-500/20"
-            bodyClassName="p-6 space-y-6"
+            bodyClassName="p-[clamp(12px,2.2vh,24px)] space-y-[clamp(8px,1.6vh,18px)]"
             header={
-                <div className="bg-gradient-to-r from-turf-600 to-turf-700 p-5 relative overflow-hidden">
+                <div className="bg-gradient-to-r from-turf-600 to-turf-700 relative overflow-hidden" style={{ padding: 'clamp(14px, 2.5vh, 20px)' }}>
                     <div className="absolute -right-6 -top-6 w-24 h-24 bg-white/10 rounded-full blur-xl"></div>
 
                     <button
                         onClick={onClose}
-                        className="absolute top-4 right-4 bg-black/20 hover:bg-black/40 p-2 rounded-full text-white transition-colors z-20"
+                        className="absolute top-3 right-3 bg-black/20 hover:bg-black/40 p-2 rounded-full text-white transition-colors z-20"
                     >
                         <X className="w-5 h-5" />
                     </button>
 
-                    <h2 className="font-sport font-black text-2xl text-white uppercase italic tracking-wide relative z-10">
+                    <h2 className="font-sport font-black text-white uppercase italic tracking-wide relative z-10" style={{ fontSize: 'clamp(1.15rem, 3vh, 1.5rem)' }}>
                         Meydan Oku
                     </h2>
-                    <p className="text-turf-100 text-sm mt-1 relative z-10 font-medium">Rakip takıma maç teklifi gönder</p>
+                    <p className="text-turf-100 mt-0.5 relative z-10 font-medium" style={{ fontSize: 'clamp(0.72rem, 1.7vh, 0.875rem)' }}>Rakip takıma maç teklifi gönder</p>
+                </div>
+            }
+            footer={
+                <div className="flex gap-3 border-t border-slate-700/40" style={{ padding: 'clamp(8px,1.4vh,12px) clamp(12px,2.2vh,24px) clamp(12px,2.2vh,24px)' }}>
+                    <button
+                        onClick={onClose}
+                        className="flex-1 bg-slate-800 text-slate-300 rounded-xl font-bold uppercase tracking-wider hover:bg-slate-700 hover:text-white transition-colors border border-slate-700"
+                        style={{ height: 'clamp(42px, 6.5vh, 52px)', fontSize: 'clamp(0.75rem, 1.9vh, 0.875rem)' }}
+                    >
+                        Vazgeç
+                    </button>
+                    <button
+                        onClick={handleSubmit}
+                        disabled={isLoading}
+                        className="flex-[2] bg-turf-600 text-white rounded-xl font-black uppercase tracking-wider hover:bg-turf-500 transition-colors shadow-lg shadow-turf-600/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        style={{ height: 'clamp(42px, 6.5vh, 52px)', fontSize: 'clamp(0.75rem, 1.9vh, 0.875rem)' }}
+                    >
+                        {isLoading ? (
+                            <LoadingSpinner size="sm" text="" />
+                        ) : (
+                            <>
+                                Meydan Oku <Swords className="w-5 h-5 fill-current" />
+                            </>
+                        )}
+                    </button>
                 </div>
             }
         >
                     {/* Match Info Card */}
                     <div className="bg-slate-900/50 rounded-2xl border border-slate-700/50 overflow-hidden">
                         {/* Team Header */}
-                        <div className="p-4 flex items-center gap-4 border-b border-slate-700/50 bg-slate-800/30">
+                        <div className="flex items-center gap-3 border-b border-slate-700/50 bg-slate-800/30" style={{ padding: 'clamp(10px,1.8vh,16px)' }}>
                             <img
                                 src={match.teamLogo || teamInitialsAvatar(match.teamName)}
                                 alt={match.teamName}
-                                className="w-12 h-12 rounded-full border-2 border-slate-600 object-cover"
+                                className="rounded-full border-2 border-slate-600 object-cover shrink-0"
+                                style={{ width: 'clamp(42px,7vh,48px)', height: 'clamp(42px,7vh,48px)' }}
                                 onError={(e) => { const el = e.currentTarget; el.onerror = null; el.src = teamInitialsAvatar(match.teamName); }}
                             />
-                            <div>
+                            <div className="min-w-0">
                                 <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">Rakip Takım</div>
-                                <h3 className="font-sport font-bold text-xl text-white uppercase italic">{match.teamName}</h3>
+                                <h3 className="font-sport font-bold text-white uppercase italic truncate" style={{ fontSize: 'clamp(1rem,2.5vh,1.25rem)' }}>{match.teamName}</h3>
                             </div>
                         </div>
 
                         {/* Details Grid */}
-                        <div className="p-4 grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-2" style={{ padding: 'clamp(10px,1.8vh,16px)', gap: 'clamp(8px,1.5vh,16px)' }}>
                             <div className="space-y-1">
                                 <div className="flex items-center gap-1.5 text-slate-400 text-[10px] font-bold uppercase">
                                     <Calendar className="w-3 h-3" /> Tarih
@@ -145,32 +171,9 @@ export const ChallengeModal: React.FC<ChallengeModalProps> = ({ isOpen, onClose,
                             value={note}
                             onChange={setNote}
                             placeholder="Örn: Takımımız hazır, bekliyoruz."
-                            className="w-full bg-slate-900 text-white p-4 rounded-xl border border-slate-700 focus:border-turf-500 focus:outline-none resize-none h-28 text-sm placeholder:text-slate-600"
+                            className="w-full bg-slate-900 text-white p-3.5 rounded-xl border border-slate-700 focus:border-turf-500 focus:outline-none resize-none h-[clamp(56px,10vh,104px)] text-sm placeholder:text-slate-600"
                             maxChars={NOTE_CHAR_LIMITS.match}
                         />
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="flex gap-3 pt-2">
-                        <button
-                            onClick={onClose}
-                            className="flex-1 bg-slate-800 text-slate-300 py-3.5 rounded-xl font-bold text-sm uppercase tracking-wider hover:bg-slate-700 hover:text-white transition-colors border border-slate-700"
-                        >
-                            Vazgeç
-                        </button>
-                        <button
-                            onClick={handleSubmit}
-                            disabled={isLoading}
-                            className="flex-[2] bg-turf-600 text-white py-3.5 rounded-xl font-black text-sm uppercase tracking-wider hover:bg-turf-500 transition-colors shadow-lg shadow-turf-600/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                        >
-                            {isLoading ? (
-                                <LoadingSpinner size="sm" text="" />
-                            ) : (
-                                <>
-                                    Meydan Oku <Swords className="w-5 h-5 fill-current" />
-                                </>
-                            )}
-                        </button>
                     </div>
         </KeyboardAwareModal>
     );

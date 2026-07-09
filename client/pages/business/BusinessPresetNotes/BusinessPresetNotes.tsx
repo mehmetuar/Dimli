@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { BusinessLoadingSpinner } from '../../../components/Business/BusinessLoadingSpinner';
 import { ConfirmModal } from '../../../components/Modals/ConfirmModal';
+import { KeyboardAwareModal } from '../../../components/Modals/KeyboardAwareModal';
 import { useBusinessPresetNotes } from './hooks/useBusinessPresetNotes';
 
 export const BusinessPresetNotes: React.FC = () => {
@@ -123,7 +124,7 @@ export const BusinessPresetNotes: React.FC = () => {
 
                     {/* Kayıtlı Notlar */}
                     <div className="space-y-3">
-                        <label className="block text-[clamp(11px,3vw,13px)] font-black uppercase tracking-widest text-slate-400 pl-2 flex items-center justify-between">
+                        <label className="text-[clamp(11px,3vw,13px)] font-black uppercase tracking-widest text-slate-400 pl-2 flex items-center justify-between">
                             <span>Kayıtlı Notlar</span>
                             {notes.length > 0 && <span className="text-[10px] text-slate-500 bg-slate-800 px-2 py-0.5 rounded-full">{notes.length} Adet</span>}
                         </label>
@@ -132,59 +133,28 @@ export const BusinessPresetNotes: React.FC = () => {
                             <div className="bg-slate-900/50 backdrop-blur-md rounded-2xl border border-white/5 overflow-hidden shadow-lg divide-y divide-white/5">
                                 {notes.map((note) => (
                                     <div key={note.id} className="p-4 transition-colors hover:bg-slate-800/30">
-                                        {editingId === note.id ? (
-                                            <div className="space-y-3">
-                                                <div className="bg-slate-950/40 border border-indigo-500/30 rounded-xl p-3">
-                                                    <textarea
-                                                        value={editingContent}
-                                                        onChange={(e) => setEditingContent(e.target.value.slice(0, MAX_LEN))}
-                                                        className="w-full bg-transparent border-none text-white font-medium text-[clamp(13px,3.5vw,15px)] focus:outline-none focus:ring-0 placeholder:text-slate-500 p-0 min-h-[60px] resize-none"
-                                                    />
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <button
-                                                        onClick={handleSaveEdit}
-                                                        disabled={savingEdit || !editingContent.trim()}
-                                                        className="flex-1 flex items-center justify-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] text-white font-bold text-xs py-3 rounded-xl transition-all disabled:opacity-50"
-                                                        style={{ WebkitTapHighlightColor: 'transparent' }}
-                                                    >
-                                                        <Check className="w-4 h-4" />
-                                                        {savingEdit ? 'Kaydediliyor' : 'Kaydet'}
-                                                    </button>
-                                                    <button
-                                                        onClick={cancelEdit}
-                                                        className="flex items-center justify-center gap-1.5 bg-slate-700 hover:bg-slate-600 active:scale-95 text-white font-bold text-xs px-4 py-3 rounded-xl transition-all"
-                                                        style={{ WebkitTapHighlightColor: 'transparent' }}
-                                                    >
-                                                        <X className="w-4 h-4" />
-                                                        İptal
-                                                    </button>
-                                                </div>
+                                        <div className="flex items-start gap-4">
+                                            <p className="flex-1 text-[clamp(13px,3.5vw,15px)] text-slate-200 leading-relaxed whitespace-pre-wrap break-words min-w-0">
+                                                {note.content}
+                                            </p>
+                                            <div className="flex items-center gap-1.5 flex-shrink-0 bg-slate-950/30 p-1 rounded-xl border border-white/5">
+                                                <button
+                                                    onClick={() => startEdit(note)}
+                                                    className="w-8 h-8 rounded-lg text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/20 flex items-center justify-center active:scale-95 transition-all"
+                                                    style={{ WebkitTapHighlightColor: 'transparent' }}
+                                                >
+                                                    <Pencil className="w-3.5 h-3.5" />
+                                                </button>
+                                                <div className="w-px h-4 bg-slate-700/50" />
+                                                <button
+                                                    onClick={() => setDeleteId(note.id)}
+                                                    className="w-8 h-8 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/20 flex items-center justify-center active:scale-95 transition-all"
+                                                    style={{ WebkitTapHighlightColor: 'transparent' }}
+                                                >
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                </button>
                                             </div>
-                                        ) : (
-                                            <div className="flex items-start gap-4">
-                                                <p className="flex-1 text-[clamp(13px,3.5vw,15px)] text-slate-200 leading-relaxed whitespace-pre-wrap break-words min-w-0">
-                                                    {note.content}
-                                                </p>
-                                                <div className="flex items-center gap-1.5 flex-shrink-0 bg-slate-950/30 p-1 rounded-xl border border-white/5">
-                                                    <button
-                                                        onClick={() => startEdit(note)}
-                                                        className="w-8 h-8 rounded-lg text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/20 flex items-center justify-center active:scale-95 transition-all"
-                                                        style={{ WebkitTapHighlightColor: 'transparent' }}
-                                                    >
-                                                        <Pencil className="w-3.5 h-3.5" />
-                                                    </button>
-                                                    <div className="w-px h-4 bg-slate-700/50" />
-                                                    <button
-                                                        onClick={() => setDeleteId(note.id)}
-                                                        className="w-8 h-8 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/20 flex items-center justify-center active:scale-95 transition-all"
-                                                        style={{ WebkitTapHighlightColor: 'transparent' }}
-                                                    >
-                                                        <Trash2 className="w-3.5 h-3.5" />
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        )}
+                                        </div>
                                     </div>
                                 ))}
                             </div>
@@ -213,6 +183,65 @@ export const BusinessPresetNotes: React.FC = () => {
                 cancelText="Vazgeç"
                 isDangerous={true}
             />
+
+            {/* Not düzenleme — klavye-üstü merkezi modal (input asla klavye altında kalmaz) */}
+            <KeyboardAwareModal
+                isOpen={editingId !== null}
+                onClose={cancelEdit}
+                portalToBody
+                panelClassName="bg-slate-800 w-full max-w-md rounded-3xl border border-indigo-500/20 shadow-2xl"
+                bodyClassName="p-5"
+                header={
+                    <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-slate-700/50">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="w-9 h-9 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center shrink-0">
+                                <Pencil className="w-4 h-4 text-indigo-400" />
+                            </div>
+                            <h3 className="font-black text-white text-base truncate">Notu Düzenle</h3>
+                        </div>
+                        <button
+                            onClick={cancelEdit}
+                            className="w-9 h-9 rounded-full bg-slate-700/60 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors shrink-0"
+                            style={{ WebkitTapHighlightColor: 'transparent' }}
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
+                    </div>
+                }
+                footer={
+                    <div className="flex items-center gap-2 px-5 pb-5 pt-3 border-t border-slate-700/50">
+                        <button
+                            onClick={handleSaveEdit}
+                            disabled={savingEdit || !editingContent.trim()}
+                            className="flex-1 flex items-center justify-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] text-white font-bold text-sm py-3 rounded-xl transition-all disabled:opacity-50 disabled:active:scale-100"
+                            style={{ WebkitTapHighlightColor: 'transparent' }}
+                        >
+                            <Check className="w-4 h-4" />
+                            {savingEdit ? 'Kaydediliyor' : 'Kaydet'}
+                        </button>
+                        <button
+                            onClick={cancelEdit}
+                            className="flex items-center justify-center gap-1.5 bg-slate-700 hover:bg-slate-600 active:scale-95 text-white font-bold text-sm px-5 py-3 rounded-xl transition-all"
+                            style={{ WebkitTapHighlightColor: 'transparent' }}
+                        >
+                            <X className="w-4 h-4" />
+                            İptal
+                        </button>
+                    </div>
+                }
+            >
+                <div className="bg-slate-950/40 border border-indigo-500/30 rounded-xl p-3.5 focus-within:border-indigo-500/60 transition-colors">
+                    <textarea
+                        value={editingContent}
+                        onChange={(e) => setEditingContent(e.target.value.slice(0, MAX_LEN))}
+                        autoFocus
+                        className="w-full bg-transparent border-none text-white font-medium text-[15px] focus:outline-none focus:ring-0 placeholder:text-slate-500 p-0 min-h-[100px] resize-none"
+                    />
+                </div>
+                <div className="mt-2 text-right text-[11px] font-bold tracking-wider text-slate-500">
+                    <span className={editingContent.length === MAX_LEN ? 'text-orange-400' : 'text-indigo-400'}>{editingContent.length}</span> / {MAX_LEN}
+                </div>
+            </KeyboardAwareModal>
 
             {toast && (
                 <div
