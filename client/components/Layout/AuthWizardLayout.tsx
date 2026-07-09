@@ -14,6 +14,8 @@ interface AuthWizardLayoutProps {
     error?: string;
     /** Alt aksiyon bölgesi (İleri/Tamamla butonu vb.) — klavye üstünde durur */
     footer?: React.ReactNode;
+    /** Vurgu rengi — progress bar (müşteri=turf yeşil, işletme=orange turuncu) */
+    accent?: 'turf' | 'orange';
     children: React.ReactNode;
 }
 
@@ -29,7 +31,7 @@ interface AuthWizardLayoutProps {
  *   (adım bileşenlerinin köküne ayrıca animasyon sınıfı KOYMA — çift animasyon olur).
  */
 export const AuthWizardLayout: React.FC<AuthWizardLayoutProps> = ({
-    step, totalSteps, title, subtitle, onBack, error, footer, children,
+    step, totalSteps, title, subtitle, onBack, error, footer, accent = 'turf', children,
 }) => {
     const keyboardHeight = useKeyboardHeight();
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -88,7 +90,7 @@ export const AuthWizardLayout: React.FC<AuthWizardLayoutProps> = ({
 
                     <div className="h-1.5 bg-slate-700/60 rounded-full mt-3 overflow-hidden">
                         <div
-                            className="h-full bg-turf-500 rounded-full transition-all duration-500 ease-out"
+                            className={`h-full rounded-full transition-all duration-500 ease-out ${accent === 'orange' ? 'bg-orange-500' : 'bg-turf-500'}`}
                             style={{ width: `${(step / totalSteps) * 100}%` }}
                         />
                     </div>

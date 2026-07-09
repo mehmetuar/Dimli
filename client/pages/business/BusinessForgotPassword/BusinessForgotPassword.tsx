@@ -2,73 +2,71 @@ import React, { useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { Keyboard } from '@capacitor/keyboard';
-import { Phone, Lock, CheckCircle } from 'lucide-react';
+import { Mail, Lock, CheckCircle } from 'lucide-react';
 import { LoadingSpinner } from '../../../components/UI/LoadingSpinner';
 import { LottiePlayer } from '../../../components/UI/LottiePlayer';
 import { OtpInput } from '../../../components/UI/OtpInput';
 import { AuthWizardLayout } from '../../../components/Layout/AuthWizardLayout';
 import { CelebrationScreen } from '../../../components/UI/CelebrationScreen';
-import { useForgotPassword } from './hooks/useForgotPassword';
+import { useBusinessForgotPassword } from './hooks/useBusinessForgotPassword';
 
 const TOTAL_STEPS = 3;
-
-// Başarı Lottie'si — kilit açılma temalı özel animasyon bulununca yalnız bu satır değişir
 const RESET_SUCCESS_LOTTIE = '/animations/ball-success.json';
 
-const STEP_META: { title: string; subtitle: (phone: string) => string }[] = [
-    { title: 'Şifremi Unuttum', subtitle: () => 'Kayıtlı numaranı gir, SMS ile kod gönderelim' },
-    { title: 'Doğrulama Kodu', subtitle: (phone) => `${phone} numarasına gönderilen kodu gir` },
+const STEP_META: { title: string; subtitle: (masked: string) => string }[] = [
+    { title: 'Şifremi Unuttum', subtitle: () => 'Hesabına bağlı e-posta adresini gir, telefonuna kod gönderelim' },
+    { title: 'Doğrulama Kodu', subtitle: (masked) => `${masked} numarasına gönderilen kodu gir` },
     { title: 'Yeni Şifre', subtitle: () => 'Hesabın için yeni şifreni belirle' },
 ];
 
-export const ForgotPassword: React.FC = () => {
+export const BusinessForgotPassword: React.FC = () => {
     const navigate = useNavigate();
     const {
         step,
-        phone,
-        setPhone,
+        email,
+        setEmail,
         otpCode,
         setOtpCode,
         newPassword,
         setNewPassword,
         confirmPassword,
         setConfirmPassword,
+        maskedPhone,
         error,
         loading,
         resendCountdown,
         success,
         sendOtp,
         resendOtp,
-        goBackToPhone,
+        goBackToEmail,
         resetPassword,
-    } = useForgotPassword();
+    } = useBusinessForgotPassword();
 
-    // Sayfa açılınca telefon input'una otomatik odak + klavye (Kayıt akışındaki UsernameStep deseni).
-    // iOS: programatik focus klavyeyi açar; Android: Keyboard.show() garantiler. 350ms = adım geçiş anim'i.
-    const phoneRef = useRef<HTMLInputElement>(null);
+    // Sayfa açılınca e-posta input'una otomatik odak + klavye (Kayıt/Login akışındaki desen).
+    const emailRef = useRef<HTMLInputElement>(null);
     useEffect(() => {
         const t = setTimeout(() => {
-            phoneRef.current?.focus();
+            emailRef.current?.focus();
             if (Capacitor.getPlatform() === 'android') Keyboard.show().catch(() => { });
         }, 350);
         return () => clearTimeout(t);
     }, []);
 
-    // Adım 3'te geri yok (OTP tüketildi — geri dönmek anlamsız)
+    // Adım 3'te geri yok (OTP tüketildi)
     const onBack =
-        step === 1 ? () => navigate('/login')
-        : step === 2 ? goBackToPhone
+        step === 1 ? () => navigate('/business/login')
+        : step === 2 ? goBackToEmail
         : undefined;
 
     const inputClass =
-        'w-full bg-slate-800/40 text-white pl-12 pr-4 py-4 rounded-2xl border border-slate-700/80 focus:border-turf-500 focus:shadow-neon-sm focus:outline-none font-bold transition-colors';
+        'w-full bg-slate-800/40 text-white pl-12 pr-4 py-4 rounded-2xl border border-slate-700/80 focus:border-orange-500 focus:shadow-[0_0_15px_rgba(249,115,22,0.3)] focus:outline-none font-bold transition-colors';
 
     const primaryButton = (label: string, onClick: () => void, disabled: boolean) => (
         <button
             type="button"
             onClick={onClick}
             disabled={disabled}
-            className="w-full bg-turf-600 text-white rounded-2xl font-display font-bold uppercase tracking-wider shadow-lg shadow-black/30 border border-turf-400/15 active:bg-turf-700 active:scale-[0.97] transition-all disabled:opacity-50 disabled:active:scale-100 flex items-center justify-center gap-2"
+            className="w-full bg-orange-600 text-white rounded-2xl font-display font-bold uppercase tracking-wider shadow-lg shadow-black/30 border border-orange-400/15 active:bg-orange-700 active:scale-[0.97] transition-all disabled:opacity-50 disabled:active:scale-100 flex items-center justify-center gap-2"
             style={{ height: 'clamp(48px, 7vh, 58px)', fontSize: 'clamp(0.9rem, 2.4vh, 1.1rem)' }}
         >
             {loading ? (
@@ -94,33 +92,36 @@ export const ForgotPassword: React.FC = () => {
             <AuthWizardLayout
                 step={step}
                 totalSteps={TOTAL_STEPS}
+                accent="orange"
                 title={STEP_META[step - 1].title}
-                subtitle={STEP_META[step - 1].subtitle(phone)}
+                subtitle={STEP_META[step - 1].subtitle(maskedPhone)}
                 onBack={onBack}
                 error={error}
                 footer={
-                    step === 1 ? primaryButton('Kod Gönder', sendOtp, loading || !phone.trim())
+                    step === 1 ? primaryButton('Kod Gönder', sendOtp, loading || !email.trim())
                     : step === 3 ? primaryButton('Şifremi Güncelle', resetPassword, loading)
                     : undefined /* adım 2: OTP 6. hanede otomatik doğrulanır */
                 }
             >
-                {/* Adım 1: Telefon */}
+                {/* Adım 1: E-posta */}
                 {step === 1 && (
                     <div className="space-y-4">
                         <div>
                             <label className="block text-xs font-bold text-slate-400 uppercase mb-1">
-                                Telefon Numarası
+                                E-Posta Adresi
                             </label>
                             <div className="relative">
-                                <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 w-5 h-5" />
+                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 w-5 h-5" />
                                 <input
-                                    ref={phoneRef}
-                                    type="tel"
-                                    value={phone}
-                                    onChange={(e) => setPhone(e.target.value)}
+                                    ref={emailRef}
+                                    type="email"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
                                     className={inputClass}
-                                    placeholder="0555 555 55 55"
-                                    autoComplete="tel"
+                                    placeholder="ornek@saha.com"
+                                    autoComplete="email"
+                                    autoCapitalize="none"
+                                    autoCorrect="off"
                                 />
                             </div>
                         </div>
@@ -134,7 +135,7 @@ export const ForgotPassword: React.FC = () => {
                             <label className="block text-xs font-bold text-slate-400 uppercase mb-3 text-center">
                                 Doğrulama Kodu
                             </label>
-                            <OtpInput value={otpCode} onChange={setOtpCode} accent="turf" autoFocus disabled={loading} />
+                            <OtpInput value={otpCode} onChange={setOtpCode} accent="orange" autoFocus disabled={loading} />
                         </div>
 
                         {loading && (
@@ -148,7 +149,7 @@ export const ForgotPassword: React.FC = () => {
                                 type="button"
                                 disabled={resendCountdown > 0 || loading}
                                 onClick={resendOtp}
-                                className="text-sm text-slate-400 hover:text-turf-400 font-bold disabled:cursor-not-allowed transition-colors py-2 px-3"
+                                className="text-sm text-slate-400 hover:text-orange-400 font-bold disabled:cursor-not-allowed transition-colors py-2 px-3"
                             >
                                 {resendCountdown > 0
                                     ? `Tekrar gönder (${resendCountdown}s)`
@@ -197,16 +198,16 @@ export const ForgotPassword: React.FC = () => {
                 )}
             </AuthWizardLayout>
 
-            {/* Başarı kutlaması — login'e geçiş burada */}
+            {/* Başarı kutlaması — işletme login'e geçiş burada */}
             <CelebrationScreen
                 isOpen={success}
                 lottieSrc={RESET_SUCCESS_LOTTIE}
-                fallback={<CheckCircle className="w-20 h-20 text-turf-400" />}
+                fallback={<CheckCircle className="w-20 h-20 text-green-400" />}
                 title="ŞİFRE GÜNCELLENDİ!"
                 subtitle="Giriş ekranına yönlendiriliyorsun..."
                 buttonLabel="GİRİŞ YAP"
                 autoCloseMs={2200}
-                onDone={() => navigate('/login', { replace: true })}
+                onDone={() => navigate('/business/login', { replace: true })}
             />
         </>
     );

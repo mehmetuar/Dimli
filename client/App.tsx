@@ -39,6 +39,7 @@ const FavoriteBusinessesSettings = lazy(() => import('./pages/customer/FavoriteB
 const TeamSettings = lazy(() => import('./pages/customer/TeamSettings/TeamSettings').then(m => ({ default: m.TeamSettings })));
 const BusinessLogin = lazy(() => import('./pages/business/BusinessLogin/BusinessLogin').then(m => ({ default: m.BusinessLogin })));
 const BusinessRegister = lazy(() => import('./pages/business/BusinessRegister/BusinessRegister').then(m => ({ default: m.BusinessRegister })));
+const BusinessForgotPassword = lazy(() => import('./pages/business/BusinessForgotPassword/BusinessForgotPassword').then(m => ({ default: m.BusinessForgotPassword })));
 const BusinessDashboard = lazy(() => import('./pages/business/BusinessDashboard/BusinessDashboard').then(m => ({ default: m.BusinessDashboard })));
 const BusinessSettingsHub = lazy(() => import('./pages/business/BusinessSettingsHub/BusinessSettingsHub').then(m => ({ default: m.BusinessSettingsHub })));
 const BusinessInfoSettings = lazy(() => import('./pages/business/BusinessInfoSettings/BusinessInfoSettings').then(m => ({ default: m.BusinessInfoSettings })));
@@ -202,7 +203,7 @@ function AppContent() {
   useEffect(() => {
     const handleExpired = () => {
       const hash = window.location.hash;
-      const authPrefixes = ['#/login', '#/register', '#/forgot-password', '#/business/login', '#/business/register'];
+      const authPrefixes = ['#/login', '#/register', '#/forgot-password', '#/business/login', '#/business/register', '#/business/forgot-password'];
       if (!authPrefixes.some(p => hash.startsWith(p))) {
         const role = getRole();
         const target = role === 'business_owner' ? '/business/login' : '/login';
@@ -341,6 +342,7 @@ function AppContent() {
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/business/login" element={<BusinessLogin />} />
             <Route path="/business/register" element={<BusinessRegister />} />
+            <Route path="/business/forgot-password" element={<BusinessForgotPassword />} />
             <Route element={<BusinessProtectedRoute />}>
               <Route path="/business/dashboard" element={<BusinessDashboard />} />
               <Route path="/business/settings" element={<BusinessSettingsHub />} />

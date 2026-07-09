@@ -14,7 +14,6 @@ interface BusinessLoginFormProps {
     isSubmitting: boolean;
     keyboardOpen: boolean;
     onSubmit: (e: React.FormEvent) => void;
-    onForgotPassword: () => void;
 }
 
 export const BusinessLoginForm: React.FC<BusinessLoginFormProps> = ({
@@ -25,7 +24,6 @@ export const BusinessLoginForm: React.FC<BusinessLoginFormProps> = ({
     isSubmitting,
     keyboardOpen,
     onSubmit,
-    onForgotPassword,
 }) => {
     return (
         <div
@@ -111,25 +109,23 @@ export const BusinessLoginForm: React.FC<BusinessLoginFormProps> = ({
                         </button>
                     </div>
                     <div className="flex justify-end" style={{ marginTop: 'clamp(2px, 0.6vh, 6px)' }}>
-                        <button
-                            type="button"
-                            onClick={onForgotPassword}
+                        <Link
+                            to="/business/forgot-password"
                             className="text-orange-500 font-bold hover:underline"
                             style={{ fontSize: 'clamp(0.7rem, 1.8vh, 0.8rem)' }}
                         >
                             Şifremi Unuttum
-                        </button>
+                        </Link>
                     </div>
                 </div>
 
                 <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full bg-gradient-to-b from-orange-500 to-orange-600 text-white rounded-2xl font-display font-bold uppercase tracking-wider border border-orange-400/25 active:from-orange-600 active:to-orange-700 active:scale-[0.97] transition-all disabled:opacity-80 disabled:active:scale-100 flex items-center justify-center gap-2"
+                    className="w-full bg-orange-600 text-white rounded-xl font-display font-bold uppercase tracking-wider hover:bg-orange-500 active:bg-orange-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                     style={{
                         height: 'clamp(40px, 7.5vh, 58px)',
                         fontSize: 'clamp(0.85rem, 2.4vh, 1.125rem)',
-                        boxShadow: '0 10px 30px -10px rgba(249,115,22,0.55), inset 0 1px 0 rgba(255,255,255,0.15)'
                     }}
                 >
                     {isSubmitting ? (

@@ -7,7 +7,6 @@ import { useBusinessLogin } from './hooks/useBusinessLogin';
 import { BusinessLoginHeader } from './components/BusinessLoginHeader';
 import { BusinessLoginForm } from './components/BusinessLoginForm';
 import { BackToCustomerButton } from './components/BackToCustomerButton';
-import { BusinessForgotPasswordModal } from './components/BusinessForgotPasswordModal';
 
 export const BusinessLogin: React.FC = () => {
     const {
@@ -16,7 +15,6 @@ export const BusinessLogin: React.FC = () => {
         showPassword, setShowPassword,
         error,
         isSubmitting,
-        isForgotModalOpen, setIsForgotModalOpen,
         keyboardOpen,
         animClass,
         handleLogin,
@@ -29,7 +27,8 @@ export const BusinessLogin: React.FC = () => {
             style={{
                 top: 'calc(-1 * env(safe-area-inset-top))',
                 bottom: 'calc(-1 * env(safe-area-inset-bottom))',
-                background: 'radial-gradient(130% 90% at 50% 15%, #2a1005 0%, #0f0a14 45%, #050408 80%, #020204 100%)',
+                // Üstte sıcak turuncu glow → altta premium lacivert (slate-900 → slate-800); siyah baskınlığı yok
+                background: 'radial-gradient(130% 92% at 50% 13%, #2e1408 0%, #1a1620 32%, #14202f 60%, #0f172a 84%, #1e293b 100%)',
             }}
         >
             <div
@@ -49,16 +48,10 @@ export const BusinessLogin: React.FC = () => {
                     isSubmitting={isSubmitting}
                     keyboardOpen={keyboardOpen}
                     onSubmit={handleLogin}
-                    onForgotPassword={() => setIsForgotModalOpen(true)}
                 />
 
                 <BackToCustomerButton keyboardOpen={keyboardOpen} onClick={goToCustomer} />
             </div>
-
-            <BusinessForgotPasswordModal
-                isOpen={isForgotModalOpen}
-                onClose={() => setIsForgotModalOpen(false)}
-            />
         </div>
     );
 };

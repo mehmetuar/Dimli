@@ -13,7 +13,6 @@ export const useBusinessLogin = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
     const { loginAsBusiness } = useAuth();
@@ -65,7 +64,6 @@ export const useBusinessLogin = () => {
         showPassword, setShowPassword,
         error,
         isSubmitting,
-        isForgotModalOpen, setIsForgotModalOpen,
         keyboardOpen,
         animClass,
         handleLogin,
