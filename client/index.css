@@ -203,14 +203,37 @@
   will-change: transform;
 }
 
-/* Ceza sahası: dash-draw YOK (komple çizili SVG); gol çizgisinden yukarı clip-path wipe. */
-@keyframes pitchWipeUp {
-  from { clip-path: inset(100% 0 0 0); }
-  to   { clip-path: inset(0 0 0 0); }
+/* Düz dikey çizgi (ceza sahası kenarları): gol çizgisinden yukarı çizilir (scaleY — GPU).
+   Süre/gecikme inline override edilir (kademeli çizim). */
+@keyframes pitchLineV {
+  from { transform: scaleY(0); }
+  to   { transform: scaleY(1); }
 }
 
-.pitch-wipe-up {
-  animation: pitchWipeUp 1.8s cubic-bezier(0.34, 1.56, 0.64, 1) 0.6s both;
+.pitch-line-v {
+  transform: scaleY(0);
+  transform-origin: bottom;
+  animation-name: pitchLineV;
+  animation-duration: 1s;
+  animation-timing-function: cubic-bezier(0.6, 0, 0.2, 1);
+  animation-fill-mode: both;
+  will-change: transform;
+}
+
+/* Penaltı noktası: en son yumuşak belirir (scale + opacity). */
+@keyframes pitchDotIn {
+  from { transform: scale(0.3); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+
+.pitch-dot-in {
+  transform: scale(0.3);
+  opacity: 0;
+  animation-name: pitchDotIn;
+  animation-duration: 0.5s;
+  animation-timing-function: cubic-bezier(0.34, 1.4, 0.64, 1);
+  animation-fill-mode: both;
+  will-change: transform, opacity;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -218,13 +241,15 @@
     animation: none;
     stroke-dashoffset: 0;
   }
-  .pitch-line-h {
+  .pitch-line-h,
+  .pitch-line-v {
     animation: none;
     transform: none;
   }
-  .pitch-wipe-up {
+  .pitch-dot-in {
     animation: none;
-    clip-path: none;
+    transform: none;
+    opacity: 1;
   }
 }
 

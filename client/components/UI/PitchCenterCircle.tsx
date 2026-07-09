@@ -27,7 +27,7 @@ const CIRC = 2 * Math.PI * R; // ≈ 295.3
  */
 export const PitchCenterCircle: React.FC<PitchCenterCircleProps> = ({
     keyboardOpen = false,
-    circleScale = 0.92,
+    circleScale = 0.83,
     coreCenterY = 0.415,
 }) => {
     const cy = `${coreCenterY * 100}%`;

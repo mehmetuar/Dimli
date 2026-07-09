@@ -7,48 +7,61 @@ interface PitchGoalAreaProps {
 
 // Ceza sahası: hero'dan daha sönük, keskin (glow yok — perf)
 const BOX_LINE = 'rgba(236, 247, 241, 0.4)';
+const LINE_W = '2px';
+const BOX_X = 'clamp(6px, 2.5vw, 18px)'; // ceza sahası kenar boşluğu (butonu içine alır)
 
 /**
  * Alt ceza sahası: footer'ın (İşletme geçiş butonu) arkasına çapalı, butonu içine alır.
- * Gol çizgisi = ekran alt kenarı; ceza sahası alttan yükselir (⊓). Kale yayı + penaltı noktası.
- * preserveAspectRatio="none" + non-scaling-stroke → her en-boy oranında düzgün 2px, TAM kutu.
- * Giriş: dash-draw YOK (WebKit dash+pathLength hatasından kaçınmak için) — kapsayıcıya
- * `clip-path` wipe (gol çizgisinden yukarı açılır) → garantili komple. reduce-motion'da statik.
+ * Gol çizgisi = alt kenar; ceza sahası ⊓ + gol çizgisi (kapalı kutu) + kale alanı (6-pas) +
+ * penaltı yayı + penaltı noktası. Çizgiler DOM (scaleX/scaleY, üniform 2px, GPU, tüm cihaz) →
+ * kademeli YAVAŞ çizim; yay uniform SVG stroke-dash; nokta en son scale-in. reduce-motion'da statik.
  */
 export const PitchGoalArea: React.FC<PitchGoalAreaProps> = ({ keyboardOpen = false }) => {
+    const base = { position: 'absolute' as const, background: BOX_LINE };
+
     return (
         <div
             aria-hidden="true"
             className="absolute inset-x-0 bottom-0 pointer-events-none transition-opacity duration-500"
-            style={{
-                height: 'clamp(150px, 26vh, 230px)',
-                opacity: keyboardOpen ? 0.22 : 1,
-                zIndex: 0,
-            }}
+            style={{ height: 'clamp(170px, 28vh, 250px)', opacity: keyboardOpen ? 0.22 : 1, zIndex: 0 }}
         >
+            {/* Ceza sahası — sol/sağ dikey (gol çizgisinden yukarı çizilir) */}
+            <div className="pitch-line-v" style={{ ...base, left: BOX_X, top: '24%', bottom: 0, width: LINE_W, animationDuration: '0.95s', animationDelay: '0.8s' }} />
+            <div className="pitch-line-v" style={{ ...base, right: BOX_X, top: '24%', bottom: 0, width: LINE_W, animationDuration: '0.95s', animationDelay: '0.88s' }} />
+
+            {/* Gol çizgisi (alt — kutuyu kapatır) */}
+            <div className="pitch-line-h" style={{ ...base, left: BOX_X, right: BOX_X, bottom: 0, height: LINE_W, animationDuration: '0.85s', animationDelay: '0.95s' }} />
+
+            {/* Ceza sahası üst çizgisi */}
+            <div className="pitch-line-h" style={{ ...base, left: BOX_X, right: BOX_X, top: '24%', height: LINE_W, animationDuration: '0.8s', animationDelay: '1.5s' }} />
+
+            {/* Kale alanı (6-pas) — gol çizgisinde küçük ⊓ (butonun altında) */}
+            <div className="pitch-line-v" style={{ ...base, left: '32%', top: '89%', bottom: 0, width: LINE_W, animationDuration: '0.6s', animationDelay: '1.85s' }} />
+            <div className="pitch-line-v" style={{ ...base, right: '32%', top: '89%', bottom: 0, width: LINE_W, animationDuration: '0.6s', animationDelay: '1.9s' }} />
+            <div className="pitch-line-h" style={{ ...base, left: '32%', right: '32%', top: '89%', height: LINE_W, animationDuration: '0.6s', animationDelay: '2.0s' }} />
+
+            {/* Penaltı yayı — uçları kutu üst çizgisine TAM oturur (chord = viewBox tabanı),
+                yay yukarı çıkar; alta taşma yok. */}
             <svg
-                className="absolute inset-0 w-full h-full pitch-wipe-up"
-                viewBox="0 0 300 120"
-                preserveAspectRatio="none"
+                className="absolute"
+                viewBox="0 0 100 24"
+                style={{ left: '50%', top: '24%', width: '46%', maxWidth: '170px', transform: 'translate(-50%, -100%)', overflow: 'visible' }}
                 fill="none"
             >
-                {/* Ceza sahası (⊓ — alttan/gol çizgisinden yükselir, butonu içine alır) */}
                 <path
-                    d="M10 120 V34 H290 V120"
+                    className="pitch-draw"
+                    style={{ strokeDasharray: 120, strokeDashoffset: 120, animationDuration: '0.9s', animationDelay: '2.2s' }}
+                    d="M14 24 A 44 44 0 0 0 86 24"
                     stroke={BOX_LINE}
                     strokeWidth={2}
-                    vectorEffect="non-scaling-stroke"
                 />
-                {/* Penaltı yayı (ceza sahası üstünde, sahaya doğru çıkıntı) */}
-                <path
-                    d="M126 34 A 32 32 0 0 0 174 34"
-                    stroke={BOX_LINE}
-                    strokeWidth={2}
-                    vectorEffect="non-scaling-stroke"
-                />
-                {/* Penaltı noktası */}
-                <circle cx="150" cy="58" r="2.5" fill={BOX_LINE} />
             </svg>
+
+            {/* Penaltı noktası (EN SON yavaş belirir) */}
+            <div
+                className="pitch-dot-in rounded-full"
+                style={{ position: 'absolute', left: '50%', top: '45%', width: '6px', height: '6px', marginLeft: '-3px', marginTop: '-3px', background: BOX_LINE, animationDelay: '2.75s' }}
+            />
         </div>
     );
 };

@@ -105,7 +105,7 @@ export const Login: React.FC = () => {
                     {/* Logo + orta saha çemberi/çizgisi (çember logoya çapalı → her cihazda ortalı) */}
                     <div
                         className="relative flex items-center justify-center transition-all duration-200"
-                        style={{ width: keyboardOpen ? 'clamp(70px, 18vw, 104px)' : 'clamp(120px, 42vw, 200px)' }}
+                        style={{ width: keyboardOpen ? 'clamp(92px, 23.5vw, 132px)' : 'clamp(158px, 54vw, 258px)' }}
                     >
                         <PitchCenterCircle keyboardOpen={keyboardOpen} />
                         <img
@@ -115,6 +115,10 @@ export const Login: React.FC = () => {
                             style={{
                                 filter: 'drop-shadow(0 0 22px rgba(74,222,128,0.35))',
                                 animationDelay: '300ms',
+                                // icon'un sol-alt uzantısını dengelemek için çok milimetrik sağ-üst kaydırma
+                                // (relative offset — enter-up transform'uyla çakışmaz)
+                                left: '1%',
+                                top: '-1.3%',
                             }}
                         />
                     </div>
@@ -223,11 +227,10 @@ export const Login: React.FC = () => {
                         <button
                             type="submit"
                             disabled={isSubmitting}
-                            className="w-full bg-gradient-to-b from-turf-500 to-turf-600 text-white rounded-2xl font-display font-bold uppercase tracking-wider border border-turf-400/25 active:from-turf-600 active:to-turf-700 active:scale-[0.97] transition-all disabled:opacity-80 disabled:active:scale-100 flex items-center justify-center gap-2"
+                            className="w-full bg-turf-600 text-white rounded-2xl font-display font-bold uppercase tracking-wider shadow-lg shadow-black/30 border border-turf-400/15 active:bg-turf-700 active:scale-[0.97] transition-all disabled:opacity-80 disabled:active:scale-100 flex items-center justify-center gap-2"
                             style={{
                                 height: 'clamp(40px, 7.5vh, 58px)',
                                 fontSize: 'clamp(0.85rem, 2.4vh, 1.125rem)',
-                                boxShadow: '0 10px 30px -10px rgba(34,197,94,0.55), inset 0 1px 0 rgba(255,255,255,0.15)',
                             }}
                         >
                             {isSubmitting ? (
