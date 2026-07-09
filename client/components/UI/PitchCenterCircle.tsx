@@ -31,6 +31,17 @@ export const PitchCenterCircle: React.FC<PitchCenterCircleProps> = ({
     coreCenterY = 0.415,
 }) => {
     const cy = `${coreCenterY * 100}%`;
+    // Çizgi çemberin dışında durur (içi/logo temiz): çember yarıçapı ≈ 47*circleScale% + ~%3 boşluk.
+    const stopPct = `${(47 * circleScale + 3).toFixed(2)}%`;
+    const lineBase: React.CSSProperties = {
+        position: 'absolute',
+        top: `calc(${cy} - 1px)`,
+        height: '2px',
+        width: `calc(50vw - ${stopPct})`,
+        background: HERO_LINE,
+        filter: HERO_GLOW,
+        animationDelay: '0.1s',
+    };
 
     return (
         <div
@@ -38,19 +49,15 @@ export const PitchCenterCircle: React.FC<PitchCenterCircleProps> = ({
             className="absolute inset-0 pointer-events-none transition-opacity duration-500"
             style={{ opacity: keyboardOpen ? 0.28 : 1, zIndex: 0 }}
         >
-            {/* Orta saha çizgisi — tam viewport genişliği, D çekirdeğinin dikey merkezinden geçer */}
+            {/* Orta saha çizgisi — çemberin İÇİNDEN GEÇMEZ: sol + sağ iki segment, çember dışında.
+                Her segment çember kenarından ekran kenarına doğru çizilir (transform-origin çember tarafı). */}
             <div
-                className="absolute pitch-line-h"
-                style={{
-                    top: `calc(${cy} - 1px)`,
-                    left: '50%',
-                    marginLeft: '-50vw',
-                    width: '100vw',
-                    height: '2px',
-                    background: HERO_LINE,
-                    filter: HERO_GLOW,
-                    animationDelay: '0.1s',
-                }}
+                className="pitch-line-h"
+                style={{ ...lineBase, left: 'calc(50% - 50vw)', transformOrigin: 'right' }}
+            />
+            <div
+                className="pitch-line-h"
+                style={{ ...lineBase, right: 'calc(50% - 50vw)', transformOrigin: 'left' }}
             />
 
             {/* Orta saha çemberi — logoyu içine alır, D çekirdeğiyle ortalı */}
