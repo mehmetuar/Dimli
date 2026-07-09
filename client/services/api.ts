@@ -212,6 +212,26 @@ export const getNotificationsPaged = async (params: {
     return data ?? { items: [], total: 0, hasMore: false };
 };
 
+// İşletme bildirimleri — sunucu sayfalama (getNotificationsPaged işletme aynası).
+// İşletme ucu JWT yerine ownerId query paramıyla çalıştığı için ownerId zorunlu.
+export const getBusinessNotificationsPaged = async (params: {
+    ownerId: string;
+    limit?: number;
+    offset?: number;
+}): Promise<{ items: any[]; total: number; hasMore: boolean }> => {
+    const { ownerId, limit = 20, offset = 0 } = params;
+    const response = await api.get('/business-owner/notifications', {
+        params: { ownerId, limit, offset },
+    });
+    const data = response.data;
+    // Geriye dönük uyumluluk: eski sunucu limit'i yoksayıp düz dizi döner —
+    // tek sayfa gibi sun; sunucu deploy olunca gerçek sayfalama devreye girer.
+    if (Array.isArray(data)) {
+        return { items: data, total: data.length, hasMore: data.length >= limit };
+    }
+    return data ?? { items: [], total: 0, hasMore: false };
+};
+
 // Tüm okunmamışları TEK istekte okundu yapar (sunucuda tek UPDATE) — eski
 // bildirim-başına PATCH döngüsünün (50 okunmamış = 50 istek) yerini alır.
 // Eski sunucuya düşerse (route yok → 404) bildirim-başına PATCH sigortası devrede.

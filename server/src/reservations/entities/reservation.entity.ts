@@ -25,6 +25,14 @@ export enum ReservationStatus {
 // Geçmiş/yaklaşan maç sorguları (teamId OR opponentTeamId) filtreler — OR'un
 // ikinci kolu indekssiz kalınca veri büyüyünce seq-scan olur.
 @Index(['opponentTeamId', 'status'])
+// İşletme istatistiği (getStats): pitchId + status=APPROVED + slotTime aralığı
+// sayımları bu bileşik indeksten okur. Dashboard gün sorgusu (pitchId + slotTime
+// aralığı) ise yukarıdaki [pitchId, slotTime]'dan okumaya devam eder.
+@Index(['pitchId', 'status', 'slotTime'])
+// Sabit-kapatma (recurring closure) ve maç-ilanı FK lookup'ları — bu kolonlar
+// indekssizdi (canlı DB'de doğrulandı); veri büyüyünce seq-scan olur.
+@Index(['recurringClosureId'])
+@Index(['matchAnnouncementId'])
 @Entity()
 export class Reservation {
   @PrimaryGeneratedColumn('uuid')

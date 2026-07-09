@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Bell, Calendar, Clock, ChevronRight, Users, Star, MapPin } from 'lucide-react';
-import api from '../../../services/api';
+import { getBusinessNotificationsPaged } from '../../../services/api';
 import { getOwnerId } from '../../../services/authStorage';
 import { BusinessNavbar } from '../../../components/Business/BusinessNavbar';
 import { BusinessLoadingSpinner } from '../../../components/Business/BusinessLoadingSpinner';
@@ -10,30 +10,72 @@ import { ReservationRequestDetailModal } from './components/ReservationRequestDe
 import { BusinessNotification, levelLabel, matchTypeLabel } from './types';
 import { teamInitialsAvatar } from '../../../utils/teamColors';
 
+const PAGE_SIZE = 20;
+
 export const BusinessNotificationsPage: React.FC = () => {
     const navigate = useNavigate();
     const [notifications, setNotifications] = useState<BusinessNotification[]>([]);
     const [loading, setLoading] = useState(true);
+    const [hasMore, setHasMore] = useState(false);
+    const [loadingMore, setLoadingMore] = useState(false);
     const [selectedRR, setSelectedRR] = useState<BusinessNotification | null>(null);
 
-    useEffect(() => {
-        fetchNotifications();
-    }, []);
+    // Sayfalama yarış korumaları (useNotifications/usePitchBooking deseni):
+    // her reset bir "nesil" başlatır; eski yanıtlar reset'ten sonra uygulanmaz.
+    const notificationsRef = useRef<BusinessNotification[]>(notifications);
+    notificationsRef.current = notifications;
+    const isFetchingRef = useRef(false);
+    const fetchGenRef = useRef(0);
 
-    const fetchNotifications = async () => {
-        setLoading(true);
+    // 20'şerli sunucu sayfalama + append + id-dedup (müşteri useNotifications aynası).
+    const fetchNotifications = useCallback(async (reset: boolean) => {
+        if (!reset && isFetchingRef.current) return;
+        const ownerId = getOwnerId();
+        if (!ownerId) { setLoading(false); return; }
+        const gen = reset ? ++fetchGenRef.current : fetchGenRef.current;
+        const offset = reset ? 0 : notificationsRef.current.length;
+        isFetchingRef.current = true;
+        if (!reset) setLoadingMore(true);
         try {
-            const ownerId = getOwnerId();
-            if (!ownerId) return;
-
-            const response = await api.get(`/business-owner/notifications?ownerId=${ownerId}`);
-            setNotifications(response.data);
+            const { items, hasMore: more } = await getBusinessNotificationsPaged({
+                ownerId, limit: PAGE_SIZE, offset,
+            });
+            if (gen !== fetchGenRef.current) return; // daha yeni bir reset bunu geçersiz kıldı
+            if (reset) {
+                setNotifications(items as BusinessNotification[]);
+            } else {
+                // id-bazlı dedup: offset kayarsa aynı kayıt ikinci kez eklenmesin.
+                setNotifications(prev => {
+                    const seen = new Set(prev.map(n => n.id));
+                    return [...prev, ...(items as BusinessNotification[]).filter(n => !seen.has(n.id))];
+                });
+            }
+            setHasMore(more);
         } catch (error) {
             console.error('Failed to fetch business notifications:', error);
         } finally {
-            setLoading(false);
+            if (gen === fetchGenRef.current) {
+                isFetchingRef.current = false;
+                setLoadingMore(false);
+                setLoading(false);
+            }
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        void fetchNotifications(true);
+    }, [fetchNotifications]);
+
+    const loadMore = useCallback(() => {
+        if (!hasMore || isFetchingRef.current) return;
+        void fetchNotifications(false);
+    }, [hasMore, fetchNotifications]);
+
+    // Sonsuz kaydırma: alttan ~600px kala sonraki sayfayı çek (PitchBooking eşiği).
+    const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+        const el = e.currentTarget;
+        if (el.scrollHeight - el.scrollTop - el.clientHeight < 600) loadMore();
+    }, [loadMore]);
 
     const handleNotificationClick = (notif: BusinessNotification) => {
         // Rezervasyon isteğinde zengin detay modalı; diğer tiplerde mevcut davranış.
@@ -165,6 +207,7 @@ export const BusinessNotificationsPage: React.FC = () => {
             <div
                 className="flex-1 overflow-y-auto overscroll-contain scrollbar-hide"
                 style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
+                onScroll={handleScroll}
             >
             <div className="p-4 space-y-3 pb-business-nav" style={{ minHeight: 'calc(100% + 1px)' }}>
                 {loading ? (
@@ -212,6 +255,11 @@ export const BusinessNotificationsPage: React.FC = () => {
                         </div>
                         <h4 className="text-xl font-bold text-slate-400">Henüz bildirim yok</h4>
                         <p className="text-sm text-slate-600 mt-2">Maç istekleri ve önemli güncellemeler burada görünecek.</p>
+                    </div>
+                )}
+                {loadingMore && (
+                    <div className="py-6 flex justify-center">
+                        <BusinessLoadingSpinner />
                     </div>
                 )}
             </div>

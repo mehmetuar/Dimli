@@ -792,19 +792,58 @@ export class NotificationsService {
   }
 
   // Business Owner Notifications
-  async findByOwner(ownerId: string): Promise<Notification[]> {
-    const notifications = await this.notificationsRepository.find({
-      where: { userId: ownerId }, // Using userId column for ownerId too
-      order: { createdAt: 'DESC' },
-    });
+  // limit yoksa legacy limitsiz dizi (yayındaki eski mobil sürümler limit
+  // göndermez — sözleşme korunur); limit varsa {items,total,hasMore} zarfı.
+  // Müşteri findByUser deseninin işletme sahibi aynası.
+  async findByOwner(ownerId: string): Promise<Notification[]>;
+  async findByOwner(
+    ownerId: string,
+    opts: { limit: number; offset: number },
+  ): Promise<{ items: Notification[]; total: number; hasMore: boolean }>;
+  async findByOwner(
+    ownerId: string,
+    opts?: { limit: number; offset: number },
+  ): Promise<
+    Notification[] | { items: Notification[]; total: number; hasMore: boolean }
+  > {
+    if (!opts) {
+      const notifications = await this.notificationsRepository.find({
+        where: { userId: ownerId }, // Using userId column for ownerId too
+        order: { createdAt: 'DESC' },
+      });
+      return this.enrichReservationRequestNotifications(notifications);
+    }
 
-    // Self-heal: eski RESERVATION_REQUEST bildirimleri ya minimal metadata
-    // içeriyor ya da eski sürümle (v2: opponentTeam yok; v2 öncesi: yanlış/UTC
-    // saat) zenginleştirilmiş olabilir. Okuma sırasında metaV !== 3 olanlar
-    // ilgili rezervasyondan yeniden doldurulur + kalıcılaştırılır (tek yazım
-    // garantisi: metaV=3 işlendikten sonra guard bir daha girmez). Rezervasyon
-    // silinmişse metaV=3 işaretlenir (team null kalır) → sonsuz yeniden deneme
-    // olmaz, istemci title/message fallback'ini gösterir.
+    const { limit, offset } = opts;
+    // limit+1 çek → hasMore ek COUNT'suz; total başlık sayacı için ayrıca sayılır
+    // ((userId,createdAt) indeksiyle ucuz). Self-heal yalnız sayfa dilimine uygulanır.
+    const [rows, total] = await Promise.all([
+      this.notificationsRepository.find({
+        where: { userId: ownerId },
+        order: { createdAt: 'DESC' },
+        take: limit + 1,
+        skip: offset,
+      }),
+      this.notificationsRepository.count({ where: { userId: ownerId } }),
+    ]);
+    const hasMore = rows.length > limit;
+    const items = await this.enrichReservationRequestNotifications(
+      hasMore ? rows.slice(0, limit) : rows,
+    );
+    return { items, total, hasMore };
+  }
+
+  // RESERVATION_REQUEST self-heal — eskiden findByOwner içinde sınırsız map'ti;
+  // ayrı metoda çıkarıldı ki sayfalı yolda yalnız sayfa dilimine (≤limit) uygulansın.
+  // Self-heal: eski RESERVATION_REQUEST bildirimleri ya minimal metadata
+  // içeriyor ya da eski sürümle (v2: opponentTeam yok; v2 öncesi: yanlış/UTC
+  // saat) zenginleştirilmiş olabilir. metaV !== 3 olanlar ilgili rezervasyondan
+  // yeniden doldurulur + kalıcılaştırılır (tek yazım garantisi: metaV=3
+  // işlendikten sonra guard bir daha girmez). Rezervasyon silinmişse metaV=3
+  // işaretlenir (team null kalır) → sonsuz yeniden deneme olmaz.
+  private async enrichReservationRequestNotifications(
+    notifications: Notification[],
+  ): Promise<Notification[]> {
     return Promise.all(
       notifications.map(async (n) => {
         if (

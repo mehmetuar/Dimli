@@ -2455,3 +2455,55 @@ buraya taşındı), `extractPublicId(url)` (public_id regex'i artık tek yerde �
 - ⚠️ **Lokal test TZ gotcha'sı:** lokal Postgres `Europe/Istanbul` — ham SQL'de `NOW()` naive
   kolona İstanbul duvar saati yazar, uygulama UTC okur → sahte kaymalar. Lokal test SQL'inde
   `(NOW() AT TIME ZONE 'UTC')` kullan. Üretimde süreç+DB UTC, sorun yok (§29).
+
+---
+
+## 61. İşletme paneli ölçeklenebilirlik — Faz 1 (2026-07-09)
+
+> Hedef: 50 işletme toplu yayın öncesi işletme (business owner) panelinin veri-çekme mimarisini
+> incele + ölçeklenebilir yap. Kullanıcı onaylı **aşamalı** kapsam: Faz 1 = düşük riskli, geriye
+> uyumlu düzeltmeler (burası). Faz 2 (dashboard slot payload hafifletme + per-saha N+1) AYRI onay
+> bekliyor. Rapor+plan: `~/.claude/plans/i-letme-panel-ve-i-letme-async-goose.md`.
+
+### Tespit (mevcut durum, 3 Explore ajanı + canlı DB salt-SELECT)
+- **Ekran istekleri:** Dashboard=4 (dashboard+subscription+preset-notes+unread-count), Stats=1,
+  Bildirimler=1, Saha ayarları=saha başına 4 (zaten lazy). **Polling YOK.** Yükleyici=rolling-football.
+- **Darboğazlar:** (1) `findByOwner` bildirim **sınırsız** tüm-geçmiş + N+1 self-heal (§49'da ertelenmişti);
+  (2) `getStats` **saha başına 4 COUNT** (4N round-trip); (3) dashboard per-saha N+1 + her slota tam
+  Reservation grafiği (→Faz 2); (4) `reservation` indeks boşlukları (`status`, `recurringClosureId`,
+  `matchAnnouncementId`). Canlı ölçek küçük (6 işl/8 saha/134 rez/290 bildirim) ama sınırsız desenler büyür.
+
+### Faz 1 — yapıldı (hepsi geriye uyumlu; **önce sunucu deploy**)
+- **B1 — İşletme bildirim sayfalama** (müşteri `findByUser` deseninin aynası): `notifications.service
+  findByOwner` **overload** — opts yoksa legacy düz dizi (eski client kırılmaz), varsa `take:limit+1`
+  + `count` → `{items,total,hasMore}`. Self-heal ayrı private `enrichReservationRequestNotifications`'a
+  çıkarıldı → sayfalı yolda yalnız **sayfa dilimine** (≤limit) uygulanır. `business-owner.controller`
+  `getNotifications` limit/offset (clamp 1..50, default 20). Client: `api.ts getBusinessNotificationsPaged`
+  (eski-sunucu düz-dizi fallback'i) + `BusinessNotificationsPage` **sonsuz kaydırma** (PAGE_SIZE=20,
+  fetchGen nesil guard + id-dedup append + ~600px eşik, alt spinner rolling-football).
+- **B2 — Stats 4N COUNT → tek sorgu:** `getStats` saha döngüsündeki 4 count → **tek QueryBuilder**:
+  `WHERE pitchId IN(...) AND status=APPROVED AND slotTime BETWEEN ay`, `SELECT pitchId, (teamId IS NULL)
+  isManual, COUNT(*) monthCnt, COUNT(*) FILTER (WHERE slotTime BETWEEN bugün) todayCnt`, `GROUP BY pitchId,
+  (teamId IS NULL)` (parametresiz GROUP BY — güvenli). JS'te saha kovalarına indirilir; **çıktı şekli
+  birebir korunur**. **İNCELİK:** `getStats:415` ikinci business yüklemesi KASITLI (Pitch `deletedAt` düz
+  `@Column`, DeleteDateColumn değil → soft-delete sahaları da yükler = tarihsel gelir); pitch kümesine
+  DOKUNULMADI. Golden-diff (canlı DB, 8 saha) eski 4-count == yeni GROUP BY **birebir** (`ok=t`).
+- **B3 — Dashboard gereksiz istek temizliği** (`useBusinessDashboard`): preset-notes **lazy** (mount
+  yerine not modalı ilk açılınca, `presetNotesLoadedRef`); subscription **tarih değişiminde çekilmez**
+  (`needSub = !subscriptionLoadedRef.current || silent` → yalnız ilk yükleme + reconnect/resubmit;
+  mutasyon sonrası da atlanır). Cache yazımı `subscriptionRef.current` (en güncel) ile korunur.
+- **B4 — Eksik indeksler** (`reservation.entity`, synchronize boot'ta kurar): `@Index(['pitchId','status',
+  'slotTime'])` (stats), `@Index(['recurringClosureId'])`, `@Index(['matchAnnouncementId'])`. Canlı DB'de
+  bu kolonların indekssiz olduğu doğrulandı. Dashboard gün sorgusu mevcut `[pitchId,slotTime]`'dan okumaya devam.
+
+### Doğrulama
+Server `npm run build` + lint (edit'lenen 4 dosya temiz). Client `tsc --noEmit` (yalnız önceden var olan
+`LocationStep window.google`) + `vite build` ✓. Stats golden-diff canlı DB'de birebir; yeni `COUNT FILTER`
+SQL yapısı canlıda çalıştırıldı (Seyda: ay 5/20, bugün 0/2). **Deploy sırası: sunucu → client.**
+
+### Faz 2 (ertelendi, AYRI onay) + kalan aday-görevler
+- Faz 2: dashboard slot payload hafifletme (grid yalnız durum; SlotDetailModal slot rezervasyonlarını lazy
+  çeksin) + per-saha N+1'i `pitchId IN(...)` + gün aralığına indir (§27 parity kuralı). Booking grid çekirdek → golden-diff.
+- Kalan: pitch `deletedAt` / business `status`,`deletedAt` indeksleri (müşteri geo yolu, ayrı tur);
+  notification partial `read` indeksi (unread düşük hacim → düşük öncelik); `GET /reservations` findAll
+  filtresiz tüm-tablo (işletme paneli çağırmıyor ama genel landmine).

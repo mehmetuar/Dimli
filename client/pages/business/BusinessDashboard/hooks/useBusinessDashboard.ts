@@ -78,6 +78,12 @@ export const useBusinessDashboard = () => {
 
     // Hazır notlar — not modalındaki seçici + "bu notu kaydet" için.
     const [presetNotes, setPresetNotes] = useState<PresetNote[]>([]);
+    // Hazır notlar yalnız not modalı ilk açıldığında çekilir (lazy) — mount'ta değil.
+    const presetNotesLoadedRef = useRef(false);
+    // Subscription tarihten bağımsız → yalnız ilk yükleme + reconnect/resubmit'te
+    // çekilir; subscriptionRef cache yazımına en güncel değeri taşır.
+    const subscriptionRef = useRef<any>(subscription);
+    const subscriptionLoadedRef = useRef(false);
 
     // UX States
     const [successModal, setSuccessModal] = useState<{ isOpen: boolean; message: string; type: SuccessType }>({
@@ -110,10 +116,6 @@ export const useBusinessDashboard = () => {
         }
     }, []);
 
-    useEffect(() => {
-        loadPresetNotes();
-    }, [loadPresetNotes]);
-
     // Not modalındaki metni hazır notlara kaydet. Trim'li dedupe; gönderme akışını
     // etkilemez (sadece presete ekler). Sonuç mesajı modalda inline gösterilir.
     const savePresetFromNote = async (
@@ -145,9 +147,15 @@ export const useBusinessDashboard = () => {
             const ownerId = getOwnerId();
             if (!ownerId) return;
 
+            // Subscription tarihten bağımsız → yalnız ilk yüklemede (veya reconnect/
+            // resubmit'te silent=true ile) çek; tarih gezinme + mutasyon sonrası
+            // yenilemelerde tekrar çekme (o istek düşer).
+            const needSub = !subscriptionLoadedRef.current || silent;
             const [dashboardRes, subRes] = await Promise.all([
                 api.get(`/business-owner/dashboard?date=${selectedDate}&ownerId=${ownerId}`),
-                api.get(`/subscription/owner/${ownerId}`).catch(() => ({ data: null }))
+                needSub
+                    ? api.get(`/subscription/owner/${ownerId}`).catch(() => ({ data: null }))
+                    : Promise.resolve(null),
             ]);
 
             const data = dashboardRes.data;
@@ -163,16 +171,21 @@ export const useBusinessDashboard = () => {
             setDashboardData(data);
             setBusinessStatus(data?.businessStatus ?? null);
             setRejectionReason(data?.rejectionReason ?? null);
-            setSubscription(subRes.data);
+            if (subRes) {
+                setSubscription(subRes.data);
+                subscriptionRef.current = subRes.data;
+                subscriptionLoadedRef.current = true;
+            }
             setLoadError(null);
 
             // Çevrimdışı açılış için bugünün özeti saklanır (yalnız bugün — tarih
-            // bağımlı veri; readTodayDashboardCache aynı guard'la okur).
+            // bağımlı veri; readTodayDashboardCache aynı guard'la okur). Subscription
+            // ayrı çekildiğinden cache'e en güncel değeri (subscriptionRef) yazılır.
             if (selectedDate === new Date().toISOString().split('T')[0]) {
                 writeObjectCache(BIZ_DASHBOARD_CACHE_KEY, {
                     date: selectedDate,
                     data,
-                    subscription: subRes.data,
+                    subscription: subscriptionRef.current,
                 });
             }
 
@@ -229,6 +242,12 @@ export const useBusinessDashboard = () => {
     };
 
     const openActionModal = (type: 'APPROVE' | 'SEND_NOTE', reservationId: string) => {
+        // Hazır notları yalnız not modalı ilk açıldığında çek (her dashboard
+        // açılışında değil) — mount'taki gereksiz /preset-notes isteği kaldırıldı.
+        if (!presetNotesLoadedRef.current) {
+            presetNotesLoadedRef.current = true;
+            void loadPresetNotes();
+        }
         setActionType(type);
         setTargetReservationId(reservationId);
         setNote('');

@@ -6,15 +6,7 @@ import {
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { InjectRepository } from '@nestjs/typeorm';
-import {
-  Repository,
-  Between,
-  Not,
-  IsNull,
-  In,
-  MoreThanOrEqual,
-  DeepPartial,
-} from 'typeorm';
+import { Repository, In, MoreThanOrEqual, DeepPartial } from 'typeorm';
 import { BusinessOwner } from './entities/business-owner.entity';
 import { ReservationsService } from '../reservations/reservations.service';
 import { Pitch } from '../pitches/entities/pitch.entity';
@@ -442,6 +434,62 @@ export class BusinessOwnerService {
       istanbulDateTimeToUtc(nextMonthStr, '00:00').getTime() - 1,
     );
 
+    // ── Tek GROUP BY: saha başına 4 COUNT (4×saha round-trip) yerine tek sorgu ──
+    // Ay aralığındaki APPROVED rezervasyonlar; her satır (pitchId × manuel-mi ×
+    // bugün-mü) kovasına düşer. "bugün" = ayın alt kümesi (slotTime bugün
+    // aralığında) → gelecekteki ay rezervasyonları today'e sızmaz. Sayımlar
+    // DB'de kalır (satır yüklenmez); ratings getTeamMatchCounts GROUP BY deseni.
+    const pitchIds = business.pitches.map((p) => p.id);
+    type StatBucket = { real: number; manual: number };
+    const monthByPitch = new Map<string, StatBucket>();
+    const todayByPitch = new Map<string, StatBucket>();
+    for (const id of pitchIds) {
+      monthByPitch.set(id, { real: 0, manual: 0 });
+      todayByPitch.set(id, { real: 0, manual: 0 });
+    }
+
+    if (pitchIds.length) {
+      // GROUP BY yalnız pitchId + (teamId IS NULL) — parametresiz, güvenli.
+      // "bugün" alt-sayımı COUNT(*) FILTER ile SELECT'te (ayrı gruplama gerekmez;
+      // bugün ⊆ ay olduğundan gelecekteki ay rezervasyonları today'e sızmaz).
+      const rows = await this.reservationRepository
+        .createQueryBuilder('r')
+        .select('r.pitchId', 'pitchId')
+        .addSelect('r.teamId IS NULL', 'isManual')
+        .addSelect('COUNT(*)', 'monthCnt')
+        .addSelect(
+          'COUNT(*) FILTER (WHERE r.slotTime BETWEEN :startOfToday AND :endOfToday)',
+          'todayCnt',
+        )
+        .where('r.pitchId IN (:...pitchIds)', { pitchIds })
+        .andWhere('r.status = :approved', {
+          approved: ReservationStatus.APPROVED,
+        })
+        .andWhere('r.slotTime BETWEEN :startOfMonth AND :endOfMonth', {
+          startOfMonth,
+          endOfMonth,
+        })
+        .setParameters({ startOfToday, endOfToday })
+        .groupBy('r.pitchId')
+        .addGroupBy('r.teamId IS NULL')
+        .getRawMany<{
+          pitchId: string;
+          isManual: boolean | string;
+          monthCnt: string;
+          todayCnt: string;
+        }>();
+
+      for (const row of rows) {
+        // pg boolean → JS boolean; sürücü/sürüm farkına karşı 't' string'ini de karşıla.
+        const isManual = row.isManual === true || row.isManual === 't';
+        const key = isManual ? 'manual' : 'real';
+        const monthB = monthByPitch.get(row.pitchId);
+        const todayB = todayByPitch.get(row.pitchId);
+        if (monthB) monthB[key] += parseInt(row.monthCnt, 10) || 0;
+        if (todayB) todayB[key] += parseInt(row.todayCnt, 10) || 0;
+      }
+    }
+
     const pitchStats: any[] = [];
     let totalTodayConfirmed = 0;
     let totalTodayEarnings = 0;
@@ -452,46 +500,13 @@ export class BusinessOwnerService {
 
     for (const pitch of business.pitches) {
       const pricePerHour = pitch.pricePerHour || 0;
+      const today = todayByPitch.get(pitch.id) ?? { real: 0, manual: 0 };
+      const month = monthByPitch.get(pitch.id) ?? { real: 0, manual: 0 };
 
-      // Bugün - gerçek maçlar (teamId NOT NULL)
-      const todayConfirmedCount = await this.reservationRepository.count({
-        where: {
-          pitch: { id: pitch.id },
-          status: ReservationStatus.APPROVED,
-          teamId: Not(IsNull()),
-          slotTime: Between(startOfToday, endOfToday),
-        },
-      });
-
-      // Bugün - manuel dolu (teamId NULL)
-      const todayManualCount = await this.reservationRepository.count({
-        where: {
-          pitch: { id: pitch.id },
-          status: ReservationStatus.APPROVED,
-          teamId: IsNull(),
-          slotTime: Between(startOfToday, endOfToday),
-        },
-      });
-
-      // Bu ay - gerçek maçlar
-      const monthConfirmedCount = await this.reservationRepository.count({
-        where: {
-          pitch: { id: pitch.id },
-          status: ReservationStatus.APPROVED,
-          teamId: Not(IsNull()),
-          slotTime: Between(startOfMonth, endOfMonth),
-        },
-      });
-
-      // Bu ay - manuel dolu
-      const monthManualCount = await this.reservationRepository.count({
-        where: {
-          pitch: { id: pitch.id },
-          status: ReservationStatus.APPROVED,
-          teamId: IsNull(),
-          slotTime: Between(startOfMonth, endOfMonth),
-        },
-      });
+      const todayConfirmedCount = today.real;
+      const todayManualCount = today.manual;
+      const monthConfirmedCount = month.real;
+      const monthManualCount = month.manual;
 
       const todayEarnings = todayConfirmedCount * pricePerHour;
       const monthEarnings = monthConfirmedCount * pricePerHour;

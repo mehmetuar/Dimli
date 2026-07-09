@@ -41,8 +41,21 @@ export class BusinessOwnerController {
     return { success: true };
   }
 
+  // limit verilirse sayfalı {items,total,hasMore}; yoksa legacy limitsiz dizi
+  // (yayındaki eski mobil sürümler limit göndermez — sözleşme korunur). Müşteri
+  // /notifications ucuyla aynı clamp (1..50, default 20).
   @Get('notifications')
-  async getNotifications(@Query('ownerId') ownerId: string) {
+  async getNotifications(
+    @Query('ownerId') ownerId: string,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+  ) {
+    if (limit !== undefined) {
+      return this.notificationsService.findByOwner(ownerId, {
+        limit: Math.min(Math.max(parseInt(limit, 10) || 20, 1), 50),
+        offset: Math.max(parseInt(offset ?? '0', 10) || 0, 0),
+      });
+    }
     return this.notificationsService.findByOwner(ownerId);
   }
 
