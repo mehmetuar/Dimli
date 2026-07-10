@@ -25,8 +25,12 @@ export class BusinessService {
   ) {}
 
   private mapWithOwnerPhone(b: Business & { distanceKm?: number }) {
+    // GÜVENLİK: /businesses (findAll/:id) public/guard'sız. Gömülü `owner` TAM
+    // BusinessOwner (parola hash'i + email + telefon + pushToken) sızdırıyordu →
+    // owner nesnesi yanıttan ÇIKARILIR, yalnız gereken ownerPhone düz alan olarak yayılır.
+    const { owner: _owner, ...safe } = b;
     return {
-      ...b,
+      ...safe,
       ownerPhone: b.owner?.phone ?? null,
     };
   }

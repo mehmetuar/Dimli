@@ -699,14 +699,15 @@ export class MatchAnnouncementsService {
   async findByPitch(pitchId: string): Promise<MatchAnnouncement[]> {
     // Kart yalnız takım özetini (logo/ad/level/fairPlay) gösterir; TAM oyuncu kadrosu
     // burada YÜKLENMEZ — takım-detay modalı açılınca GET /teams/:id ile lazy çekilir.
-    // (team + captain tekil satır; players[] koleksiyonu satır çarpımı + payload şişmesi yapıyordu.)
+    // GÜVENLİK: captain (tam User: parola hash'i + PII + GPS) İSTEMCİYE DÖNMEZ —
+    // bu uç guard'sız/public ve istemci captain'ı hiç okumuyor. team skaleri yeter
+    // (findAll:517 ile aynı desen). captain join'i KASITLI eklenMEMİŞTİR — ekleme!
     // Süresi geçenler WHERE ile dışlanır (findAll paritesi) — cron geçişine bağımlı değil.
     const { dateStr: today, hours, minutes } = nowInIstanbul();
     const now = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
     const announcements = await this.matchAnnouncementsRepository
       .createQueryBuilder('announcement')
       .leftJoinAndSelect('announcement.team', 'team')
-      .leftJoinAndSelect('team.captain', 'captain')
       .where('announcement.pitchId = :pitchId', { pitchId })
       .andWhere('announcement.status = :status', { status: 'PENDING' })
       .andWhere(

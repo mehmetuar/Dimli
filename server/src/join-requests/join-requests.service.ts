@@ -10,6 +10,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JoinRequest } from './join-request.entity';
 import { NotificationsService } from '../notifications/notifications.service';
+import { sanitizeUser } from '../common/sanitize-user.util';
 
 @Injectable()
 export class JoinRequestsService {
@@ -69,11 +70,17 @@ export class JoinRequestsService {
   }
 
   async findByTeam(teamId: string): Promise<JoinRequest[]> {
-    return this.joinRequestsRepository.find({
+    const requests = await this.joinRequestsRepository.find({
       where: { teamId, status: 'PENDING' },
       relations: ['user'],
       order: { createdAt: 'DESC' },
     });
+    // Başvuran User kaydından hassas alanları ayıkla (parola hash'i + PII + GPS);
+    // kaptan yalnız ad/kullanıcı adı/avatar/pozisyon gibi alanları görür.
+    for (const r of requests) {
+      if (r.user) r.user = sanitizeUser(r.user);
+    }
+    return requests;
   }
 
   async findById(id: string): Promise<JoinRequest> {

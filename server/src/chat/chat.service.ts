@@ -27,6 +27,7 @@ import { RatingsService } from '../ratings/ratings.service';
 import { AppGateway } from '../gateway/app.gateway';
 import { UserBlocksService } from '../user-blocks/user-blocks.service';
 import { istanbulDateTimeToUtc } from '../common/turkey-time.util';
+import { sanitizeUser } from '../common/sanitize-user.util';
 
 @Injectable()
 export class ChatService {
@@ -390,10 +391,11 @@ export class ChatService {
 
       // Katılımcı user nesnelerinden hassas alanları ayıkla (yanıt şekli korunur;
       // client participants[].userId/deletedAt/user avatar alanlarını kullanır).
+      // Tam sanitizasyon (common/sanitize-user.util) — eskiden yalnız password+pushToken
+      // siliniyordu, email/telefon/GPS diğer katılımcılara sızıyordu.
       const sanitizedParticipants = channel.participants?.map((p: any) => {
         if (!p.user) return p;
-        const { password: _pw, pushToken: _pt, ...safeUser } = p.user;
-        return { ...p, user: safeUser };
+        return { ...p, user: sanitizeUser(p.user) };
       });
 
       return {
@@ -682,16 +684,21 @@ export class ChatService {
 
     // Rakipli maç chatlerinde gönderenin takımını client'a iletmek için
     // Team'i gerekli alanlara indirgiyoruz (description, fairPlayScore vb. taşınmaz).
+    // GÜVENLİK: sender TAM User (parola hash'i + email/telefon/GPS) sızdırıyordu →
+    // sanitizeUser ile hassas alanlar ayıklanır (indirgenmiş team korunur).
     for (const m of filtered) {
-      if (m.sender?.team) {
-        m.sender.team = {
-          id: m.sender.team.id,
-          name: m.sender.team.name,
-          logoUrl: m.sender.team.logoUrl,
-          primaryColor: m.sender.team.primaryColor,
-          secondaryColor: m.sender.team.secondaryColor,
-        } as Team;
-      }
+      if (!m.sender) continue;
+      const reducedTeam = m.sender.team
+        ? ({
+            id: m.sender.team.id,
+            name: m.sender.team.name,
+            logoUrl: m.sender.team.logoUrl,
+            primaryColor: m.sender.team.primaryColor,
+            secondaryColor: m.sender.team.secondaryColor,
+          } as Team)
+        : m.sender.team;
+      m.sender = sanitizeUser(m.sender);
+      m.sender.team = reducedTeam;
     }
 
     return filtered.reverse();

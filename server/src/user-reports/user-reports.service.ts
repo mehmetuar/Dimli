@@ -6,6 +6,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { UserReport, ReportStatus } from './user-report.entity';
+import { sanitizeUser } from '../common/sanitize-user.util';
 
 @Injectable()
 export class UserReportsService {
@@ -36,11 +37,18 @@ export class UserReportsService {
   }
 
   async getAllReports(status?: ReportStatus): Promise<UserReport[]> {
-    return this.userReportRepository.find({
+    const reports = await this.userReportRepository.find({
       where: status ? { status } : {},
       relations: ['reporter', 'reportedUser'],
       order: { createdAt: 'DESC' },
     });
+    // Savunma derinliği: reporter/reportedUser TAM User (parola hash'i + PII) idi;
+    // admin paneli yalnız username/full_name okur (common/sanitize-user.util).
+    for (const r of reports) {
+      if (r.reporter) r.reporter = sanitizeUser(r.reporter);
+      if (r.reportedUser) r.reportedUser = sanitizeUser(r.reportedUser);
+    }
+    return reports;
   }
 
   async updateReportStatus(

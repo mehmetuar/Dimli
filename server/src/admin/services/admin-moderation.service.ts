@@ -12,6 +12,7 @@ import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { Paginated, paginate } from '../../common/dto/paginated';
 import { AdminStatsCacheService } from './admin-stats-cache.service';
 import { applySearch } from './admin.util';
+import { sanitizeUser } from '../../common/sanitize-user.util';
 
 @Injectable()
 export class AdminModerationService {
@@ -133,6 +134,13 @@ export class AdminModerationService {
     applySearch(itemsQb, p.search, searchCols);
     itemsQb.orderBy('r.createdAt', 'DESC').skip(skip).take(p.limit);
     const items = await itemsQb.getMany();
+
+    // Savunma derinliği: reporter/reportedUser TAM User (parola hash'i + PII) idi;
+    // admin paneli yalnız username/full_name okur (common/sanitize-user.util).
+    for (const r of items) {
+      if (r.reporter) r.reporter = sanitizeUser(r.reporter);
+      if (r.reportedUser) r.reportedUser = sanitizeUser(r.reportedUser);
+    }
 
     return paginate(items, total, p.page, p.limit);
   }

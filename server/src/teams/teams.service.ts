@@ -24,6 +24,7 @@ import {
 import { JoinRequestsService } from '../join-requests/join-requests.service';
 import { TeamBansService } from '../team-bans/team-bans.service';
 import { CloudinaryService } from '../files/cloudinary.service';
+import { sanitizeUser } from '../common/sanitize-user.util';
 
 @Injectable()
 export class TeamsService implements OnModuleInit {
@@ -121,28 +122,11 @@ export class TeamsService implements OnModuleInit {
   }
 
   // /teams yanıtlarında oyuncu/kaptan olarak dönen User kayıtlarındaki hassas
-  // alanlar (şifre hash'i, telefon, e-posta, push token, GPS, chat-ban) istemciye
-  // SIZMAMALI — GET /teams, /teams/:id ve /teams/search/:term anonim erişime açık.
-  // Yeni hassas kolon eklenirse bu listeye de ekle!
-  private static readonly SENSITIVE_USER_FIELDS = [
-    'password',
-    'email',
-    'phone',
-    'pushToken',
-    'latitude',
-    'longitude',
-    'isChatBanned',
-    'chatBannedAt',
-    'chatBanExpiry',
-    'phoneVerified',
-  ] as const;
-
-  // Alanlar "absent" bırakılır (null YAZILMAZ) → bu nesneler save()'e girse bile
-  // eksik key hiçbir UPDATE üretmez (Team.players zaten cascade'siz).
+  // alanlar istemciye SIZMAMALI (GET /teams, /teams/:id ve /teams/search/:term
+  // anonim erişime açık). Hassas alan listesi + sanitize tek kaynak:
+  // common/sanitize-user.util.ts (sunucu genelinde ortak).
   private sanitizeUser<T extends object>(user: T): T {
-    const copy = { ...user } as Record<string, unknown>;
-    for (const key of TeamsService.SENSITIVE_USER_FIELDS) delete copy[key];
-    return copy as unknown as T;
+    return sanitizeUser(user);
   }
 
   // Takım oyuncularını TEK sorguda, yalnız hassas-olmayan kolonlarla yükler:

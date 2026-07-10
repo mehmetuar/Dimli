@@ -47,7 +47,23 @@ export class JoinRequestsController {
 
   @UseGuards(JwtAuthGuard)
   @Get('team/:teamId')
-  async getByTeam(@Param('teamId') teamId: string) {
+  async getByTeam(
+    @Param('teamId') teamId: string,
+    @Request() req: { user: Express.User },
+  ) {
+    // GÜVENLİK: yalnız takımın kaptanı/yardımcı kaptanı başvuranları görebilir
+    // (accept/reject ile aynı yetki deseni) — eskiden herhangi bir kullanıcı
+    // herhangi bir takımın başvuranlarını (tam User + PII) listeleyebiliyordu.
+    const team = await this.teamsService.findOne(teamId);
+    const isLeader =
+      !!team &&
+      (team.captainId === req.user.id ||
+        (team.viceCaptainIds || []).includes(req.user.id));
+    if (!isLeader) {
+      throw new ForbiddenException(
+        'Katılma isteklerini yalnızca takım kaptanı veya yardımcı kaptanı görüntüleyebilir.',
+      );
+    }
     return this.joinRequestsService.findByTeam(teamId);
   }
 
