@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link, Navigate } from 'react-router-dom';
+import { Capacitor } from '@capacitor/core';
 import { Eye, EyeOff, User, Lock } from 'lucide-react';
 import api from '../../../services/api';
 import { initializePushNotifications } from '../../../services/pushNotificationService';
@@ -25,6 +26,9 @@ export const Login: React.FC = () => {
     const { token, loginAsCustomer } = useAuth();
     const keyboardHeight = useKeyboardHeight();
     const keyboardOpen = keyboardHeight > 0;
+    // Android (MIUI vb.) ekranları CSS'te daha kısa + vh fazla raporlanır → üst bölgeyi
+    // (logo + üst boşluk) kompaktla, alt boşluk açılsın. iOS referans görünüm korunur.
+    const isAndroid = Capacitor.getPlatform() === 'android';
 
     const [phase, setPhase] = useState<Phase>(() =>
         location.state?.from === 'business' ? 'entering' : 'idle'
@@ -97,15 +101,17 @@ export const Login: React.FC = () => {
                 <div
                     className="relative z-10 flex flex-col items-center justify-start flex-shrink-0 transition-all duration-200"
                     style={{
-                        paddingTop: keyboardOpen ? 'max(env(safe-area-inset-top), 50px)' : 'clamp(24px, 12vh, 96px)',
-                        paddingBottom: 'clamp(8px, 2vh, 20px)',
+                        paddingTop: keyboardOpen
+                            ? 'max(env(safe-area-inset-top), 50px)'
+                            : (isAndroid ? 'clamp(16px, 6vh, 52px)' : 'clamp(24px, 12vh, 96px)'),
+                        paddingBottom: isAndroid ? 'clamp(6px, 1.4vh, 14px)' : 'clamp(8px, 2vh, 20px)',
                         maxHeight: keyboardOpen ? '20vh' : '46vh',
                     }}
                 >
                     {/* Logo + orta saha çemberi/çizgisi (çember logoya çapalı → her cihazda ortalı) */}
                     <div
                         className="relative flex items-center justify-center transition-all duration-200"
-                        style={{ width: keyboardOpen ? 'clamp(92px, 23.5vw, 132px)' : 'clamp(140px, min(54vw, 30vh), 258px)' }}
+                        style={{ width: keyboardOpen ? 'clamp(92px, 23.5vw, 132px)' : (isAndroid ? 'clamp(120px, 48vw, 210px)' : 'clamp(140px, min(54vw, 30vh), 258px)') }}
                     >
                         <PitchCenterCircle keyboardOpen={keyboardOpen} />
                         <img
@@ -262,10 +268,12 @@ export const Login: React.FC = () => {
                 </div>
 
                 {/* Footer: alt ceza sahası içinde "İşletme Hesabına Geçiş Yap" butonu.
-                    Kutu akışta REZERVE edilir (minHeight = kutu yüksekliği) + buton en alta (justify-end) →
-                    Block B'nin alt kenarı = kutunun üst kenarı; "Kayıt Ol" hiçbir cihazda kutuya binemez. */}
+                    Kutu akışta REZERVE edilir (minHeight = kutu yüksekliği) + buton en alta (justify-end).
+                    pointer-events-none: rezerve footer'ın boş üst bandı, üstüne denk gelen "Kayıt Ol"un
+                    tıklamasını YUTMASIN (klavye kapalıyken tıklama alttaki linke geçer). Buton kendi
+                    pointer-events-auto'suyla tıklanabilir kalır; ceza sahası zaten pointer-events-none. */}
                 <div
-                    className="relative z-10 flex-shrink-0 flex flex-col justify-end animate-enter-up [animation-delay:440ms] transition-all duration-200"
+                    className="relative z-10 flex-shrink-0 flex flex-col justify-end pointer-events-none animate-enter-up [animation-delay:440ms] transition-all duration-200"
                     style={{
                         minHeight: keyboardOpen ? undefined : 'clamp(140px, 26vh, 235px)',
                         padding: keyboardOpen
@@ -279,7 +287,7 @@ export const Login: React.FC = () => {
                     <button
                         type="button"
                         onClick={goToBusiness}
-                        className="relative z-10 block w-full rounded-2xl text-center font-bold tracking-wide text-white active:scale-[0.98] transition-all"
+                        className="relative z-10 block w-full rounded-2xl text-center font-bold tracking-wide text-white active:scale-[0.98] transition-all pointer-events-auto"
                         style={{
                             background: 'linear-gradient(135deg, #ea580c, #9a3412)',
                             boxShadow: '0 10px 26px -10px rgba(234,88,12,0.55), inset 0 1px 0 rgba(255,255,255,0.15)',
