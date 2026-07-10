@@ -274,7 +274,9 @@ export class PitchDowngradeService {
     });
 
     // Bildirimler best-effort (approve() emsali) — transaction dışı.
-    const dateStr = istanbulDisplayParts(result.effectiveAt).displayDateWithYear;
+    const dateStr = istanbulDisplayParts(
+      result.effectiveAt,
+    ).displayDateWithYear;
     for (const pitch of result.selected) {
       try {
         await this.notificationsService.create({
@@ -287,7 +289,10 @@ export class PitchDowngradeService {
           metadata: { pitchId: pitch.id, effectiveAt: result.effectiveAt },
         });
       } catch (err) {
-        this.logger.error('PITCH_DELETION_SCHEDULED bildirimi gönderilemedi:', err);
+        this.logger.error(
+          'PITCH_DELETION_SCHEDULED bildirimi gönderilemedi:',
+          err,
+        );
       }
     }
 
@@ -329,7 +334,10 @@ export class PitchDowngradeService {
       try {
         await this.sendDeletionReminder(pitch, now);
       } catch (err) {
-        this.logger.error(`Saha silme hatırlatması başarısız (${pitch.id}):`, err);
+        this.logger.error(
+          `Saha silme hatırlatması başarısız (${pitch.id}):`,
+          err,
+        );
       }
     }
   }

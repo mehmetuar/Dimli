@@ -11,7 +11,12 @@ import { Notification } from '../notifications/notification.entity';
 // Pitches/Reservations) döngü yaratır; SubscriptionModule yaprak kalmalı.
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Subscription, Pitch, BusinessOwner, Notification]),
+    TypeOrmModule.forFeature([
+      Subscription,
+      Pitch,
+      BusinessOwner,
+      Notification,
+    ]),
   ],
   controllers: [SubscriptionController],
   providers: [SubscriptionService],
