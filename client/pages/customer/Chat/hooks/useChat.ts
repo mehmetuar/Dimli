@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useSyncExternalStore } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import api from '../../../../services/api';
+import { subscribe, getCurrentUserSnapshot, fetchCurrentUser } from '../../../../services/currentUserStore';
 import { formatMessageDate } from '../utils/chatUtils';
 import { useSocket } from '../../../../contexts/SocketContext';
 import { isNetworkError } from '../../../../utils/apiError';
@@ -35,7 +36,9 @@ export const useChat = () => {
     const [isJokerDMInfoOpen, setIsJokerDMInfoOpen] = useState(false);
     const [isMatchDetailLoading, setIsMatchDetailLoading] = useState(false);
 
-    const [currentUser, setCurrentUser] = useState<any>(null);
+    // currentUserStore'dan senkron oku — localStorage önbelleği varsa ilk render'da dolu gelir,
+    // böylece kanallar açılırken "Mehmet Uçar" → "Sen" flash'ı olmaz.
+    const currentUser = useSyncExternalStore(subscribe, getCurrentUserSnapshot);
 
     const [optionsModalChannel, setOptionsModalChannel] = useState<any | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -73,17 +76,9 @@ export const useChat = () => {
     const location = useLocation();
     const navigate = useNavigate();
 
-    useEffect(() => {
-        const fetchUser = async () => {
-            try {
-                const response = await api.get('/users/me');
-                setCurrentUser(response.data);
-            } catch (error) {
-                console.error('Failed to fetch user:', error);
-            }
-        };
-        fetchUser();
-    }, []);
+    // currentUserStore'u başlat / tazele — store zaten başka hook tarafından
+    // beslenmişse TTL dolmadan ağa çıkmaz (dedupe).
+    useEffect(() => { void fetchCurrentUser(); }, []);
 
     const fetchChannels = useCallback(async () => {
         try {
