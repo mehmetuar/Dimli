@@ -43,6 +43,7 @@ const BusinessForgotPassword = lazy(() => import('./pages/business/BusinessForgo
 const BusinessDashboard = lazy(() => import('./pages/business/BusinessDashboard/BusinessDashboard').then(m => ({ default: m.BusinessDashboard })));
 const BusinessSettingsHub = lazy(() => import('./pages/business/BusinessSettingsHub/BusinessSettingsHub').then(m => ({ default: m.BusinessSettingsHub })));
 const BusinessInfoSettings = lazy(() => import('./pages/business/BusinessInfoSettings/BusinessInfoSettings').then(m => ({ default: m.BusinessInfoSettings })));
+const BusinessOwnerProfileSettings = lazy(() => import('./pages/business/BusinessOwnerProfileSettings/BusinessOwnerProfileSettings').then(m => ({ default: m.BusinessOwnerProfileSettings })));
 const BusinessPitchList = lazy(() => import('./pages/business/BusinessPitchList/BusinessPitchList').then(m => ({ default: m.BusinessPitchList })));
 const BusinessAddPitch = lazy(() => import('./pages/business/BusinessAddPitch/BusinessAddPitch').then(m => ({ default: m.BusinessAddPitch })));
 const BusinessPitchSettings = lazy(() => import('./pages/business/BusinessPitchSettings/BusinessPitchSettings').then(m => ({ default: m.BusinessPitchSettings })));
@@ -364,6 +365,7 @@ function AppContent() {
               <Route path="/business/dashboard" element={<BusinessDashboard />} />
               <Route path="/business/settings" element={<BusinessSettingsHub />} />
               <Route path="/business/settings/info" element={<BusinessInfoSettings />} />
+              <Route path="/business/settings/authorized" element={<BusinessOwnerProfileSettings />} />
               <Route path="/business/settings/pitches" element={<BusinessPitchList />} />
               <Route path="/business/settings/pitches/add" element={<BusinessAddPitch />} />
               <Route path="/business/settings/pitches/:pitchId" element={<BusinessPitchSettings />} />

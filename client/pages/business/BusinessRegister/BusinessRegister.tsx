@@ -21,7 +21,7 @@ import { CongratulationsStep } from './components/steps/CongratulationsStep';
 const TOTAL_STEPS = 7;
 
 const STEP_META: { title: string; subtitle: string }[] = [
-    { title: 'Hoş Geldiniz', subtitle: 'Sahanı Dimli’ye taşı — ilk 3 ay ücretsiz' },
+    { title: 'Hoş Geldiniz', subtitle: 'Sahanı Dimli’ye taşı, süreçlerini kolaylaştır' },
     { title: 'Hesap Bilgileri', subtitle: 'İşletme sahibi hesabını oluştur' },
     { title: 'Telefon Doğrulama', subtitle: '' }, // subtitle dinamik (maskeli telefon)
     { title: 'İşletme Bilgileri', subtitle: 'Adı, çalışma saatleri ve kapak fotoğrafı' },

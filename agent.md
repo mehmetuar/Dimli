@@ -2507,3 +2507,61 @@ SQL yapısı canlıda çalıştırıldı (Seyda: ay 5/20, bugün 0/2). **Deploy 
 - Kalan: pitch `deletedAt` / business `status`,`deletedAt` indeksleri (müşteri geo yolu, ayrı tur);
   notification partial `read` indeksi (unread düşük hacim → düşük öncelik); `GET /reservations` findAll
   filtresiz tüm-tablo (işletme paneli çağırmıyor ama genel landmine).
+
+---
+
+## 62. İşletme paneli: Saha Ayarları başlık standardizasyonu + silme onayı + Yetkili Bilgileri sayfası (2026-07-10)
+
+> Üç iş bir turda (client mobil + server). Client `tsc --noEmit` (yalnız önceden var olan
+> `LocationStep window.google`) + `vite build` ✓; server `nest build` + lint ✓.
+
+### A. Saha Ayarları başlık deseni birleştirildi (yalnız client)
+- **Sorun:** `BusinessPitchList` + `BusinessPitchSettings` başlıkları "kompakt/sport" deseni (linear
+  gradyan, `font-sport`, `p-2.5` düz ikon) kullanırken diğer 4 ayar alt sayfası "premium glow" deseni
+  (radyal gradyan, `CorporateGridBackground`, `w-11` parlayan ikon kutusu, `w-10` backdrop-blur geri
+  butonu, `font-black clamp(18px,5vw,22px)`) kullanıyordu (bkz. `InfoSettingsHeader.tsx` referans).
+- **Fix:** `PitchListHeader.tsx` + `PitchSettingsHeader.tsx` → Pattern A. `sticky top-0` konumlandırma
+  KORUNDU (ikisi de `flex flex-col overflow-hidden` konteynerde header = scroll'un ÜSTÜNDE kardeş →
+  `shrink-0`). Liste başlığındaki sağ **mor plan rozeti** (`BASIC`/`Starter`…) korundu.
+- **KALICI KURAL:** yeni işletme ayar alt sayfaları bu Pattern A başlığını kullanır (radyal gradyan +
+  `CorporateGridBackground` + parlayan ikon kutusu). Feature-bazlı aksan rengi serbest (Hazır Notlar
+  indigo, yeni Yetkili Bilgileri teal); çoğunluk turuncu.
+
+### B. Saat slotu + sürekli kapatma silme onayı (yalnız client)
+- Kullanıcı kazara silmeden şikayetçi → paylaşılan `ConfirmModal` (uygulama standardı) ile onay.
+- `BusinessPitchSettings.tsx`: `pendingSlotDelete: number|null` + `pendingClosureDelete: string|null`
+  sayfa state'i. Alt bölümlere geçen `onRemoveSlot`/`onRemove` artık silmez, "beklet" state'i set eder;
+  onay `ConfirmModal`'da verilince `handleRemoveSlot(i)` / `handleRemoveRecurringClosure(id)` çağrılır.
+  Alt bileşen imzaları DEĞİŞMEDİ. **Not:** slot silme yerel (kalıcılaşma "Slotları Kaydet" → `PUT
+  .../time-slots`); closure silme ANINDA `DELETE /reservations/recurring-closures/:id` → onay kritik.
+- Aynı ekrandaki eski `statusConfirm`/`dayConfirm` bespoke onayları DOKUNULMADI (kapsam dışı).
+- Hafif cila: "Saat Slotları" + "Sürekli Kapatılan Saatler" bölüm başlıklarına sayaç rozeti eklendi.
+
+### C. Kayıt "Hoş Geldiniz" adımı metinleri (yalnız client)
+- `STEP_META[0].subtitle`'daki "ilk 3 ay ücretsiz" (4. kartla çift) kaldırıldı →
+  "Sahanı Dimli'ye taşı, süreçlerini kolaylaştır". `WelcomeStep.tsx` `features` sorun-çözen 4 kısa
+  karta çevrildi (anlık müsaitlik paylaşımı, tek panel, görünürlük/doluluk, ilk 3 ay ücretsiz).
+
+### D. YENİ: Yetkili Bilgileri sayfası + owner self-update ucu
+- **Kavram:** Yetkili = `BusinessOwner` (`fullName`/`email`/`phone`). Telefon SALT-OKUNUR (OTP-doğrulanmış +
+  benzersizlik kilidi); ad soyad + e-posta düzenlenebilir. E-posta = panel GİRİŞ kimliği.
+- **Server (YENİ uç):** `PATCH /business-owner/profile` (`@UseGuards(JwtAuthGuard)`, owner=`req.user.id`)
+  → `UpdateBusinessOwnerProfileDto` (`fullName?`,`email?` beyaz-liste; **phone yok**) →
+  `BusinessOwnerService.updateProfile`: e-posta değişiyorsa `findByEmail` ile benzersizlik
+  (`ConflictException` "Bu e-posta zaten kullanımda."), **parola HARİÇ** sanitize dönüş
+  `{id,fullName,email,phone}`. E-posta case-sensitivity mevcut sistemin borcu (exact-match, kayıtla tutarlı).
+  E-posta değişse bile JWT geçerli (`sub`=owner.id sabit) → yeniden giriş gerekmez.
+- **Client (YENİ sayfa):** `client/pages/business/BusinessOwnerProfileSettings/` (page+hook+
+  `OwnerProfileHeader` teal Pattern A + `OwnerProfileForm`). Okuma mevcut `GET /business-owner/:id`
+  (fullName/email/phone zaten döner) → yeni okuma ucu YOK. Telefon `formatTurkishPhoneDisplay` ile
+  `0 (5XX) ...` gösterilir (sunucu `905…` saklar → `'0'+slice(2)` ile 11-haneye çevir). Kaydet →
+  `ConfirmModal` onayı → `PATCH /business-owner/profile`; 409 e-posta hatası ilgili alana basılır.
+- **Bağlama:** `BusinessSettingsHub` menüsüne teal `UserCog` kartı ("Yetkili Bilgileri",
+  `/business/settings/authorized`, İşletme Bilgileri'nin hemen ardında); `App.tsx` lazy import + rota.
+- ⚠️ **Güvenlik borcu (takip):** `GET /business-owner/:id` HÂLÂ guard'sız ve `findOne` **parola hash'ini**
+  döndürüyor (`business-owner.controller.ts:110`, `service:131`). Bu tur kapsam dışı bırakıldı (mevcut
+  InfoSettings de bu ucu kullanıyor); guard'lı+sanitize okuma ucu ayrı adımda eklenebilir.
+
+### Deploy
+**Sıra: önce server (Render) → sonra client (yeni native sürüm).** Server ucu eski client'ları bozmaz;
+Yetkili sayfası yeni client sürümüyle görünür. `synchronize:true` — şema değişmedi (mevcut kolonlar).

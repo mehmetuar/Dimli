@@ -14,6 +14,7 @@ import {
 import { BusinessOwnerService } from './business-owner.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { UpdateBusinessOwnerProfileDto } from './dto/update-business-owner-profile.dto';
 
 @Controller('business-owner')
 export class BusinessOwnerController {
@@ -110,6 +111,17 @@ export class BusinessOwnerController {
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.businessOwnerService.findOne(id);
+  }
+
+  // Yetkili (owner) kendi profilini günceller: ad soyad + e-posta. Telefon salt-okunur.
+  // Guard'lı → owner = req.user.id (JWT sub); client owner id göndermez.
+  @UseGuards(JwtAuthGuard)
+  @Patch('profile')
+  async updateProfile(
+    @Request() req: { user: Express.User },
+    @Body() dto: UpdateBusinessOwnerProfileDto,
+  ) {
+    return this.businessOwnerService.updateProfile(req.user.id, dto);
   }
 
   @UseGuards(JwtAuthGuard)

@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
   InternalServerErrorException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
@@ -15,6 +16,7 @@ import {
   ReservationStatus,
 } from '../reservations/entities/reservation.entity';
 import { Business, ReviewEvent } from '../business/entities/business.entity';
+import { UpdateBusinessOwnerProfileDto } from './dto/update-business-owner-profile.dto';
 import { RatingsService } from '../ratings/ratings.service';
 import { Subscription } from '../subscription/entities/subscription.entity';
 import { PitchChangeRequest } from '../pitches/entities/pitch-change-request.entity';
@@ -96,6 +98,43 @@ export class BusinessOwnerService {
     }
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     await this.updatePassword(id, hashedPassword);
+  }
+
+  // Yetkili profil güncelleme: ad soyad + e-posta. Telefon salt-okunur (DTO'da yok).
+  // E-posta benzersiz kolon → değişiyorsa çakışma kontrolü. Parola yanıtta DÖNMEZ.
+  async updateProfile(
+    id: string,
+    dto: UpdateBusinessOwnerProfileDto,
+  ): Promise<{ id: string; fullName: string; email: string; phone: string }> {
+    const owner = await this.businessOwnerRepository.findOne({ where: { id } });
+    if (!owner) {
+      throw new NotFoundException('İşletme sahibi bulunamadı.');
+    }
+
+    if (dto.email !== undefined) {
+      const newEmail = dto.email.trim();
+      if (newEmail.toLowerCase() !== owner.email.toLowerCase()) {
+        const existing = await this.findByEmail(newEmail);
+        if (existing && existing.id !== id) {
+          throw new ConflictException('Bu e-posta zaten kullanımda.');
+        }
+        owner.email = newEmail;
+      }
+    }
+
+    if (dto.fullName !== undefined) {
+      owner.fullName = dto.fullName.trim();
+    }
+
+    await this.businessOwnerRepository.save(owner);
+
+    // Parola hash'ini sızdırma — yalnız görünür alanları döndür.
+    return {
+      id: owner.id,
+      fullName: owner.fullName,
+      email: owner.email,
+      phone: owner.phone,
+    };
   }
 
   async findByEmail(email: string): Promise<BusinessOwner | null> {

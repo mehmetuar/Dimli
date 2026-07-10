@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, MapPin, Lock, LogOut, ChevronRight, CreditCard, Settings, MessageSquareText } from 'lucide-react';
+import { Building2, MapPin, Lock, LogOut, ChevronRight, CreditCard, Settings, MessageSquareText, UserCog } from 'lucide-react';
 import { BusinessNavbar } from '../../../components/Business/BusinessNavbar';
 import { ConfirmModal } from '../../../components/Modals/ConfirmModal';
 import { CorporateGridBackground } from '../../../components/UI/CorporateGridBackground';
@@ -27,6 +27,17 @@ export const BusinessSettingsHub: React.FC = () => {
             iconGradient: 'from-sky-500/20 to-sky-600/10',
             iconBorder: 'border-sky-500/30',
             chevronColor: 'text-sky-500/60',
+        },
+        {
+            title: 'Yetkili Bilgileri',
+            description: 'Ad soyad, e-posta ve iletişim bilgilerin',
+            icon: UserCog,
+            path: '/business/settings/authorized',
+            color: 'text-teal-400',
+            borderColor: 'border-teal-500/30',
+            iconGradient: 'from-teal-500/20 to-teal-600/10',
+            iconBorder: 'border-teal-500/30',
+            chevronColor: 'text-teal-500/60',
         },
         {
             title: 'Saha Ayarları',

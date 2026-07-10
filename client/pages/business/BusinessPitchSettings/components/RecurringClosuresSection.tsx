@@ -34,7 +34,14 @@ export const RecurringClosuresSection: React.FC<RecurringClosuresSectionProps> =
                         <Repeat className="w-4 h-4 text-orange-400" />
                     </div>
                     <div>
-                        <h2 className="text-[clamp(13px,3.8vw,15px)] font-black text-white">Sürekli Kapatılan Saatler</h2>
+                        <div className="flex items-center gap-2">
+                            <h2 className="text-[clamp(13px,3.8vw,15px)] font-black text-white">Sürekli Kapatılan Saatler</h2>
+                            {closures.length > 0 && (
+                                <span className="text-[clamp(9px,2.5vw,11px)] font-black text-orange-400 bg-orange-500/15 border border-orange-500/20 rounded-full px-2 py-0.5 leading-none">
+                                    {closures.length}
+                                </span>
+                            )}
+                        </div>
                         <p className="text-[clamp(9px,2.5vw,11px)] text-slate-400 mt-0.5">
                             Dashboard'dan "Sürekli Kapat" ile işaretlenen haftalık sabit rezervasyonlar
                         </p>

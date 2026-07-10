@@ -1,11 +1,11 @@
 import React from 'react';
-import { CheckCircle, TrendingUp, Users, Calendar, Sparkles } from 'lucide-react';
+import { CheckCircle, TrendingUp, Radio, CalendarCheck, Sparkles } from 'lucide-react';
 
 const features = [
-    { icon: Calendar, text: 'Rezervasyon yönetimini kolaylaştır' },
-    { icon: Users, text: 'Sahanı binlerce oyuncuya duyur' },
-    { icon: TrendingUp, text: 'Gelir takibini anlık gör' },
     { icon: Sparkles, text: 'İlk 3 ay tamamen ücretsiz' },
+    { icon: Radio, text: 'Müsait saatlerini anlık paylaş' },
+    { icon: CalendarCheck, text: 'Tüm rezervasyonlar tek panelde' },
+    { icon: TrendingUp, text: 'Sahanı görünür kıl, doluluğu artır' },
 ];
 
 // Not: kök öğeye animasyon sınıfı KOYMA — AuthWizardLayout içeriği `animate-step-in` ile sarar.

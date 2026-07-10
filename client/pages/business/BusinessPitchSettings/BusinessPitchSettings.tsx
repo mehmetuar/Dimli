@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { Save, Image, Power, Calendar, AlertTriangle, X, CheckCircle, Clock, Camera } from 'lucide-react';
 import { BusinessLoadingSpinner } from '../../../components/Business/BusinessLoadingSpinner';
 import { ImageCropModal } from '../../../components/Modals/ImageCropModal';
+import { ConfirmModal } from '../../../components/Modals/ConfirmModal';
 import api from '../../../services/api';
 
 // Hooks
@@ -76,6 +77,9 @@ export const BusinessPitchSettings: React.FC = () => {
         show: false,
         day: null,
     });
+    // Kazara silmeyi önleme: silme işlemleri önce onay modalı açar (kullanıcı isteği)
+    const [pendingSlotDelete, setPendingSlotDelete] = useState<number | null>(null);
+    const [pendingClosureDelete, setPendingClosureDelete] = useState<string | null>(null);
 
     // Fotoğraf yükleme state'i
     const [cropFile, setCropFile] = useState<File | null>(null);
@@ -263,7 +267,7 @@ export const BusinessPitchSettings: React.FC = () => {
                     setNewSlotStart={setNewSlotStart}
                     setNewSlotEnd={setNewSlotEnd}
                     onAddSlot={handleAddSlot}
-                    onRemoveSlot={handleRemoveSlot}
+                    onRemoveSlot={(index) => setPendingSlotDelete(index)}
                     onSaveSlots={handleSaveSlots}
                     disabled={isReadOnly}
                 />
@@ -272,7 +276,7 @@ export const BusinessPitchSettings: React.FC = () => {
                 <RecurringClosuresSection
                     closures={recurringClosures}
                     removingClosureId={removingClosureId}
-                    onRemove={handleRemoveRecurringClosure}
+                    onRemove={(id) => setPendingClosureDelete(id)}
                     disabled={isReadOnly}
                 />
 
@@ -641,6 +645,30 @@ export const BusinessPitchSettings: React.FC = () => {
                     </div>
                 </div>
             )}
+
+            {/* ── Saat Slotu Silme Onayı ───────────────────────────────── */}
+            <ConfirmModal
+                isOpen={pendingSlotDelete !== null}
+                onClose={() => setPendingSlotDelete(null)}
+                onConfirm={() => { if (pendingSlotDelete !== null) handleRemoveSlot(pendingSlotDelete); }}
+                title="Slotu Sil"
+                message="Bu saat slotunu silmek istediğinize emin misiniz? (Değişiklik 'Slotları Kaydet' ile kalıcı olur.)"
+                confirmText="Sil"
+                cancelText="Vazgeç"
+                isDangerous
+            />
+
+            {/* ── Sürekli Kapatma Kaldırma Onayı ───────────────────────── */}
+            <ConfirmModal
+                isOpen={pendingClosureDelete !== null}
+                onClose={() => setPendingClosureDelete(null)}
+                onConfirm={() => { if (pendingClosureDelete !== null) handleRemoveRecurringClosure(pendingClosureDelete); }}
+                title="Sürekli Kapatmayı Kaldır"
+                message="Bu sürekli kapatılan saati kaldırmak istediğinize emin misiniz? Bu saat tekrar rezervasyona açılır."
+                confirmText="Kaldır"
+                cancelText="Vazgeç"
+                isDangerous
+            />
         </div>
     );
 };
