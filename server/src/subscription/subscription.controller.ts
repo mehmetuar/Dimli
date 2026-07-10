@@ -3,13 +3,15 @@ import {
   Get,
   Post,
   Body,
-  Param,
   Headers,
+  Request,
+  UseGuards,
   UnauthorizedException,
   BadRequestException,
 } from '@nestjs/common';
 import { SubscriptionService } from './subscription.service';
 import type { RevenueCatWebhookPayload } from './dto/revenuecat-webhook';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('subscription')
 export class SubscriptionController {
@@ -20,34 +22,42 @@ export class SubscriptionController {
     return this.subscriptionService.getPlans();
   }
 
+  // GÜVENLİK: kimlik token'dan (req.user.id = owner.id) — URL'deki `:ownerId`
+  // YOK SAYILIR (IDOR: başka işletmenin billing verisi). İstemci zaten kendi
+  // ownerId'sini gönderiyordu → davranış değişmez. Guard ile anonim erişim kapanır.
+  @UseGuards(JwtAuthGuard)
   @Get('owner/:ownerId')
-  findByOwner(@Param('ownerId') ownerId: string) {
-    return this.subscriptionService.findByOwner(ownerId);
+  findByOwner(@Request() req: { user: Express.User }) {
+    return this.subscriptionService.findByOwner(req.user.id);
   }
 
-  // Satın alma başarısız olduğunda veya RC webhook'u gelmediğinde frontend tarafından çağrılır
+  // Satın alma başarısız olduğunda veya RC webhook'u gelmediğinde frontend tarafından çağrılır.
+  // GÜVENLİK: ownerId body yerine token'dan → ödeme doğrulaması olmadan başka işletmeye
+  // plan/entitlement verilemez (eski hali: herkes body ile aboneliği ACTIVE yapabiliyordu).
+  @UseGuards(JwtAuthGuard)
   @Post('confirm-purchase')
   async confirmPurchase(
-    @Body() body: { ownerId: string; planType: string; rcCustomerId: string },
+    @Request() req: { user: Express.User },
+    @Body() body: { planType: string; rcCustomerId: string },
   ) {
-    if (!body.ownerId || !body.planType)
-      throw new BadRequestException('ownerId ve planType zorunludur.');
+    if (!body.planType) throw new BadRequestException('planType zorunludur.');
     return this.subscriptionService.confirmPurchase(
-      body.ownerId,
+      req.user.id,
       body.planType,
       body.rcCustomerId ?? '',
     );
   }
 
   // Plan düşürme — saha seçimi tamamlandıktan sonra çağrılır, değişiklik bir sonraki yenilemede geçerli olur
+  @UseGuards(JwtAuthGuard)
   @Post('schedule-downgrade')
   async scheduleDowngrade(
-    @Body() body: { ownerId: string; planType: string; rcCustomerId: string },
+    @Request() req: { user: Express.User },
+    @Body() body: { planType: string; rcCustomerId: string },
   ) {
-    if (!body.ownerId || !body.planType)
-      throw new BadRequestException('ownerId ve planType zorunludur.');
+    if (!body.planType) throw new BadRequestException('planType zorunludur.');
     return this.subscriptionService.scheduleDowngrade(
-      body.ownerId,
+      req.user.id,
       body.planType,
       body.rcCustomerId ?? '',
     );

@@ -45,12 +45,16 @@ export class BusinessOwnerController {
   // limit verilirse sayfalı {items,total,hasMore}; yoksa legacy limitsiz dizi
   // (yayındaki eski mobil sürümler limit göndermez — sözleşme korunur). Müşteri
   // /notifications ucuyla aynı clamp (1..50, default 20).
+  // GÜVENLİK: ownerId query yerine token'dan (req.user.id) → başka işletmenin
+  // bildirimlerine IDOR kapalı. İstemci zaten kendi ownerId'sini gönderiyordu.
+  @UseGuards(JwtAuthGuard)
   @Get('notifications')
   async getNotifications(
-    @Query('ownerId') ownerId: string,
+    @Request() req: { user: Express.User },
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
   ) {
+    const ownerId = req.user.id;
     if (limit !== undefined) {
       return this.notificationsService.findByOwner(ownerId, {
         limit: Math.min(Math.max(parseInt(limit, 10) || 20, 1), 50),
@@ -60,16 +64,19 @@ export class BusinessOwnerController {
     return this.notificationsService.findByOwner(ownerId);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get('notifications/unread-count')
-  async getUnreadCount(@Query('ownerId') ownerId: string) {
-    const count =
-      await this.notificationsService.getUnreadCountForOwner(ownerId);
+  async getUnreadCount(@Request() req: { user: Express.User }) {
+    const count = await this.notificationsService.getUnreadCountForOwner(
+      req.user.id,
+    );
     return { count };
   }
 
+  @UseGuards(JwtAuthGuard)
   @Post('notifications/mark-all-read')
-  async markAllRead(@Body('ownerId') ownerId: string) {
-    await this.notificationsService.markAllAsReadForOwner(ownerId);
+  async markAllRead(@Request() req: { user: Express.User }) {
+    await this.notificationsService.markAllAsReadForOwner(req.user.id);
     return { success: true };
   }
 
@@ -81,36 +88,47 @@ export class BusinessOwnerController {
     return this.businessOwnerService.resubmitBusiness(req.user.id);
   }
 
+  // GÜVENLİK: ownerId query yerine token'dan → başka işletmenin operasyon
+  // verisine (slot dolulukları) IDOR kapalı.
+  @UseGuards(JwtAuthGuard)
   @Get('dashboard')
   async getDashboard(
-    @Request() req,
+    @Request() req: { user: Express.User },
     @Query('date') date: string,
-    @Query('ownerId') ownerId: string,
   ) {
-    return this.businessOwnerService.getDashboardSlots(ownerId, date);
+    return this.businessOwnerService.getDashboardSlots(req.user.id, date);
   }
 
-  // GET /business-owner/stats?ownerId=xxx
-  // Tanımlama sırası önemli: :id parametreli route'tan ÖNCE olmalı
+  // GET /business-owner/stats — kimlik token'dan (başka işletmenin ciro/finansal
+  // verisine IDOR kapalı). Tanımlama sırası önemli: :id parametreli route'tan ÖNCE olmalı.
+  @UseGuards(JwtAuthGuard)
   @Get('stats')
-  async getStats(@Query('ownerId') ownerId: string) {
-    return this.businessOwnerService.getStats(ownerId);
+  async getStats(@Request() req: { user: Express.User }) {
+    return this.businessOwnerService.getStats(req.user.id);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Post('approve-reservation/:id')
   approveReservation(
     @Param('id') reservationId: string,
-    @Body() body: { ownerId: string },
+    @Request() req: { user: Express.User },
   ) {
     return this.businessOwnerService.approveReservation(
       reservationId,
-      body.ownerId,
+      req.user.id,
     );
   }
 
+  // GÜVENLİK: kimlik token'dan (req.user.id) — URL'deki `:id` YOK SAYILIR (eski hali
+  // herhangi bir ownerId ile TAM BusinessOwner = parola hash'i + PII sızdırıyordu).
+  // Yanıttan password + pushToken ayıklanır (owner kendi email/telefonunu görebilir).
+  @UseGuards(JwtAuthGuard)
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.businessOwnerService.findOne(id);
+  async findOne(@Request() req: { user: Express.User }) {
+    const owner = await this.businessOwnerService.findOne(req.user.id);
+    if (!owner) return owner;
+    const { password: _pw, pushToken: _pt, ...safe } = owner;
+    return safe;
   }
 
   // Yetkili (owner) kendi profilini günceller: ad soyad + e-posta. Telefon salt-okunur.

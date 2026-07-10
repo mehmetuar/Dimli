@@ -433,8 +433,9 @@ export class BusinessOwnerService {
     return { success: true, status: business.status };
   }
 
-  async approveReservation(reservationId: string, _ownerId: string) {
-    return this.reservationsService.approve(reservationId);
+  async approveReservation(reservationId: string, ownerId: string) {
+    // Sahiplik reservationsService.approve içinde ownerId ile doğrulanır (IDOR kapalı).
+    return this.reservationsService.approve(reservationId, ownerId);
   }
 
   async getStats(ownerId: string) {
