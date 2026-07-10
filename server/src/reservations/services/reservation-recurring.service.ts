@@ -48,10 +48,13 @@ export class ReservationRecurringService {
     private lifecycle: ReservationLifecycleService,
   ) {}
 
-  async manualFill(pitchId: string, slotTime: Date) {
+  async manualFill(pitchId: string, ownerId: string, slotTime: Date) {
     this.logger.log(
       `Manual fill initiated for pitch: ${pitchId}, time: ${slotTime}`,
     );
+
+    // GÜVENLİK: yalnız sahanın işletme sahibi slotu doluya çevirebilir.
+    await this.lifecycle.assertPitchOwnedBy(pitchId, ownerId);
 
     return this.dataSource.transaction(async (manager) => {
       const pitch = await manager.findOne(Pitch, {
@@ -288,6 +291,7 @@ export class ReservationRecurringService {
   // saatidir; dayOfWeek buradan hesaplanır ve ilk materialize edilen hafta da budur.
   async createRecurringClosure(
     pitchId: string,
+    ownerId: string,
     slotTime: Date,
     startTime: string,
     endTime: string,
@@ -296,6 +300,9 @@ export class ReservationRecurringService {
       where: { id: pitchId },
     });
     if (!pitch) throw new NotFoundException('Saha bulunamadı');
+
+    // GÜVENLİK: yalnız sahanın işletme sahibi sürekli kapatma oluşturabilir.
+    await this.lifecycle.assertPitchOwnedBy(pitchId, ownerId);
 
     const firstOccurrence = new Date(slotTime);
     const dayOfWeek = firstOccurrence.toLocaleDateString('en-US', {
@@ -373,7 +380,9 @@ export class ReservationRecurringService {
     };
   }
 
-  async findRecurringClosuresByPitch(pitchId: string) {
+  async findRecurringClosuresByPitch(pitchId: string, ownerId: string) {
+    // GÜVENLİK: yalnız sahanın işletme sahibi kapatma kurallarını görebilir.
+    await this.lifecycle.assertPitchOwnedBy(pitchId, ownerId);
     return this.recurringClosureRepository.find({
       where: { pitchId, isActive: true },
       order: { createdAt: 'ASC' },
@@ -383,13 +392,16 @@ export class ReservationRecurringService {
   // Sürekli kapatma kuralını tamamen kaldırır: kuralı siler ve bu kurala bağlı,
   // henüz geçmemiş tüm haftaların bloklarını revokeConfirmation ile açar
   // (bekleyen REJECTED talepleri de PENDING'e geri döndürür).
-  async removeRecurringClosure(id: string) {
+  async removeRecurringClosure(id: string, ownerId: string) {
     const closure = await this.recurringClosureRepository.findOne({
       where: { id },
     });
     if (!closure) {
       throw new NotFoundException('Sürekli kapatma kuralı bulunamadı');
     }
+
+    // GÜVENLİK: yalnız sahanın işletme sahibi kuralı kaldırabilir.
+    await this.lifecycle.assertPitchOwnedBy(closure.pitchId, ownerId);
 
     closure.isActive = false;
     await this.recurringClosureRepository.save(closure);
@@ -404,7 +416,8 @@ export class ReservationRecurringService {
 
     for (const reservation of futureReservations) {
       try {
-        await this.lifecycle.revokeConfirmation(reservation.id);
+        // ownerId aynı işletmeye ait (yukarıda doğrulandı) — iç revoke'a aktarılır.
+        await this.lifecycle.revokeConfirmation(reservation.id, ownerId);
       } catch (e) {
         this.logger.error(
           `Failed to revoke recurring occurrence ${reservation.id} while removing closure ${id}`,

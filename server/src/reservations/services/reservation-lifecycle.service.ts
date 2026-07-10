@@ -78,6 +78,44 @@ export class ReservationLifecycleService {
     private support: ReservationSupportService,
   ) {}
 
+  // ─── Sahiplik / kimlik doğrulama (guard'lanan controller'dan token'la beslenir) ──
+  // Rezervasyon uçları eskiden body'deki teamId/ownerId'ye güveniyordu; kimlik artık
+  // JWT'den (req.user.id) gelir ve gerçek sahiplik burada doğrulanır (IDOR kapalı).
+
+  // İşletme sahibi (owner.id) verilen işletmenin sahibi mi? (business_owner ↔ business OneToOne)
+  async assertOwnsBusiness(businessId: string, ownerId: string): Promise<void> {
+    const owner = await this.businessOwnerRepository.findOne({
+      where: { business: { id: businessId } },
+      relations: ['business'],
+    });
+    if (!owner || owner.id !== ownerId) {
+      throw new ForbiddenException('Bu işlem için yetkiniz yok.');
+    }
+  }
+
+  // Owner, verilen sahanın (→ işletme) sahibi mi? manual-fill / recurring-closures
+  // gibi yalnız pitchId taşıyan uçlar için (Recurring servisi this.lifecycle'dan çağırır).
+  async assertPitchOwnedBy(pitchId: string, ownerId: string): Promise<void> {
+    const pitch = await this.pitchRepository.findOne({
+      where: { id: pitchId },
+    });
+    if (!pitch) throw new NotFoundException('Saha bulunamadı.');
+    await this.assertOwnsBusiness(pitch.businessId, ownerId);
+  }
+
+  // Kullanıcının (userId) ait olduğu takımın id'si — müşteri iptal/öneri uçlarında
+  // token'dan takım türetmek için (body teamId'ye güvenilmez).
+  async resolveUserTeamId(userId: string): Promise<string> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: ['team'],
+    });
+    if (!user?.team) {
+      throw new ForbiddenException('Bir takıma ait değilsiniz.');
+    }
+    return user.team.id;
+  }
+
   @Cron(CronExpression.EVERY_MINUTE)
   async checkMatchReminders() {
     const now = new Date();
@@ -341,7 +379,7 @@ export class ReservationLifecycleService {
     return savedReservation;
   }
 
-  async approve(id: string, businessNote?: string) {
+  async approve(id: string, ownerId: string, businessNote?: string) {
     this.logger.log(`Approval process started for reservation: ${id}`);
     // İşletme notu: en fazla 100 karakter (client atlansa bile korunur)
     assertNoteWithinLimit(businessNote, 100, 'İşletme notu');
@@ -375,6 +413,9 @@ export class ReservationLifecycleService {
         this.logger.error(`Reservation not found: ${id}`);
         throw new NotFoundException('Rezervasyon bulunamadı.');
       }
+
+      // GÜVENLİK: yalnız sahanın işletme sahibi onaylayabilir (IDOR kapalı).
+      await this.assertOwnsBusiness(reservation.pitch.business.id, ownerId);
 
       // 1.1 Allow Re-approval of REJECTED reservations if slot is free
       if (
@@ -1053,7 +1094,7 @@ export class ReservationLifecycleService {
     }
   }
 
-  async revokeConfirmation(id: string) {
+  async revokeConfirmation(id: string, ownerId: string) {
     this.logger.log(`Revoking confirmation for reservation: ${id}`);
 
     return this.dataSource.transaction(async (manager) => {
@@ -1073,6 +1114,9 @@ export class ReservationLifecycleService {
       if (!reservation) {
         throw new NotFoundException('Rezervasyon bulunamadı.');
       }
+
+      // GÜVENLİK: yalnız sahanın işletme sahibi onayı geri alabilir.
+      await this.assertOwnsBusiness(reservation.pitch.business.id, ownerId);
 
       if (reservation.status !== ReservationStatus.APPROVED) {
         throw new BadRequestException(
@@ -1274,7 +1318,7 @@ export class ReservationLifecycleService {
     });
   }
 
-  async sendBusinessNote(reservationId: string, note: string) {
+  async sendBusinessNote(reservationId: string, ownerId: string, note: string) {
     this.logger.log(`Sending business note for reservation: ${reservationId}`);
     // İşletme notu: en fazla 100 karakter (client atlansa bile korunur)
     assertNoteWithinLimit(note, 100, 'İşletme notu');
@@ -1295,6 +1339,9 @@ export class ReservationLifecycleService {
     if (!reservation) {
       throw new NotFoundException('Rezervasyon bulunamadı.');
     }
+
+    // GÜVENLİK: yalnız sahanın işletme sahibi not gönderebilir.
+    await this.assertOwnsBusiness(reservation.pitch.business.id, ownerId);
 
     if (!reservation.matchAnnouncementId) {
       throw new BadRequestException(
@@ -1342,7 +1389,10 @@ export class ReservationLifecycleService {
     return { success: true };
   }
 
-  async cancel(id: string, teamId: string) {
+  async cancel(id: string, userId: string) {
+    // GÜVENLİK: takım body yerine token kullanıcısından türetilir (IDOR kapalı).
+    // where team.id filtresi host-only iptal semantiğini korur (yalnız ev sahibi takım).
+    const teamId = await this.resolveUserTeamId(userId);
     return this.dataSource.transaction(async (manager) => {
       const reservation = await manager.findOne(Reservation, {
         where: { id, team: { id: teamId } },
@@ -1450,7 +1500,9 @@ export class ReservationLifecycleService {
     });
   }
 
-  async requestCancel(id: string, teamId: string, userId: string) {
+  async requestCancel(id: string, userId: string) {
+    // GÜVENLİK: takım body yerine token kullanıcısından türetilir (IDOR kapalı).
+    const teamId = await this.resolveUserTeamId(userId);
     const reservation = await this.reservationRepository.findOne({
       where: { id, team: { id: teamId } },
       relations: ['team', 'pitch', 'pitch.business'],
@@ -1550,7 +1602,9 @@ export class ReservationLifecycleService {
     return reservation;
   }
 
-  async undoCancelRequest(id: string, teamId: string, userId: string) {
+  async undoCancelRequest(id: string, userId: string) {
+    // GÜVENLİK: takım body yerine token kullanıcısından türetilir (IDOR kapalı).
+    const teamId = await this.resolveUserTeamId(userId);
     const reservation = await this.reservationRepository.findOne({
       where: { id, team: { id: teamId } },
       relations: ['team', 'pitch', 'pitch.business'],
@@ -1651,7 +1705,7 @@ export class ReservationLifecycleService {
     return reservation;
   }
 
-  async acceptCancelRequest(id: string) {
+  async acceptCancelRequest(id: string, ownerId: string) {
     this.logger.log(`Accepting cancel request for reservation: ${id}`);
 
     return this.dataSource.transaction(async (manager) => {
@@ -1673,6 +1727,9 @@ export class ReservationLifecycleService {
           'Rezervasyon bulunamadı veya aktif iptal talebi yok.',
         );
       }
+
+      // GÜVENLİK: yalnız sahanın işletme sahibi iptal talebini kabul edebilir.
+      await this.assertOwnsBusiness(reservation.pitch.business.id, ownerId);
 
       reservation.status = ReservationStatus.CANCELLED;
       reservation.cancelRequested = false;
@@ -1762,7 +1819,7 @@ export class ReservationLifecycleService {
     });
   }
 
-  async rejectCancelRequest(id: string) {
+  async rejectCancelRequest(id: string, ownerId: string) {
     this.logger.log(`Rejecting cancel request for reservation: ${id}`);
 
     return this.dataSource.transaction(async (manager) => {
@@ -1776,6 +1833,9 @@ export class ReservationLifecycleService {
           'Rezervasyon bulunamadı veya aktif iptal talebi yok.',
         );
       }
+
+      // GÜVENLİK: yalnız sahanın işletme sahibi iptal talebini reddedebilir.
+      await this.assertOwnsBusiness(reservation.pitch.business.id, ownerId);
 
       reservation.cancelRequested = false;
       await manager.save(reservation);
@@ -1818,7 +1878,7 @@ export class ReservationLifecycleService {
     });
   }
 
-  async rejectByBusiness(reservationId: string) {
+  async rejectByBusiness(reservationId: string, ownerId: string) {
     return this.dataSource.transaction(async (manager) => {
       const reservation = await manager.findOne(Reservation, {
         where: { id: reservationId },
@@ -1826,6 +1886,11 @@ export class ReservationLifecycleService {
       });
 
       if (!reservation) throw new NotFoundException('Rezervasyon bulunamadı');
+
+      // GÜVENLİK: yalnız sahanın işletme sahibi reddedebilir. Bu metot pitch.business
+      // yüklemediğinden sahiplik pitchId üzerinden çözülür (assertPitchOwnedBy).
+      await this.assertPitchOwnedBy(reservation.pitchId, ownerId);
+
       if (reservation.status !== ReservationStatus.PENDING) {
         throw new BadRequestException(
           'Sadece bekleyen rezervasyonlar reddedilebilir',

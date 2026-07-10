@@ -24,30 +24,32 @@ export class ReservationsService {
 
   // ─── Sürekli kapatma / manuel doldurma (Recurring) ──────────────────────────
 
-  manualFill(pitchId: string, slotTime: Date) {
-    return this.recurring.manualFill(pitchId, slotTime);
+  manualFill(pitchId: string, ownerId: string, slotTime: Date) {
+    return this.recurring.manualFill(pitchId, ownerId, slotTime);
   }
 
   createRecurringClosure(
     pitchId: string,
+    ownerId: string,
     slotTime: Date,
     startTime: string,
     endTime: string,
   ) {
     return this.recurring.createRecurringClosure(
       pitchId,
+      ownerId,
       slotTime,
       startTime,
       endTime,
     );
   }
 
-  findRecurringClosuresByPitch(pitchId: string) {
-    return this.recurring.findRecurringClosuresByPitch(pitchId);
+  findRecurringClosuresByPitch(pitchId: string, ownerId: string) {
+    return this.recurring.findRecurringClosuresByPitch(pitchId, ownerId);
   }
 
-  removeRecurringClosure(id: string) {
-    return this.recurring.removeRecurringClosure(id);
+  removeRecurringClosure(id: string, ownerId: string) {
+    return this.recurring.removeRecurringClosure(id, ownerId);
   }
 
   // ─── Yaşam döngüsü (Lifecycle) ──────────────────────────────────────────────
@@ -60,40 +62,40 @@ export class ReservationsService {
     return this.lifecycle.create(createReservationDto);
   }
 
-  approve(id: string, businessNote?: string) {
-    return this.lifecycle.approve(id, businessNote);
+  approve(id: string, ownerId: string, businessNote?: string) {
+    return this.lifecycle.approve(id, ownerId, businessNote);
   }
 
-  revokeConfirmation(id: string) {
-    return this.lifecycle.revokeConfirmation(id);
+  revokeConfirmation(id: string, ownerId: string) {
+    return this.lifecycle.revokeConfirmation(id, ownerId);
   }
 
-  cancel(id: string, teamId: string) {
-    return this.lifecycle.cancel(id, teamId);
+  cancel(id: string, userId: string) {
+    return this.lifecycle.cancel(id, userId);
   }
 
-  requestCancel(id: string, teamId: string, userId: string) {
-    return this.lifecycle.requestCancel(id, teamId, userId);
+  requestCancel(id: string, userId: string) {
+    return this.lifecycle.requestCancel(id, userId);
   }
 
-  undoCancelRequest(id: string, teamId: string, userId: string) {
-    return this.lifecycle.undoCancelRequest(id, teamId, userId);
+  undoCancelRequest(id: string, userId: string) {
+    return this.lifecycle.undoCancelRequest(id, userId);
   }
 
-  acceptCancelRequest(id: string) {
-    return this.lifecycle.acceptCancelRequest(id);
+  acceptCancelRequest(id: string, ownerId: string) {
+    return this.lifecycle.acceptCancelRequest(id, ownerId);
   }
 
-  rejectCancelRequest(id: string) {
-    return this.lifecycle.rejectCancelRequest(id);
+  rejectCancelRequest(id: string, ownerId: string) {
+    return this.lifecycle.rejectCancelRequest(id, ownerId);
   }
 
-  rejectByBusiness(reservationId: string) {
-    return this.lifecycle.rejectByBusiness(reservationId);
+  rejectByBusiness(reservationId: string, ownerId: string) {
+    return this.lifecycle.rejectByBusiness(reservationId, ownerId);
   }
 
-  sendBusinessNote(reservationId: string, note: string) {
-    return this.lifecycle.sendBusinessNote(reservationId, note);
+  sendBusinessNote(reservationId: string, ownerId: string, note: string) {
+    return this.lifecycle.sendBusinessNote(reservationId, ownerId, note);
   }
 
   cancelPendingForPitches(
@@ -138,6 +140,16 @@ export class ReservationsService {
   }
 
   findUpcomingByTeam(teamId: string) {
+    return this.query.findUpcomingByTeam(teamId);
+  }
+
+  // GÜVENLİK: /reservations/upcoming ucu için — takım query'den DEĞİL token
+  // kullanıcısından türetilir (IDOR kapalı). Takımsız kullanıcı → boş liste.
+  async findUpcomingForUser(userId: string) {
+    const teamId = await this.lifecycle
+      .resolveUserTeamId(userId)
+      .catch(() => null);
+    if (!teamId) return [];
     return this.query.findUpcomingByTeam(teamId);
   }
 
