@@ -65,6 +65,10 @@ import { PresetNotesModule } from './preset-notes/preset-notes.module';
       throttlers: [
         { name: 'otp-minute', ttl: 60_000, limit: 10 },
         { name: 'otp-hour', ttl: 3_600_000, limit: 30 },
+        // Görsel yükleme (POST /files/upload) — anonim/register akışı olduğundan
+        // guard eklenemez; IP başına dakikada 30 (CGNAT'ta paylaşımlı IP + kayıtta
+        // logo/saha foto burst'ü için cömert). UploadThrottlerGuard ile uygulanır.
+        { name: 'upload', ttl: 60_000, limit: 30 },
       ],
     }),
     AuthModule,

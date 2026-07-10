@@ -21,6 +21,7 @@ import { Team } from '../teams/team.entity';
 import { ReverseGeocodeService } from '../geo/reverse-geocode.service';
 import { normalizeUsername } from './username.util';
 import { CloudinaryService } from '../files/cloudinary.service';
+import { sanitizeUser } from '../common/sanitize-user.util';
 
 @Injectable()
 export class UsersService {
@@ -232,10 +233,13 @@ export class UsersService {
       .where('user.id IN (:...ids)', { ids })
       .getMany();
 
+    // Tam sanitizasyon (common/sanitize-user.util) — eskiden yalnız password+pushToken
+    // siliniyordu, email/telefon/GPS/phoneVerified/chatBan* diğer kullanıcılara sızıyordu.
+    // Joker kartı bu hassas alanları okumaz; iletişim sohbet üzerinden yürür.
     const mapped = jokers
-      .map(({ password: _password, pushToken: _pushToken, ...safe }) => ({
-        ...safe,
-        distanceKm: distanceMap.get(safe.id) ?? 0,
+      .map((u) => ({
+        ...sanitizeUser(u),
+        distanceKm: distanceMap.get(u.id) ?? 0,
       }))
       .sort((a, b) => a.distanceKm - b.distanceKm);
 
@@ -497,18 +501,5 @@ export class UsersService {
     await this.cloudinaryService.safeDestroy(user.avatarUrl);
     if (purgedTeamLogoUrl)
       await this.cloudinaryService.safeDestroy(purgedTeamLogoUrl);
-  }
-
-  async seedFeet(): Promise<string> {
-    const users = await this.usersRepository.find();
-    let updatedCount = 0;
-    for (const user of users) {
-      if (!user.foot) {
-        const randomFoot = Math.random() < 0.5 ? 'Sağ' : 'Sol';
-        await this.usersRepository.update(user.id, { foot: randomFoot });
-        updatedCount++;
-      }
-    }
-    return `${updatedCount} users updated with random foot data.`;
   }
 }

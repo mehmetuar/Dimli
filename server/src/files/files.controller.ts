@@ -12,7 +12,9 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { Readable } from 'stream';
 import { v2 as cloudinary } from 'cloudinary';
+import { SkipThrottle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { UploadThrottlerGuard } from '../common/upload-throttler.guard';
 import { CloudinaryService } from './cloudinary.service';
 
 // Cloudinary config CloudinaryService constructor'ında yapılır (tek nokta); global singleton
@@ -42,6 +44,10 @@ function uploadToCloudinary(buffer: Buffer): Promise<string> {
 export class FilesController {
   constructor(private readonly cloudinaryService: CloudinaryService) {}
 
+  // GÜVENLİK: guard yok (register akışı token'sız çağırır) → yalnız IP rate-limit.
+  // 'upload' throttler'ı (30/dk/IP); otp-* throttler'ları bu uçta atlanır.
+  @UseGuards(UploadThrottlerGuard)
+  @SkipThrottle({ 'otp-minute': true, 'otp-hour': true })
   @Post('upload')
   @UseInterceptors(
     FileInterceptor('file', {

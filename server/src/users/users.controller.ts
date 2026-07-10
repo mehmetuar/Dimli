@@ -132,9 +132,4 @@ export class UsersController {
     await this.usersService.deleteAccount(req.user.id, body);
     return { success: true };
   }
-
-  @Post('seed-feet')
-  async seedFeet() {
-    return this.usersService.seedFeet();
-  }
 }
