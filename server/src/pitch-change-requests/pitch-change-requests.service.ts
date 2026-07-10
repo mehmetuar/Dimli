@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 import {
@@ -25,9 +29,24 @@ export class PitchChangeRequestsService {
     private notificationRepository: Repository<Notification>,
   ) {}
 
+  // Sahiplik doğrulaması (pitches.service assertBusinessOwnedBy deseni): guard'sız
+  // uçların IDOR'unu kapatır — çağıran, ilgili işletmenin sahibi değilse 403.
+  private async assertBusinessOwnedBy(
+    businessId: string,
+    ownerId: string,
+  ): Promise<void> {
+    const owner = await this.businessOwnerRepository.findOne({
+      where: { business: { id: businessId } },
+      relations: ['business'],
+    });
+    if (!owner || owner.id !== ownerId) {
+      throw new ForbiddenException('Bu işletme üzerinde yetkiniz yok.');
+    }
+  }
+
   async createRequest(
     pitchId: string,
-    businessId: string,
+    ownerId: string,
     type: 'CUSTOM_FACILITY' | 'PHOTO_UPDATE',
     requestedData: PitchChangeData,
   ): Promise<PitchChangeRequest> {
@@ -35,6 +54,11 @@ export class PitchChangeRequestsService {
       where: { id: pitchId },
     });
     if (!pitch) throw new NotFoundException('Saha bulunamadı.');
+
+    // GÜVENLİK: businessId artık body'den DEĞİL, sahanın gerçek işletmesinden
+    // türetilir; çağıran o işletmenin sahibi olmalı (aksi halde 403).
+    await this.assertBusinessOwnedBy(pitch.businessId, ownerId);
+    const businessId = pitch.businessId;
 
     // Cancel any existing pending request of same type for this pitch
     await this.changeRequestRepository.update(
@@ -64,7 +88,15 @@ export class PitchChangeRequestsService {
     return this.changeRequestRepository.save(request);
   }
 
-  async getPendingForPitch(pitchId: string): Promise<PitchChangeRequest[]> {
+  async getPendingForPitch(
+    pitchId: string,
+    ownerId: string,
+  ): Promise<PitchChangeRequest[]> {
+    const pitch = await this.pitchRepository.findOne({
+      where: { id: pitchId },
+    });
+    if (!pitch) throw new NotFoundException('Saha bulunamadı.');
+    await this.assertBusinessOwnedBy(pitch.businessId, ownerId);
     return this.changeRequestRepository.find({
       where: { pitchId, status: 'pending' },
       order: { createdAt: 'DESC' },
@@ -75,12 +107,15 @@ export class PitchChangeRequestsService {
   // aynı yaşam döngüsü, pitch_id NULL taşır.
   async createBusinessPhotoRequest(
     businessId: string,
+    ownerId: string,
     requestedData: PitchChangeData,
   ): Promise<PitchChangeRequest> {
     const business = await this.businessRepository.findOne({
       where: { id: businessId },
     });
     if (!business) throw new NotFoundException('İşletme bulunamadı.');
+    // GÜVENLİK: çağıran bu işletmenin sahibi olmalı (IDOR kapalı).
+    await this.assertBusinessOwnedBy(businessId, ownerId);
 
     await this.changeRequestRepository.update(
       {
@@ -110,7 +145,9 @@ export class PitchChangeRequestsService {
 
   async getPendingForBusiness(
     businessId: string,
+    ownerId: string,
   ): Promise<PitchChangeRequest[]> {
+    await this.assertBusinessOwnedBy(businessId, ownerId);
     return this.changeRequestRepository.find({
       where: { businessId, pitchId: IsNull(), status: 'pending' },
       order: { createdAt: 'DESC' },
