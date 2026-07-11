@@ -24,6 +24,11 @@ import {
 import { JoinRequestsService } from '../join-requests/join-requests.service';
 import { TeamBansService } from '../team-bans/team-bans.service';
 import { CloudinaryService } from '../files/cloudinary.service';
+
+// findOne/searchByTerm dönüşü: takım + oynanan maç sayısı zenginleştirmesi.
+export interface TeamWithMatchCount extends Team {
+  playedMatchCount: number;
+}
 import { sanitizeUser } from '../common/sanitize-user.util';
 
 @Injectable()
@@ -171,7 +176,7 @@ export class TeamsService implements OnModuleInit {
     return teams;
   }
 
-  async searchByTerm(term: string): Promise<any[]> {
+  async searchByTerm(term: string): Promise<TeamWithMatchCount[]> {
     const shortIdPattern = /^[A-Z]{3}-\d{3}$/;
     let teams: Team[];
 
@@ -213,7 +218,7 @@ export class TeamsService implements OnModuleInit {
     return results;
   }
 
-  async findOne(id: string): Promise<Team | null> {
+  async findOne(id: string): Promise<TeamWithMatchCount | null> {
     // players relation'ı YÜKLENMEZ — aşağıda loadTeamPlayers zaten dar
     // select'le çekiyor (eski hali aynı oyuncuları iki kez sorguluyordu).
     const team = await this.teamsRepository.findOne({
@@ -244,7 +249,7 @@ export class TeamsService implements OnModuleInit {
     const playedMatchCount = await this.ratingsService.getTeamMatchCount(
       team.id,
     );
-    return { ...team, playedMatchCount } as any;
+    return { ...team, playedMatchCount };
   }
 
   async addPlayer(teamId: string, userId: string): Promise<Team> {
