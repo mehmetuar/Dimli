@@ -785,7 +785,7 @@ kötüye kullanıldığına dair iz YOK. Deploy: **yalnız server (Render)**; es
 - **T3.2** `pitch-change-request.entity` `requestedData`/`currentData` → `PitchChangeData`
   (`facility?/facilities?:string[]/imageUrl?`; ⚠️ `pitch.facilities` `string[]` simple-array).
 
-### T3 — Bilinçli ERTELENENLER (cascade/entanglement, düşük değer — ayrı task)
+### T3 — Bilinçli ERTELENENLER → **§68'de KAPANDI (2026-07-11)**
 - **business-owner dashboard enrichment cast'leri** (`(res.team as any).playedMatchCount` — entity'ye
   ad-hoc alan MUTASYONU + `(r:any)` callback'lerinde slotTime/status-enum bağı; canlı dashboard
   regresyon riski). Fix: `Team & {playedMatchCount?...}` tipli cast + `r.status===ReservationStatus.X`.
@@ -793,8 +793,8 @@ kötüye kullanıldığına dair iz YOK. Deploy: **yalnız server (Render)**; es
   index-signature güvenlik katmaz). **auth.service** `validateUser/login/loginBusinessOwner`
   param+return tipleri (`Express.User` augmentation'ına bağlı cascade).
 - Ayrıca üst-seviye backlog: **büyük dosya bölme** (T4-T6 tanrı-servisler: reservations 2427 / chat
-  1812 / admin 1237 satır), `@nestjs/config`, global exception filter, chat.service raw-SQL tipleme,
-  `noImplicitAny:true`.
+  1812 / admin 1237 satır), `@nestjs/config`, global exception filter. (chat.service raw-SQL tipleme
+  ve `noImplicitAny:true` §68'de yapıldı.)
 
 ### Denetimden çıkan kalıcı bilgiler (DB, salt-okunur 2026-07-01)
 - **Şema entity'lerle TAM hizalı:** 26 tablo/249 kolon hepsi entity'lerle eşleşiyor → `synchronize:
@@ -2566,6 +2566,379 @@ SQL yapısı canlıda çalıştırıldı (Seyda: ay 5/20, bugün 0/2). **Deploy 
 **Sıra: önce server (Render) → sonra client (yeni native sürüm).** Server ucu eski client'ları bozmaz;
 Yetkili sayfası yeni client sürümüyle görünür. `synchronize:true` — şema değişmedi (mevcut kolonlar).
 
+## 63. Açılış animasyonu: AnimatedSplash "perde" mimarisi + /pitches inişi (2026-07-10)
+
+Getir/YemekSepeti tarzı markalı açılış: her soğuk açılışta SVG+CSS "DİMLİ" çizim animasyonu
+(`client/components/UI/AnimatedSplash.tsx`), ardından oturum durumuna göre yönlendirme. Kaynak tasarım
+kullanıcının Claude Design çıktısı `DIMLI Splash.html` (repo kökü, git dışı) — SVG path/zamanlama verileri
+birebir taşındı ve programatik diff ile doğrulandı.
+
+- **Perde mimarisi:** `AnimatedSplash`, `App()` içinde provider ağacının KARDEŞİ (`fixed inset-0 z-[9999]`
+  opak lacivert). Arkasında uygulama boot olur (auth restore ~100ms, guard'lar, lazy chunk'lar); süre
+  dolunca perde solar → unmount → hedef ekran zaten boyalı. `bootSplashDone` state JS oturumu boyunca
+  yaşar → arka plan/ön plan geçişinde TEKRARLAMAZ; OS öldürürse yeni JS bağlamı → tekrar oynar.
+- **Süre:** ilk açılış ~4.4sn (`SPEED=0.75`), sonrakiler ~2.6sn (`SPEED=0.45`) — taban çizelge 5.85sn.
+  Bayrak `localStorage 'dimli_splash_intro_seen'` — MODÜL SCOPE'ta okunur (StrictMode remount'una bağışık;
+  Preferences değil çünkü frame-0'da SENKRON okuma şart; kaybolursa en kötü ilk-açılış temposu tekrar oynar).
+  Bitiş `setTimeout` ile — `animationend`'e ASLA bağlanma (reduce-motion güvenliği, CelebrationScreen emsali).
+- **NETLİK KURALLARI (kalite turu, 2026-07-10):** splash SVG'sine `filter` (drop-shadow/glow) ve sürekli
+  çalışan transform animasyonu EKLENMEZ — WebKit ikisinde de SVG'yi rasterize katmana alıp bulanıklaştırır
+  (eski neon glow ×2 ve 5.85sn'lik `splash-settle` scale bu yüzden KALDIRILDI). Çizim yalnız
+  `stroke-dashoffset` (paint-level, vektör-keskin). Renk tek sabit: `GREEN='#2f8a22'` (canlı saha yeşili).
+- **Login bekletme:** `services/bootSplashStore.ts` (modül store + `useBootSplashDone`,
+  `useSyncExternalStore`). AnimatedSplash reveal-start'ta (5.45×SPEED; reduce 0.9sn) `markBootSplashDone()`
+  çağırır (finish'te idempotent sigorta). `Login.tsx` splash bitene kadar yalnız zemin degradesi render
+  eder → giriş koreografisi (saha çizgileri + enter-up) perde solarken BAŞLAR. Oturumlu akışlar
+  (müşteri/işletme) beklemez — sayfa perde arkasında hazır. BusinessLogin'de bekletme yok (soğuk açılışta
+  oturumsuz kullanıcı hep /login'e düşer).
+- **Boot yolu kuralı (§28 devamı):** AnimatedSplash EAGER import edilir, ASLA lazy/Lottie'ye çevrilmez.
+  Keyframe'ler `splash-*` prefix'li (component `<style>` global — index.css `pitchDraw` vb. ile çakışmaz).
+- **§54 hatırlatması:** splash path'lerine `vectorEffect="non-scaling-stroke"` EKLEME —
+  vectorEffect+pathLength+dasharray üçlüsü iOS/WebKit'te stroke-draw'u kırar; pathLength+dasharray ikilisi güvenli.
+- **Wordmark "DİMLİ" = FONT DEĞİL, baked vektör kontur** (`components/UI/splashWordmark.ts` — 5 harf
+  path'i + İ nokta reveal daireleri). Neden: tasarımın kalem-maskesi yolları ~360px'e yayılıyordu ama
+  Caveat metni doğal dizilimde ~230px — maskeler metne HİÇBİR tarayıcıda hizalı değildi (headless Chrome
+  bindirme testiyle kanıtlandı; iOS'ta kırık harf parçaları olarak görünüyordu). Harfler fontkit ile
+  Caveat 600 woff2'lerden kontura çevrilip maske merkezlerine (D≈55, İ₁≈130.5, M≈211, L≈291, İ₂≈359.5;
+  baseline y=505) yerleştirildi. Caveat @font-face/preload/`public/fonts` TAMAMEN KALDIRILDI (bundle'da
+  font yok). Maske ince ayarları: kalem stroke'ları +4 kalınlaştı (24-30), İ nokta reveal daireleri glyph
+  noktalarının GERÇEK merkezine taşındı (142.5/371.5, y≈434), Caveat metin-dizilimine özgü `blackout` ve
+  `ink dab` yamaları kaldırıldı, yazı fazı sonunda 0.25sn'lik tam-reveal rect eklendi (final kare her
+  koşulda eksiksiz). Yeniden üretim scripti: scratchpad `gen-wordmark.cjs` (fontkit; --emit ile yazar).
+- **Native splash artık DÜZ LACİVERT (logosuz):** markalı an web animasyonudur. iOS: `LaunchScreen.storyboard`
+  düz renk view (Splash.imageset SİLİNDİ — plugin storyboard'u instantiate eder, imageset'i kullanmaz).
+  Android: `drawable/splash.xml` (solid `@color/dimliPitch`; plugin isimle "splash" DRAWABLE arar, color
+  resource çözemez) + `splash_icon.xml` şeffaf layer-list (Android 12+ ikon slotu zorunlu → şeffaf hile);
+  26 `splash.png` + `dimli_splash_icon.png` silindi. `generate-icons.cjs`'ten splash üretimi KALDIRILDI —
+  geri ekleme: `splash.png` + `splash.xml` duplicate-resource ile Android build'ini kırar.
+- **Config/zamanlama tuzakları:** `capacitor.config.ts` → `launchAutoHide:false`; `launchShowDuration`'ı
+  0 YAPMA (plugin 0'da launch splash'ı HİÇ göstermez — SplashScreen.swift `showOnLaunch` erken döner).
+  `SplashScreen.hide({fadeOutDuration:200})` AnimatedSplash mount'unda double-rAF + 300ms setTimeout
+  yedeğiyle çağrılır (Android 12+ pre-draw hold rAF'ı aç bırakabilir). App.tsx'teki eski hide kaldırıldı.
+  Sigorta: `index.tsx` modül scope'ta 8sn'lik yedek hide (JS hatasında native splash'ta takılı kalma).
+- **İniş noktaları:** `client/constants/routes.ts` → `CUSTOMER_HOME='/pitches'`. Boot hash'i `index.tsx`
+  `replaceState('#/pitches')` (HashRouter'dan ÖNCE; Maç Pazarı boot'ta mount olmaz). Müşteri login/kayıt
+  sonrası ve `BusinessProtectedRoute` müşteri-sekmesi de `CUSTOMER_HOME`'a iner; `/` Maç Pazarı navbar
+  sekmesi olarak yaşar. Geri tuşu: `#/pitches` yalnız İLK history girişiyse root (App.tsx,
+  `history.state.idx===0` — react-router v6/7 iç yapısı).
+- **Gelecek — işletme-özel splash:** altyapı hazır: `variant?: 'default'|'business'` prop +
+  `getBootSplashVariant()` (senkron `localStorage 'dimli_splash_variant'` okur; auth async olduğundan
+  frame-0'da context OKUNAMAZ, ipucu şart). İşletme sanatı eklenince: `loginAsBusiness` key yazar,
+  `logout`/`loginAsCustomer` siler, `App()` prop geçirir. Bugün hiçbir yer key yazmıyor.
+- **`!isReady` gate'i** artık düz lacivert div (PageLoader boot'tan kaldırıldı; Suspense fallback olarak
+  oturum-içi lazy gezinmelerde yaşamaya devam eder).
+
+### Deploy/doğrulama
+Salt client değişikliği (server/DB YOK; JWT 365g aynen). `npm run build` + `npx cap sync` yapıldı
+(sandbox'ta pod install için `LANG=en_US.UTF-8` gerekti). Kalite turu sonrası final kare + animasyon
+ortası headless-Chrome görüntüleriyle doğrulandı; cihaz doğrulaması bekliyor: temiz kurulum ~4.4sn →
+ikinci açılış ~2.6sn; oturumsuz → perde solarken login koreografisi başlıyor; müşteri→/pitches,
+işletme→/business/dashboard; reduce-motion statik kare; yazının keskin ve glow'suz olduğu görsel kontrol.
+
+## 64. Splash soğuk-başlangıç saat kapısı + işletme login "vitrin-kapı" (2026-07-10)
+
+### A) AnimatedSplash sağlamlaştırma (Redmi 10S kök neden düzeltmesi)
+- **Belirti/teşhis:** Redmi'de recents'ten öldürüp soğuk açılışta animasyon hiç görünmüyordu (düz lacivert →
+  login); geri tuşuyla çıkış (`exitApp` → ılık süreç) sonrası ÇALIŞIYORDU. Kök neden: CSS animasyon saatleri
+  stil uygulandığı anda DUVAR SAATİYLE akar — soğuk süreç açılışında ana iş parçacığı 2-3sn kare üretemezken
+  sıkıştırılmış (~2.6sn) çizelge görünmeden tükeniyordu (ilk kurulumun 4.4sn sürümünde kuyruk görünür
+  kaldığından "ilk açılış çalışıyor" sanılıyordu; iPhone'da boot ~200ms olduğundan hiç görülmedi).
+- **Düzeltme — saat kapısı (`started`):** animasyon stilleri ve reveal/finish zamanlayıcıları İLK GERÇEKTEN
+  BOYANAN karede başlar (double-rAF → `setStarted(true)` + native `hide()` aynı karede). `started=false`
+  iken tüm öğeler animasyonsuz BAŞLANGIÇ karesinde (gizli), perde animasyonsuz opak. 300ms hide-yedeği
+  yalnız native splash içindir (pre-draw kilidini açar → rAF akar → started doğal açılır); 4sn felaket
+  sigortası started'ı zorla açar (asla asılı kalmaz).
+- **Watchdog:** started'dan 450ms sonra splash KÖK div'inden hiç `animationstart` gelmediyse (dinleyici
+  kökte — perde arkası uygulama animasyonları sayılmaz) `forceStatic` → statik son kare. Boş ekran imkânsız.
+- **Davranış kararı (kullanıcı):** arka plan/ön plan geçişinde animasyon TEKRARLANMAZ — yalnız soğuk açılış.
+  Home/recents-resume'da animasyon olmaması TASARIM GEREĞİDİR, bug değil.
+
+### B) İşletme login "vitrin-kapı" revizyonu
+- **Hizalama sistemi (BOZMA):** `BackToCustomerButton` yatay padding `clamp(16px,5vw,32px)` → telefonlarda
+  tam %5 = viewBox X=10; bant `clamp(160px,28vh,255px)` + alt padding `clamp(20px,3.5vh,32px)` → her iki
+  clamp ucunda %12.5 → buton ALT KENARI her cihazda Y=87.5. Kapı çerçevesi: dikmeler X45/155 (Y56-90),
+  lento Y56, zemin Y90; buton genişliği %57.78 (X48..152, margin auto) → ≥3 birim pay, ASLA çakışmaz.
+  Bant yükseklik string'i art ve wrapper'da BİREBİR AYNI kalmalı. Buton flex akışında (absolute YAPMA —
+  klavye düzeni bozulur); klavye açılınca %100 genişliğe döner (sanat opacity 0).
+- **SVG GOTCHA (kalıcı):** tek parçalı YATAY path'lerde (saçak/zemin/lento) objectBoundingBox gradyanı
+  SIFIR-YÜKSEKLİK bbox nedeniyle SVG spec gereği HİÇ BOYANMAZ (eski bileşende saçak+zemin bu yüzden hiç
+  görünmemişti!). Düzeltme: `linearGradient gradientUnits="userSpaceOnUse" x1=0 x2=200` — tüm cepheye tek
+  tutarlı rampa. Gradyan stroke'lu yatay çizgi çizerken hep userSpaceOnUse kullan.
+- Yeni dikey düzen: çatı Y0-22 → vitrin saha Y27-44 → tente Y46-52 → kapı Y56-90. Logo diski banda oranlı
+  `clamp(36px,18%,48px)` + `zIndex:2` + opak zemin (saçak kesmesin); icon.png glif asimetrisi
+  `translate(-49%,-41.5%)` ile disk merkezine oturtuldu. Kapı lambası (amber nokta, 1.95s) + zemin ışıması
+  (2s) `.sfa-fade` (inline animation yerine sınıf — reduced-motion medya sorgusu ezebilsin diye);
+  `@media (prefers-reduced-motion: reduce)` bloğu eklendi (anim-line dashoffset:0, fade'ler opacity:1).
+- Premium: submit CTA müşteri diliyle `linear-gradient(135deg,#ea580c,#9a3412)` + rounded-2xl; başlık
+  beyaz→amber text-clip parıltısı; kapı kanadı gri dikey gradyan + `16px 16px 10px 10px` radius.
+- Doğrulama: headless Chrome, bant min (320×568) + max (430×932) — kapı çerçevesi/buton hizası, saçak +
+  zemin çizgilerinin render'ı piksel taramasıyla doğrulandı. Cihaz testi bekliyor.
+
+---
+
+## 65. Sunucu güvenlik denetimi + kapsamlı guard/serialization düzeltmeleri (2026-07-10)
+
+> Bildirilen tek açıktan (GET /match-announcements/pitch/:pitchId kaptanın tam User'ını sızdırıyor)
+> yola çıkan denetim (2 keşif ajanı + manuel doğrulama + salt-okunur prod DB kontrolü) **sistemik**
+> bir tabloyu ortaya çıkardı: **global guard YOK**, hiçbir entity `@Exclude`/`select:false` kullanmıyor,
+> `ReservationsController` **tamamen korumasız** (20 uç, 16 yazma) ve birkaç işletme/abonelik ucu guard'sız
+> IDOR taşıyor. Kullanıcı "hepsini çöz" dedi (O5 hariç). **Hepsi yalnız server → Render deploy; client
+> DEĞİŞMEDİ** (istemci `api.ts` global interceptor'ı zaten her isteğe Bearer token ekliyor → guard eklemek
+> yayındaki sürümleri BOZMAZ, kimlik `req.user.id`'den türetilir, IDOR kapanır). Prod istismar izi YOK
+> (19 kullanıcı/5 işletme/5 abonelik — hepsi trial+RC ID'li).
+
+### Kilit desen: geriye-uyumlu guard + token'dan kimlik
+İstemci `ownerId`/`teamId`/`userId`'yi query/body'de gönderiyordu; artık **YOK SAYILIR**, kimlik JWT
+`sub`'ından (`req.user.id`) alınır. Business token'ında `sub = owner.id`, user token'ında `sub = user.id`
+(aynı `JwtAuthGuard`, aynı `JWT_SECRET`). Legitimate istek için `req.user.id === gönderilen id` olduğundan
+davranış değişmez. Login `ownerId: owner.id` döndüğü için istemci hep kendi id'sini gönderiyordu (teyit edildi).
+
+### Yeni ortak altyapı
+- **`common/sanitize-user.util.ts`** — `SENSITIVE_USER_FIELDS` (password, email, phone, pushToken,
+  latitude, longitude, isChatBanned, chatBannedAt, chatBanExpiry, phoneVerified) + `sanitizeUser<T>()`.
+  Tek kaynak; `teams.service` kendi kopyasını buna delege eder. Çok-kullanıcılı TÜM dönüşlerde kullan
+  (kendi kaydını dönerken KULLANMA — email/phone normaldir).
+- **`common/upload-throttler.guard.ts`** — `POST /files/upload` register akışında token'sız çağrıldığından
+  guard EKLENEMEZ; yalnız IP rate-limit (`app.module` yeni `upload` throttler'ı 30/dk; otp-* `@SkipThrottle`'lı).
+
+### Düzeltmeler (önem sırasına göre)
+- **K1 (bildirilen):** `match-announcements.service findByPitch` — `team.captain` leftJoin'i KALDIRILDI
+  (istemci okumuyor; `findAll` zaten yalnız team skaleri yüklüyor). İç `handleCron` captain join'i client'a
+  dönmediğinden dokunulmadı.
+- **K2/Y6:** `ReservationsController` komple yeniden yazıldı — her uç `@UseGuards(JwtAuthGuard)` + sahiplik.
+  Lifecycle'a 3 public helper: `assertOwnsBusiness`/`assertPitchOwnedBy` (owner↔pitch→business) +
+  `resolveUserTeamId` (user→team). İşletme metotları `ownerId`, müşteri metotları `userId` alır (facade
+  imzaları senkron). **Ölü route'lar SİLİNDİ:** `POST /reservations` (create — server-side'dan üretilir;
+  public route sahte rezervasyon riskiydi), `GET /reservations` (findAll — tüm platform), `GET /my-team`.
+  Servis metotları (create vb.) iç çağıranlar için KALDI. `GET /pitch/:id` guard'lı ama sahiplik-scope'suz
+  (müsaitlik ızgarası herkese açık). `propose-time` (çağıransız) guard'lanıp tutuldu.
+- **K3/Y2:** `SubscriptionController confirm-purchase`/`schedule-downgrade`/`owner/:ownerId` guard'lı +
+  `ownerId` token'dan (ödeme doğrulamasız plan yükseltme + billing IDOR kapandı). `plans`/webhook public kaldı.
+- **K4/Y1:** `BusinessOwnerController` tüm guard'sız uçlar guard'landı + `ownerId` token'dan (dashboard/stats/
+  notifications/approve-reservation IDOR). `GET :id` yanıtından password+pushToken strip. `approveReservation`
+  artık ownerId'yi `reservationsService.approve`'a geçirip sahipliği doğruluyor (`approve-reservation/:id`
+  = `/reservations/:id/approve`'un ölü kopyası).
+- **Y3:** `business.service mapWithOwnerPhone` — gömülü tam `owner` (BusinessOwner: parola hash'i + PII)
+  yanıttan çıkarıldı; yalnız düz `ownerPhone` yayılır. `/businesses` public listeleme güvenli.
+- **Y4:** `POST /users/seed-feet` + `seedFeet()` **tamamen SİLİNDİ** (ölü bakım ucu, çağıransız, tüm
+  kullanıcıları mutasyona uğratıyordu — §21 T1.4 orphan-route emsali).
+- **Y5:** pitch/business change-requests uçları guard'lı + `businessId`/`pitchId` sahiplik doğrulaması
+  (`assertBusinessOwnedBy`); businessId artık body'den değil saha→işletmeden türetilir.
+- **O1/O2/O4:** `getJokers`, `chat getUserChannels`/`getChannelMessages`, admin şikayet listeleri — eksik
+  sanitizasyon (yalnız password+pushToken) tam `SENSITIVE_USER_FIELDS`'e yükseltildi. Admin panel yalnız
+  username/full_name okur → güvenli.
+- **O3:** `GET /join-requests/team/:teamId` — kaptan/yardımcı-kaptan yetki kontrolü eklendi (accept/reject
+  deseni) + başvuran User sanitize.
+- **O6:** `files/upload` IP rate-limit (yukarıda).
+
+### O5 — ERTELENDİ (kullanıcı: "şimdilik dokunma")
+Kodda gömülü fallback secret'ler (`process.env.JWT_SECRET || 'SECRET_KEY'`, `|| 'ADMIN_SECRET_KEY'` —
+jwt.strategy, auth/admin/gateway modülleri, app.gateway) **DEĞİŞTİRİLMEDİ**. Render env'in set olduğu
+belirsiz; önce doğrulanmadan kaldırmak (env eksikse fail-fast) prod'u kilitleyebilir. `.env`'de tanımlılar.
+
+### Doğrulama
+`cd server && npm run build` ✓ + `npm run lint` temiz (yalnız önceden var olan e2e parse hatası). Guard
+kapsamı statik doğrulandı (her mutasyon ucu guard'lı; yalnız `subscription/plans` + webhook + `files/upload`
+kasıtlı public). İç çağıran taraması: değişen tek facade çağrısı `business-owner.service approve` (güncellendi).
+Prod'a `synchronize:true` ile bağlanılmadı (boot atlanmadı — şema riski). Deploy: **yalnız server (Render)**.
+
+## 66. AnimatedSplash kare-zamanlı rAF sürücüsü — KURAL: boot yolunda duvar-saatli CSS animasyonu YASAK (2026-07-11)
+
+**Belirti (kalıcı vaka):** Redmi 10S "recents'ten öldür → HEMEN aç" soğuk açılışında animasyon hiç
+görünmüyordu (boş lacivert → login); 30dk sonra açınca ÇALIŞIYORDU. §64'teki saat-kapısı (`started`,
+double-rAF) da YETMEDİ — kullanıcı yeni build ile doğruladı.
+
+**Kök neden (sınıf):** CSS keyframe animasyonları belge zaman çizelgesinde (DUVAR SAATİ) akar. Soğuk süreç
+açılışında WebView laciverti hızla boyar (double-rAF erken ateşlenir, animasyon saatleri başlar), SONRA ana
+iş parçacığı boya-sonrası ağır boot işine dalar (perde arkası lazy chunk parse, provider'lar, socket) —
+ekran güncellenemezken CSS saatleri tükenir, `setTimeout`'lar ise gecikir → perde solması görünmeden
+tamamlanır, kullanıcı doğrudan login görür. "Hemen aç" en yavaş boot'tur (MIUI öldürme temizliğiyle
+yarışır); sakin sistemde animasyon yetişir → gizli/aralıklı hata.
+
+**Çözüm — rAF "oyun döngüsü" sürücüsü (`AnimatedSplash.tsx`):** CSS keyframe animasyonları kaldırıldı
+(yalnız reduce-motion perde solması CSS kaldı). Zaman çizelgesi `TIMELINE` verisi (19 öğe: kind
+draw/pop/fadein + dur/delay/ease) + JS `cubicBezier` değerlendiricisi (Newton+ikiye bölme). Tek rAF
+döngüsü: `acc += min(dt, 50ms)` — **animasyon yalnız GERÇEKTEN ÇİZİLEN karelerle ilerler**; duraklamada
+DURAKLAR, sıçramaz (dt-clamp 50ms: tek dev kare gelse bile ≤50ms ilerler; sürekli yavaş karelerde tempo
+düşer ama hep görünür). Stiller imperatif yazılır (`data-splash-key` → Map, kare başına React render YOK).
+Reveal (`5.45×SPEED` → markBootSplashDone) ve finish (`5.85×SPEED`) AYNI birikimli saatten → perde solması
+ve Login mount'u görünenle hep senkron. Felaket sigortası: 5sn'de acc≈0 ise statik son kare + 1.2sn sonra
+finish. `started` state'i ve animationstart watchdog'u kaldırıldı (sürücünün kendisi kare-kanıtlı).
+
+**KURAL (kalıcı):** Boot/perde yolunda kritik zamanlamalı animasyon CSS keyframe ile YAPILMAZ — kare-zamanlı
+rAF sürücüsü kullanılır. CSS animasyonu yalnız main-thread duraklamasının önemsiz olduğu (boot-sonrası,
+oturum-içi) yüzeylerde serbesttir. Test düzeneği notu: headless Chrome `--virtual-time-budget` rAF tick
+sayısını kısıtlar → dt-clamp ile acc ~1sn'de kalır; kare matematiği `raf-preview.html#acc=X` atlamasıyla
+doğrulanır (scratchpad gen-raf-preview.cjs).
+
+**Doğrulama:** kare matematiği sabit anlarda görsel doğrulandı (acc=2.6: amblem tam + "D" yazılmış;
+acc=4.0: DİMLİ eksiksiz, perde opak). Build + sync ✓.
+
+**GÜNCELLEME (kare-ısınma kapısı — Redmi kök neden KESİN çözüm, cihazda doğrulandı 2026-07-11):** rAF
+sürücüsü tek başına da yetmedi. Kesin teşhis (Redmi USB + adb + canlı DevTools): cihaz WebView **92**
+(2021, hiç güncellenmemiş, fabrika sürümü). **Asıl mekanik:** rAF geri çağrıları ANA İŞ PARÇACIĞINDA koşar;
+soğuk başlangıçta ana thread ağır boot işiyle aralıklı bloke olur. Bloklar arası boşluklarda rAF tek-tük
+ateşlenir ve `acc`'yi ilerletir AMA compositor basmadan thread yeniden bloke olur → `acc` EKRANA YANSIMADAN
+~50ms adımlarla bitişe yürür → perde görünmeden solar → login. Yani "rAF ateşlendi ≠ kare EKRANA BASILDI".
+Boot akıcı olduğunda (geri-tuşu ılık süreç / 30dk sakin sistem) bloklar yok → görünür.
+**Çözüm — ısınma (warm) kapısı:** `acc` yalnız AKICI kareler basılırken ilerler. Sürücüde `goodStreak`:
+ardışık kareler `WARM_FRAME_MS=100`ms'ten yakınsa say, uzaksa (boot blokajı gap'i) sıfırla; `WARM_STREAK=4`
+ardışık akıcı kare → `warm=true`, `acc` o an SIFIRDAN başlar (animasyon tam baştan görünür). warm'a kadar
+`acc` ilerlemez (navy perde). **Native `SplashScreen.hide()` de warm anına ERTELENDİ** (eski ilk-rAF yerine)
+→ boot boyunca native navy splash durur, WebView gerçekten akıcı basınca devralınır (dikişsiz, gerçek-boya
+garantili). Isınma felaket sigortası: `WARM_FAILSAFE_MS=4500`ms'te warm olmadıysa native hide + statik son
+kare + kısa sonra finish (boş ekran imkânsız). Hızlı cihaz/iOS: ilk 4 kare <100ms → warm ~66ms, anında
+başlar (regresyon yok). **KURAL eki:** boot-yolu animasyonlarında rAF ateşlenmesine güvenme; ilk N akıcı
+kareyle "compositor gerçekten basıyor" ısınmasını bekle, native splash'ı ancak o an devral. Teşhis için
+`__SPLASH_DEBUG` bayrağı (logcat `[splash]` logları; prod'da false). **Cihaz testinde ÇÖZÜLDÜ (kullanıcı onayı).**
+
+## 67. Konum izni istemi splash sonrası Login ekranına ertelendi (2026-07-11)
+
+**Sorun:** İlk kurulumda native konum izni dialogu açılış animasyonu (AnimatedSplash) OYNARKEN, perde
+arkasında beliriyordu — `LocationContext` mount efekti (`useEffect [], :257-258`) oturum/ekran durumuna
+bakmadan koşulsuz `requestLocation(true)` çağırıyordu (`Geolocation.requestPermissions()` → §33 tek istem
+noktası). LocationProvider provider ağacında olduğundan splash perdesiyle aynı anda mount olur → istem
+splash sırasında çıkar.
+
+**Düzeltme (2 dosya):**
+- `contexts/LocationContext.tsx`: boot çağrısı `requestLocation(true)` → **`requestLocation(false)`** (SESSİZ).
+  Artık boot'ta dialog AÇILMAZ: izin zaten verilmişse konum tazelenir, promptable ise hiçbir şey yapmaz
+  (`if (permStatus.location !== 'granted') return`). appStateChange listener'ı ve diğer her şey aynı.
+- `pages/customer/Login/Login.tsx`: `useLocationContext()` + efekt — `splashDone && !token` olunca BİR KEZ
+  (ref guard), 800ms gecikmeyle `requestLocation(true)`. Gecikme login giriş koreografisinin (logo/form
+  enter-up ~940ms) oturmasını bekler → dialog sakin ekranda belirir. `requestLocation` stabil useCallback
+  (`[updateCoords]`), splashDone tek sefer flip → efekt bir kez.
+- **Neden güvenli (§33 uyumu):** konumu login'den önce/sonra almak sunucuya etkisiz — `syncLocationToServer`
+  `getToken()` yoksa bail, sync efekti `isCustomer`-only. coords localStorage cache'ten seed'lenir →
+  dönen granted kullanıcı boot'ta sessizce çalışır. Tüm coords tüketicileri ProtectedRoute +
+  LocationAccessGate arkasında (coords null'da zarif düşer). İşletme login'i konum kullanmaz (ayrı akış).
+- **Davranış:** yeni kurulum (oturumsuz) → splash biter → Login belirir → ~800ms sonra izin dialogu Login
+  üstünde. Dönen izinli müşteri → boot'ta sessiz tazeleme, dialog yok. Dönen izinsiz müşteri (nadir) →
+  hedef sayfada LocationAccessGate "Tekrar Dene" ile ister (mevcut zarif düşüş). Build + sync ✓.
+
+## 68. Server `any` sıfırlama turu — 68 açık any → 0 (+ derleyici/lint sertleştirme) (2026-07-11)
+
+> §21'de ertelenen tüm `any` borcu + sonradan birikenler kapatıldı: 22 dosyada 68 açık `any`
+> gerçek tipleriyle değiştirildi (13 batch commit, B1-B12c). Yanıt JSON şekilleri DEĞİŞMEDİ —
+> her batch sonrası **dist-diff** ile doğrulandı (bkz. doğrulama deseni); yalnız aşağıdaki onaylı
+> hata düzeltmeleri çalışma zamanına dokundu. tsconfig `noImplicitAny: true` +
+> `useUnknownInCatchVariables: true` ve eslint `no-explicit-any: 'warn'` AÇIK (src'de 0 uyarı).
+
+### Kalıcı tip yerleşimi (yeni kod bu düzene uyar)
+- **`ChatMessageMetadata`** → `chat-message.entity.ts` (kolonla aynı dosya): **KATI discriminated
+  union, 8 arm** — rezervasyon ailesi tek arm'da 18 type literal (MATCH_APPROVED…UNDO_CANCEL_REQUEST,
+  BUSINESS_CLOSED/PITCH_REMOVED/PITCH_SCHEDULED_OFFLINE scope'ları dahil) + PROPOSAL_ACTION,
+  REMATCH_PROPOSAL, MATCH_CONFIRMED, JOKER_* arm'ları. **Yeni sistem-mesaj tipi eklerken union'a
+  ARM EKLE, gevşetme.** Yazıcılar: chat.service + reservation-* (`sendSystemMessage` aktarıcısı —
+  onun parametresi de bu tip). Derleyici eksik arm'ı yazıcıda TS2322 ile gösterir.
+- **`NotificationMetadata`** → `notification.entity.ts`: GENİŞ opsiyonel interface + `[k: string]:
+  unknown` (~40 yazım noktası serbest kalır). **KURAL: yeni anahtar OKUYACAKSAN interface'e gerçek
+  tipiyle ekle; okuma yerinde cast etme.** `NotificationTeamMeta` da orada.
+- Servis yanıt/projeksiyon tipleri üreten servisin başında **export** edilir (match-announcements
+  emsali). `declaration: true` → public imzada geçen HER tip export ZORUNLU (TS4053).
+- Yeni eklenen tipler: ChannelListItem/LastMessageRow/LastMessageView/UnreadRow/ChannelMatchDetails/
+  ChannelMatchTeamData/JokerInChannel (chat.service); TeamJokerInviteGroup/JokerEntry (notifications);
+  DashboardPitchSlots/DashboardSlot/PitchStat/StatPeriod + EnrichedTeam/EnrichedReservation
+  (business-owner); MarketplaceRawRow/MarketplaceAnnouncement (match-announcements);
+  TeamWithMatchCount (teams); JokerListItem/JokerDistanceRow (users); BusinessWithOwnerPhone
+  (business); SeedSubscriptionDetail, AdminChangeRequestListItem/AdminPitchApprovalListItem,
+  AdminBusinessListItem, PendingChangeRequestListItem (admin/pcr); RawServiceAccount (firebase);
+  SocketData/AppSocket (gateway).
+
+### Entity gerçeklik düzeltmeleri (şema no-op — kolon tanımları değişmedi)
+- **`User.team: Team | null`** — kolon zaten nullable'dı, TS tipi yalan söylüyordu. Tüm `user.team.*`
+  erişimleri zaten `if (!user?.team) throw` guard'lıydı → **SIFIR cascade** çıktı.
+- **`User.teamId: string | null` + açık `type: 'varchar'`** (repo kuralı: `| null` alan = açık kolon
+  tipi). Tek fallout: chat `getJokersInChannel` includes(null) örtük davranışı açık guard'a çevrildi
+  (sonuç birebir aynı).
+- `teams.service.findOne → Promise<TeamWithMatchCount | null>` — `:247 as any` TÜM çağıranların tip
+  güvenliğini siliyordu; 22 çağıran değişmeden derlendi.
+- Not: ilişki alanının `Team | null` olması design:type'ı Function→Object yapar — TypeORM ilişkilerde
+  design:type OKUMAZ (FK tipi karşı PK'dan), şema etkisi yok (§21 T3.1 emsali).
+
+### Onaylı hata düzeltmeleri (davranışın değiştiği TEK yerler)
+1. `notifications.service:84` kaptan guard'ı — captainId boş + ilişki yüklenmemişse TypeError/500
+   yerine `NotFoundException('Takım kaptanı bulunamadı.')`.
+2. `match-announcements` cron ölü fallback silindi — `(captain as any).id || captain` çalışsaydı
+   `userId`'ye USER NESNESİ yazardı.
+3. `business-owner` `r.status === 'APPROVED'` literal'leri → `ReservationStatus` enum (değer-özdeş).
+4. `'trial' as any` → `SubscriptionStatus.TRIAL` (değer-özdeş).
+5. `subscription.handleWebhook` eksik `app_user_id` guard'ı — bozuk payload artık hiçbir aboneliğe
+   dokunmaz (eskiden tanımsız davranıştı).
+
+### Sertleştirme (AÇIK — geri alma yok)
+- tsconfig `noImplicitAny: true` (5 düzeltme: auth.controller `req: { user: Omit<User,'password'> }`
+  + `import type` — TS1272; user-blocks ×4 `req: { user: Express.User }`).
+- tsconfig `useUnknownInCatchVariables: true` (firebase ×2 FirebaseError-şekli narrowing, seed ×1).
+- eslint `@typescript-eslint/no-explicit-any: 'warn'` — kabul kapısı src'de 0 uyarı. 'error' değil:
+  `npm run lint` --fix akışı kırılmasın.
+- **ERTELENDİ:** gateway typed EmitEvents haritası (Server generic'i tüm `server.to().emit()`
+  çağrılarına yayılır — ayrı task).
+
+### Doğrulama deseni (sonraki turlar için tekrar edilebilir)
+Batch başına: `npm run build` (exit 0; nest çıktısında hatalar RENKLİ — `grep 'error TS'` renk kodu
+yüzünden KAÇIRIR, `tail`/`grep 'Found.*error'` kullan) → `diff -r -x '*.d.ts' -x '*.map'
+dist-baseline dist` (saf-tip batch = boş fark; enum/guard farkları tek tek incelenir) → `npx eslint
+"{src,apps,libs,test}/**/*.ts"` (**`npm run lint` DEĞİL — --fix mutasyonu**) → `npm test`. Sunucu
+üretim DB'sine karşı HİÇ açılmadı (değişiklikler derleme-zamanı; kanıt dist-diff).
+
+## 69. Zorunlu güncelleme kapısı (force update) — mağaza-sürümü bazlı (2026-07-11)
+
+> Mağazada yeni sürüm yayınlanır yayınlanmaz eski kurulumlar tam-ekran "YENİ SÜRÜM" kapısıyla
+> kilitlenir; tek CTA "Şimdi Güncelle". Tamamen client-side — sunucu endpoint'i/admin işi YOK
+> (kullanıcı kararı). Paket: **`@capawesome/capacitor-app-update@^6.1.0`** — Capacitor 6 uyumlu;
+> **v7.x Capacitor 7 ister, YÜKSELTME**. `npx cap sync` yeter (Info.plist/Manifest/gradle elle
+> değişiklik yok; Podfile + capacitor.settings/build.gradle otomatik).
+
+### Dosyalar
+- `client/services/updateGateStore.ts` — kontrol mantığı (bootSplashStore deseni: modül-scope
+  store + `useSyncExternalStore`; context/auth/router gerektirmez). iOS App Store ID sabiti
+  burada: `6764278538`.
+- `client/components/UpdateGate.tsx` — engelleyici UI; `client/utils/appVersion.ts` —
+  bağımlılıksız semver-lite (`isVersionNewer`, her şüphede false).
+- `client/App.tsx` — `<UpdateGate />` provider ağacının KARDEŞİ (AnimatedSplash gibi; login
+  dahil her ekranı örter, `isReady`/router beklemez).
+
+### Karar kaynakları + KRİTİK dersler
+- **Android:** Play Core `updateAvailability` OTORİTER (versionCode + kademeli yayın yüzdesi +
+  cihaz uyumluluğu cihaz-başına). String karşılaştırma YOK. Sideload/debug build'de çağrı
+  REJECT olur → catch = fail-open (beklenen davranış, bug değil).
+- **iOS:** iTunes lookup (bundleId). **`{ country: 'tr' }` ZORUNLU — verilmezse ABD vitrinine
+  sorar → 0 sonuç → kalıcı sessiz fail-open.** Native `.numeric` karşılaştırır; JS'te
+  `isVersionNewer(availableVersionName, currentVersionName)` çifte kontrol. **Anti-brick:**
+  cihaz `minimumOsVersion` altındaysa kapı GÖSTERİLMEZ (güncellemeyi kuramaz — engellemek
+  cihazı kalıcı kilitlerdi).
+- **FAIL-OPEN İLKESİ (asla brick yok):** offline/timeout/lookup boş/Play Services yok/
+  sideload/parse hatası/eski-OS → kapı yok, kullanıcı normal devam eder.
+
+### UI/akış kuralları
+- Kontrol splash oynarken paralel başlar (fire-and-forget); UI `useBootSplashDone()` bekler
+  (§67 — splash sırasında asla etkileşimli UI yok). Resume'da (`appStateChange` active) 30 dk
+  throttle ile yeniden kontrol. `updateRequired` monoton true (güncelleme sonrası uygulama
+  zaten yeniden başlar).
+- Portal (§35), `z-[9998]` (modalların üstü, splash `9999` altı), **statik — animate-fade-in
+  bilinçli YOK (§66)**, X/backdrop kapatma yok. **Android geri tuşuna müdahale GEREKMEZ:**
+  App.tsx handler'ı ya portalin arkasında history.back yapar (kapı route-bağımsız, kalır) ya
+  kök route'ta exitApp (yeniden açılışta kapı geri gelir) — bypass imkânsız.
+- CTA: iOS `window.open('itms-apps://apps.apple.com/app/id6764278538', '_system')` (repo
+  deseni); Android önce `performImmediateUpdate()` (tam-ekran Play akışı), düşerse
+  `AppUpdate.openAppStore()` (native market://→https fallback'i plugin içinde — JS window.open
+  bunu YAPAMAZ, plugini kullan).
+
+### Test tekniği (mağaza sürümü 1.4 canlıyken)
+- **iOS (mağaza kurulumu GEREKMEZ):** Xcode'da `MARKETING_VERSION = 1.3` → gerçek cihazda kapı
+  perde biter bitmez görünmeli; CTA App Store'u açar. SONRA GERİ AL. Uçak modu soğuk açılış →
+  kapı yok (fail-open kanıtı).
+- **Android tam akış:** Play Console → **Internal App Sharing** (test kanallarının aksine DÜŞÜK
+  versionCode kabul eder): `versionCode 28 / versionName 1.3` imzalı build → kapı + Play
+  güncelleme akışı. Debug sideload'da kapı çıkMAZ (logcat: `[updateGate] check failed`) — doğru.
+
+### Yayın beklentisi
+Kapı yalnız onu taşıyan build'lerde: **1.5** (Android versionCode 30, iOS build 44) olarak
+yayınlanır; sahadaki ≤1.4 kurulumlar kapıyı hiç edinmez. Zorlama ilk kez 1.5 SONRASI yayında
+(1.6, 1.5'i engeller) devreye girer. iOS lookup CDN'i onaydan sonra ~saatler gecikebilir —
+kullanıcılar kademeli kapılanır (arada fail-open).
+
 ## 70. Takım rengi okunurluk hattı + "forma degradesi" chat tasarımı (2026-07-11)
 
 > Rakipli maç chatlerinde takım renkleri artık render anında WCAG-kontrast garantili çözülür ve
@@ -2615,4 +2988,32 @@ Yetkili sayfası yeni client sürümüyle görünür. `synchronize:true` — şe
 - `BusinessLoginHeader.tsx`: "İŞLETME PANELİ" son İ'si kesikti — sentetik italik (italik Inter
   yüzü paketli değil) + `backgroundClip:text` glif taşmasını boyamıyor → h1'e 0.15em yatay
   padding. Aynı deseni kullanan yeni başlıklarda da padding şart.
-- `OwnerInfoStep.tsx`: Ad Soyad input'una eksik `placeholder="Ahmet Yılmaz"` eklendi.
+- `OwnerInfoStep.tsx`: Ad Soyad input'una eksik `placeholder="Ad Soyad"` eklendi.
+
+## 71. Android launcher ikonu çözünürlük düzeltmesi — adaptive foreground 108dp (2026-07-11)
+
+**Belirti:** Redmi 10S'te uygulama (launcher) ikonu bulanık/düşük kalite; App Store (iOS) net.
+**Kök neden:** Android 8+ **adaptive icon** katmanları (foreground/background) **108dp** yoğunlukta olmalı
+(mdpi 108px … xxxhdpi **432px**). `generate-icons.cjs` bunları **48dp** yoğunlukta üretiyordu (xxxhdpi
+sadece 192px = gerekenin ~%44'ü) → MIUI launcher slotuna büyütünce bulanık. Ek olarak foreground `dimli.png`'yi
+%72 küçültüp pad'liyordu (floating/küçük). Kaynak `assets/dimli.png` 1024² yeterli — sorun tamamen üretim
+yoğunluğunda. iOS 1024px'i tek parça kullandığından etkilenmiyordu.
+**Düzeltme (`scripts/generate-icons.cjs` + adaptive XML):**
+- `MIPMAP_DENSITIES`: her yoğunluk için `adaptive` (108dp: 81/108/162/216/324/432) + `legacy` (48dp:
+  36/48/72/96/144/192).
+- `ic_launcher_background.png` KALDIRILDI; `mipmap-anydpi-v26/ic_launcher{,_round}.xml` `<background>` →
+  `@color/dimliPitch` (#0f172a, colors.xml'de mevcut) → renk drawable, çözünürlükten bağımsız her zaman keskin.
+- iOS AppIcon, `icon.png` (in-app/splash), web/splash DEĞİŞMEDİ.
+
+**DÜZELTME (kompozisyon — full-bleed HATALIYDI, %72 inset'e dönüldü 2026-07-11):** İlk denemede adaptive
+foreground **full-bleed dimli.png** yapıldı → cihazda logo çok BÜYÜK/KABA, arka plan siyah (stadyum
+kaybolmuş). **KALICI GOTCHA:** adaptive icon'lar (özellikle MIUI/Redmi) foreground'un MERKEZİNE ~1.5× zoom
+yapıp kenarları kırpar → full-bleed logo devleşir. Doğru kompozisyon: `ic_launcher_foreground.png` =
+**dimli.png %72 içeriden, şeffaf pad, `adaptive` kanvasa ortalanmış** (kanvas 108dp korunur → yüksek çöz.).
+Böylece MIUI zoom'undan sonra logo iOS boyutunda + stadyum kenarları görünür. %72 değeri iOS referansıyla
+yan-yana kalibrasyonla seçildi (headless Chrome, MIUI zoom modeli: merkez 72dp → tile; %72≈iOS, %82+ kaba).
+Legacy `ic_launcher.png`/`_round.png` full-bleed kalır (eski launcher adaptive-zoom yapmaz → full-bleed =
+tam iOS kompozisyonu). **KURAL:** adaptive foreground'a asla full-bleed detaylı kompozisyon koyma; içeriği
+merkez güvenli bölgeye (~%66-72) sığdır.
+**Deploy:** yalnız native Android kaynağı → `npm run build`/`cap sync` GEREKMEZ; APK yeniden derlenip kurulur.
+Launcher ikon önbelleği nedeniyle bazen uygulamayı KALDIRIP yeniden kurmak gerekir. Cihaz doğrulaması bekliyor.
