@@ -7,8 +7,23 @@ import {
   ConnectedSocket,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
+import type { DefaultEventsMap } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
 import { Logger } from '@nestjs/common';
+import type { JwtPayload } from '../auth/types';
+
+// socket.data sözleşmesi — handleConnection doldurur, presence/disconnect okur.
+interface SocketData {
+  userId?: string;
+  username?: string;
+}
+
+type AppSocket = Socket<
+  DefaultEventsMap,
+  DefaultEventsMap,
+  DefaultEventsMap,
+  SocketData
+>;
 
 @WebSocketGateway({
   cors: {
@@ -60,10 +75,10 @@ export class AppGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (set.size === 0) this.foregroundSockets.delete(userId);
   }
 
-  async handleConnection(socket: Socket) {
+  async handleConnection(socket: AppSocket) {
     try {
       const token =
-        (socket.handshake.auth as any)?.token ||
+        socket.handshake.auth?.token ||
         (socket.handshake.query?.token as string);
 
       if (!token) {
@@ -71,11 +86,11 @@ export class AppGateway implements OnGatewayConnection, OnGatewayDisconnect {
         return;
       }
 
-      const payload = this.jwtService.verify(token as string, {
+      const payload = this.jwtService.verify<JwtPayload>(token as string, {
         secret: process.env.JWT_SECRET || 'SECRET_KEY',
       });
 
-      const userId = payload.sub as string;
+      const userId = payload.sub;
       socket.data.userId = userId;
       socket.data.username = payload.username;
       // Bağlantı = uygulama ön planda kabul edilir (yeni açıldı/öne geldi).
@@ -88,8 +103,8 @@ export class AppGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
-  handleDisconnect(socket: Socket) {
-    const userId = socket.data.userId as string | undefined;
+  handleDisconnect(socket: AppSocket) {
+    const userId = socket.data.userId;
     if (userId) {
       // Koşulsuz: Set.delete idempotent → kaçan decrement / takılı kalma imkânsız.
       this.removeForeground(userId, socket.id);
@@ -101,14 +116,14 @@ export class AppGateway implements OnGatewayConnection, OnGatewayDisconnect {
   // 'presence:inactive' gönderir (App.tsx appStateChange). Soket id bazında eklenir/
   // silinir; idempotent olduğundan tekrar eden event zarar vermez.
   @SubscribeMessage('presence:active')
-  handlePresenceActive(@ConnectedSocket() socket: Socket) {
-    const userId = socket.data.userId as string | undefined;
+  handlePresenceActive(@ConnectedSocket() socket: AppSocket) {
+    const userId = socket.data.userId;
     if (userId) this.addForeground(userId, socket.id);
   }
 
   @SubscribeMessage('presence:inactive')
-  handlePresenceInactive(@ConnectedSocket() socket: Socket) {
-    const userId = socket.data.userId as string | undefined;
+  handlePresenceInactive(@ConnectedSocket() socket: AppSocket) {
+    const userId = socket.data.userId;
     if (userId) this.removeForeground(userId, socket.id);
   }
 
