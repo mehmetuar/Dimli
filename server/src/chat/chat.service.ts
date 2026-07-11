@@ -84,9 +84,11 @@ export interface ChannelAvatarData {
   homeTeamLogo?: string | null;
   homeTeamName?: string;
   homeTeamColor?: string | null;
+  homeTeamSecondaryColor?: string | null;
   awayTeamLogo?: string | null;
   awayTeamName?: string;
   awayTeamColor?: string | null;
+  awayTeamSecondaryColor?: string | null;
   otherUserAvatar?: string | null;
   otherUserName?: string;
 }
@@ -404,7 +406,7 @@ export class ChatService {
     if (teamIds.length) {
       const teams = await this.teamRepository.find({
         where: { id: In(teamIds) },
-        select: ['id', 'name', 'logoUrl', 'primaryColor'],
+        select: ['id', 'name', 'logoUrl', 'primaryColor', 'secondaryColor'],
       });
       for (const t of teams) teamById.set(t.id, t);
     }
@@ -477,17 +479,7 @@ export class ChatService {
       }
 
       // ── Avatar data: kanal tipine göre görsel için gerekli veriler ──────
-      let avatarData: {
-        matchType?: string;
-        homeTeamLogo?: string | null;
-        homeTeamName?: string;
-        homeTeamColor?: string | null;
-        awayTeamLogo?: string | null;
-        awayTeamName?: string;
-        awayTeamColor?: string | null;
-        otherUserAvatar?: string | null;
-        otherUserName?: string;
-      } | null = null;
+      let avatarData: ChannelAvatarData | null = null;
 
       if (channel.type === 'MATCH_GROUP' && channel.relatedMatchId) {
         const matchForType = matchById.get(channel.relatedMatchId);
@@ -503,9 +495,11 @@ export class ChatService {
             homeTeamLogo: homeTeam?.logoUrl ?? null,
             homeTeamName: homeTeam?.name ?? '',
             homeTeamColor: homeTeam?.primaryColor ?? null,
+            homeTeamSecondaryColor: homeTeam?.secondaryColor ?? null,
             awayTeamLogo: awayTeam?.logoUrl ?? null,
             awayTeamName: awayTeam?.name ?? '',
             awayTeamColor: awayTeam?.primaryColor ?? null,
+            awayTeamSecondaryColor: awayTeam?.secondaryColor ?? null,
           };
         }
       } else if (channel.type === 'JOKER_NEGOTIATION') {

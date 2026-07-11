@@ -15,6 +15,7 @@ import { TeamsService } from './teams.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { User } from '../users/user.entity';
 import { CreateTeamDto } from './dto/create-team.dto';
+import { UpdateTeamDto } from './dto/update-team.dto';
 import { ChatService } from '../chat/chat.service';
 import { NotificationsService } from '../notifications/notifications.service';
 
@@ -146,17 +147,7 @@ export class TeamsController {
 
   @UseGuards(JwtAuthGuard)
   @Patch(':id')
-  updateTeam(
-    @Param('id') id: string,
-    @Body()
-    dto: {
-      name?: string;
-      level?: string;
-      logoUrl?: string | null;
-      primaryColor?: string;
-      secondaryColor?: string;
-    },
-  ) {
+  updateTeam(@Param('id') id: string, @Body() dto: UpdateTeamDto) {
     return this.teamsService.updateTeam(id, dto);
   }
 
