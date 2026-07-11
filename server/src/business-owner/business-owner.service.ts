@@ -26,6 +26,50 @@ import {
   istanbulDateTimeToUtc,
   nowInIstanbul,
 } from '../common/turkey-time.util';
+import type { Team } from '../teams/team.entity';
+
+// Dashboard zenginleştirmesi: takım istatistikleri entity'ye çalışma anında
+// eklenir (kolon DEĞİL) — §21'in öngördüğü kesişim-tipi deseni.
+type EnrichedTeam = Team & { playedMatchCount?: number; playerCount?: number };
+type EnrichedReservation = Reservation & {
+  team: EnrichedTeam;
+  opponentTeam: EnrichedTeam;
+};
+
+export interface DashboardSlot {
+  time: string;
+  startTime: string;
+  endTime: string;
+  iosInfo: string;
+  status: 'EMPTY' | 'FULL' | 'PENDING';
+  reservations: Reservation[];
+}
+
+export interface DashboardPitchSlots {
+  pitchId: string;
+  pitchName: string;
+  hasCustomSlots: boolean;
+  isClosed?: boolean;
+  closedReason?: 'PASSIVE' | 'CLOSED_DAY';
+  approvalStatus: Pitch['approvalStatus'];
+  rejectionReason: string | null;
+  scheduledDeletionAt: Date | null;
+  slots: DashboardSlot[];
+}
+
+export interface StatPeriod {
+  confirmedCount: number;
+  earnings: number;
+  manualFillCount: number;
+}
+
+export interface PitchStat {
+  pitchId: string;
+  pitchName: string;
+  pricePerHour: number;
+  today: StatPeriod;
+  thisMonth: StatPeriod;
+}
 
 @Injectable()
 export class BusinessOwnerService {
@@ -198,10 +242,10 @@ export class BusinessOwnerService {
 
     const business = owner.business;
     const pitches = business.pitches || [];
-    const slotsResponse: any[] = [];
+    const slotsResponse: DashboardPitchSlots[] = [];
     // Batch enrichment birikimi: slot-başına değil, tüm rezervasyon referansları toplanıp
     // takım istatistikleri (playedMatchCount/playerCount) tek seferde doldurulur (N+1 kaldırıldı).
-    const allSlotReservations: any[] = [];
+    const allSlotReservations: EnrichedReservation[] = [];
     const statTeamIds = new Set<string>();
 
     const selectedDate = new Date(dateStr);
@@ -245,7 +289,7 @@ export class BusinessOwnerService {
         dayEnd,
       );
 
-      const pitchSlots: any[] = [];
+      const pitchSlots: DashboardSlot[] = [];
       const hasCustomSlots = pitch.timeSlots && pitch.timeSlots.length > 0;
 
       if (hasCustomSlots) {
@@ -254,8 +298,8 @@ export class BusinessOwnerService {
 
           const slotTime = istanbulDateTimeToUtc(dateStr, ts.startTime);
 
-          const slotReservations = dayReservations.filter((r: any) => {
-            const rTime = new Date(r.slotTime as string);
+          const slotReservations = dayReservations.filter((r) => {
+            const rTime = new Date(r.slotTime);
             return Math.abs(rTime.getTime() - slotTime.getTime()) < 60000;
           });
 
@@ -266,12 +310,12 @@ export class BusinessOwnerService {
             if (res.opponentTeamId) statTeamIds.add(res.opponentTeamId);
           }
 
-          let status = 'EMPTY';
+          let status: DashboardSlot['status'] = 'EMPTY';
           const approved = slotReservations.find(
-            (r: any) => r.status === 'APPROVED',
+            (r) => r.status === ReservationStatus.APPROVED,
           );
           const pending = slotReservations.filter(
-            (r: any) => r.status === 'PENDING',
+            (r) => r.status === ReservationStatus.PENDING,
           );
 
           if (approved) {
@@ -307,8 +351,8 @@ export class BusinessOwnerService {
         for (const hour of hours) {
           const slotTime = istanbulDateTimeToUtc(dateStr, `${hour}:00`);
 
-          const slotReservations = dayReservations.filter((r: any) => {
-            const rTime = new Date(r.slotTime as string);
+          const slotReservations = dayReservations.filter((r) => {
+            const rTime = new Date(r.slotTime);
             return Math.abs(rTime.getTime() - slotTime.getTime()) < 60000;
           });
 
@@ -319,12 +363,12 @@ export class BusinessOwnerService {
             if (res.opponentTeamId) statTeamIds.add(res.opponentTeamId);
           }
 
-          let status = 'EMPTY';
+          let status: DashboardSlot['status'] = 'EMPTY';
           const approved = slotReservations.find(
-            (r: any) => r.status === 'APPROVED',
+            (r) => r.status === ReservationStatus.APPROVED,
           );
           const pending = slotReservations.filter(
-            (r: any) => r.status === 'PENDING',
+            (r) => r.status === ReservationStatus.PENDING,
           );
 
           if (approved) {
@@ -364,15 +408,14 @@ export class BusinessOwnerService {
       ]);
       for (const res of allSlotReservations) {
         if (res.teamId && res.team) {
-          res.team.playedMatchCount =
-            matchCounts.get(res.teamId as string) ?? 0;
-          res.team.playerCount = playerCounts.get(res.teamId as string) ?? 0;
+          res.team.playedMatchCount = matchCounts.get(res.teamId) ?? 0;
+          res.team.playerCount = playerCounts.get(res.teamId) ?? 0;
         }
         if (res.opponentTeamId && res.opponentTeam) {
           res.opponentTeam.playedMatchCount =
-            matchCounts.get(res.opponentTeamId as string) ?? 0;
+            matchCounts.get(res.opponentTeamId) ?? 0;
           res.opponentTeam.playerCount =
-            playerCounts.get(res.opponentTeamId as string) ?? 0;
+            playerCounts.get(res.opponentTeamId) ?? 0;
         }
       }
     }
@@ -530,7 +573,7 @@ export class BusinessOwnerService {
       }
     }
 
-    const pitchStats: any[] = [];
+    const pitchStats: PitchStat[] = [];
     let totalTodayConfirmed = 0;
     let totalTodayEarnings = 0;
     let totalTodayManual = 0;
