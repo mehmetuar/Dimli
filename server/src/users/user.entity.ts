@@ -107,5 +107,5 @@ export class User {
 
   @ManyToOne('Team', (team: Team) => team.players, { nullable: true })
   @JoinColumn({ name: 'team_id' })
-  team: Team;
+  team: Team | null; // takımsız kullanıcı/joker'de NULL (kolon zaten nullable)
 }

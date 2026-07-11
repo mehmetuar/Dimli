@@ -360,7 +360,7 @@ export class TeamsService implements OnModuleInit {
     // (FK User tarafında; OneToMany dizisini süzmek cascade'siz olduğu için tek başına yetmez).
     const removedUser = await this.usersService.findById(playerId);
     if (removedUser) {
-      removedUser.team = null as any;
+      removedUser.team = null;
       removedUser.teamJoinedAt = null;
       await this.usersService['usersRepository'].save(removedUser);
     }
@@ -519,7 +519,7 @@ export class TeamsService implements OnModuleInit {
     }
 
     // Remove teamId from user
-    user.team = null as any;
+    user.team = null;
     // Takımdan ayrılınca katılış damgası da temizlenir (yeniden katılırsa yeniden damgalanır).
     user.teamJoinedAt = null;
     await this.usersService['usersRepository'].save(user);
