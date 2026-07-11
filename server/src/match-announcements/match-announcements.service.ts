@@ -52,6 +52,32 @@ export interface AnnouncementPitchSummary {
   };
 }
 
+// findAll ham Haversine sorgusunun satır şekli (SELECT alias'larıyla birebir;
+// float8 → number, nullable kolonlar → | null; kod Number() ile sarar).
+export interface MarketplaceRawRow {
+  id: string;
+  date: string;
+  time: string;
+  pitch_id: string;
+  pitch_name: string;
+  price_per_hour: number | null;
+  pitch_image_url: string | null;
+  end_time: string | null;
+  business_id: string;
+  business_name: string;
+  business_district: string | null;
+  business_city: string | null;
+  fair_play: number;
+  distance_km: number;
+}
+
+// Maç Pazarı liste öğesi: hydrate edilmiş ilan + mesafe/meydan okuma/saha özeti.
+export interface MarketplaceAnnouncement extends MatchAnnouncement {
+  distanceKm: number;
+  pendingChallengeCount: number;
+  pitchSummary: AnnouncementPitchSummary | null;
+}
+
 @Injectable()
 export class MatchAnnouncementsService {
   constructor(
@@ -392,7 +418,10 @@ export class MatchAnnouncementsService {
     sort?: MarketplaceSort;
     paged?: boolean;
     geoFilter: { lat: number; lng: number; radius: number };
-  }): Promise<any[] | { items: any[]; total: number; hasMore: boolean }> {
+  }): Promise<
+    | MarketplaceAnnouncement[]
+    | { items: MarketplaceAnnouncement[]; total: number; hasMore: boolean }
+  > {
     const { lat, lng, radius } = filters.geoFilter;
     const PAGE = Math.min(filters?.limit ?? 50, 100);
     const off = filters?.offset ?? 0;
@@ -419,7 +448,7 @@ export class MatchAnnouncementsService {
                         cos(radians($1)) * cos(radians(b.latitude))
                         * cos(radians(b.longitude) - radians($2))
                         + sin(radians($1)) * sin(radians(b.latitude))))))`;
-    const raw: any[] = await this.matchAnnouncementsRepository.query(
+    const raw: MarketplaceRawRow[] = await this.matchAnnouncementsRepository.query(
       `SELECT
                     ma.id,
                     ma.date,
@@ -479,8 +508,8 @@ export class MatchAnnouncementsService {
     // In-memory sıralama (findNearbyPaged deseni). Eşit değerlerde STABİL
     // ikincil anahtar (id): sayfalar arası öğe kayması/duplikasyonu olmasın
     // (fiyat tekrarı + fair-play default 5.0 → eşitlik sık).
-    const price = (r: any) => Number(r.price_per_hour ?? 0);
-    const primary = (a: any, b: any) => {
+    const price = (r: MarketplaceRawRow) => Number(r.price_per_hour ?? 0);
+    const primary = (a: MarketplaceRawRow, b: MarketplaceRawRow) => {
       switch (sort) {
         case 'date_asc':
           return (a.date + a.time).localeCompare(b.date + b.time);
@@ -503,7 +532,9 @@ export class MatchAnnouncementsService {
     const total = sorted.length;
     const pageRows = sorted.slice(off, off + PAGE);
     const pageIds = pageRows.map((r) => r.id);
-    const rowById = new Map<string, any>(pageRows.map((r) => [r.id, r]));
+    const rowById = new Map<string, MarketplaceRawRow>(
+      pageRows.map((r) => [r.id, r]),
+    );
 
     if (pageIds.length === 0) {
       return filters?.paged
@@ -609,9 +640,9 @@ export class MatchAnnouncementsService {
       // Notify Captain
       if (announcement.team?.captain) {
         try {
-          // Cast captain to any to avoid type issues if captainId vs object not perfectly typed in entity
-          const captainId =
-            (announcement.team.captain as any).id || announcement.team.captain;
+          // captain leftJoinAndSelect ile hydrate + üstteki guard'la garanti —
+          // eski `|| captain` fallback'i ölüydü (çalışsa userId'ye nesne yazardı).
+          const captainId = announcement.team.captain.id;
 
           await this.notificationsService.create({
             userId: captainId,
