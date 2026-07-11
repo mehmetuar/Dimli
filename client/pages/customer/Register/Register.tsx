@@ -7,6 +7,7 @@ import { useRegister } from './hooks/useRegister';
 
 // Components
 import { AuthWizardLayout } from '../../../components/Layout/AuthWizardLayout';
+import { CUSTOMER_HOME } from '../../../constants/routes';
 import { CelebrationScreen } from '../../../components/UI/CelebrationScreen';
 import { LottiePlayer } from '../../../components/UI/LottiePlayer';
 import { UsernameStep } from './components/steps/UsernameStep';
@@ -184,7 +185,7 @@ export const Register: React.FC = () => {
                 title={`HOŞ GELDİN ${(formData.full_name.trim() || formData.username).toLocaleUpperCase('tr')}!`}
                 subtitle="Hesabın hazır. İyi maçlar!"
                 buttonLabel="BAŞLA"
-                onDone={() => navigate('/', { replace: true })}
+                onDone={() => navigate(CUSTOMER_HOME, { replace: true })}
             />
         </>
     );

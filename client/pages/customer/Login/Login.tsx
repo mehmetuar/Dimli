@@ -1,12 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, Link, Navigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { Eye, EyeOff, User, Lock } from 'lucide-react';
 import api from '../../../services/api';
 import { initializePushNotifications } from '../../../services/pushNotificationService';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useLocationContext } from '../../../contexts/LocationContext';
 import { useKeyboardHeight } from '../../../utils/useKeyboardHeight';
 import { sanitizeUsernameInput } from '../../../utils/username';
+import { CUSTOMER_HOME } from '../../../constants/routes';
+import { useBootSplashDone } from '../../../services/bootSplashStore';
 import { LottiePlayer } from '../../../components/UI/LottiePlayer';
 import { PitchCenterCircle } from '../../../components/UI/PitchCenterCircle';
 import { PitchGoalArea } from '../../../components/UI/PitchGoalArea';
@@ -24,8 +27,13 @@ export const Login: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { token, loginAsCustomer } = useAuth();
+    const { requestLocation } = useLocationContext();
     const keyboardHeight = useKeyboardHeight();
     const keyboardOpen = keyboardHeight > 0;
+    // Soğuk açılışta splash perdesi solmaya başlayana kadar içerik mount edilmez → giriş
+    // koreografisi (saha çizgileri + enter-up) kullanıcı görürken başlar. Oturum-içi
+    // gezinmelerde (business→customer flip) splash çoktan bitmiştir, bekletme olmaz.
+    const splashDone = useBootSplashDone();
     // Android (MIUI vb.) ekranları CSS'te daha kısa + vh fazla raporlanır → üst bölgeyi
     // (logo + üst boşluk) kompaktla, alt boşluk açılsın. iOS referans görünüm korunur.
     const isAndroid = Capacitor.getPlatform() === 'android';
@@ -42,8 +50,34 @@ export const Login: React.FC = () => {
         return () => cancelAnimationFrame(frame);
     }, []);
 
+    // Konum izni istemi: boot'ta değil, splash bittikten SONRA login ekranı yerleşince gösterilir
+    // (agent.md §67). Yalnız oturumsuz kullanıcıda ve BİR KEZ; kısa gecikme giriş koreografisinin
+    // (logo/form enter-up) oturmasını bekler → dialog sakin bir ekranda belirir.
+    const locationAskedRef = useRef(false);
+    useEffect(() => {
+        if (!splashDone || token || locationAskedRef.current) return;
+        locationAskedRef.current = true;
+        const timer = setTimeout(() => { void requestLocation(true); }, 800);
+        return () => clearTimeout(timer);
+    }, [splashDone, token, requestLocation]);
+
     if (token && !location.state?.sessionExpired) {
-        return <Navigate to="/" replace />;
+        return <Navigate to={CUSTOMER_HOME} replace />;
+    }
+
+    // Splash sürerken yalnız zemin degradesi render edilir (perde arkasında görünmez);
+    // splashDone flip'inde tam içerik mount olur ve tüm giriş animasyonları o anda oynar.
+    if (!splashDone) {
+        return (
+            <div
+                className="fixed left-0 right-0 w-full overflow-hidden"
+                style={{
+                    top: 'calc(-1 * env(safe-area-inset-top))',
+                    bottom: 'calc(-1 * env(safe-area-inset-bottom))',
+                    background: 'radial-gradient(125% 78% at 50% 24%, #16402f 0%, #0d2419 44%, #061710 78%, #040f0a 100%)',
+                }}
+            />
+        );
     }
 
     const handleLogin = async (e: React.FormEvent) => {
@@ -54,7 +88,7 @@ export const Login: React.FC = () => {
         try {
             const response = await api.post('/auth/login', { username, password });
             await loginAsCustomer(response.data.access_token);
-            navigate('/');
+            navigate(CUSTOMER_HOME);
             setTimeout(() => initializePushNotifications(), 2000);
             // başarıda navigate ile unmount → isSubmitting sıfırlanmaz (buton loader'da kalır)
         } catch (err: any) {

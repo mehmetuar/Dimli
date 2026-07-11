@@ -250,12 +250,16 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return null;
   }, [requestLocation, syncLocationToServer]);
 
-  // Mount: zorunlu konum — izin promptable ise sistem dialogunu göster (userInitiated=true).
+  // Mount: SESSİZ — boot'ta sistem izin dialogu AÇILMAZ (userInitiated=false). İzin zaten
+  // verilmişse konumu tazeler; promptable ise hiçbir şey yapmaz. Asıl izin istemi splash
+  // animasyonu bittikten sonra Login ekranından tetiklenir (Login.tsx, splashDone gate) —
+  // böylece açılış animasyonu native dialog ile kesilmez. Oturumu açık/izinli dönen
+  // kullanıcılar boot'ta sessizce konum alır; oturumsuz yeni kullanıcı Login'de istem görür.
   // Foreground: SADECE izin zaten verilmişse konumu tazele. İzin verilmemişse hafif bir
   // checkPermissions yap (prompt yok, isLocating toggle yok, setState yok) ve yalnızca izin
   // gerçekten granted'a döndüyse (kullanıcı Ayarlar'dan verdiyse) bir kez konum al.
   useEffect(() => {
-    requestLocation(true);
+    requestLocation(false);
 
     const listenerPromise = CapApp.addListener('appStateChange', (state) => {
       if (!state.isActive) return;
