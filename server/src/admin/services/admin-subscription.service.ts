@@ -2,9 +2,19 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { BusinessOwner } from '../../business-owner/entities/business-owner.entity';
-import { Subscription } from '../../subscription/entities/subscription.entity';
+import {
+  Subscription,
+  SubscriptionStatus,
+} from '../../subscription/entities/subscription.entity';
 import { AdminStatsCacheService } from './admin-stats-cache.service';
 import { PITCH_COUNT_TO_PLAN } from './admin.util';
+
+export interface SeedSubscriptionDetail {
+  email: string;
+  business: string;
+  action: 'created' | 'updated' | 'skipped';
+  plan: string;
+}
 
 @Injectable()
 export class AdminSubscriptionService {
@@ -25,7 +35,7 @@ export class AdminSubscriptionService {
     created: number;
     updated: number;
     skipped: number;
-    details: any[];
+    details: SeedSubscriptionDetail[];
   }> {
     const owners = await this.businessOwnerRepository.find({
       relations: ['business', 'business.pitches'],
@@ -37,7 +47,7 @@ export class AdminSubscriptionService {
     let created = 0;
     let updated = 0;
     let skipped = 0;
-    const details: any[] = [];
+    const details: SeedSubscriptionDetail[] = [];
 
     for (const owner of owners) {
       const business = owner.business;
@@ -89,7 +99,7 @@ export class AdminSubscriptionService {
           planType: plan.planType,
           pitchCount: plan.pitchCount,
           pricePerMonth: plan.pricePerMonth,
-          status: 'trial' as any,
+          status: SubscriptionStatus.TRIAL,
           trialEndsAt,
         });
         await this.subscriptionRepository.save(subscription);

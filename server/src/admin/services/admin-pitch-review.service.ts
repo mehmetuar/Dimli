@@ -16,6 +16,45 @@ import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { Paginated, paginate } from '../../common/dto/paginated';
 import { applySearch } from './admin.util';
 
+export type AdminChangeRequestListItem = Pick<
+  PitchChangeRequest,
+  | 'id'
+  | 'type'
+  | 'status'
+  | 'requestedData'
+  | 'currentData'
+  | 'rejectionReason'
+  | 'createdAt'
+  | 'reviewedAt'
+  | 'pitchId'
+  | 'businessId'
+> & {
+  pitchName: string | null;
+  businessName: string | undefined;
+};
+
+export type AdminPitchApprovalListItem = Pick<
+  Pitch,
+  | 'id'
+  | 'name'
+  | 'description'
+  | 'type'
+  | 'pricePerHour'
+  | 'imageUrl'
+  | 'openTime'
+  | 'closeTime'
+  | 'facilities'
+  | 'closedDays'
+  | 'timeSlots'
+  | 'approvalStatus'
+  | 'rejectionReason'
+  | 'createdAt'
+  | 'reviewedAt'
+  | 'businessId'
+> & {
+  businessName: string | undefined;
+};
+
 @Injectable()
 export class AdminPitchReviewService {
   constructor(
@@ -38,7 +77,7 @@ export class AdminPitchReviewService {
   async getChangeRequests(
     status: string | undefined,
     p: PaginationQueryDto,
-  ): Promise<Paginated<any>> {
+  ): Promise<Paginated<AdminChangeRequestListItem>> {
     const effectiveStatus = status ?? 'pending';
     const skip = (p.page - 1) * p.limit;
     const searchCols = ['pitch.name', 'business.name'];
@@ -223,7 +262,7 @@ export class AdminPitchReviewService {
   async getPitchApprovals(
     status: string | undefined,
     p: PaginationQueryDto,
-  ): Promise<Paginated<any>> {
+  ): Promise<Paginated<AdminPitchApprovalListItem>> {
     const approvalStatus = status ?? 'pending';
     const skip = (p.page - 1) * p.limit;
     const searchCols = ['pt.name', 'business.name'];

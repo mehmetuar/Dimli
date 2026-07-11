@@ -4,7 +4,7 @@ import { Injectable } from '@nestjs/common';
 // statistics/deletion-report. Mutasyon servisleri bust(key) ile invalidate eder.
 @Injectable()
 export class AdminStatsCacheService {
-  private statsCache = new Map<string, { at: number; data: any }>();
+  private statsCache = new Map<string, { at: number; data: unknown }>();
   private readonly STATS_TTL_MS = 60_000;
 
   async cached<T>(key: string, fn: () => Promise<T>): Promise<T> {

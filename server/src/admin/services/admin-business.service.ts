@@ -15,6 +15,15 @@ import { Paginated, paginate } from '../../common/dto/paginated';
 import { AdminStatsCacheService } from './admin-stats-cache.service';
 import { applySearch } from './admin.util';
 
+export type AdminBusinessListItem = Omit<Business, 'owner'> & {
+  owner: {
+    id: string;
+    fullName: string;
+    email: string;
+    phone: string;
+  } | null;
+};
+
 @Injectable()
 export class AdminBusinessService {
   constructor(
@@ -45,7 +54,7 @@ export class AdminBusinessService {
     search?: string;
     deleted?: boolean;
     defaultPendingWhenNoStatus?: boolean;
-  }): Promise<Paginated<any>> {
+  }): Promise<Paginated<AdminBusinessListItem>> {
     const { status, page, limit, search, deleted = false } = opts;
     const skip = (page - 1) * limit;
     const searchCols = ['b.name', 'b.city', 'owner.fullName', 'owner.email'];

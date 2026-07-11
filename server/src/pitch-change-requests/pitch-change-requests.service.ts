@@ -14,6 +14,21 @@ import { Business } from '../business/entities/business.entity';
 import { BusinessOwner } from '../business-owner/entities/business-owner.entity';
 import { Notification } from '../notifications/notification.entity';
 
+export type PendingChangeRequestListItem = Pick<
+  PitchChangeRequest,
+  | 'id'
+  | 'type'
+  | 'status'
+  | 'requestedData'
+  | 'currentData'
+  | 'createdAt'
+  | 'pitchId'
+  | 'businessId'
+> & {
+  pitchName: string | undefined;
+  businessName: string | undefined;
+};
+
 @Injectable()
 export class PitchChangeRequestsService {
   constructor(
@@ -154,7 +169,7 @@ export class PitchChangeRequestsService {
     });
   }
 
-  async getAllPending(): Promise<any[]> {
+  async getAllPending(): Promise<PendingChangeRequestListItem[]> {
     const requests = await this.changeRequestRepository.find({
       where: { status: 'pending' },
       relations: ['pitch', 'pitch.business'],

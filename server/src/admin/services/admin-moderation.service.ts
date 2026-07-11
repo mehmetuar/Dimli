@@ -196,7 +196,13 @@ export class AdminModerationService {
     return { success: true };
   }
 
-  async getBannedUsers(p: PaginationQueryDto): Promise<Paginated<any>> {
+  async getBannedUsers(
+    p: PaginationQueryDto,
+  ): Promise<
+    Paginated<
+      Pick<User, 'id' | 'username' | 'full_name' | 'chatBannedAt' | 'chatBanExpiry'>
+    >
+  > {
     const now = new Date();
     const skip = (p.page - 1) * p.limit;
     const searchCols = ['u.username', 'u.full_name'];

@@ -1,4 +1,4 @@
-import { Brackets, SelectQueryBuilder } from 'typeorm';
+import { Brackets, ObjectLiteral, SelectQueryBuilder } from 'typeorm';
 
 export const PLAN_LABELS: Record<string, string> = {
   '1_pitch': 'Starter',
@@ -25,8 +25,8 @@ export const PITCH_COUNT_TO_PLAN: Record<
  * aksi halde `WHERE status = x AND a ILIKE q OR b ILIKE q` diğer statüleri
  * sızdırır. Boş aramada hiçbir şey yapmaz (no-op).
  */
-export function applySearch(
-  qb: SelectQueryBuilder<any>,
+export function applySearch<T extends ObjectLiteral>(
+  qb: SelectQueryBuilder<T>,
   search: string | undefined,
   columns: string[],
 ): void {
