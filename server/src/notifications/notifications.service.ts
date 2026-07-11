@@ -32,6 +32,34 @@ import { FirebaseService } from '../firebase/firebase.service';
 // Takım → RESERVATION_REQUEST bildirim metadata projeksiyonu.
 // reservation-lifecycle.service.ts create() ile AYNI şekli üretir —
 // alan eklenirse/değişirse iki dosya birlikte güncellenmeli.
+// getTeamJokerInvites yanıtı — client'taki oyuncu kartı (PlayerDetailModal) alanları.
+export interface JokerEntry {
+  jokerId: string;
+  name: string;
+  avatarUrl: string | null;
+  position: string | null;
+  status: 'PENDING' | 'JOINED';
+  notificationId: string | null;
+  foot: string | null;
+  birthDate: Date | null;
+  secondaryPosition: string | null;
+  location: string | null;
+  nationality: string | null;
+  favoriteBusinessIds: string[];
+}
+
+export interface TeamJokerInviteGroup {
+  matchId: string;
+  date: string;
+  time: string;
+  matchType: string;
+  pitchName: string | null;
+  businessName: string | null;
+  district: string | null;
+  opponentTeamName: string | null;
+  jokers: JokerEntry[];
+}
+
 const toTeamMeta = (t: Team | null | undefined) =>
   t
     ? {
@@ -80,8 +108,13 @@ export class NotificationsService {
     const team = await this.teamsService.findOne(teamId);
     if (!team) throw new NotFoundException('Takım bulunamadı.');
 
+    // Bildirim kaptana gider; captainId boş VE captain ilişkisi yüklenmemişse
+    // eski kod TypeError (500) atardı — temiz istisnaya çevrildi.
+    const captainUserId = team.captainId ?? team.captain?.id;
+    if (!captainUserId) throw new NotFoundException('Takım kaptanı bulunamadı.');
+
     const notification = this.notificationsRepository.create({
-      userId: team.captainId || (team.captain as any).id, // Captain gets notification
+      userId: captainUserId,
       type: 'JOIN_REQUEST',
       relatedId: joinRequestId,
       metadata: { teamId, requesterId },
@@ -499,7 +532,7 @@ export class NotificationsService {
   // (bildirim silinir, joker MATCH_GROUP'a girer) bu listeden DÜŞER — ekran
   // "cevap bekleyen istekler" ekranıdır (kullanıcı kararı, 2026-07-07).
   // matchId havuzu = takımın gelecek KENDİ ilanları ∪ takımın davet gönderdiği maçlar.
-  async getTeamJokerInvites(teamId: string): Promise<any[]> {
+  async getTeamJokerInvites(teamId: string): Promise<TeamJokerInviteGroup[]> {
     const { dateStr: todayStr, hours, minutes } = nowInIstanbul();
     const nowTime = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
     const isFuture = (date?: string, time?: string) =>
@@ -537,7 +570,7 @@ export class NotificationsService {
       u: User,
       status: 'PENDING' | 'JOINED',
       notificationId: string | null,
-    ) => ({
+    ): JokerEntry => ({
       jokerId: u.id,
       name: u.full_name || u.username,
       avatarUrl: u.avatarUrl ?? null,
@@ -553,12 +586,12 @@ export class NotificationsService {
       favoriteBusinessIds: u.favoriteBusinessIds ?? [],
     });
 
-    const result: any[] = [];
+    const result: TeamJokerInviteGroup[] = [];
     for (const matchId of matchIds) {
       const match = matchById.get(matchId);
       if (!match || !isFuture(match.date, match.time)) continue;
 
-      const jokers: any[] = [];
+      const jokers: JokerEntry[] = [];
 
       // Bekleyen davetler (bu takımın, bu maça)
       for (const n of teamInvites.filter((x) => x.relatedId === matchId)) {
