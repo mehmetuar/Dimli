@@ -15,6 +15,7 @@ import { UsersService } from '../users/users.service';
 
 import { CreateUserDto } from '../users/dto/create-user.dto';
 import { RegisterBusinessDto } from './dto/register-business.dto';
+import type { User } from '../users/user.entity';
 
 @Controller('auth')
 export class AuthController {
@@ -25,7 +26,8 @@ export class AuthController {
 
   @UseGuards(LocalAuthGuard)
   @Post('login')
-  login(@Request() req) {
+  // req.user = LocalStrategy.validate dönüşü (parolasız User) — Express.User değil.
+  login(@Request() req: { user: Omit<User, 'password'> }) {
     return this.authService.login(req.user);
   }
 

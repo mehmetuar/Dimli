@@ -16,35 +16,33 @@ export class UserBlocksController {
   constructor(private readonly userBlocksService: UserBlocksService) {}
 
   @Post('block/:userId')
-  async blockUser(@Param('userId') userId: string, @Request() req) {
-    await this.userBlocksService.blockUser(
-      (req.user as { id: string }).id,
-      userId,
-    );
+  async blockUser(
+    @Param('userId') userId: string,
+    @Request() req: { user: Express.User },
+  ) {
+    await this.userBlocksService.blockUser(req.user.id, userId);
     return { success: true };
   }
 
   @Delete('block/:userId')
-  async unblockUser(@Param('userId') userId: string, @Request() req) {
-    await this.userBlocksService.unblockUser(
-      (req.user as { id: string }).id,
-      userId,
-    );
+  async unblockUser(
+    @Param('userId') userId: string,
+    @Request() req: { user: Express.User },
+  ) {
+    await this.userBlocksService.unblockUser(req.user.id, userId);
     return { success: true };
   }
 
   @Get('blocks')
-  async getBlockedUserIds(@Request() req) {
+  async getBlockedUserIds(@Request() req: { user: Express.User }) {
     const blockedUserIds = await this.userBlocksService.getBlockedUserIds(
-      (req.user as { id: string }).id,
+      req.user.id,
     );
     return { blockedUserIds };
   }
 
   @Get('blocks/details')
-  async getBlockedUsers(@Request() req) {
-    return this.userBlocksService.getBlockedUsers(
-      (req.user as { id: string }).id,
-    );
+  async getBlockedUsers(@Request() req: { user: Express.User }) {
+    return this.userBlocksService.getBlockedUsers(req.user.id);
   }
 }
