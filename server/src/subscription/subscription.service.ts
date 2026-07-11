@@ -13,6 +13,7 @@ import {
 import { Pitch } from '../pitches/entities/pitch.entity';
 import { BusinessOwner } from '../business-owner/entities/business-owner.entity';
 import { Notification } from '../notifications/notification.entity';
+import type { RevenueCatWebhookPayload } from './dto/revenuecat-webhook';
 
 export const SUBSCRIPTION_PLANS: Record<
   string,
@@ -259,8 +260,11 @@ export class SubscriptionService {
     return repo.save(subscription);
   }
 
-  async handleWebhook(event: any): Promise<void> {
+  async handleWebhook(event: RevenueCatWebhookPayload): Promise<void> {
     const { type, app_user_id } = event;
+    // RevenueCat her event'te app_user_id gönderir; bozuk/eksik payload'da hiçbir
+    // aboneliğe dokunma (tipleme öncesi bu yol tanımsız davranıştı).
+    if (!app_user_id) return;
 
     // Önce revenuecatCustomerId ile ara (anonim ID veya önceki logIn ID'si)
     // Bulamazsa ownerId ile dene — logIn(ownerId) çağrısı sonrası app_user_id = ownerId olur

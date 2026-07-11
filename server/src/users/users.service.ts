@@ -23,6 +23,15 @@ import { normalizeUsername } from './username.util';
 import { CloudinaryService } from '../files/cloudinary.service';
 import { sanitizeUser } from '../common/sanitize-user.util';
 
+// getJokers yanıt öğesi: sanitize edilmiş kullanıcı + hesaplanan mesafe.
+export type JokerListItem = User & { distanceKm: number };
+
+// Ham Haversine sorgusunun satır şekli (pg numeric'i string dönebilir; Number() sarılır).
+export interface JokerDistanceRow {
+  id: string;
+  distance_km: number | string;
+}
+
 @Injectable()
 export class UsersService {
   constructor(
@@ -141,7 +150,7 @@ export class UsersService {
     sharesFee?: boolean;
     offset?: number;
     limit?: number;
-  }): Promise<{ jokers: any[]; hasMore: boolean }> {
+  }): Promise<{ jokers: JokerListItem[]; hasMore: boolean }> {
     const {
       lat,
       lng,
@@ -166,7 +175,7 @@ export class UsersService {
     // desen, ortak computeBoundingBox). acos girdisi FP taşmasına karşı
     // [-1, 1]'e kırpılır (aynı koordinattaki joker "input is out of range" verirdi).
     const box = computeBoundingBox(lat, lng, radius);
-    const params: any[] = [
+    const params: (string | number | boolean)[] = [
       lat,
       lng,
       radius,
@@ -191,7 +200,7 @@ export class UsersService {
     params.push(offset);
     const offsetIdx = params.length;
 
-    const raw: any[] = await this.usersRepository.query(
+    const raw: JokerDistanceRow[] = await this.usersRepository.query(
       `SELECT id,
                 (6371 * acos(GREATEST(-1.0, LEAST(1.0,
                     cos(radians($1)) * cos(radians(latitude))

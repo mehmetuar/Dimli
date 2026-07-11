@@ -16,6 +16,13 @@ interface GeoFilter {
   radius: number;
 }
 
+// mapWithOwnerPhone çıktısı: owner nesnesi yanıttan çıkarılır, yalnız ownerPhone
+// düz alan olarak kalır; geo yollarında distanceKm eklenir.
+export type BusinessWithOwnerPhone = Omit<Business, 'owner'> & {
+  ownerPhone: string | null;
+  distanceKm?: number;
+};
+
 @Injectable()
 export class BusinessService {
   constructor(
@@ -24,7 +31,9 @@ export class BusinessService {
     private subscriptionService: SubscriptionService,
   ) {}
 
-  private mapWithOwnerPhone(b: Business & { distanceKm?: number }) {
+  private mapWithOwnerPhone(
+    b: Business & { distanceKm?: number },
+  ): BusinessWithOwnerPhone {
     // GÜVENLİK: /businesses (findAll/:id) public/guard'sız. Gömülü `owner` TAM
     // BusinessOwner (parola hash'i + email + telefon + pushToken) sızdırıyordu →
     // owner nesnesi yanıttan ÇIKARILIR, yalnız gereken ownerPhone düz alan olarak yayılır.
@@ -38,7 +47,7 @@ export class BusinessService {
   async findAll(params: {
     geoFilter?: GeoFilter;
     ids?: string[];
-  }): Promise<any[]> {
+  }): Promise<BusinessWithOwnerPhone[]> {
     const { geoFilter, ids: requestedIds } = params;
 
     if (requestedIds) {
@@ -263,7 +272,11 @@ export class BusinessService {
     offset: number;
     sort: 'distance' | 'price_asc' | 'price_desc' | 'rating' | 'rating_count';
     q?: string;
-  }): Promise<{ items: any[]; total: number; hasMore: boolean }> {
+  }): Promise<{
+    items: BusinessWithOwnerPhone[];
+    total: number;
+    hasMore: boolean;
+  }> {
     const { geoFilter, limit, offset, sort, q } = params;
     // withSortKeys: ≥1 approved pitch koşulu SQL'de; name/rating/fiyat skaler gelir.
     const candidates = await this.geoCandidates(geoFilter, true);

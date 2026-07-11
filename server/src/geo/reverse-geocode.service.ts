@@ -55,10 +55,12 @@ export class ReverseGeocodeService implements OnModuleInit {
       this.logger.log(
         `Offline reverse-geocode hazır: ${this.features.length} ilçe poligonu yüklendi`,
       );
-    } catch (e: any) {
+    } catch (e: unknown) {
       // Veri yüklenemezse servis "null" döner; konum PATCH'leri koordinatı yine kaydeder,
       // yalnızca ilçe türetilemez (mevcut location korunur). Uygulama çökmez.
-      this.logger.error(`İlçe veri seti yüklenemedi: ${e?.message ?? e}`);
+      this.logger.error(
+        `İlçe veri seti yüklenemedi: ${e instanceof Error ? e.message : String(e)}`,
+      );
       this.features = [];
     }
   }

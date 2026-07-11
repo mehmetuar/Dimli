@@ -1,6 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as admin from 'firebase-admin';
 
+// Ham Google servis-hesabı JSON'u (snake_case) — admin.ServiceAccount'un
+// camelCase alanlarıyla karıştırma; cert()'e verilirken cast edilir.
+export interface RawServiceAccount {
+  project_id?: string;
+  private_key?: string;
+  client_email?: string;
+  [k: string]: unknown;
+}
+
 @Injectable()
 export class FirebaseService {
   private readonly logger = new Logger(FirebaseService.name);
@@ -28,7 +37,10 @@ export class FirebaseService {
   // env var arayüzüne yapıştırılırken bozulabiliyor — bu durumda admin.credential.cert()
   // sessizce "geçerli" görünür ama ilk gerçek FCM gönderiminde OAuth2 hatası verir.
   // Burada erkenden, açık bir Türkçe hata ile yakalıyoruz.
-  private assertValidServiceAccount(account: any, envVarWasSet: boolean) {
+  private assertValidServiceAccount(
+    account: RawServiceAccount,
+    envVarWasSet: boolean,
+  ) {
     if (!envVarWasSet) {
       throw new Error(
         '🔥 FIREBASE_SERVICE_ACCOUNT_JSON ortam değişkeni tanımlı değil. Push bildirimleri gönderilemeyecek.',
