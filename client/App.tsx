@@ -2,8 +2,8 @@ import React, { useEffect, useRef, useState, lazy, Suspense } from 'react';
 import { HashRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { StatusBar, Style } from '@capacitor/status-bar';
-import { SplashScreen } from '@capacitor/splash-screen';
 import { App as CapApp } from '@capacitor/app';
+import { AnimatedSplash } from './components/UI/AnimatedSplash';
 import { UpdateGate } from './components/UpdateGate';
 import api from './services/api';
 import { Navbar } from './components/Layout/Navbar';
@@ -122,8 +122,7 @@ function AppContent() {
       if (Capacitor.getPlatform() === 'android') {
         StatusBar.setBackgroundColor({ color: '#0f172a' });
       }
-      // Hide splash screen now that React has mounted
-      SplashScreen.hide({ fadeOutDuration: 300 }).catch(() => { });
+      // Native splash'ı artık AnimatedSplash gizler (ilk boyalı karede, dikişsiz geçiş için)
       // RevenueCat SDK başlat
       initRevenueCat().catch(() => { });
     }
@@ -135,7 +134,12 @@ function AppContent() {
 
     const listenerPromise = CapApp.addListener('backButton', () => {
       const hash = window.location.hash;
-      const isRoot = hash === '#/' || hash === '#/login' || hash === '#/register' || hash === '';
+      // '#/pitches' yalnız İLK history girişiyse root'tur (soğuk açılış inişi → geri=çıkış);
+      // Maç Pazarı → Sahalar gezinmesinde geri tuşu Maç Pazarı'na döner.
+      // history.state.idx: react-router v6/7'nin tuttuğu giriş sırası ({usr,key,idx}).
+      const isFirstEntry = (window.history.state?.idx ?? 0) === 0;
+      const isRoot = hash === '#/' || hash === '#/login' || hash === '#/register' || hash === ''
+        || (hash === '#/pitches' && isFirstEntry);
       if (isRoot) {
         CapApp.exitApp();
       } else {
@@ -348,8 +352,9 @@ function AppContent() {
     };
   }, [isAuthPage]);
 
-  // Auth durumu belirlenene kadar hiçbir şey render etme — Navbar flash'ını önler
-  if (!isReady) return <PageLoader />;
+  // Auth durumu belirlenene kadar hiçbir şey render etme — Navbar flash'ını önler.
+  // (AnimatedSplash perdesi bu aralığı zaten örter; düz lacivert yalnızca sigorta yoludur.)
+  if (!isReady) return <div className="h-screen w-full bg-pitch" />;
 
   return (
     <div className="flex flex-col h-screen bg-pitch text-white overflow-hidden">
@@ -424,6 +429,11 @@ function App() {
   // çalışsın diye useAuth()'a erişmesi gerekiyor. SocketProvider da Auth'a bağımlı.
   // NetworkProvider EN DIŞTA: hiçbir context'e bağımlı değil, api sinyalleri
   // auth'suz da akar (login ekranı da çevrimdışı banner'ını görmeli).
+  //
+  // AnimatedSplash "perde"si provider ağacının KARDEŞİ: hiçbir context'e ihtiyacı yok,
+  // arkasında uygulama boot olurken üstte oynar; bitince unmount → hedef ekran hazır.
+  // State JS oturumu boyunca yaşar → arka plan/ön plan geçişinde animasyon TEKRARLAMAZ.
+  const [bootSplashDone, setBootSplashDone] = useState(false);
   return (
     <>
       <NetworkProvider>
@@ -443,6 +453,7 @@ function App() {
           gerektirmez, login dahil her ekranı örter); kontrol splash'le paralel
           koşar, UI perde bitince görünür (agent.md §69). */}
       <UpdateGate />
+      {!bootSplashDone && <AnimatedSplash onFinish={() => setBootSplashDone(true)} />}
     </>
   );
 }

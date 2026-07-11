@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Sade lacivert splash (#0f172a) — logo YOK; markalı açılış anı web tarafındaki AnimatedSplash'tır.
+     Bu drawable'ı hem tema (android:background, Android <12) hem Capacitor SplashScreen plugin'inin
+     isimle "splash" drawable araması çözer (plugin color resource ÇÖZEMEZ, drawable şart).
+     Tüm yoğunluklar ve gece modu için tek kaynak — bitmap üretimi kaldırıldı (agent.md §63). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/dimliPitch" />
+</shape>

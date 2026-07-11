@@ -236,6 +236,12 @@
   will-change: transform, opacity;
 }
 
+/* Business Storefront Art — SVG-safe opacity-only fade (CSS scale unreliable on SVG in WebKit) */
+@keyframes bsaDotIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .pitch-draw {
     animation: none;

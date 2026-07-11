@@ -25,8 +25,12 @@ const config: CapacitorConfig = {
       backgroundColor: '#0f172a',
     },
     SplashScreen: {
+      // DİKKAT: 0 YAPMA — plugin launchShowDuration===0'da launch splash'ı HİÇ göstermez
+      // (SplashScreen.swift showOnLaunch erken döner); autoHide:false iken süre zaten kullanılmaz.
       launchShowDuration: 2000,
-      launchAutoHide: true,
+      // Native splash JS'e kadar tutulur; AnimatedSplash ilk boyalı karede hide() çağırır
+      // (lacivert→lacivert dikişsiz geçiş). Sigorta: index.tsx'te 8sn'lik yedek hide var.
+      launchAutoHide: false,
       backgroundColor: '#0f172a',
       showSpinner: false,
     },

@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Android 12+ cold-start splash ikonu: yüksek çözünürlüklü icon.png (dimli_splash_icon),
-     ortada güvenli boşlukla (kırpılmasın, iOS gibi düzgün boyut). inset oranı ile ikon boyutu ayarlanır. -->
-<inset xmlns:android="http://schemas.android.com/apk/res/android"
-    android:drawable="@drawable/dimli_splash_icon"
-    android:inset="18%" />
+<!-- Android 12+ sistem splash'ı ikon slotu ZORUNLUDUR (boş bırakılırsa launcher ikonu basılır).
+     Şeffaf drawable hilesi: slot dolu ama görünmez → düz lacivert açılış; markalı an web
+     tarafındaki AnimatedSplash animasyonudur (agent.md §63). -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@android:color/transparent" />
+</layer-list>
