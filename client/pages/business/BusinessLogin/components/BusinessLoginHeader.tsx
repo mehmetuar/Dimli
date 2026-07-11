@@ -41,10 +41,19 @@ export const BusinessLoginHeader: React.FC<BusinessLoginHeaderProps> = ({ keyboa
                 }}
             />
             <h1
-                className="relative z-10 font-sport font-black text-white italic animate-enter-up transition-all duration-200"
+                className="relative z-10 font-sport font-black italic animate-enter-up transition-all duration-200"
                 style={{
                     fontSize: keyboardOpen ? 'clamp(1rem, 4.5vw, 1.4rem)' : 'clamp(1.5rem, 8vw, 2.25rem)',
                     marginTop: 'clamp(4px, 1vh, 12px)',
+                    // Sentetik italik son glifi kutunun dışına taşırır; backgroundClip:text
+                    // yalnızca kutu içini boyadığı için padding olmadan son "İ" kesik görünür.
+                    paddingLeft: '0.15em',
+                    paddingRight: '0.15em',
+                    // Sıcak metalik parıltı: beyazdan amber'e dikey degrade (premium dokunuş)
+                    background: 'linear-gradient(180deg, #ffffff 60%, #fed7aa 100%)',
+                    WebkitBackgroundClip: 'text',
+                    backgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
                 }}
             >
                 İŞLETME PANELİ

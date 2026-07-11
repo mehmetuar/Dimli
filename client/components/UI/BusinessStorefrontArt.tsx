@@ -1,105 +1,181 @@
 import React from 'react';
 
-/**
- * İşletme login alt bandı: ÜÇGEN ÇATILI DÜKKAN cephesi, açılışta yavaş kendi çizilir.
- * Müşteri login'indeki PitchGoalArea muadili — aynı `.pitch-line-h/-v` + `.pitch-draw` + `.pitch-dot-in`
- * (index.css, renk-bağımsız) primitifleri; renk inline. "Oyuncu Girişine Dön" butonu dükkanın
- * GİRİŞİ olarak sarılır (buton önde/z-10, sanat arkada/z-0, pointer-events-none).
- *
- * Renk dengesi: lacivert zeminle harmonik dursun diye çizgiler yumuşak/sıcak amber; arkada bir
- * sıcak ambient glow navy→turuncu geçişini köprüler; dikey öğeler (duvar/mullion/çatı) aşağıda
- * sıcak → yukarıda sönümlenen gradient ile "geçişli" görünür. Geometri %-tabanlı → iOS/Android aynı.
- */
-const LINE = 'rgba(226, 104, 46, 0.48)'; // sıcak amber (yumuşatılmış), yatay kirişler/zemin/şerit
-const LINE_SOFT = 'rgba(226, 104, 46, 0.3)';
-const ACCENT = 'rgba(253, 188, 128, 0.95)'; // tabela ışığı — yumuşak sıcak
-const LINE_W = '2px';
-const SIDE = 'clamp(6px, 2.5vw, 18px)';
-const AWN = '2px';
-
-// Dikey öğeler: yerden yukarı sönümlenen sıcak gradient (geçişli)
-const WALL_GRAD = 'linear-gradient(to top, rgba(226,104,46,0.52) 0%, rgba(226,104,46,0.24) 100%)';
-const MULLION_GRAD = 'linear-gradient(to top, rgba(226,104,46,0.34) 0%, rgba(226,104,46,0.16) 100%)';
-// Arka sıcak haze: lacivert zemin ile turuncu çizgiyi köprüler (altta en sıcak, yukarı sönümlenir)
-const AMBIENT = 'radial-gradient(120% 95% at 50% 90%, rgba(234,88,12,0.1) 0%, rgba(234,88,12,0.03) 42%, transparent 72%)';
-
-const STRIPES = [8, 22, 36, 50, 64, 78, 92];
-
 interface Props {
     keyboardOpen?: boolean;
 }
 
+/**
+ * İşletme login "vitrin-kapı" cephesi — kendini çizen saha tesisi binası.
+ *
+ * HİZALAMA SİSTEMİ (agent.md §64 — bozma!): viewBox 200×100, preserveAspectRatio="none".
+ * Wrapper yatay padding clamp(16px,5vw,32px) → telefonlarda tam %5 = X=10; bant
+ * clamp(160px,28vh,255px) + alt padding clamp(20px,3.5vh,32px) → oran her uçta %12.5
+ * → "Oyuncu Girişine Dön" butonunun ALT KENARI her cihazda Y=87.5. Kapı çerçevesi
+ * (dikmeler X45/155, lento Y56, zemin Y90) bu çapaya göre kurulu; buton genişliği
+ * %57.78 (X48..152) → çerçeveyle ASLA çakışmaz. Bant yüksekliği string'i
+ * BackToCustomerButton.minHeight ile birebir AYNI kalmalı.
+ *
+ * Kısıtlar: stroke-dashoffset draw + opacity-only fade (SVG'de CSS scale YOK — WebKit);
+ * vectorEffect="non-scaling-stroke" ASLA eklenmez (§54).
+ */
 export const BusinessStorefrontArt: React.FC<Props> = ({ keyboardOpen = false }) => {
-    const base = { position: 'absolute' as const, background: LINE };
-
     return (
         <div
             aria-hidden="true"
             className="absolute inset-x-0 bottom-0 pointer-events-none transition-opacity duration-500"
-            style={{ height: 'clamp(160px, 28vh, 255px)', opacity: keyboardOpen ? 0.22 : 1, zIndex: 0 }}
+            style={{ height: 'clamp(160px, 28vh, 255px)', opacity: keyboardOpen ? 0 : 1, zIndex: 0 }}
         >
-            {/* Sıcak ambient — navy zemin ile turuncu çizgi arası geçişi yumuşatır (en arkada) */}
-            <div style={{ position: 'absolute', inset: 0, background: AMBIENT }} />
+            {/* Zemin ışıması — kapının önüne vuran sıcak dükkân ışığı */}
+            <div
+                className="absolute inset-x-0 bottom-0 sfa-fade"
+                style={{
+                    height: '45%',
+                    background: 'radial-gradient(55% 60% at 50% 100%, rgba(234,88,12,0.10), transparent 70%)',
+                    animationDelay: '2s',
+                }}
+            />
 
-            {/* Zemin çizgisi (alt kenar — cepheyi kapatır, butonun arkasında) */}
-            <div className="pitch-line-h" style={{ ...base, left: SIDE, right: SIDE, bottom: 0, height: LINE_W, animationDuration: '0.85s', animationDelay: '0.8s' }} />
+            {/* Çatı tabelası: çember içinde Dimli logosu — banda oranlı boyut, saçağın üstünde (zIndex 2) */}
+            <div
+                className="absolute left-1/2 sfa-fade"
+                style={{
+                    top: '4%',
+                    transform: 'translateX(-50%)',
+                    height: 'clamp(36px, 18%, 48px)',
+                    aspectRatio: '1 / 1',
+                    borderRadius: '50%',
+                    border: '1.5px solid #ea580c',
+                    background: '#0f172a',
+                    zIndex: 2,
+                    animationDelay: '1.2s',
+                    boxShadow: '0 0 0 3px rgba(234,88,12,0.15), 0 0 18px rgba(249,115,22,0.28), 0 4px 12px rgba(0,0,0,0.3)',
+                }}
+            >
+                {/* icon.png glifinin sol-alt uzantısı asimetrik → glif çekirdeğini disk merkezine
+                    oturtan yüzde bazlı nudge (kendi boyutuna göre → ölçek-bağımsız) */}
+                <img
+                    src="/icon.png"
+                    alt=""
+                    className="absolute top-1/2 left-1/2 object-contain"
+                    style={{ width: '74%', height: '74%', transform: 'translate(-49%, -41.5%)' }}
+                />
+            </div>
 
-            {/* Sol + sağ duvar (yerden yukarı çizilir, dikey gradient) */}
-            <div className="pitch-line-v" style={{ position: 'absolute', background: WALL_GRAD, left: SIDE, top: '20%', bottom: 0, width: LINE_W, animationDuration: '0.95s', animationDelay: '1.0s' }} />
-            <div className="pitch-line-v" style={{ position: 'absolute', background: WALL_GRAD, right: SIDE, top: '20%', bottom: 0, width: LINE_W, animationDuration: '0.95s', animationDelay: '1.1s' }} />
+            {/* Kapı lambası — lento altındaki amber nokta, kapıyı aydınlatır */}
+            <div
+                className="absolute sfa-fade"
+                style={{
+                    left: '50%',
+                    top: '57%',
+                    transform: 'translate(-50%, -50%)',
+                    width: 4,
+                    height: 4,
+                    borderRadius: '50%',
+                    background: '#fbbf24',
+                    boxShadow: '0 0 10px 2px rgba(251,191,36,0.5)',
+                    animationDelay: '1.95s',
+                }}
+            />
 
-            {/* Saçak / eave kirişi (çatı tabanı = gövde üstü) */}
-            <div className="pitch-line-h" style={{ ...base, left: SIDE, right: SIDE, top: '20%', height: LINE_W, animationDuration: '0.8s', animationDelay: '1.4s' }} />
-
-            {/* Üçgen (beşik) çatı — tepeden iki yana tek sweep'te çizilir; stroke dikey gradient */}
             <svg
-                className="absolute"
-                viewBox="0 0 100 30"
+                viewBox="0 0 200 100"
                 preserveAspectRatio="none"
-                style={{ left: AWN, right: AWN, top: 0, width: `calc(100% - 2 * ${AWN})`, height: '20%', overflow: 'visible' }}
-                fill="none"
+                style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', overflow: 'visible' }}
             >
                 <defs>
-                    <linearGradient id="storefrontRoofGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0" stopColor="rgba(244, 138, 74, 0.68)" />
-                        <stop offset="1" stopColor="rgba(214, 92, 42, 0.36)" />
+                    {/* gradientUnits="userSpaceOnUse" ŞART: tek parçalı YATAY path'lerin (saçak, zemin,
+                        lento) bounding box yüksekliği 0 → objectBoundingBox gradyanı SVG spec gereği
+                        HİÇ boyanmaz (çizgi görünmez olur). userSpaceOnUse viewBox koordinatı kullanır
+                        ve tüm cepheye tek tutarlı soldan-sağa rampa verir. */}
+                    <linearGradient id="storeOrange" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="200" y2="0">
+                        <stop offset="0%" stopColor="#c2410c" />
+                        <stop offset="15%" stopColor="#ea580c" />
+                        <stop offset="50%" stopColor="#f97316" />
+                        <stop offset="85%" stopColor="#ea580c" />
+                        <stop offset="100%" stopColor="#c2410c" />
                     </linearGradient>
+
+                    <style>
+                        {`
+                            .anim-line {
+                                stroke-dasharray: 100;
+                                stroke-dashoffset: 100;
+                                animation: dashDraw 1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+                            }
+                            @keyframes dashDraw {
+                                to { stroke-dashoffset: 0; }
+                            }
+                            @keyframes fade-in {
+                                from { opacity: 0; }
+                                to { opacity: 1; }
+                            }
+                            .fade-dot {
+                                opacity: 0;
+                                animation: fade-in 0.5s ease-out 1.55s forwards;
+                            }
+                            .sfa-fade {
+                                opacity: 0;
+                                animation: fade-in 0.8s ease-out forwards;
+                            }
+                            @media (prefers-reduced-motion: reduce) {
+                                .anim-line { animation: none; stroke-dashoffset: 0; }
+                                .fade-dot, .sfa-fade { animation: none; opacity: 1; }
+                            }
+                        `}
+                    </style>
                 </defs>
-                <path
-                    className="pitch-draw"
-                    style={{ strokeDasharray: 160, strokeDashoffset: 160, animationDuration: '1s', animationDelay: '1.65s' }}
-                    d="M3 30 L50 4 L97 30"
-                    stroke="url(#storefrontRoofGrad)"
-                    strokeWidth={1.7}
-                    strokeLinejoin="round"
-                    strokeLinecap="round"
-                />
+
+                {/* -- İŞLETME CEPHESİ: çatı → vitrin → tente → KAPI çerçevesi → zemin --
+                    Buton (kapı kanadı) Y60-87.5 aralığında oturur; dikmeler X45/155, lento Y56,
+                    zemin Y90 → buton X48..152 ile her boyutta payı korur (agent.md §64) */}
+                <g stroke="url(#storeOrange)" fill="none" strokeLinecap="round" strokeLinejoin="round">
+
+                    {/* Zemin çizgisi (bandın dibinde — kapı eşiği) */}
+                    <path pathLength="100" d="M 5 90 L 195 90" strokeWidth="1.5" className="anim-line" style={{ animationDelay: '0.1s' }} />
+
+                    {/* Dış duvarlar (zeminden saçağa) */}
+                    <path pathLength="100" d="M 10 90 L 10 22 M 190 90 L 190 22" strokeWidth="1.5" className="anim-line" style={{ animationDelay: '0.25s' }} />
+
+                    {/* Saçak */}
+                    <path pathLength="100" d="M 2 22 L 198 22" strokeWidth="2" className="anim-line" style={{ animationDelay: '0.4s' }} />
+
+                    {/* Çatı üçgeni */}
+                    <path pathLength="100" d="M 4 22 L 100 0 L 196 22" strokeWidth="2" className="anim-line" style={{ animationDelay: '0.55s' }} />
+
+                    {/* İç çatı (merkezde logo tabelası için boşluk: X=70→130) */}
+                    <path pathLength="100" d="M 15 22 L 70 8 M 130 8 L 185 22" strokeWidth="1" className="anim-line" style={{ animationDelay: '0.7s' }} />
+
+                    {/* Yan destekler */}
+                    <path pathLength="100" d="M 45 15 L 45 22 M 155 15 L 155 22" strokeWidth="0.8" className="anim-line" style={{ animationDelay: '0.8s' }} />
+
+                    {/* Tente (girişin üstünde) */}
+                    <path pathLength="100" d="M 14 52 L 186 52 L 182 46 L 18 46 Z" strokeWidth="1" fill="rgba(234, 88, 12, 0.05)" className="anim-line" style={{ animationDelay: '0.9s' }} />
+
+                    {/* KAPI ÇERÇEVESİ — kaskadın finali: çerçeve butonun etrafında kapanır */}
+                    <path pathLength="100" d="M 45 90 L 45 56 M 155 90 L 155 56" strokeWidth="1.2" className="anim-line" style={{ animationDelay: '1.6s' }} />
+                    <path pathLength="100" d="M 42 56 L 158 56" strokeWidth="1.5" className="anim-line" style={{ animationDelay: '1.75s' }} />
+                </g>
+
+                {/* -- VİTRİN İÇİ SAHA SEMBOLÜ (Y=27..44) -- */}
+                <g stroke="#16a34a" fill="none" strokeWidth="0.8">
+                    <path pathLength="100" d="M 18 27 L 18 44 L 182 44 L 182 27 Z" className="anim-line" style={{ animationDelay: '1.05s' }} />
+
+                    {/* Orta saha çizgisi ve yuvarlağı */}
+                    <path pathLength="100" d="M 100 27 L 100 44" className="anim-line" style={{ animationDelay: '1.15s' }} />
+                    <circle pathLength="100" cx="100" cy="35.5" r="5" className="anim-line" style={{ animationDelay: '1.25s' }} />
+
+                    {/* Sol ceza sahası + kale sahası */}
+                    <path pathLength="100" d="M 18 30.5 L 30 30.5 L 30 41 L 18 41" className="anim-line" style={{ animationDelay: '1.35s' }} />
+                    <path pathLength="100" d="M 18 33 L 24 33 L 24 38.5 L 18 38.5" strokeWidth="0.5" className="anim-line" style={{ animationDelay: '1.45s' }} />
+
+                    {/* Sağ ceza sahası + kale sahası */}
+                    <path pathLength="100" d="M 182 30.5 L 170 30.5 L 170 41 L 182 41" className="anim-line" style={{ animationDelay: '1.35s' }} />
+                    <path pathLength="100" d="M 182 33 L 176 33 L 176 38.5 L 182 38.5" strokeWidth="0.5" className="anim-line" style={{ animationDelay: '1.45s' }} />
+                </g>
+
+                {/* Saha santra noktası */}
+                <circle cx="100" cy="35.5" r="0.8" fill="#16a34a" className="fade-dot" />
             </svg>
-
-            {/* Tabela bandı (eave ile vitrin arası panel = dükkan tabelası) */}
-            <div className="pitch-line-h" style={{ ...base, left: SIDE, right: SIDE, top: '30%', height: LINE_W, animationDuration: '0.7s', animationDelay: '1.95s' }} />
-
-            {/* Vitrin camı mullion'ları (dikey gradient, 3 pano) */}
-            <div className="pitch-line-v" style={{ position: 'absolute', background: MULLION_GRAD, left: '36%', top: '30%', height: '18%', width: LINE_W, animationDuration: '0.7s', animationDelay: '2.1s' }} />
-            <div className="pitch-line-v" style={{ position: 'absolute', background: MULLION_GRAD, left: '64%', top: '30%', height: '18%', width: LINE_W, animationDuration: '0.7s', animationDelay: '2.2s' }} />
-
-            {/* Tente kirişi (girişin üstünde, duvarlardan biraz taşar) */}
-            <div className="pitch-line-h" style={{ ...base, left: AWN, right: AWN, top: '48%', height: LINE_W, animationDuration: '0.75s', animationDelay: '2.35s' }} />
-
-            {/* Çizgili tente şeritleri (kirişten aşağı sarkar) */}
-            {STRIPES.map((x, i) => (
-                <div
-                    key={x}
-                    className="pitch-line-v"
-                    style={{ position: 'absolute', background: LINE, left: `${x}%`, top: '48%', height: '7%', width: LINE_W, transformOrigin: 'top', animationDuration: '0.4s', animationDelay: `${2.4 + i * 0.04}s` }}
-                />
-            ))}
-
-            {/* Tabela ışığı (EN SON belirir — sıcak aksan) */}
-            <div
-                className="pitch-dot-in rounded-full"
-                style={{ position: 'absolute', left: '50%', top: '25%', width: '6px', height: '6px', marginLeft: '-3px', marginTop: '-3px', background: ACCENT, animationDelay: '2.9s' }}
-            />
         </div>
     );
 };

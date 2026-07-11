@@ -122,8 +122,12 @@ export const BusinessLoginForm: React.FC<BusinessLoginFormProps> = ({
                 <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full bg-orange-600 text-white rounded-xl font-display font-bold uppercase tracking-wider hover:bg-orange-500 active:bg-orange-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="w-full text-white rounded-2xl font-display font-bold uppercase tracking-wider active:scale-[0.98] transition-all disabled:opacity-50 disabled:active:scale-100 flex items-center justify-center gap-2"
                     style={{
+                        // Müşteri CTA'sıyla aynı premium dil (Login "İşletme Hesabına Geçiş Yap" gradyanı)
+                        background: 'linear-gradient(135deg, #ea580c, #9a3412)',
+                        boxShadow: '0 10px 26px -10px rgba(234,88,12,0.55), inset 0 1px 0 rgba(255,255,255,0.15)',
+                        border: '1px solid rgba(251,146,60,0.25)',
                         height: 'clamp(40px, 7.5vh, 58px)',
                         fontSize: 'clamp(0.85rem, 2.4vh, 1.125rem)',
                     }}
