@@ -89,11 +89,12 @@ async function bootstrap() {
       createdCount++;
     } catch (error) {
       // Business already has an owner (unique constraint on businessId or email)
-      if (error.code === '23505') {
+      const err = error as { code?: string; message?: string };
+      if (err.code === '23505') {
         console.log(`✓ Already exists: ${business.name}`);
         skippedCount++;
       } else {
-        console.error(`❌ Failed for ${business.name}:`, error.message);
+        console.error(`❌ Failed for ${business.name}:`, err.message);
       }
     }
   }

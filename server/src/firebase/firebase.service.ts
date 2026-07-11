@@ -28,7 +28,9 @@ export class FirebaseService {
         });
         this.logger.log('Firebase Admin SDK başarıyla başlatıldı.');
       } catch (e) {
-        this.logger.error(`Firebase init failed: ${e.message}`);
+        this.logger.error(
+          `Firebase init failed: ${e instanceof Error ? e.message : String(e)}`,
+        );
       }
     }
   }
@@ -96,8 +98,13 @@ export class FirebaseService {
       );
       return { success: true, invalidToken: false };
     } catch (e) {
-      const code: string =
-        (e?.errorInfo?.code as string) || (e?.code as string) || 'unknown';
+      // firebase-admin FirebaseError şekli: { errorInfo: { code }, code, message }
+      const err = e as {
+        errorInfo?: { code?: string };
+        code?: string;
+        message?: string;
+      };
+      const code: string = err?.errorInfo?.code || err?.code || 'unknown';
       // Yalnız TOKEN'a özgü kesin hatalarda token'ı geçersiz say. 'invalid-argument'
       // FCM tarafından bozuk PAYLOAD için de döndürülür (örn. boş gövde) → onu
       // invalidToken sayMA, yoksa geçerli token yanlışlıkla silinir.
@@ -105,7 +112,7 @@ export class FirebaseService {
         code === 'messaging/registration-token-not-registered' ||
         code === 'messaging/invalid-registration-token';
       this.logger.warn(
-        `FCM send failed (${code}) token ${token?.slice(0, 20)}...: ${e.message}`,
+        `FCM send failed (${code}) token ${token?.slice(0, 20)}...: ${err.message}`,
       );
       return { success: false, invalidToken };
     }
