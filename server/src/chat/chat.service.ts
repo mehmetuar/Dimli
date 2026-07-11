@@ -13,6 +13,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull, In, LessThan } from 'typeorm';
 import { ChatChannel } from './chat-channel.entity';
 import { ChatMessage } from './chat-message.entity';
+import type { ChatMessageMetadata } from './chat-message.entity';
 import { ChatParticipant } from './chat-participant.entity';
 import { User } from '../users/user.entity';
 import { Reservation } from '../reservations/entities/reservation.entity';
@@ -498,7 +499,7 @@ export class ChatService {
     senderId: string | null,
     content: string,
     isSystemMessage = false,
-    metadata?: any,
+    metadata?: ChatMessageMetadata,
     // skipPush: mesaj sohbete düşer + websocket'le iletilir ama FCM push ATILMAZ.
     // Aynı olay için ayrı bir bildirim (örn. BUSINESS_NOTE/MATCH_APPROVED) zaten push
     // gönderdiğinde çift push'u önlemek için kullanılır. Varsayılan false → diğer

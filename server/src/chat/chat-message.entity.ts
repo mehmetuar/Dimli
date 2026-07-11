@@ -10,6 +10,52 @@ import {
 import { User } from '../users/user.entity';
 import { ChatChannel } from './chat-channel.entity';
 
+// Sistem/aksiyon mesajlarının metadata sözleşmesi (katı discriminated union).
+// Yeni bir sistem-mesaj tipi eklerken buraya YENİ ARM ekle — union'ı gevşetme.
+// Yazıcılar: chat.service (joker/rematch akışları) + reservation-* servisleri
+// (ReservationSupportService.sendSystemMessage aktarıcısı üzerinden).
+export type ChatMessageMetadata =
+  // Rezervasyon yaşam döngüsü ailesi — hepsi { type, reservationId }
+  | {
+      type:
+        | 'MATCH_APPROVED'
+        | 'MATCH_REJECTED'
+        | 'MATCH_REJECTED_PASSIVE'
+        | 'MATCH_CANCELLED_BY_CAPTAIN'
+        | 'MATCH_REVOKED_TO_PENDING'
+        | 'MATCH_RESTORED_TO_PENDING'
+        | 'MATCH_CANCELLED_BY_BUSINESS_APPROVAL'
+        | 'MANUAL_FILL_REJECTED'
+        | 'MANUAL_FILL_REVOKED'
+        | 'CANCEL_REQUEST_SENT'
+        | 'CANCEL_REQUEST_REJECTED'
+        | 'UNDO_CANCEL_REQUEST'
+        | 'BUSINESS_NOTE'
+        | 'TIME_CONFLICT_CANCELLED'
+        | 'INFO'
+        | 'BUSINESS_CLOSED'
+        | 'PITCH_REMOVED'
+        | 'PITCH_SCHEDULED_OFFLINE';
+      reservationId: string;
+    }
+  // Saat teklifi kartı — yazımda Date, json kolonundan geri okunduğunda ISO string
+  | {
+      type: 'PROPOSAL_ACTION';
+      reservationId: string;
+      proposedTime: Date | string;
+    }
+  | {
+      type: 'REMATCH_PROPOSAL';
+      challengeId: string;
+      matchAnnouncementId: string;
+      channelId: string;
+    }
+  | { type: 'MATCH_CONFIRMED'; matchAnnouncementId: string }
+  | { type: 'JOKER_NEGOTIATION_STARTED'; matchId: string; jokerId: string }
+  | { type: 'JOKER_JOINED'; jokerId: string; invitingTeamId: string | null }
+  | { type: 'JOKER_ADDED_TO_MATCH' }
+  | { type: 'JOKER_LEFT'; jokerId: string };
+
 @Index(['channelId', 'createdAt'])
 @Index(['channelId'])
 @Entity('chat_messages')
@@ -40,7 +86,7 @@ export class ChatMessage {
   isSystemMessage: boolean;
 
   @Column('json', { nullable: true })
-  metadata: any; // For actionable messages (e.g. { type: 'PROPOSAL', reservationId: '...' })
+  metadata: ChatMessageMetadata | null; // aksiyon/sistem mesajı sözleşmesi (üstteki union)
 
   @CreateDateColumn()
   createdAt: Date;

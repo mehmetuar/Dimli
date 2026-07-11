@@ -5,6 +5,7 @@ import { NotificationsService } from '../../notifications/notifications.service'
 import { ChatChannel } from '../../chat/chat-channel.entity';
 import { ChatParticipant } from '../../chat/chat-participant.entity';
 import { Team } from '../../teams/team.entity';
+import type { ChatMessageMetadata } from '../../chat/chat-message.entity';
 
 // Rezervasyon akışlarında paylaşılan yardımcılar: sistem mesajı gönderimi +
 // maç iptalinde joker temizliği. Her ikisi de çağıranın transaction `manager`'ını
@@ -24,7 +25,7 @@ export class ReservationSupportService {
     matchId: string,
     _team: Team,
     content: string,
-    metadata?: Record<string, unknown>,
+    metadata?: ChatMessageMetadata,
     skipPush = false,
   ) {
     try {

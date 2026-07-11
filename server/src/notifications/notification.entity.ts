@@ -6,6 +6,40 @@ import {
   Index,
 } from 'typeorm';
 
+// RESERVATION_REQUEST v3 metadata'sındaki takım projeksiyonu — üretici:
+// notifications.service toTeamMeta + reservation-lifecycle.create (aynı şekil).
+export interface NotificationTeamMeta {
+  id: string;
+  name: string;
+  logo: string | null;
+  level: string | null;
+  fairPlay: number | null;
+  ratingCount: number;
+}
+
+// Bildirim metadata'sı gerçekten polimorfik (~40 yazım noktası, bildirim türüne
+// göre değişen şekiller) → bilinen/okunan anahtarlar opsiyonel olarak tiplenir,
+// uzun kuyruk index signature ile taşınır. KURAL: yeni bir anahtar OKUYACAKSAN
+// buraya gerçek tipiyle ekle; okuma yerinde cast etme.
+export interface NotificationMetadata {
+  type?: string;
+  teamId?: string;
+  requesterId?: string;
+  inviterId?: string;
+  challengeId?: string;
+  matchAnnouncementId?: string;
+  announcementId?: string;
+  channelId?: string;
+  reservationId?: string;
+  pitchId?: string;
+  metaV?: number;
+  matchDate?: string;
+  matchTime?: string;
+  team?: NotificationTeamMeta | null;
+  opponentTeam?: NotificationTeamMeta | null;
+  [k: string]: unknown;
+}
+
 // findByUser (WHERE userId ORDER BY createdAt DESC) + unread-count bu indeksten okur.
 @Index(['userId', 'createdAt'])
 @Entity('notifications')
@@ -62,7 +96,7 @@ export class Notification {
   relatedId: string;
 
   @Column({ type: 'json', nullable: true })
-  metadata: any;
+  metadata: NotificationMetadata | null;
 
   @Column({ default: false })
   read: boolean;
