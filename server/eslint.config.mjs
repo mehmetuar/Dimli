@@ -26,7 +26,9 @@ export default tseslint.config(
   },
   {
     rules: {
-      '@typescript-eslint/no-explicit-any': 'off',
+      // 2026-07-11 any-sıfırlama turu (agent.md §68): src'de açık any kalmadı;
+      // yeni any girişini engeller. 'error' değil 'warn': npm run lint --fix akışı kırılmasın.
+      '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/no-floating-promises': 'warn',
       '@typescript-eslint/no-unsafe-argument': 'warn',
       '@typescript-eslint/no-unsafe-assignment': 'off',

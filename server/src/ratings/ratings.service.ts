@@ -594,10 +594,7 @@ export class RatingsService {
         msg.metadata?.jokerId === userId &&
         msg.metadata?.invitingTeamId
       ) {
-        invitingTeamByChannel.set(
-          msg.channelId,
-          msg.metadata.invitingTeamId as string,
-        );
+        invitingTeamByChannel.set(msg.channelId, msg.metadata.invitingTeamId);
       }
     }
 

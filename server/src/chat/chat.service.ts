@@ -288,7 +288,7 @@ export class ChatService {
     // Batch: kanal başına okunmamış sayısı (tek aggregation sorgusu)
     const unreadRows: UnreadRow[] =
       await this.chatMessageRepository.manager.query(
-      `
+        `
             SELECT m."channelId", COUNT(*) as unread_count
             FROM chat_messages m
             JOIN chat_participants_v2 cp
@@ -300,8 +300,8 @@ export class ChatService {
               AND (m."isSystemMessage" = true OR m."senderId" != $1)
             GROUP BY m."channelId"
         `,
-      [userId, channelIds],
-    );
+        [userId, channelIds],
+      );
 
     const unreadMap = new Map<string, number>(
       unreadRows.map((r) => [r.channelId, parseInt(r.unread_count, 10)]),
@@ -1876,7 +1876,7 @@ export class ChatService {
         const invitingTeamId =
           (msg.metadata?.invitingTeamId as string) ?? msg.sender?.team?.id;
         if (invitingTeamId === requesterTeamId) {
-          allowedJokerIds.add(msg.metadata.jokerId as string);
+          allowedJokerIds.add(msg.metadata.jokerId);
         }
       }
     }

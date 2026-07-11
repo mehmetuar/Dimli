@@ -448,8 +448,9 @@ export class MatchAnnouncementsService {
                         cos(radians($1)) * cos(radians(b.latitude))
                         * cos(radians(b.longitude) - radians($2))
                         + sin(radians($1)) * sin(radians(b.latitude))))))`;
-    const raw: MarketplaceRawRow[] = await this.matchAnnouncementsRepository.query(
-      `SELECT
+    const raw: MarketplaceRawRow[] =
+      await this.matchAnnouncementsRepository.query(
+        `SELECT
                     ma.id,
                     ma.date,
                     ma.time,
@@ -486,19 +487,19 @@ export class MatchAnnouncementsService {
                    AND b.longitude BETWEEN $7 AND $8
                    AND (ma.date > $9 OR (ma.date = $9 AND ma.time >= $10))
                    AND ${haversine} <= $3`,
-      [
-        lat,
-        lng,
-        radius,
-        date,
-        box.minLat,
-        box.maxLat,
-        box.minLng,
-        box.maxLng,
-        todayStr,
-        nowTime,
-      ],
-    );
+        [
+          lat,
+          lng,
+          radius,
+          date,
+          box.minLat,
+          box.maxLat,
+          box.minLng,
+          box.maxLng,
+          todayStr,
+          nowTime,
+        ],
+      );
 
     if (raw.length === 0) {
       console.log(`📢 No announcements within ${radius}km`);

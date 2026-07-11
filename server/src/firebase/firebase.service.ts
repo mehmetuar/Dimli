@@ -18,7 +18,7 @@ export class FirebaseService {
     if (!admin.apps.length) {
       try {
         const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-        const serviceAccount = JSON.parse(raw || '{}');
+        const serviceAccount = JSON.parse(raw || '{}') as RawServiceAccount;
         this.assertValidServiceAccount(serviceAccount, !!raw);
 
         admin.initializeApp({

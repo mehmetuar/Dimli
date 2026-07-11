@@ -111,7 +111,8 @@ export class NotificationsService {
     // Bildirim kaptana gider; captainId boş VE captain ilişkisi yüklenmemişse
     // eski kod TypeError (500) atardı — temiz istisnaya çevrildi.
     const captainUserId = team.captainId ?? team.captain?.id;
-    if (!captainUserId) throw new NotFoundException('Takım kaptanı bulunamadı.');
+    if (!captainUserId)
+      throw new NotFoundException('Takım kaptanı bulunamadı.');
 
     const notification = this.notificationsRepository.create({
       userId: captainUserId,

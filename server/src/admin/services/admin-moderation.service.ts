@@ -200,7 +200,10 @@ export class AdminModerationService {
     p: PaginationQueryDto,
   ): Promise<
     Paginated<
-      Pick<User, 'id' | 'username' | 'full_name' | 'chatBannedAt' | 'chatBanExpiry'>
+      Pick<
+        User,
+        'id' | 'username' | 'full_name' | 'chatBannedAt' | 'chatBanExpiry'
+      >
     >
   > {
     const now = new Date();
