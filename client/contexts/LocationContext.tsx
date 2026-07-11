@@ -8,6 +8,7 @@ import api from '../services/api';
 import { getToken } from '../services/authStorage';
 import { seedCurrentUser } from '../services/currentUserStore';
 import { useAuth } from './AuthContext';
+import { useOnReconnect } from '../hooks/useOnReconnect';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -177,6 +178,14 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     } finally {
       syncInFlightRef.current = false;
       setIsSyncing(false);
+      // Uçuş sırasında daha taze bir fix geldiyse (in-flight koruması onu düşürmüştü)
+      // kuyruktan senkronla. Rekürsif çağrı aynı >250m kapısı + in-flight korumasından
+      // geçtiği için sonlanır (başarıda mesafe 0 → no-op). Boot'ta cache'li koordinat
+      // PATCH'lenirken gelen taze GPS fix'inin kaybolmasını önler.
+      const latest = coordsRef.current;
+      if (latest && (latest.lat !== c.lat || latest.lng !== c.lng)) {
+        void syncLocationToServer(latest, false);
+      }
     }
   }, []);
 
@@ -291,27 +300,43 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     void syncLocationToServer(coords, false);
   }, [coords, isCustomer, syncLocationToServer]);
 
-  // Periyodik tazeleme (iOS 3 dk / Android 2 dk): yalnız koordinatı yeniler; hareket
-  // >250m ise `updateCoords` yeni coords commit eder → yukarıdaki efekt PATCH'ler.
-  // Hareket yoksa hiçbir şey kımıldamaz (kapı tutar). Yalnız müşteri + izin granted.
+  // Periyodik tazeleme (iOS 3 dk / Android 2 dk): koordinatı yeniler, ardından senkronu
+  // İYİLEŞTİRİR: önceki PATCH başarısız/atlanmışsa (lastSyncedCoordsRef null ya da >250m
+  // sapmış) burada telafi edilir. Sabit durumda kapı tutar → sıfır ek PATCH.
+  // Yalnız müşteri + izin granted.
   useEffect(() => {
     if (!isReady || !token || !isCustomer) return;
     const INTERVAL = Capacitor.getPlatform() === 'ios' ? 3 * 60 * 1000 : 2 * 60 * 1000;
-    const tick = () => {
+    const tick = async () => {
       if (permissionStatusRef.current !== 'granted') return; // reddedilen izinde native bridge'i yorma
-      void requestLocation(false);
+      await requestLocation(false);
+      const c = coordsRef.current;
+      if (c) void syncLocationToServer(c, false);
     };
-    intervalRef.current = setInterval(tick, INTERVAL);
+    intervalRef.current = setInterval(() => { void tick(); }, INTERVAL);
     return () => {
       if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
     };
-  }, [isReady, token, isCustomer, requestLocation]);
+  }, [isReady, token, isCustomer, requestLocation, syncLocationToServer]);
+
+  // Ağ geri gelince bekleyen senkronu hemen telafi et (interval tick'ini beklemeden):
+  // açılışta offline kalan kullanıcının ilçesi bağlantı dönünce saniyeler içinde düzelir.
+  // syncLocationToServer token'sız çıkar; kapı sayesinde zaten-senkron durumda no-op.
+  useOnReconnect(() => {
+    if (!isCustomer) return;
+    const c = coordsRef.current;
+    if (c) void syncLocationToServer(c, false);
+  });
 
   // Çıkış / hesap değişimi: senkron referanslarını sıfırla ki yeni hesap kendi ilk
   // PATCH'ini alsın (aksi halde >250m kapısı yeni hesabın ilk yazımını yutabilir).
+  // İlçe adı HESABA ait → temizlenir (ikinci hesap ilk hesabın ilçesiyle açılmasın);
+  // coords cache'i CİHAZA ait → kalır (boot fix'ini ısıtır).
   useEffect(() => {
     if (!token) {
       lastSyncedCoordsRef.current = null;
+      setLocationName(null);
+      try { localStorage.removeItem(LOCNAME_CACHE_KEY); } catch { /* ignore */ }
     }
   }, [token]);
 

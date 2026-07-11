@@ -12,7 +12,7 @@ const PAGE_SIZE = 20;
 const POSITION_KEYS = ['kaleci', 'orta_saha', 'forvet', 'defans'];
 
 export const useJokerPool = () => {
-    const { coords, radius, setRadius, requestLocation } = useLocationContext();
+    const { coords, radius, setRadius, requestLocation, locationName } = useLocationContext();
 
     // Ortak store: kendi profil pinlemesi (visibleJokers) sıcak cache'te anında çalışır
     const { currentUser } = useCurrentUser();
@@ -125,9 +125,18 @@ export const useJokerPool = () => {
         if (filter.radius) setRadius(filter.radius);
     };
 
-    // Kendi profilini listenin başına sabit koy
+    // Kendi profilini listenin başına sabit koy. Kendi satırın ilçesi CANLI otoriteden
+    // (LocationContext.locationName → currentUser.location) overlay edilir — fetch/cache
+    // anındaki DB satırı bayat olabilir (PATCH-vs-fetch yarışı); diğer kullanıcılar için
+    // saklanan kolon doğru kaynaktır (kendi cihazlarının son PATCH'i).
+    const liveOwnLocation = locationName || currentUser?.location || null;
     const visibleJokers = currentUser
-        ? [...jokers.filter(j => j.id === currentUser.id), ...jokers.filter(j => j.id !== currentUser.id)]
+        ? [
+            ...jokers
+                .filter(j => j.id === currentUser.id)
+                .map(j => (liveOwnLocation ? { ...j, location: liveOwnLocation } : j)),
+            ...jokers.filter(j => j.id !== currentUser.id),
+          ]
         : [...jokers];
 
     const handleSaveProfile = async (data: any) => {

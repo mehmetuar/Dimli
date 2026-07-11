@@ -3017,3 +3017,45 @@ tam iOS kompozisyonu). **KURAL:** adaptive foreground'a asla full-bleed detaylı
 merkez güvenli bölgeye (~%66-72) sığdır.
 **Deploy:** yalnız native Android kaynağı → `npm run build`/`cap sync` GEREKMEZ; APK yeniden derlenip kurulur.
 Launcher ikon önbelleği nedeniyle bazen uygulamayı KALDIRIP yeniden kurmak gerekir. Cihaz doğrulaması bekliyor.
+
+---
+
+## 72. Konum senkron düzeltmeleri — boot yarışı + retry + Joker kendi kart overlay (2026-07-11)
+
+> Belirti: Sahalar/Maç Pazarı taze konumla çalışırken Joker sayfası ve Profilim Konum kartı eski ilçeyi
+> gösterdi (kullanıcı Kağıthane'de, ekranda "Şişli"); ancak manuel "Konumu Güncelle" düzeltti. Sahalar/Maç
+> Pazarı canlı coords ile SAHALARIN ilçesini gösterdiği için hep taze görünür; Joker kartı + Profilim ise
+> sunucuda saklanan `user.location` kolonunu gösterir (yalnız `PATCH /users/me` günceller, §33).
+
+**Kök nedenler (3):**
+1. **Boot yarışı — uçuştaki senkron düşürülüyordu:** açılışta `coords` localStorage cache'inden başlar;
+   sync effect hemen ESKİ koordinatla PATCH atar (sunucu ilçeyi yeniden eski değere yazar). Taze GPS fix'i
+   bu PATCH uçuştayken gelirse `syncInFlightRef` koruması onu sessizce düşürüyordu ve HİÇBİR ŞEY yeniden
+   denemiyordu (interval yalnız `requestLocation` çağırıyordu; coords <250m değişmeyince sync effect bir
+   daha ateşlenmez) → DB ancak >250m harekette veya manuel butonla düzelir.
+2. **Başarısız PATCH retry'sız:** `syncLocationToServer` hatada sessiz; açılışta offline kalan süresiz bayat.
+3. **Joker kendi kartı fetch satırından:** PATCH başarılı olsa bile liste yeniden çekilmediğinden kendi
+   kartındaki ilçe eskide kalıyordu; SWR cache (`JOKERS_CACHE_KEY`) ilk boyamada da eski etiketi basar.
+
+**Düzeltmeler (tamamı client-only; sunucu/DB değişikliği YOK; >250m kapısı + 2-3dk interval KORUNDU):**
+- `LocationContext.syncLocationToServer` finally'sinde **kuyruk senkronu**: uçuş bitince `coordsRef.current`
+  bu koşunun `c`'sinden farklıysa `void syncLocationToServer(latest,false)` — aynı kapı+korumadan geçtiği
+  için sonlanır (başarıda mesafe 0 → no-op). Boot'ta düşen taze fix milisaniyeler içinde telafi edilir.
+- **Interval tick iyileştirici**: `await requestLocation(false)` sonrası `syncLocationToServer(coords,false)`
+  — sabit durumda kapı tutar (sıfır ek PATCH), yalnız başarısız/atlanmış senkronu telafi eder.
+- **`useOnReconnect`** LocationProvider'da: ağ dönünce bekleyen senkron hemen atılır (tick beklenmez).
+- **Logout temizliği**: `!token` effect'ine `setLocationName(null)` + `LOCNAME_CACHE_KEY` remove eklendi
+  (ikinci hesap ilk hesabın ilçesiyle açılmasın). Coords cache'i cihaza ait → KALIR.
+- **`useJokerPool.visibleJokers`**: kendi satırın `location`'ı render-time overlay ile canlı otoriteden
+  (`locationName || currentUser.location`) — JokerCard değişmedi; PATCH-vs-fetch yarışı görüntüde anlamsız.
+
+**Reddedilenler:** locationName değişince tam liste refetch (ölçekte gereksiz GET); `locationVersion` expose
+(over-engineering); boot cache-PATCH'ini bastırmak (sunucu teyidi + currentUser besleme kaybolur); jokers
+endpoint'inde canlı ilçe türetme (diğer kullanıcılar için saklanan kolon zaten doğru kaynak). Sekme geçişinde
+GPS tetikleme EKLENMEDİ (kullanıcıya soruldu → mevcut boot+foreground+interval yapısı korundu). Sınır bölgesi
+nüansı (>250m içi ilçe flip'i) KABUL — manuel "Konumu Güncelle" kaçış yolu var.
+
+Doğrulama: `tsc --noEmit` (yalnız önceden var olan LocationStep) + `vite build` + `cap copy` ✓ (`cap sync`
+pod install yerel CocoaPods/Ruby 3.4 bug'ı — §33'teki gibi kod dışı). **Deploy:** yalnız client → yeni native
+sürüm ister. Cihaz testi: bayat cache'le soğuk açılış → saniyeler içinde Joker kendi kartı + Profilim doğru
+ilçe; uçak modu aç/kapa → reconnect'te iyileşme; 10dk hareketsiz → tek PATCH; hesap değişimi → ilçe sızmaz.
