@@ -30,6 +30,139 @@ import { UserBlocksService } from '../user-blocks/user-blocks.service';
 import { istanbulDateTimeToUtc } from '../common/turkey-time.util';
 import { sanitizeUser } from '../common/sanitize-user.util';
 
+// ── getUserChannels yanıt tipleri ────────────────────────────────────────────
+// Ham DISTINCT ON sorgusunun satırı (alias'lar SELECT ile birebir).
+export interface LastMessageRow {
+  id: string;
+  channelId: string;
+  senderId: string | null;
+  content: string;
+  isSystemMessage: boolean;
+  metadata: ChatMessageMetadata | null;
+  createdAt: Date;
+  username: string | null;
+  fullName: string | null;
+  avatarUrl: string | null;
+}
+
+// Client'a dönen lastMessage şekli (satırın sender alt-nesnesine katlanmış hali).
+export interface LastMessageView {
+  id: string;
+  channelId: string;
+  senderId: string | null;
+  content: string;
+  isSystemMessage: boolean;
+  metadata: ChatMessageMetadata | null;
+  createdAt: Date;
+  sender: {
+    username: string | null;
+    full_name: string | null;
+    avatarUrl: string | null;
+  } | null;
+}
+
+// PG COUNT(*) bigint → string döner; parseInt ile sayıya çevrilir.
+export interface UnreadRow {
+  channelId: string;
+  unread_count: string;
+}
+
+export interface ChannelReservationInfo {
+  id?: string;
+  status: string;
+  slotTime: Date;
+  cancelRequested?: boolean;
+  teamId?: string;
+  opponentTeamId?: string;
+  homeTeamPlayerCount?: number;
+  awayTeamPlayerCount?: number;
+  requiredPlayerCount?: number | null;
+}
+
+export interface ChannelAvatarData {
+  matchType?: string;
+  homeTeamLogo?: string | null;
+  homeTeamName?: string;
+  homeTeamColor?: string | null;
+  awayTeamLogo?: string | null;
+  awayTeamName?: string;
+  awayTeamColor?: string | null;
+  otherUserAvatar?: string | null;
+  otherUserName?: string;
+}
+
+export type ChannelListItem = Omit<ChatChannel, 'participants'> & {
+  participants?: ChatParticipant[];
+  lastMessage: LastMessageView | null;
+  unreadCount: number;
+  reservation: ChannelReservationInfo | null;
+  isJoker: boolean;
+  avatarData: ChannelAvatarData | null;
+};
+
+// ── getChannelMatchDetails yanıt tipleri ─────────────────────────────────────
+export interface ChannelMatchTeamData {
+  id: string;
+  name: string;
+  logoUrl: string | null;
+  primaryColor: string;
+  secondaryColor: string;
+  level: string;
+  fairPlayScore: number;
+  fairPlayRatingCount: number;
+  playerCount: number;
+  playedMatchCount: number;
+  captain: { id: string; name: string; phone: string } | null;
+}
+
+// Hata ve başarı varyantları tek interface'te (tüm alanlar opsiyonel) — çağıranlar
+// `?.error` ve `?.homeTeam`'i birlikte okuduğundan discriminated union dayatılmaz.
+export interface ChannelMatchDetails {
+  error?: 'NO_MATCH' | 'MATCH_NOT_FOUND';
+  message?: string;
+  homeTeam?: ChannelMatchTeamData | null;
+  awayTeam?: ChannelMatchTeamData | null;
+  match?: {
+    id: string;
+    date: string;
+    time: string;
+    status: string;
+    playerCount: number;
+    description: string;
+    matchType: string;
+  };
+  reservation?: {
+    id: string;
+    status: Reservation['status'];
+    slotTime: Date;
+  } | null;
+  pitch?: {
+    id: string;
+    name: string;
+    type: string;
+    pricePerHour: number;
+    business: {
+      id: string;
+      name: string;
+      ownerPhone: string | null;
+      address: string;
+      district: string | null;
+      latitude: number | null;
+      longitude: number | null;
+      isDeleted: boolean;
+    } | null;
+  } | null;
+}
+
+// Maç grubundaki joker kartı (getJokersInChannel).
+export interface JokerInChannel {
+  id: string;
+  name: string;
+  position: string;
+  rating: number;
+  avatarUrl: string | null;
+}
+
 @Injectable()
 export class ChatService {
   constructor(
@@ -93,7 +226,7 @@ export class ChatService {
     return savedChannel;
   }
 
-  async getUserChannels(userId: string): Promise<any[]> {
+  async getUserChannels(userId: string): Promise<ChannelListItem[]> {
     const currentUser = await this.userRepository.findOne({
       where: { id: userId },
       relations: ['team'],
@@ -116,7 +249,7 @@ export class ChatService {
     const channelIds = participations.map((p) => p.channelId);
 
     // Batch: son mesaj her kanal için (DISTINCT ON — tek sorgu)
-    const lastMessageRows: any[] =
+    const lastMessageRows: LastMessageRow[] =
       await this.chatMessageRepository.manager.query(
         `
             SELECT DISTINCT ON (m."channelId")
@@ -130,7 +263,7 @@ export class ChatService {
         [channelIds],
       );
 
-    const lastMessageMap = new Map<string, any>(
+    const lastMessageMap = new Map<string, LastMessageView>(
       lastMessageRows.map((r) => [
         r.channelId,
         {
@@ -153,7 +286,8 @@ export class ChatService {
     );
 
     // Batch: kanal başına okunmamış sayısı (tek aggregation sorgusu)
-    const unreadRows: any[] = await this.chatMessageRepository.manager.query(
+    const unreadRows: UnreadRow[] =
+      await this.chatMessageRepository.manager.query(
       `
             SELECT m."channelId", COUNT(*) as unread_count
             FROM chat_messages m
@@ -170,10 +304,7 @@ export class ChatService {
     );
 
     const unreadMap = new Map<string, number>(
-      unreadRows.map((r) => [
-        r.channelId as string,
-        parseInt(r.unread_count as string, 10),
-      ]),
+      unreadRows.map((r) => [r.channelId, parseInt(r.unread_count, 10)]),
     );
 
     // ── Batch enrichment (N+1 kaldırıldı): kanal-başına sorgu yerine sabit
@@ -230,7 +361,7 @@ export class ChatService {
         new Set(fallbackSpecs.map((s) => s.teamId)),
       );
       const fallbackReservations = await this.reservationRepository.find({
-        where: { teamId: In(fallbackTeamIds), type: 'MATCH' as any },
+        where: { teamId: In(fallbackTeamIds), type: 'MATCH' },
       });
       const fallbackByTeamSlot = new Map<string, Reservation>();
       for (const r of fallbackReservations) {
@@ -380,7 +511,7 @@ export class ChatService {
       } else if (channel.type === 'JOKER_NEGOTIATION') {
         // channel.participants relation ile zaten yüklü — ekstra DB sorgusu yok
         const other = channel.participants?.find(
-          (pp: any) => pp.userId !== userId && !pp.deletedAt,
+          (pp) => pp.userId !== userId && !pp.deletedAt,
         );
         if (other?.user) {
           avatarData = {
@@ -394,7 +525,7 @@ export class ChatService {
       // client participants[].userId/deletedAt/user avatar alanlarını kullanır).
       // Tam sanitizasyon (common/sanitize-user.util) — eskiden yalnız password+pushToken
       // siliniyordu, email/telefon/GPS diğer katılımcılara sızıyordu.
-      const sanitizedParticipants = channel.participants?.map((p: any) => {
+      const sanitizedParticipants = channel.participants?.map((p) => {
         if (!p.user) return p;
         return { ...p, user: sanitizeUser(p.user) };
       });
@@ -802,7 +933,9 @@ export class ChatService {
     logger.log(`Channel ${channelId} soft-deleted for user ${userId}.`);
   }
 
-  async getChannelMatchDetails(channelId: string): Promise<any> {
+  async getChannelMatchDetails(
+    channelId: string,
+  ): Promise<ChannelMatchDetails> {
     // 1. Find the channel
     const channel = await this.chatChannelRepository.findOne({
       where: { id: channelId },
@@ -853,7 +986,7 @@ export class ChatService {
       relations: ['captain', 'players'],
     });
 
-    let awayTeam: any = null;
+    let awayTeam: Team | null = null;
     if (reservation?.opponentTeamId) {
       awayTeam = await this.teamRepository.findOne({
         where: { id: reservation.opponentTeamId },
@@ -877,10 +1010,13 @@ export class ChatService {
 
     const [homeMatchCount, awayMatchCount] = await Promise.all([
       countMatchesForTeam(homeTeam?.id ?? null),
-      countMatchesForTeam((awayTeam?.id ?? null) as string | null),
+      countMatchesForTeam(awayTeam?.id ?? null),
     ]);
 
-    const buildTeamData = (team: any, matchCount: number) => {
+    const buildTeamData = (
+      team: Team | null,
+      matchCount: number,
+    ): ChannelMatchTeamData | null => {
       if (!team) return null;
       return {
         id: team.id,
@@ -954,7 +1090,11 @@ export class ChatService {
     channelId: string,
     userId: string,
     data: { pitchId: string; date: string; time: string; playerCount: number },
-  ): Promise<any> {
+  ): Promise<{
+    success: boolean;
+    challengeId: string;
+    matchAnnouncementId: string;
+  }> {
     const logger = new Logger('ChatService');
     logger.log(
       `Creating rematch proposal for channel ${channelId} by user ${userId}`,
@@ -1154,7 +1294,7 @@ export class ChatService {
     channelId: string,
     userId: string,
     data: { matchAnnouncementId: string },
-  ): Promise<any> {
+  ): Promise<{ success: boolean; newChannelId: string }> {
     const logger = new Logger('ChatService');
     logger.log(
       `Accepting rematch proposal in channel ${channelId} by user ${userId}`,
@@ -1349,7 +1489,7 @@ export class ChatService {
   async createJokerNegotiation(
     userId: string,
     data: { matchId: string; inviterId: string; notificationId: string },
-  ): Promise<any> {
+  ): Promise<ChatChannel> {
     const logger = new Logger('ChatService');
     logger.log(
       `Creating Joker negotiation channel for user ${userId} and match ${data.matchId}`,
@@ -1485,7 +1625,7 @@ export class ChatService {
   async inviteJokerToMatchGroup(
     negotiationChannelId: string,
     inviterId: string,
-  ): Promise<any> {
+  ): Promise<{ success: boolean; matchChannelId: string }> {
     // 1. Find the negotiation channel
     const negotiationChannel = await this.chatChannelRepository.findOne({
       where: { id: negotiationChannelId },
@@ -1679,7 +1819,7 @@ export class ChatService {
   async getJokersInChannel(
     channelId: string,
     requesterId: string,
-  ): Promise<any[]> {
+  ): Promise<JokerInChannel[]> {
     const channel = await this.chatChannelRepository.findOne({
       where: { id: channelId },
       relations: ['participants', 'participants.user'],
@@ -1714,7 +1854,7 @@ export class ChatService {
         name: p.user.full_name || p.user.username,
         position: p.user.position,
         rating: p.user.rating,
-        avatarUrl: (p.user as any).avatarUrl,
+        avatarUrl: p.user.avatarUrl,
       }));
 
     // Find all JOKER_JOINED messages in this channel
@@ -1745,7 +1885,7 @@ export class ChatService {
     channelId: string,
     jokerId: string,
     requesterId: string,
-  ): Promise<any> {
+  ): Promise<{ success: boolean }> {
     const logger = new Logger('ChatService');
 
     const channel = await this.chatChannelRepository.findOne({
