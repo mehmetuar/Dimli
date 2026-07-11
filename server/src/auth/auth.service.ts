@@ -20,6 +20,7 @@ import { BusinessOwner } from '../business-owner/entities/business-owner.entity'
 import { TimeSlot } from '../pitches/entities/time-slot.entity';
 import { OtpCode } from './entities/otp-code.entity';
 import { SmsService } from '../sms/sms.service';
+import type { User } from '../users/user.entity';
 import { SubscriptionService } from '../subscription/subscription.service';
 import { OtpSecurityService } from './otp-security.service';
 
@@ -480,7 +481,10 @@ export class AuthService {
 
   // ─── Mevcut Auth Metodları ───────────────────────────────────────────────────
 
-  async validateUser(username: string, pass: string): Promise<any> {
+  async validateUser(
+    username: string,
+    pass: string,
+  ): Promise<Omit<User, 'password'> | null> {
     const user = await this.usersService.findOne(username);
     if (user && (await bcrypt.compare(pass, user.password))) {
       const { password: _password, ...result } = user;
@@ -489,7 +493,10 @@ export class AuthService {
     return null;
   }
 
-  async validateBusinessOwner(email: string, pass: string): Promise<any> {
+  async validateBusinessOwner(
+    email: string,
+    pass: string,
+  ): Promise<Omit<BusinessOwner, 'password'> | null> {
     const owner = await this.businessOwnerService.findByEmail(email);
     if (owner && (await bcrypt.compare(pass, owner.password))) {
       const { password: _password, ...result } = owner;
@@ -498,7 +505,7 @@ export class AuthService {
     return null;
   }
 
-  login(user: any) {
+  login(user: Omit<User, 'password'>) {
     const payload = { username: user.username, sub: user.id, role: 'user' };
     return {
       access_token: this.jwtService.sign(payload),
@@ -506,7 +513,7 @@ export class AuthService {
     };
   }
 
-  loginBusinessOwner(owner: any) {
+  loginBusinessOwner(owner: Omit<BusinessOwner, 'password'>) {
     const payload = {
       email: owner.email,
       sub: owner.id,
@@ -610,8 +617,7 @@ export class AuthService {
           pitch.pricePerHour = pitchData.pricePerHour;
           if (pitchData.facilities) pitch.facilities = pitchData.facilities;
           if (pitchData.closedDays) pitch.closedDays = pitchData.closedDays;
-          if ((pitchData as any).imageUrl)
-            pitch.imageUrl = (pitchData as any).imageUrl;
+          if (pitchData.imageUrl) pitch.imageUrl = pitchData.imageUrl;
 
           if (pitchData.openTime) {
             pitch.openTime = pitchData.openTime;
