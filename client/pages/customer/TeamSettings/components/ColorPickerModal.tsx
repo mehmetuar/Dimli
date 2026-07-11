@@ -1,33 +1,36 @@
 import React, { useEffect, useState } from 'react';
 import { Check, X } from 'lucide-react';
 import { KeyboardAwareModal } from '../../../../components/Modals/KeyboardAwareModal';
-import { hexToHsl, hslToHex, isValidHex } from '../../../../utils/colorUtils';
+import { hexToHsl, hslToHex, isValidHex, ensureReadableOnDark, buildTeamAccent } from '../../../../utils/colorUtils';
 
+// Tüm preset'ler koyu chat zemininde (#1e293b) WCAG 4.5:1 kontrastı geçer —
+// eski koyu tonlar (Siyah #111827, Lacivert #1e3a8a, Bordo #9f1239 vb.) sohbette
+// okunmadığı için aynı aileden okunur tonlarla değiştirildi (agent.md §70).
 export const TEAM_COLORS = [
-    { label: 'Mavi', hex: '#3b82f6' },
-    { label: 'Lacivert', hex: '#1e3a8a' },
+    { label: 'Mavi', hex: '#5090f7' },
+    { label: 'Lacivert', hex: '#7594e8' },
     { label: 'Gökyüzü', hex: '#38bdf8' },
     { label: 'Yeşil', hex: '#22c55e' },
-    { label: 'Koyu Yeşil', hex: '#15803d' },
+    { label: 'Zümrüt', hex: '#34d399' },
     { label: 'Çimen', hex: '#84cc16' },
-    { label: 'Kırmızı', hex: '#ef4444' },
-    { label: 'Bordo', hex: '#9f1239' },
+    { label: 'Kırmızı', hex: '#f15f5f' },
+    { label: 'Bordo', hex: '#fb7185' },
     { label: 'Turuncu', hex: '#f97316' },
     { label: 'Sarı', hex: '#facc15' },
     { label: 'Altın', hex: '#d97706' },
-    { label: 'Mor', hex: '#a855f7' },
-    { label: 'Koyu Mor', hex: '#6d28d9' },
-    { label: 'Pembe', hex: '#ec4899' },
-    { label: 'Fuşya', hex: '#d946ef' },
+    { label: 'Mor', hex: '#b56df8' },
+    { label: 'Koyu Mor', hex: '#a78bfa' },
+    { label: 'Pembe', hex: '#ee59a3' },
+    { label: 'Fuşya', hex: '#dc56f0' },
     { label: 'Turkuaz', hex: '#06b6d4' },
     { label: 'Teal', hex: '#14b8a6' },
     { label: 'Beyaz', hex: '#f1f5f9' },
     { label: 'Gümüş', hex: '#94a3b8' },
-    { label: 'Grafit', hex: '#475569' },
-    { label: 'Siyah', hex: '#111827' },
+    { label: 'Grafit', hex: '#8b9cb8' },
+    { label: 'Füme', hex: '#9ca3af' },
     { label: 'Mercan', hex: '#f87171' },
-    { label: 'İndigo', hex: '#6366f1' },
-    { label: 'Kahve', hex: '#92400e' },
+    { label: 'İndigo', hex: '#8587f4' },
+    { label: 'Karamel', hex: '#d9a066' },
 ];
 
 interface ColorPickerModalProps {
@@ -94,6 +97,10 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
         onClose();
     };
 
+    // Sohbet önizlemesi: koyu bir renk seçilirse chat'in render anında yaptığı
+    // aydınlatma (ensureReadableOnDark) burada dürüstçe gösterilir — kayıt yine tempColor'dır.
+    const chatAccent = buildTeamAccent(ensureReadableOnDark(tempColor), null);
+
     return (
         <KeyboardAwareModal
             isOpen={isOpen}
@@ -137,6 +144,25 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
                                 className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5 text-white text-sm font-mono focus:border-turf-500 focus:outline-none uppercase"
                                 placeholder="#3b82f6"
                             />
+                        </div>
+                    </div>
+
+                    {/* Sohbet önizleme */}
+                    <div>
+                        <p className="text-slate-500 text-xs font-bold uppercase mb-2">Sohbette Böyle Görünür</p>
+                        <div className="rounded-xl px-3 py-2.5" style={{ backgroundColor: '#0f172a' }}>
+                            <div
+                                className="inline-block max-w-full rounded-2xl rounded-bl-sm border border-slate-700 bg-slate-800 px-3 py-2"
+                                style={{
+                                    backgroundImage: `linear-gradient(135deg, ${chatAccent.soft}, ${chatAccent.secondarySoft})`,
+                                    borderColor: chatAccent.border,
+                                }}
+                            >
+                                <span className="block text-[11px] font-semibold mb-0.5" style={{ color: chatAccent.base }}>
+                                    Takım Oyuncusu
+                                </span>
+                                <span className="text-sm text-slate-200">Maç saat kaçta?</span>
+                            </div>
                         </div>
                     </div>
 

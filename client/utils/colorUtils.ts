@@ -31,6 +31,53 @@ export function isValidHex(hex: string) {
     return /^#[0-9a-fA-F]{6}$/.test(hex);
 }
 
+export function hexToRgb(hex: string): { r: number; g: number; b: number } {
+    return {
+        r: parseInt(hex.slice(1, 3), 16),
+        g: parseInt(hex.slice(3, 5), 16),
+        b: parseInt(hex.slice(5, 7), 16),
+    };
+}
+
+// WCAG 2.1 göreli parlaklık (sRGB doğrusallaştırma)
+export function relativeLuminance(hex: string): number {
+    const { r, g, b } = hexToRgb(hex);
+    const lin = (c: number) => {
+        const s = c / 255;
+        return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+    };
+    return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+}
+
+export function contrastRatio(a: string, b: string): number {
+    const la = relativeLuminance(a);
+    const lb = relativeLuminance(b);
+    return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+}
+
+// Takım renginin üzerine bindiği en açık chat yüzeyi (slate-800 / pitch-surface).
+// Burada 4.5:1'i geçen renk, daha koyu #0f172a liste zemininde otomatik daha yüksek kontrast verir.
+export const CHAT_BUBBLE_SURFACE = '#1e293b';
+// 11px semibold gönderen adı = küçük metin → WCAG AA hedefi 4.5:1
+const READABLE_TARGET = 4.5;
+// Çamur griler (ör. #475569) parlaklık kaldırılınca kirli beyaza dönmesin — ton ailesi korunur
+const SATURATION_FLOOR = 40;
+// ColorPickerModal parlaklık slider'ının üst sınırıyla aynı
+const LIGHTNESS_CAP = 85;
+
+// Koyu zeminde okunmayan rengi, ton kimliğini koruyarak deterministik olarak
+// okunur parlaklığa kaldırır. Zaten okunur renklere dokunmaz (minimal müdahale).
+export function ensureReadableOnDark(hex: string): string {
+    if (contrastRatio(hex, CHAT_BUBBLE_SURFACE) >= READABLE_TARGET) return hex;
+    const { h, s, l } = hexToHsl(hex);
+    const s2 = Math.max(s, SATURATION_FLOOR);
+    for (let li = Math.max(l, 30); li <= LIGHTNESS_CAP; li++) {
+        const candidate = hslToHex(h, s2, li);
+        if (contrastRatio(candidate, CHAT_BUBBLE_SURFACE) >= READABLE_TARGET) return candidate;
+    }
+    return hslToHex(h, s2, LIGHTNESS_CAP);
+}
+
 // Kullanıcının kendi mesajları için rezerve renk — tailwind.config.js'deki turf-600
 // ile birebir. Takım renkleri bu rengi asla kullanamaz (bkz. resolveTeamChatColors).
 export const OWN_MESSAGE_COLOR = '#16a34a';
@@ -43,10 +90,17 @@ function hueDistance(h1: number, h2: number): number {
     return Math.min(diff, 360 - diff);
 }
 
+// Okunurluk kaldırması sonrası tüm renkler dar bir L bandında (≈55-85) yaşar;
+// ayırt edicilik büyük ölçüde hue'ya kalır → hue eşiği eski 30'dan 40'a çıkarıldı.
+const HUE_CLOSE = 40;
+const LIGHT_CLOSE = 20;
+
 function isTooClose(a: string, b: string): boolean {
     const ha = hexToHsl(a);
     const hb = hexToHsl(b);
-    return hueDistance(ha.h, hb.h) < 30 && Math.abs(ha.l - hb.l) < 25;
+    // İki düşük doygunluklu (gri) renkte hue anlamsızdır — sadece parlaklık farkına bak
+    if (ha.s < 25 && hb.s < 25) return Math.abs(ha.l - hb.l) < LIGHT_CLOSE;
+    return hueDistance(ha.h, hb.h) < HUE_CLOSE && Math.abs(ha.l - hb.l) < LIGHT_CLOSE;
 }
 
 // Takım id'sinden deterministik (sabit, hash tabanlı) bir hue ofseti üretir —
@@ -72,36 +126,83 @@ function nudgeAwayFrom(hex: string, awayFromHex: string, teamId: string): string
     return result;
 }
 
-export interface TeamChatColors {
-    home: string;
-    away: string;
+// Bir takımın chat'teki tüm render noktalarının tükettiği türetilmiş renk paleti.
+// Alfa değerleri rgba() string olarak üretilir — #RRGGBBAA eski WebView'larda
+// desteksizdir (dvh/svh yasağıyla aynı gerekçe, bkz. agent.md §70).
+export interface TeamAccent {
+    base: string;          // okunur hex — gönderen adı, avatar halkası, çip noktası
+    secondaryBase: string; // okunur hex — ikincil renk tam opak (çip noktası deseni; yoksa base)
+    soft: string;          // rgba 0.14 — forma degradesinin başlangıcı (birincil renk)
+    secondarySoft: string; // rgba 0.10 — degradenin bitişi (ikincil renk; yoksa base'den)
+    border: string;        // rgba 0.35 — bubble kenarlığı
+    glow: string;          // rgba 0.35 — parıltı/box-shadow ihtiyaçları için
 }
 
-// Rakipli maç chatlerinde ev/misafir takım renklerini, kendi mesaj rengiyle (OWN_MESSAGE_COLOR)
-// ve birbirleriyle çakışmayacak şekilde deterministik olarak çözer. Team.primaryColor/secondaryColor
-// asla değiştirilmez — bu sadece render anında hesaplanan görsel bir düzeltmedir.
+export interface TeamChatAccents {
+    home: TeamAccent;
+    away: TeamAccent;
+}
+
+function rgba(hex: string, alpha: number): string {
+    const { r, g, b } = hexToRgb(hex);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+// baseHex'in zaten okunur (ensureReadableOnDark'tan geçmiş) olması beklenir.
+// ColorPickerModal'daki chat önizlemesi de aynı paleti buradan üretir.
+export function buildTeamAccent(baseHex: string, secondaryHex: string | null | undefined): TeamAccent {
+    // İkincil renk de okunur tona kaldırılır: siyah bir ikincil, %10 alfada koyu
+    // zemine karışıp degradeyi yok ederdi. Çakışma kontrolüne girmez (sadece zemin tonu).
+    const secondary = secondaryHex && isValidHex(secondaryHex)
+        ? ensureReadableOnDark(secondaryHex)
+        : baseHex;
+    return {
+        base: baseHex,
+        secondaryBase: secondary,
+        soft: rgba(baseHex, 0.14),
+        secondarySoft: rgba(secondary, 0.10),
+        border: rgba(baseHex, 0.35),
+        glow: rgba(baseHex, 0.35),
+    };
+}
+
+// Rakipli maç chatlerinde ev/misafir takım renklerini deterministik olarak çözer:
+// önce koyu zeminde okunur parlaklığa kaldırır, sonra kendi mesaj rengiyle
+// (OWN_MESSAGE_COLOR) ve birbirleriyle çakışmayı giderir. Sıralama kritik: hue
+// kaydırma parlaklığı değiştirebilir ama parlaklık kaldırma hue'yu değiştirmez —
+// bu yüzden her nudge sonucu yeniden ensureReadableOnDark'tan geçirilir.
+// Team.primaryColor/secondaryColor asla değiştirilmez — bu sadece render anında
+// hesaplanan görsel bir düzeltmedir.
 export function resolveTeamChatColors(
     homeHex: string | null | undefined,
     awayHex: string | null | undefined,
+    homeSecondaryHex: string | null | undefined,
+    awaySecondaryHex: string | null | undefined,
     homeTeamId: string,
     awayTeamId: string,
-): TeamChatColors {
+): TeamChatAccents {
     let home = homeHex && isValidHex(homeHex) ? homeHex : HOME_FALLBACK_COLOR;
     let away = awayHex && isValidHex(awayHex) ? awayHex : AWAY_FALLBACK_COLOR;
 
+    home = ensureReadableOnDark(home);
+    away = ensureReadableOnDark(away);
+
     if (isTooClose(home, OWN_MESSAGE_COLOR)) {
-        home = nudgeAwayFrom(home, OWN_MESSAGE_COLOR, homeTeamId);
+        home = ensureReadableOnDark(nudgeAwayFrom(home, OWN_MESSAGE_COLOR, homeTeamId));
     }
     if (isTooClose(away, OWN_MESSAGE_COLOR)) {
-        away = nudgeAwayFrom(away, OWN_MESSAGE_COLOR, awayTeamId);
+        away = ensureReadableOnDark(nudgeAwayFrom(away, OWN_MESSAGE_COLOR, awayTeamId));
     }
     if (isTooClose(home, away)) {
-        away = nudgeAwayFrom(away, home, awayTeamId);
+        away = ensureReadableOnDark(nudgeAwayFrom(away, home, awayTeamId));
         // Yeniden kaydırma own-message rengiyle çakışma yarattıysa son bir düzeltme yap.
         if (isTooClose(away, OWN_MESSAGE_COLOR)) {
-            away = nudgeAwayFrom(away, OWN_MESSAGE_COLOR, awayTeamId + '-2');
+            away = ensureReadableOnDark(nudgeAwayFrom(away, OWN_MESSAGE_COLOR, awayTeamId + '-2'));
         }
     }
 
-    return { home, away };
+    return {
+        home: buildTeamAccent(home, homeSecondaryHex),
+        away: buildTeamAccent(away, awaySecondaryHex),
+    };
 }

@@ -2,6 +2,7 @@ import React, { useRef, useEffect } from 'react';
 import { Swords } from 'lucide-react';
 import { SystemMessageRenderer } from '../../../../components/UI/SystemMessageRenderer';
 import { teamInitialsAvatar } from '../../../../utils/teamColors';
+import type { TeamAccent } from '../../../../utils/colorUtils';
 import type { ActionMessage, MenuPosition } from '../hooks/useMessageActions';
 
 interface MsgLike extends ActionMessage {
@@ -12,11 +13,12 @@ interface MsgLike extends ActionMessage {
     senderTeamId?: string | null;
 }
 
+// Renk alanları colorUtils'teki TeamAccent'ten gelir — palet mantığı tek kaynakta kalır.
 interface TeamChatColors {
     homeTeamId: string;
     awayTeamId: string;
-    homeColor: string;
-    awayColor: string;
+    homeAccent: TeamAccent;
+    awayAccent: TeamAccent;
     homeLogo?: string | null;
     awayLogo?: string | null;
 }
@@ -53,9 +55,9 @@ export const MessageBubble: React.FC<Props> = ({
     // takımı değil — bu kabul edilen bir sınırlamadır.
     const accent = !msg.isMe && teamColors && msg.senderTeamId
         ? msg.senderTeamId === teamColors.homeTeamId
-            ? { color: teamColors.homeColor, logo: teamColors.homeLogo }
+            ? { colors: teamColors.homeAccent, logo: teamColors.homeLogo }
             : msg.senderTeamId === teamColors.awayTeamId
-                ? { color: teamColors.awayColor, logo: teamColors.awayLogo }
+                ? { colors: teamColors.awayAccent, logo: teamColors.awayLogo }
                 : null
         : null;
 
@@ -199,7 +201,12 @@ export const MessageBubble: React.FC<Props> = ({
                         <button
                             data-avatar="true"
                             className="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-bold text-white overflow-hidden active:opacity-70 transition-opacity"
-                            style={accent ? { backgroundColor: accent.color } : undefined}
+                            // Forma halkası: koyu ince boşluk + takım renginde dış halka.
+                            // Logosuz fallback'te zemin okunur (açık) takım rengi olduğundan baş harf koyu yazılır.
+                            style={accent ? {
+                                boxShadow: `0 0 0 1.5px #0f172a, 0 0 0 3px ${accent.colors.base}`,
+                                ...(accent.logo ? {} : { backgroundColor: accent.colors.base, color: '#0f172a' }),
+                            } : undefined}
                             onClick={() => onAvatarClick(msg)}
                             onMouseDown={e => e.stopPropagation()}
                         >
@@ -223,12 +230,17 @@ export const MessageBubble: React.FC<Props> = ({
                             ? `bg-turf-600 text-white ${!isNextSameSender ? 'rounded-br-sm' : ''}`
                             : `bg-slate-800 text-slate-200 border border-slate-700 ${!isNextSameSender ? 'rounded-bl-sm' : ''}`
                     }`}
-                    style={accent ? { borderLeftWidth: 3, borderLeftColor: accent.color } : undefined}
+                    // Forma degradesi: birincil→ikincil takım renginden düşük alfa çapraz degrade,
+                    // bg-slate-800 zeminin üzerine biner; kenarlık rengi de takım renginin yumuşak tonu.
+                    style={accent ? {
+                        backgroundImage: `linear-gradient(135deg, ${accent.colors.soft}, ${accent.colors.secondarySoft})`,
+                        borderColor: accent.colors.border,
+                    } : undefined}
                 >
                     {!msg.isMe && !isPrevSameSender && (
                         <span
                             className="text-[11px] font-semibold text-turf-400 block mb-0.5 whitespace-nowrap"
-                            style={accent ? { color: accent.color } : undefined}
+                            style={accent ? { color: accent.colors.base } : undefined}
                         >
                             {msg.senderName}
                         </span>

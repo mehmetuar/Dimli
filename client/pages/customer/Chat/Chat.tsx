@@ -121,13 +121,15 @@ export const Chat: React.FC = () => {
       return null;
     }
     const { home, away } = resolveTeamChatColors(
-      ad?.homeTeamColor, ad?.awayTeamColor, res.teamId, res.opponentTeamId,
+      ad?.homeTeamColor, ad?.awayTeamColor,
+      ad?.homeTeamSecondaryColor, ad?.awayTeamSecondaryColor,
+      res.teamId, res.opponentTeamId,
     );
     return {
       homeTeamId: res.teamId,
       awayTeamId: res.opponentTeamId,
-      homeColor: home,
-      awayColor: away,
+      homeAccent: home,
+      awayAccent: away,
       homeLogo: ad?.homeTeamLogo,
       awayLogo: ad?.awayTeamLogo,
       homeName: ad?.homeTeamName,
@@ -542,11 +544,11 @@ export const Chat: React.FC = () => {
         {teamChatColors && (
           <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
             <div className="flex items-center gap-1.5 bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-700 min-w-fit">
-              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: teamChatColors.homeColor }} />
+              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundImage: `linear-gradient(135deg, ${teamChatColors.homeAccent.base} 50%, ${teamChatColors.homeAccent.secondaryBase} 50%)` }} />
               <span className="text-[11px] text-slate-300 font-medium truncate max-w-[110px]">{teamChatColors.homeName}</span>
             </div>
             <div className="flex items-center gap-1.5 bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-700 min-w-fit">
-              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: teamChatColors.awayColor }} />
+              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundImage: `linear-gradient(135deg, ${teamChatColors.awayAccent.base} 50%, ${teamChatColors.awayAccent.secondaryBase} 50%)` }} />
               <span className="text-[11px] text-slate-300 font-medium truncate max-w-[110px]">{teamChatColors.awayName}</span>
             </div>
           </div>

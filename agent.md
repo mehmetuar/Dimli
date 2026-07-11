@@ -2565,3 +2565,54 @@ SQL yapısı canlıda çalıştırıldı (Seyda: ay 5/20, bugün 0/2). **Deploy 
 ### Deploy
 **Sıra: önce server (Render) → sonra client (yeni native sürüm).** Server ucu eski client'ları bozmaz;
 Yetkili sayfası yeni client sürümüyle görünür. `synchronize:true` — şema değişmedi (mevcut kolonlar).
+
+## 70. Takım rengi okunurluk hattı + "forma degradesi" chat tasarımı (2026-07-11)
+
+> Rakipli maç chatlerinde takım renkleri artık render anında WCAG-kontrast garantili çözülür ve
+> mesaj gösterimi sol-çubuk yerine forma degradesi oldu. **KURAL: kayıtlı
+> `Team.primaryColor/secondaryColor` ASLA değiştirilmez (§9)** — tüm düzeltme sadece render
+> anında, tek geçiş noktası `client/utils/colorUtils.ts` → `resolveTeamChatColors`.
+
+### Render hattı (`colorUtils.ts`)
+1. `isValidHex` değilse fallback (`#3b82f6`/`#ef4444`).
+2. `ensureReadableOnDark`: `contrastRatio` (WCAG 2.1) ile `CHAT_BUBBLE_SURFACE = '#1e293b'`
+   (slate-800, accent'in bindiği EN AÇIK yüzey) üzerinde **4.5:1** hedefi — 11px semibold
+   gönderen adı küçük metin sayılır (AA). Doygunluk tabanı 40 (çamur griler ton korunarak
+   çelik tona döner), L +1 adım, üst sınır 85. Saf/deterministik + idempotent.
+3. Çakışma kontrolleri kaldırmadan SONRA: `isTooClose` (hue<40 VE |L|<20; iki gri ise sadece L)
+   — kendi-mesaj yeşili `OWN_MESSAGE_COLOR` ve rakip takımla. **Sıralama yük taşır:** hue
+   kaydırma parlaklığı bozabilir ama parlaklık kaldırma hue'yu bozamaz → her `nudgeAwayFrom`
+   sonucu yeniden `ensureReadableOnDark`'a sarılır.
+4. Çıktı `TeamAccent`: `base` (okunur hex — isim/halka/nokta), `secondaryBase` (okunur ikincil,
+   yoksa base), `soft` 0.14 / `secondarySoft` 0.10 (degrade uçları), `border` 0.35, `glow` 0.35.
+   **Alfa formatı `rgba(r,g,b,a)` string — `#RRGGBBAA` DEĞİL** (eski WebView desteği; dvh/svh
+   yasağıyla aynı gerekçe, §23 ailesi).
+
+### Forma degradesi tasarımı (MessageBubble.tsx)
+- Rakip mesaj bubble'ı: `bg-slate-800` üstüne `linear-gradient(135deg, soft, secondarySoft)` +
+  kenarlık `border`. 3px sol çubuk KALDIRILDI. Degrade gruplanmış mesajların hepsine uygulanır.
+- Gönderen adı `base`; avatar `boxShadow: 0 0 0 1.5px #0f172a, 0 0 0 3px base` (koyu boşluklu
+  forma halkası); logosuz fallback'te zemin `base` + baş harf `#0f172a` (base artık hep açık).
+- Kendi mesajlar turf yeşili KALIR (hangisi-benim ayrımı takım renginden bağımsız). Header
+  çipleri: nokta `linear-gradient(135deg, base 50%, secondaryBase 50%)` iki renkli forma deseni.
+- `MatchDetailModal` 64px forma karoları HAM kalır (kimlik gösterimi, metin değil) — kaldırma
+  uygulanmaz. MessageBubble'daki yerel renk tipi artık `TeamAccent` import eder (kopya yasak).
+
+### Veri + picker
+- `chat.service.ts` avatarData'ya `homeTeamSecondaryColor/awayTeamSecondaryColor` eklendi
+  (takım select'ine `secondaryColor`); inline avatarData tipi `ChannelAvatarData` ile birleşti.
+- `ColorPickerModal.TEAM_COLORS`: 24 preset'in TAMAMI #1e293b'de ≥4.5:1 geçer. Koyu tonlar aynı
+  aileden okunur tonlarla değişti (Siyah #111827→Füme #9ca3af, Lacivert #1e3a8a→#7594e8, Bordo
+  #9f1239→#fb7185, Koyu Mor #6d28d9→#a78bfa, Grafit #475569→#8b9cb8, Kahve #92400e→Karamel
+  #d9a066, Koyu Yeşil #15803d→Zümrüt #34d399); orta tonlar da `ensureReadableOnDark` çıktısına
+  hizalandı (Mavi #5090f7, Kırmızı #f15f5f, Mor #b56df8, Pembe #ee59a3, Fuşya #dc56f0, İndigo
+  #8587f4) → preset'lerde "seçilen = chat'te görülen" birebir. Serbest HSL/hex girişi serbest
+  kaldı; modal içine `buildTeamAccent` ile canlı "SOHBETTE BÖYLE GÖRÜNÜR" önizlemesi eklendi.
+- `UpdateTeamDto` oluşturuldu (PATCH /teams/:id'deki inline anonim tip ValidationPipe'ı
+  BYPASS ediyordu); create+update DTO'larında renkler `@Matches(/^#[0-9a-fA-F]{6}$/)`.
+
+### Ayrıca (aynı tur, ilgisiz iki küçük fix)
+- `BusinessLoginHeader.tsx`: "İŞLETME PANELİ" son İ'si kesikti — sentetik italik (italik Inter
+  yüzü paketli değil) + `backgroundClip:text` glif taşmasını boyamıyor → h1'e 0.15em yatay
+  padding. Aynı deseni kullanan yeni başlıklarda da padding şart.
+- `OwnerInfoStep.tsx`: Ad Soyad input'una eksik `placeholder="Ahmet Yılmaz"` eklendi.
