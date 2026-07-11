@@ -19,7 +19,7 @@ export const OwnerInfoStep: React.FC<OwnerInfoStepProps> = ({ formData, updateOw
             <Input
                 label="Ad Soyad"
                 icon={<User className="w-5 h-5" />}
-                placeholder="Ahmet Yılmaz"
+                placeholder="Ad Soyad"
                 value={formData.owner.fullName}
                 onChange={(e: any) => updateOwner('fullName', e.target.value)}
                 required
