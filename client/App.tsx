@@ -4,6 +4,7 @@ import { Capacitor } from '@capacitor/core';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { SplashScreen } from '@capacitor/splash-screen';
 import { App as CapApp } from '@capacitor/app';
+import { UpdateGate } from './components/UpdateGate';
 import api from './services/api';
 import { Navbar } from './components/Layout/Navbar';
 import { ProtectedRoute } from './components/Layout/ProtectedRoute';
@@ -424,19 +425,25 @@ function App() {
   // NetworkProvider EN DIŞTA: hiçbir context'e bağımlı değil, api sinyalleri
   // auth'suz da akar (login ekranı da çevrimdışı banner'ını görmeli).
   return (
-    <NetworkProvider>
-      <AuthProvider>
-        <SocketProvider>
-          <LocationProvider>
-            <FilterProvider>
-              <HashRouter>
-                <AppContent />
-              </HashRouter>
-            </FilterProvider>
-          </LocationProvider>
-        </SocketProvider>
-      </AuthProvider>
-    </NetworkProvider>
+    <>
+      <NetworkProvider>
+        <AuthProvider>
+          <SocketProvider>
+            <LocationProvider>
+              <FilterProvider>
+                <HashRouter>
+                  <AppContent />
+                </HashRouter>
+              </FilterProvider>
+            </LocationProvider>
+          </SocketProvider>
+        </AuthProvider>
+      </NetworkProvider>
+      {/* Zorunlu güncelleme kapısı — provider ağacının kardeşi (context/auth
+          gerektirmez, login dahil her ekranı örter); kontrol splash'le paralel
+          koşar, UI perde bitince görünür (agent.md §69). */}
+      <UpdateGate />
+    </>
   );
 }
 
