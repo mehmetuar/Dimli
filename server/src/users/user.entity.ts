@@ -68,8 +68,8 @@ export class User {
   pushToken: string;
 
   @Index()
-  @Column({ nullable: true, name: 'team_id' })
-  teamId: string;
+  @Column({ nullable: true, name: 'team_id', type: 'varchar' })
+  teamId: string | null;
 
   // Kullanıcının mevcut takıma katıldığı an. Yeni katılan oyuncu yalnızca bu tarihten
   // SONRA oynanan maçları değerlendirebilir (katılmadan önceki maçları görmez/puanlamaz).

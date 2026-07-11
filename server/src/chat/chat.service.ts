@@ -1845,10 +1845,16 @@ export class ChatService {
     const validTeamIds = [
       matchDetails.homeTeam?.id,
       matchDetails.awayTeam?.id,
-    ].filter(Boolean);
+    ].filter((id): id is string => !!id);
 
+    // Takımsız (teamId NULL) katılımcı tanım gereği joker'dir — eski
+    // includes(null)=false davranışıyla birebir aynı sonuç.
     const allJokers = channel.participants
-      .filter((p) => !p.deletedAt && !validTeamIds.includes(p.user.teamId))
+      .filter(
+        (p) =>
+          !p.deletedAt &&
+          (!p.user.teamId || !validTeamIds.includes(p.user.teamId)),
+      )
       .map((p) => ({
         id: p.user.id,
         name: p.user.full_name || p.user.username,
