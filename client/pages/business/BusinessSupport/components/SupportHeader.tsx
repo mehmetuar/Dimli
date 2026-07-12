@@ -3,7 +3,8 @@ import { ArrowLeft, LifeBuoy } from 'lucide-react';
 import { CorporateGridBackground } from '../../../../components/UI/CorporateGridBackground';
 
 interface SupportHeaderProps {
-    navigate: (path: string) => void;
+    // useNavigate dönüşü — -1 (pop) da geçebilmeli (geri döngüsü düzeltmesi)
+    navigate: (to: any) => void;
 }
 
 // Ayar alt sayfalarının "premium glow" deseni (Pattern A — bkz. OwnerProfileHeader);
@@ -17,7 +18,9 @@ export const SupportHeader: React.FC<SupportHeaderProps> = ({ navigate }) => {
             <CorporateGridBackground />
             <div className="relative z-10 flex items-center gap-3">
                 <button
-                    onClick={() => navigate('/business/settings')}
+                    // -1 (pop): '/business/settings' push'u geri-döngüsü yaratıyordu
+                    // (müşteri SupportPage'deki hatanın birebir aynısı)
+                    onClick={() => navigate(-1)}
                     className="w-10 h-10 bg-slate-900/60 backdrop-blur-sm border border-white/10 rounded-xl flex items-center justify-center text-slate-300 hover:text-white hover:bg-slate-800 transition-colors shrink-0 shadow-lg"
                     style={{ WebkitTapHighlightColor: 'transparent' }}
                 >

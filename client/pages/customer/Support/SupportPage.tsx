@@ -26,7 +26,9 @@ export const SupportPage: React.FC = () => {
             <header className="bg-pitch/95 backdrop-blur-sm border-b border-slate-800/60">
                 <div className="flex items-center gap-3 px-4 py-4 max-w-lg mx-auto">
                     <button
-                        onClick={() => navigate('/settings/account')}
+                        // -1 (pop): '/settings/account' push'u geçmişe yeni kayıt itiyor,
+                        // donanım geri tuşu sonra Yardım'a "ileri" dönüyordu (geri döngüsü)
+                        onClick={() => navigate(-1)}
                         className="p-2 -ml-2 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
                     >
                         <ChevronLeft className="w-6 h-6" />
