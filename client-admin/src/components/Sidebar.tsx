@@ -12,6 +12,7 @@ import {
     IconMenu,
     IconClipboard,
     IconFlag,
+    IconSupport,
     IconBan,
     IconPitch,
     IconTrash,
@@ -90,11 +91,15 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed = false, onToggle }) => {
     const navigate = useNavigate();
     const [showLogout, setShowLogout] = useState(false);
     const [pendingReports, setPendingReports] = useState(0);
+    const [pendingSupport, setPendingSupport] = useState(0);
     const adminInfo = decodeAdminToken();
 
     useEffect(() => {
         adminApi.get('/admin/reports/pending-count')
             .then(r => setPendingReports(r.data ?? 0))
+            .catch(() => {});
+        adminApi.get('/admin/support-tickets/pending-count')
+            .then(r => setPendingSupport(r.data?.total ?? 0))
             .catch(() => {});
     }, []);
 
@@ -156,6 +161,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed = false, onToggle }) => {
                     <NavItem to="/change-requests" icon={<IconClipboard size={18} />} label={collapsed ? '' : 'Değişiklik İstekleri'}   collapsed={collapsed} />
                     <NavItem to="/pitch-approvals" icon={<IconPitch     size={18} />} label={collapsed ? '' : 'Saha Onayları'}          collapsed={collapsed} />
                     <NavItem to="/reports"         icon={<IconFlag      size={18} />} label={collapsed ? '' : 'Şikayetler'}             collapsed={collapsed} badge={pendingReports} />
+                    <NavItem to="/support-tickets" icon={<IconSupport   size={18} />} label={collapsed ? '' : 'Destek Talepleri'}       collapsed={collapsed} badge={pendingSupport} />
                     <NavItem to="/banned-users"    icon={<IconBan       size={18} />} label={collapsed ? '' : 'Chat Yasakları'}          collapsed={collapsed} />
                     <NavItem to="/deleted"         icon={<IconTrash     size={18} />} label={collapsed ? '' : 'Silinen İşletmeler'}      collapsed={collapsed} />
                 </nav>

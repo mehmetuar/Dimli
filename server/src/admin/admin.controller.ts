@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Controller,
   Post,
   Get,
@@ -13,6 +14,10 @@ import {
 import { AdminService } from './admin.service';
 import { AdminJwtAuthGuard } from './admin-jwt-auth.guard';
 import { ReportStatus } from '../user-reports/user-report.entity';
+import {
+  SupportAudience,
+  SupportTicketStatus,
+} from '../support-tickets/support-ticket.entity';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 
 @Controller('admin')
@@ -206,6 +211,50 @@ export class AdminController {
   @Get('reports/pending-count')
   async getPendingReportCount() {
     return this.adminService.getPendingReportCount();
+  }
+
+  // ─── Support Tickets ──────────────────────────────────────────────────────
+
+  @UseGuards(AdminJwtAuthGuard)
+  @Get('support-tickets')
+  async getSupportTickets(
+    @Query() pagination: PaginationQueryDto,
+    @Query('audience') audience?: string,
+    @Query('status') status?: string,
+  ) {
+    return this.adminService.getSupportTickets(
+      audience as SupportAudience | undefined,
+      status as SupportTicketStatus | undefined,
+      pagination,
+    );
+  }
+
+  @UseGuards(AdminJwtAuthGuard)
+  @Get('support-tickets/pending-count')
+  async getSupportPendingCount() {
+    return this.adminService.getSupportPendingCount();
+  }
+
+  @UseGuards(AdminJwtAuthGuard)
+  @Patch('support-tickets/:id/reply')
+  async replyToSupportTicket(
+    @Param('id') id: string,
+    @Body('reply') reply: string,
+  ) {
+    return this.adminService.replyToSupportTicket(id, reply);
+  }
+
+  @UseGuards(AdminJwtAuthGuard)
+  @Patch('support-tickets/:id/status')
+  async markSupportTicketReviewed(
+    @Param('id') id: string,
+    @Body('status') status: string,
+  ) {
+    // Yalnız 'reviewed' kabul edilir; 'answered' yalnızca reply ucundan geçilir.
+    if (status !== 'reviewed') {
+      throw new BadRequestException('Geçersiz durum.');
+    }
+    return this.adminService.markSupportTicketReviewed(id);
   }
 
   // ─── Chat Ban ─────────────────────────────────────────────────────────────

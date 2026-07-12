@@ -124,6 +124,14 @@ export const showLocalNotification = async (title: string, body: string, data?: 
 
 const handleNotificationClick = (data: any) => {
     if (!data) return;
+    if (data.type === 'SUPPORT_REPLY') {
+        // Hem kullanıcı (SYSTEM + metadata.type) hem işletme (üst düzey tip) push'u
+        // data.type='SUPPORT_REPLY' taşır; hedef sayfayı rol belirler.
+        window.location.hash = getRole() === 'business_owner'
+            ? '#/business/settings/support'
+            : '#/settings/support';
+        return;
+    }
     if (data.type === 'CHAT' || data.isChatRedirect) {
         window.location.hash = data.channelId ? `#/chat?channelId=${data.channelId}` : '#/chat';
     } else if (data.type === 'JOIN_REQUEST') {

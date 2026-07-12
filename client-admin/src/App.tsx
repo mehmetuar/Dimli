@@ -10,6 +10,7 @@ import AdminApplicationDetail from './pages/AdminApplicationDetail/AdminApplicat
 import ChangeRequestsPage from './pages/ChangeRequestsPage/ChangeRequestsPage';
 import PitchApprovalsPage from './pages/PitchApprovalsPage/PitchApprovalsPage';
 import ReportsPage from './pages/ReportsPage/ReportsPage';
+import SupportTicketsPage from './pages/SupportTicketsPage/SupportTicketsPage';
 import BannedUsersPage from './pages/BannedUsersPage/BannedUsersPage';
 import DeletedBusinessesPage from './pages/DeletedBusinessesPage/DeletedBusinessesPage';
 import Layout from './components/Layout';
@@ -39,6 +40,7 @@ export default function App() {
             <Route path="/change-requests" element={<WithLayout><ChangeRequestsPage /></WithLayout>} />
             <Route path="/pitch-approvals" element={<WithLayout><PitchApprovalsPage /></WithLayout>} />
             <Route path="/reports" element={<WithLayout><ReportsPage /></WithLayout>} />
+            <Route path="/support-tickets" element={<WithLayout><SupportTicketsPage /></WithLayout>} />
             <Route path="/banned-users" element={<WithLayout><BannedUsersPage /></WithLayout>} />
             <Route path="/deleted" element={<WithLayout><DeletedBusinessesPage /></WithLayout>} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />

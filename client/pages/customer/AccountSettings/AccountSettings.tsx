@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, UserCircle2, Shield, ShieldOff } from 'lucide-react';
+import { ChevronLeft, ChevronRight, UserCircle2, Shield, ShieldOff, LifeBuoy } from 'lucide-react';
 
 export const AccountSettings: React.FC = () => {
     const navigate = useNavigate();
@@ -26,6 +26,13 @@ export const AccountSettings: React.FC = () => {
             label: 'Engellenen Kullanıcılar',
             desc: 'Engellediğin kullanıcıları yönet',
             to: '/settings/blocked-users',
+        },
+        {
+            icon: <LifeBuoy className="w-5 h-5" />,
+            color: 'bg-purple-500/20 text-purple-400',
+            label: 'Yardım',
+            desc: 'Destek talebi oluştur, taleplerini takip et',
+            to: '/settings/support',
         },
     ];
 

@@ -57,6 +57,8 @@ const ForgotPassword = lazy(() => import('./pages/customer/ForgotPassword/Forgot
 const AccountSettings = lazy(() => import('./pages/customer/AccountSettings/AccountSettings').then(m => ({ default: m.AccountSettings })));
 const PrivacySecurity = lazy(() => import('./pages/customer/PrivacySecurity/PrivacySecurity').then(m => ({ default: m.PrivacySecurity })));
 const BlockedUsersPage = lazy(() => import('./pages/customer/BlockedUsers/BlockedUsersPage').then(m => ({ default: m.BlockedUsersPage })));
+const SupportPage = lazy(() => import('./pages/customer/Support/SupportPage').then(m => ({ default: m.SupportPage })));
+const BusinessSupport = lazy(() => import('./pages/business/BusinessSupport/BusinessSupport').then(m => ({ default: m.BusinessSupport })));
 
 // ── Animated full-screen loading fallback ────────────────────────────────────
 const PageLoader = () => (
@@ -378,6 +380,7 @@ function AppContent() {
               <Route path="/business/settings/password" element={<BusinessPasswordSettings />} />
               <Route path="/business/settings/preset-notes" element={<BusinessPresetNotes />} />
               <Route path="/business/settings/subscription" element={<BusinessSubscriptionSettings />} />
+              <Route path="/business/settings/support" element={<BusinessSupport />} />
               <Route path="/business/notifications" element={<BusinessNotificationsPage />} />
               <Route path="/business/stats" element={<BusinessStats />} />
             </Route>
@@ -393,6 +396,7 @@ function AppContent() {
               <Route path="/settings/account" element={<AccountSettings />} />
               <Route path="/settings/privacy-security" element={<PrivacySecurity />} />
               <Route path="/settings/blocked-users" element={<BlockedUsersPage />} />
+              <Route path="/settings/support" element={<SupportPage />} />
               <Route path="/settings/favorites" element={<FavoriteBusinessesSettings />} />
               <Route path="/settings/team" element={<TeamSettings />} />
             </Route>

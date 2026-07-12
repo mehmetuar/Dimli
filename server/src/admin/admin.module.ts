@@ -16,6 +16,7 @@ import { Notification } from '../notifications/notification.entity';
 import { AccountDeletion } from '../account-deletions/account-deletion.entity';
 import { User } from '../users/user.entity';
 import { UserReport } from '../user-reports/user-report.entity';
+import { SupportTicket } from '../support-tickets/support-ticket.entity';
 import { FacilitiesModule } from '../facilities/facilities.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { FilesModule } from '../files/files.module';
@@ -26,6 +27,7 @@ import { AdminSubscriptionService } from './services/admin-subscription.service'
 import { AdminModerationService } from './services/admin-moderation.service';
 import { AdminPitchReviewService } from './services/admin-pitch-review.service';
 import { AdminBusinessService } from './services/admin-business.service';
+import { AdminSupportService } from './services/admin-support.service';
 
 @Module({
   imports: [
@@ -42,6 +44,7 @@ import { AdminBusinessService } from './services/admin-business.service';
       AccountDeletion,
       User,
       UserReport,
+      SupportTicket,
     ]),
     FacilitiesModule,
     NotificationsModule,
@@ -62,6 +65,7 @@ import { AdminBusinessService } from './services/admin-business.service';
     AdminModerationService,
     AdminPitchReviewService,
     AdminBusinessService,
+    AdminSupportService,
   ],
   exports: [AdminService],
 })

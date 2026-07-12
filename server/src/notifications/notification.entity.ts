@@ -32,6 +32,7 @@ export interface NotificationMetadata {
   channelId?: string;
   reservationId?: string;
   pitchId?: string;
+  ticketId?: string;
   metaV?: number;
   matchDate?: string;
   matchTime?: string;
@@ -84,7 +85,8 @@ export class Notification {
     | 'PITCH_DELETION_SCHEDULED'
     | 'PITCH_DELETION_REMINDER'
     | 'PITCH_DELETED'
-    | 'PITCH_DELETION_CANCELLED';
+    | 'PITCH_DELETION_CANCELLED'
+    | 'SUPPORT_REPLY';
 
   @Column({ nullable: true })
   title: string;

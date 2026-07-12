@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, MapPin, Lock, LogOut, ChevronRight, CreditCard, Settings, MessageSquareText, UserCog } from 'lucide-react';
+import { Building2, MapPin, Lock, LogOut, ChevronRight, CreditCard, Settings, MessageSquareText, UserCog, LifeBuoy } from 'lucide-react';
 import { BusinessNavbar } from '../../../components/Business/BusinessNavbar';
 import { ConfirmModal } from '../../../components/Modals/ConfirmModal';
 import { CorporateGridBackground } from '../../../components/UI/CorporateGridBackground';
@@ -82,6 +82,17 @@ export const BusinessSettingsHub: React.FC = () => {
             iconGradient: 'from-emerald-500/20 to-emerald-600/10',
             iconBorder: 'border-emerald-500/30',
             chevronColor: 'text-emerald-500/60',
+        },
+        {
+            title: 'Destek',
+            description: 'Sorun bildir, taleplerini takip et',
+            icon: LifeBuoy,
+            path: '/business/settings/support',
+            color: 'text-rose-400',
+            borderColor: 'border-rose-500/30',
+            iconGradient: 'from-rose-500/20 to-rose-600/10',
+            iconBorder: 'border-rose-500/30',
+            chevronColor: 'text-rose-500/60',
         }
     ];
 

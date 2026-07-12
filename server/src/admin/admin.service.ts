@@ -1,5 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { ReportStatus } from '../user-reports/user-report.entity';
+import {
+  SupportAudience,
+  SupportTicketStatus,
+} from '../support-tickets/support-ticket.entity';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { AdminAuthService } from './services/admin-auth.service';
 import { AdminBusinessService } from './services/admin-business.service';
@@ -7,6 +11,7 @@ import { AdminPitchReviewService } from './services/admin-pitch-review.service';
 import { AdminModerationService } from './services/admin-moderation.service';
 import { AdminStatisticsService } from './services/admin-statistics.service';
 import { AdminSubscriptionService } from './services/admin-subscription.service';
+import { AdminSupportService } from './services/admin-support.service';
 
 /**
  * Admin facade — genel admin API'sini korur ama mantık cohesive alt-servislere
@@ -23,6 +28,7 @@ export class AdminService {
     private readonly moderationService: AdminModerationService,
     private readonly statisticsService: AdminStatisticsService,
     private readonly subscriptionService: AdminSubscriptionService,
+    private readonly supportService: AdminSupportService,
   ) {}
 
   // ─── Auth ─────────────────────────────────────────────────────────────────
@@ -140,6 +146,28 @@ export class AdminService {
 
   chatUnbanUser(userId: string) {
     return this.moderationService.chatUnbanUser(userId);
+  }
+
+  // ─── Support Tickets ────────────────────────────────────────────────────────
+
+  getSupportTickets(
+    audience: SupportAudience | undefined,
+    status: SupportTicketStatus | undefined,
+    p: PaginationQueryDto,
+  ) {
+    return this.supportService.getSupportTickets(audience, status, p);
+  }
+
+  replyToSupportTicket(id: string, reply: string) {
+    return this.supportService.replyToTicket(id, reply);
+  }
+
+  markSupportTicketReviewed(id: string) {
+    return this.supportService.markReviewed(id);
+  }
+
+  getSupportPendingCount() {
+    return this.supportService.getPendingCount();
   }
 
   // ─── Maintenance ────────────────────────────────────────────────────────────

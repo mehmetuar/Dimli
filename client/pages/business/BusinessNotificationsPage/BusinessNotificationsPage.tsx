@@ -83,6 +83,10 @@ export const BusinessNotificationsPage: React.FC = () => {
             setSelectedRR(notif);
             return;
         }
+        if (notif.type === 'SUPPORT_REPLY') {
+            navigate('/business/settings/support');
+            return;
+        }
         if (notif.metadata?.date) {
             navigate('/business/dashboard', { state: { selectedDate: notif.metadata.date } });
         }

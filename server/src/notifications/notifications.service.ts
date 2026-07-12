@@ -242,6 +242,7 @@ export class NotificationsService {
       'BUSINESS_CLOSED',
       'PITCH_REMOVED',
       'PITCH_SCHEDULED_OFFLINE',
+      'SUPPORT_REPLY',
     ]);
     const isUserPush =
       saved.userId &&
@@ -278,6 +279,7 @@ export class NotificationsService {
       'PITCH_DELETION_REMINDER',
       'PITCH_DELETED',
       'PITCH_DELETION_CANCELLED',
+      'SUPPORT_REPLY',
     ]);
     if (
       businessPushTypes.has(saved.type) &&

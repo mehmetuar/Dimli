@@ -30,6 +30,10 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({
         if (notif.type === 'JOIN_REQUEST') { onTabNavigate('JOIN_REQUESTS'); return; }
         if (notif.type === 'CHALLENGE') { onTabNavigate('MATCH_REQUESTS'); return; }
         if (notif.type === 'JOKER_INVITE') { onTabNavigate('MATCH_REQUESTS'); return; }
+        if (notif.type === 'SYSTEM' && notif.metadata?.type === 'SUPPORT_REPLY') {
+            navigate('/settings/support');
+            return;
+        }
         if (notif.metadata?.isChatRedirect && !chatIsExpired) {
             navigate('/chat', { state: { channelId: notif.metadata.channelId } });
         }
@@ -39,6 +43,7 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({
         notif.type === 'JOIN_REQUEST' ||
         notif.type === 'CHALLENGE' ||
         notif.type === 'JOKER_INVITE' ||
+        (notif.type === 'SYSTEM' && notif.metadata?.type === 'SUPPORT_REPLY') ||
         (!!notif.metadata?.isChatRedirect && !chatIsExpired);
 
     const getBorderClass = (type: string, metaType?: string) => {

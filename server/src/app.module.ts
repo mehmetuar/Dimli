@@ -24,6 +24,7 @@ import { PitchChangeRequestsModule } from './pitch-change-requests/pitch-change-
 import { GatewayModule } from './gateway/gateway.module';
 import { UserBlocksModule } from './user-blocks/user-blocks.module';
 import { UserReportsModule } from './user-reports/user-reports.module';
+import { SupportTicketsModule } from './support-tickets/support-tickets.module';
 import { FacilitiesModule } from './facilities/facilities.module';
 import { PresetNotesModule } from './preset-notes/preset-notes.module';
 
@@ -91,6 +92,7 @@ import { PresetNotesModule } from './preset-notes/preset-notes.module';
     GatewayModule,
     UserBlocksModule,
     UserReportsModule,
+    SupportTicketsModule,
     FacilitiesModule,
     PresetNotesModule,
   ],
