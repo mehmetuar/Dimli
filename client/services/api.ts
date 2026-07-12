@@ -16,6 +16,13 @@ const verifyAxios = axios.create({
 
 api.interceptors.request.use(
     (config) => {
+        // Emniyet kemeri (tanıtım turu): demo varlıklar ('demo-' id'li sahte
+        // işletme/saha/takım) SUNUCUYA ASLA GİTMEZ. Gözden kaçan bir guard olsa
+        // bile istek burada kesilir — gerçek rezervasyon/ilan riski sıfır.
+        if (config.url && config.url.includes('demo-')) {
+            console.warn('[tour] Demo varlık isteği engellendi:', config.url);
+            return Promise.reject(new Error(`DEMO_BLOCKED: ${config.url}`));
+        }
         const token = getToken();
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;

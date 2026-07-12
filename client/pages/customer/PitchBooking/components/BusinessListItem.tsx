@@ -25,13 +25,15 @@ interface BusinessListItemProps {
     handleDeleteAdClick: (adId: string) => void;
     handleCancelClick: (challengeId: string) => void;
     distanceKm?: number;
+    /** Tanıtım turu demo işletmesi — "Tanıtım" pili + tur hedef işaretleri */
+    isDemo?: boolean;
 }
 
 export const BusinessListItem = React.memo<BusinessListItemProps>(({
     business, isExpanded, setExpandedBusinessId, selectedPitchIdInBusiness, setSelectedPitchIdInBusiness,
     selectedDate, pitchAnnouncements, reservations, isAuthorized, currentUser, myChallenges,
     openSlotDetail, handleCreateAd, handleUnauthorizedSlotClick, setViewingTeam, setOfferMode,
-    handleDeleteAdClick, handleCancelClick, distanceKm
+    handleDeleteAdClick, handleCancelClick, distanceKm, isDemo
 }) => {
     const selectedPitchId = selectedPitchIdInBusiness[business.id];
     const selectedPitch = business.pitches?.find(p => p.id === selectedPitchId);
@@ -51,7 +53,10 @@ export const BusinessListItem = React.memo<BusinessListItemProps>(({
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     return (
-        <div className={`bg-slate-800 rounded-3xl overflow-hidden border transition-all duration-300 ${isExpanded ? 'border-turf-500 shadow-neon' : 'border-slate-700 shadow-lg'}`}>
+        <div
+            data-tour-id={isDemo ? 'demo-business-card' : undefined}
+            className={`bg-slate-800 rounded-3xl overflow-hidden border transition-all duration-300 ${isExpanded ? 'border-turf-500 shadow-neon' : 'border-slate-700 shadow-lg'}`}
+        >
             {/* Business Card Header */}
             <div
                 className="aspect-video relative cursor-pointer group"
@@ -71,6 +76,13 @@ export const BusinessListItem = React.memo<BusinessListItemProps>(({
                     <div className="absolute top-4 left-4 bg-slate-900/80 backdrop-blur px-3 py-1.5 rounded-lg border border-slate-700/50 shadow-lg">
                         <span className="text-turf-400 font-sport font-bold text-xl tracking-wide">₺{displayPitch.pricePerHour}</span>
                         <span className="text-slate-400 text-xs font-bold ml-1">/ Saat</span>
+                    </div>
+                )}
+
+                {/* Demo işletme: ince "Tanıtım" işareti — gerçek saha sanılmasın */}
+                {isDemo && (
+                    <div className="absolute top-[3.9rem] left-4 bg-sky-950/80 backdrop-blur px-2.5 py-1 rounded-lg border border-sky-500/40 shadow-lg">
+                        <span className="text-sky-300 text-[10px] font-bold uppercase tracking-widest">Tanıtım</span>
                     </div>
                 )}
 
@@ -133,7 +145,7 @@ export const BusinessListItem = React.memo<BusinessListItemProps>(({
 
                     {/* PITCH TABS */}
                     {business.pitches && business.pitches.length > 1 && (
-                        <div className="flex gap-2 overflow-x-auto mb-6 pb-2 scrollbar-hide border-b border-slate-700">
+                        <div className="flex gap-2 overflow-x-auto mb-6 pb-2 scrollbar-hide border-b border-slate-700" data-tour-id={isDemo ? 'demo-pitch-tabs' : undefined}>
                             {business.pitches.map(pitch => (
                                 <button
                                     key={pitch.id}
@@ -160,9 +172,10 @@ export const BusinessListItem = React.memo<BusinessListItemProps>(({
                                 openSlotDetail={openSlotDetail}
                                 handleCreateAd={handleCreateAd}
                                 handleUnauthorizedSlotClick={handleUnauthorizedSlotClick}
+                                isDemo={isDemo}
                             />
 
-                            <div className="mb-6">
+                            <div className="mb-6" data-tour-id={isDemo ? 'demo-facilities' : undefined}>
                                 <h4 className="text-white font-bold text-sm mb-3 flex items-center gap-2">
                                     <Trophy className="w-4 h-4 text-yellow-500" /> İMKANLAR
                                 </h4>
@@ -175,6 +188,7 @@ export const BusinessListItem = React.memo<BusinessListItemProps>(({
                                 </div>
                             </div>
 
+                            <div data-tour-id={isDemo ? 'demo-active-matches' : undefined}>
                             <ActiveMatchesList
                                 activeMatches={activeMatches}
                                 currentUser={currentUser}
@@ -189,6 +203,7 @@ export const BusinessListItem = React.memo<BusinessListItemProps>(({
                                 isPitchClosed={isSelectedPitchClosed}
                                 closedMessage={selectedPitchClosedMsg}
                             />
+                            </div>
                         </>
                     ) : (
                         <div className="text-center text-slate-500 p-4">Lütfen bir saha seçin.</div>

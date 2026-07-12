@@ -24,6 +24,9 @@ import { fetchCurrentUser } from './services/currentUserStore';
 import { useKeyboardScroll } from './utils/useKeyboardScroll';
 import { savePendingInvite, getPendingInvite, clearPendingInvite } from './services/pendingInvite';
 import { BusinessInviteNoticeModal } from './components/Modals/BusinessInviteNoticeModal';
+import { TourHost } from './components/Tour/TourHost';
+import { initTourFlags } from './services/tourStorage';
+import { isTourActive, requestTourSkipConfirm, useAnyTourActive } from './services/tourStore';
 
 // ── Lazy page imports (code splitting — reduces initial bundle from ~1.17MB → ~200KB) ──
 const Marketplace = lazy(() => import('./pages/customer/Marketplace/Marketplace').then(m => ({ default: m.Marketplace })));
@@ -112,6 +115,13 @@ function AppContent() {
   const [pendingRatings, setPendingRatings] = useState<PendingRating[]>([]);
   const [businessInviteNotice, setBusinessInviteNotice] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  // Tur sırasında RatingModal ertelenir (turun sahte ekranlarını bölmesin)
+  const anyTourActive = useAnyTourActive();
+
+  // Tanıtım turu bayraklarını yükle (Preferences → memCache; senkron okuma için)
+  useEffect(() => {
+    void initTourFlags();
+  }, []);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0 });
@@ -135,6 +145,11 @@ function AppContent() {
     if (!Capacitor.isNativePlatform()) return;
 
     const listenerPromise = CapApp.addListener('backButton', () => {
+      // Tanıtım turu açıkken geri tuşu = Atla onayı (overlay altında navigasyon olmaz)
+      if (isTourActive()) {
+        requestTourSkipConfirm();
+        return;
+      }
       const hash = window.location.hash;
       // '#/pitches' yalnız İLK history girişiyse root'tur (soğuk açılış inişi → geri=çıkış);
       // Maç Pazarı → Sahalar gezinmesinde geri tuşu Maç Pazarı'na döner.
@@ -403,7 +418,7 @@ function AppContent() {
           </Routes>
         </Suspense>
       </div>
-      {pendingRatings.length > 0 && (
+      {pendingRatings.length > 0 && !anyTourActive && (
         <RatingModal
           key={pendingRatings[0].reservationId}
           pending={pendingRatings[0]}
@@ -412,6 +427,7 @@ function AppContent() {
         />
       )}
       {!isAuthPage && <Navbar />}
+      <TourHost />
       <OfflineBanner />
       {businessInviteNotice && (
         <BusinessInviteNoticeModal

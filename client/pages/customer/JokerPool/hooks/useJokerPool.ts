@@ -7,6 +7,8 @@ import { seedCurrentUser } from '../../../../services/currentUserStore';
 import { readListCache, writeListCache, JOKERS_CACHE_KEY } from '../../../../utils/listCache';
 import { isNetworkError } from '../../../../utils/apiError';
 import { useOnReconnect } from '../../../../hooks/useOnReconnect';
+import { useTourActive, registerTourCleanup } from '../../../../services/tourStore';
+import { DEMO_JOKER } from '../../PitchBooking/demo/demoTourData';
 
 const PAGE_SIZE = 20;
 const POSITION_KEYS = ['kaleci', 'orta_saha', 'forvet', 'defans'];
@@ -130,7 +132,7 @@ export const useJokerPool = () => {
     // anındaki DB satırı bayat olabilir (PATCH-vs-fetch yarışı); diğer kullanıcılar için
     // saklanan kolon doğru kaynaktır (kendi cihazlarının son PATCH'i).
     const liveOwnLocation = locationName || currentUser?.location || null;
-    const visibleJokers = currentUser
+    const baseVisibleJokers = currentUser
         ? [
             ...jokers
                 .filter(j => j.id === currentUser.id)
@@ -138,6 +140,22 @@ export const useJokerPool = () => {
             ...jokers.filter(j => j.id !== currentUser.id),
           ]
         : [...jokers];
+
+    // Tanıtım turu: "Oyuncu 1" demo joker RENDER'DA türetilerek başa eklenir —
+    // jokers state'i ve writeListCache demo'yu hiç görmez (demo işletme deseni).
+    // Index-0 sarmalayıcı JokerPool'da 'joker-first-card' tur hedefini zaten taşıyor.
+    const jokersTourActive = useTourActive('jokers');
+    const visibleJokers = jokersTourActive ? [DEMO_JOKER, ...baseVisibleJokers] : baseVisibleJokers;
+
+    // Tur biterken/atlanırken açık kalan detay/davet modallarını temizle.
+    useEffect(() => {
+        if (!jokersTourActive) return;
+        const unregister = registerTourCleanup(() => {
+            setSelectedJoker(null);
+            setIsInviteModalOpen(false);
+        });
+        return unregister;
+    }, [jokersTourActive]);
 
     const handleSaveProfile = async (data: any) => {
         try {

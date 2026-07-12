@@ -9,6 +9,8 @@ import { useRegister } from './hooks/useRegister';
 import { AuthWizardLayout } from '../../../components/Layout/AuthWizardLayout';
 import { CUSTOMER_HOME } from '../../../constants/routes';
 import { CelebrationScreen } from '../../../components/UI/CelebrationScreen';
+import { startTour } from '../../../services/tourStore';
+import { markTourPending } from '../../../services/tourStorage';
 import { LottiePlayer } from '../../../components/UI/LottiePlayer';
 import { UsernameStep } from './components/steps/UsernameStep';
 import { PasswordStep } from './components/steps/PasswordStep';
@@ -185,7 +187,16 @@ export const Register: React.FC = () => {
                 title={`HOŞ GELDİN ${(formData.full_name.trim() || formData.username).toLocaleUpperCase('tr')}!`}
                 subtitle="Hesabın hazır. İyi maçlar!"
                 buttonLabel="BAŞLA"
-                onDone={() => navigate(CUSTOMER_HOME, { replace: true })}
+                onDone={() => {
+                    // Tanıtım turu SADECE yeni kayıtta otomatik başlar (kullanıcı kararı):
+                    // Sahalar turu hemen; Joker/Takım turları ilgili sayfaya ilk girişte
+                    // (pending bayrağı — Takım turu normalde Sahalar turundan zincirlenir,
+                    // pending yalnız tur atlanırsa devreye giren sigortadır).
+                    void markTourPending('jokers');
+                    void markTourPending('team');
+                    startTour('pitches');
+                    navigate(CUSTOMER_HOME, { replace: true });
+                }}
             />
         </>
     );

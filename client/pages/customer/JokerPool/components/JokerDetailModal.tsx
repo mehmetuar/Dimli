@@ -106,6 +106,7 @@ export const JokerDetailModal: React.FC<JokerDetailModalProps> = ({
                         {!isMe && (
                             <div className="flex gap-2">
                                 <button
+                                    data-tour-id="joker-invite-btn"
                                     onClick={() => setIsInviteModalOpen(true)}
                                     className="w-full bg-gradient-to-r from-turf-600 to-green-500 text-white font-black text-lg uppercase italic py-3 rounded-xl hover:scale-[1.02] transition-transform shadow-lg shadow-turf-500/30 flex items-center justify-center gap-2"
                                 >

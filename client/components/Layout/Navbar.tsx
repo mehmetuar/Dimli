@@ -156,7 +156,7 @@ export const Navbar: React.FC = () => {
           </NavLink>
 
           {isLoggedIn ? (
-            <NavLink to="/team" className={navClass}>
+            <NavLink to="/team" className={navClass} data-tour-id="nav-team">
               {({ isActive }) => (
                 <>
                   <User className={`w-6 h-6 mb-0.5 ${isActive ? 'stroke-[3px]' : ''}`} />

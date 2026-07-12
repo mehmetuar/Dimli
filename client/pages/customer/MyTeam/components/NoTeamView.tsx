@@ -22,6 +22,7 @@ export const NoTeamView: React.FC<NoTeamViewProps> = ({
                     Takım Bul
                 </button>
                 <button
+                    data-tour-id="team-create-btn"
                     onClick={() => setIsCreateTeamModalOpen(true)}
                     className="px-6 py-3 bg-turf-600 text-white font-bold rounded-xl hover:bg-turf-500 transition-colors shadow-lg shadow-turf-600/20"
                 >

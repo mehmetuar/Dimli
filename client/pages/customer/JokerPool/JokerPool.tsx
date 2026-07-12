@@ -13,6 +13,8 @@ import { useJokerPool } from './hooks/useJokerPool';
 import { JokerLocationFilter } from './components/JokerLocationFilter';
 import { JokerCard } from './components/JokerCard';
 import { JokerDetailModal } from './components/JokerDetailModal';
+import { startTour, isTourActive } from '../../../services/tourStore';
+import { isTourDone } from '../../../services/tourStorage';
 
 const HEADER_FADE_PX = 140;
 const PULL_THRESHOLD = 70;
@@ -52,6 +54,12 @@ export const JokerPool: React.FC = () => {
          document.documentElement.style.removeProperty('--header-opacity');
          document.documentElement.style.removeProperty('--header-pointer-events');
       };
+   }, []);
+
+   // Joker turu: yalnız kayıt akışının 'pending' işaretlediği kullanıcıda, sayfaya
+   // İLK girişte bir kez (başka bir tur açıksa asla üstüne binmez).
+   useEffect(() => {
+      if (!isTourActive() && !isTourDone('jokers')) startTour('jokers');
    }, []);
 
    const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
@@ -193,6 +201,7 @@ export const JokerPool: React.FC = () => {
                   </p>
                </div>
                <button
+                  data-tour-id="joker-profile-btn"
                   onClick={() => setIsProfileModalOpen(true)}
                   className={`flex-shrink-0 mt-1 border text-white rounded-xl font-bold transition-colors px-[clamp(8px,2.8vw,12px)] py-2 text-[clamp(10px,3.1vw,12px)] whitespace-nowrap ${
                      currentUser?.isJoker
@@ -238,13 +247,15 @@ export const JokerPool: React.FC = () => {
                      <div className="flex flex-col gap-4">
                         {/* Koşulsuz tek kolon: her kart tam satır — hiçbir ekran boyutunda
                             yan yana sıkışma/kırpılma olamaz (mobil ilke: her cihazda aynı görüntü). */}
-                        {visibleJokers.map((player) => (
-                           <JokerCard
-                              key={player.id}
-                              player={player}
-                              currentUser={currentUser}
-                              onClick={() => setSelectedJoker(player)}
-                           />
+                        {visibleJokers.map((player, i) => (
+                           // İlk kart tanıtım turunun spotlight hedefi (joker-first-card)
+                           <div key={player.id} data-tour-id={i === 0 ? 'joker-first-card' : undefined}>
+                              <JokerCard
+                                 player={player}
+                                 currentUser={currentUser}
+                                 onClick={() => setSelectedJoker(player)}
+                              />
+                           </div>
                         ))}
                         {visibleJokers.length === 0 && (
                            // Ağ hatasıyla boş kalan liste ≠ "yakında joker yok" — sebep + retry.

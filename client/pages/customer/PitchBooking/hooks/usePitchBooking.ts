@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import api from '../../../../services/api';
 import { getBusinessesPaged } from '../../../../services/api';
 import { getErrorMessage, isNetworkError } from '../../../../utils/apiError';
@@ -9,6 +9,8 @@ import { useFilterContext } from '../../../../contexts/FilterContext';
 import { useCurrentUser } from '../../../../hooks/useCurrentUser';
 import { readListCache, writeListCache, BUSINESSES_CACHE_KEY } from '../../../../utils/listCache';
 import { useOnReconnect } from '../../../../hooks/useOnReconnect';
+import { useTourActive, registerTourCleanup } from '../../../../services/tourStore';
+import { DEMO_BUSINESS, isDemoId, getDemoReservations, getDemoAnnouncements } from '../demo/demoTourData';
 
 export const usePitchBooking = () => {
     const { coords, radius, setRadius, requestLocation } = useLocationContext();
@@ -91,6 +93,21 @@ export const usePitchBooking = () => {
     // Ortak store — sayfa başına ayrı GET /users/me atılmaz
     const { currentUser } = useCurrentUser();
     const [pitchAnnouncements, setPitchAnnouncements] = useState<any[]>([]);
+
+    // Tanıtım turu: demo işletme RENDER'DA türetilerek başa eklenir — businesses
+    // state'i ve writeListCache demo'yu hiç görmez (cache kirlenmesi yapısal olarak
+    // imkânsız). Tur bitince liste kendiliğinden normale döner.
+    const pitchesTourActive = useTourActive('pitches');
+
+    // Tur biterken/atlanırken sayfayı temiz bırak: açık modal + akordeon kapanır.
+    useEffect(() => {
+        if (!pitchesTourActive) return;
+        const unregister = registerTourCleanup(() => {
+            setIsCreateModalOpen(false);
+            setExpandedBusinessId(null);
+        });
+        return unregister;
+    }, [pitchesTourActive]);
 
     // Computed location filter (for UI components that expect LocationFilter shape)
     const locationFilter: LocationFilter = { type: 'NEARBY', radius, coords: coords ?? undefined };
@@ -184,6 +201,12 @@ export const usePitchBooking = () => {
     useEffect(() => {
         if (expandedBusinessId && selectedPitchIdInBusiness[expandedBusinessId]) {
             const pitchId = selectedPitchIdInBusiness[expandedBusinessId];
+            // Demo saha (tanıtım turu): sunucuya gidilmez — 21:00 RAKİP ARANIYOR
+            // örneği sahte ilanla beslenir (renklerin anlamı gerçek örnekle görünsün)
+            if (isDemoId(pitchId)) {
+                setPitchAnnouncements(getDemoAnnouncements(selectedDate));
+                return;
+            }
             const fetchAnnouncements = async () => {
                 try {
                     const response = await api.get(`/match-announcements/pitch/${pitchId}`);
@@ -202,6 +225,12 @@ export const usePitchBooking = () => {
     const refetchReservations = useCallback(async () => {
         if (expandedBusinessId && selectedPitchIdInBusiness[expandedBusinessId]) {
             const pitchId = selectedPitchIdInBusiness[expandedBusinessId];
+            // Demo saha (tanıtım turu): sunucuya gidilmez — 18:00 DOLU + 19:00
+            // ONAY BEKLİYOR sahte rezervasyonlarla beslenir; 20:00 (tur hedefi) BOŞ
+            if (isDemoId(pitchId)) {
+                setReservations(getDemoReservations(selectedDate));
+                return;
+            }
             try {
                 const response = await api.get(`/reservations/pitch/${pitchId}?date=${selectedDate}`);
                 setReservations(response.data);
@@ -218,9 +247,18 @@ export const usePitchBooking = () => {
         refetchReservations();
     }, [refetchReservations]);
 
+    // Sıralama artık sunucuda (sortBy değişince doFetch reset). İstemci sunucu sırasını
+    // korur — sayfalar sunucu sırasında eklenir, ekstra JS sort yok.
+    // Tur aktifken demo işletme başa eklenir (render-türetilmiş — state'e girmez).
+    const filteredBusinesses = useMemo(
+        () => (pitchesTourActive ? [DEMO_BUSINESS, ...businesses] : businesses),
+        [pitchesTourActive, businesses]
+    );
+
     useEffect(() => {
         if (expandedBusinessId) {
-            const business = businesses.find(b => b.id === expandedBusinessId);
+            // filteredBusinesses üzerinden ara: demo işletme businesses state'inde yok
+            const business = filteredBusinesses.find(b => b.id === expandedBusinessId);
             if (business?.pitches?.length && !selectedPitchIdInBusiness[expandedBusinessId]) {
                 setSelectedPitchIdInBusiness(prev => ({
                     ...prev,
@@ -228,16 +266,12 @@ export const usePitchBooking = () => {
                 }));
             }
         }
-    }, [expandedBusinessId, businesses, selectedPitchIdInBusiness]);
+    }, [expandedBusinessId, filteredBusinesses, selectedPitchIdInBusiness]);
 
     // Delegate filter change to global context
     const applyLocationFilter = (filter: LocationFilter) => {
         if (filter.radius) setRadius(filter.radius);
     };
-
-    // Sıralama artık sunucuda (sortBy değişince doFetch reset). İstemci sunucu sırasını
-    // korur — sayfalar sunucu sırasında eklenir, ekstra JS sort yok.
-    const filteredBusinesses = businesses;
 
     const handleSendOffer = async (note: string) => {
         if (!currentUser?.team || !offerMode) return;
@@ -356,5 +390,6 @@ export const usePitchBooking = () => {
         requestLocation,
         slotWarning, setSlotWarning,
         refetchReservations,
+        pitchesTourActive,
     };
 };

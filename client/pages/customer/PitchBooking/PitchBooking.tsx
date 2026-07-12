@@ -18,10 +18,16 @@ import { NeedTeamRoleModal } from './components/NeedTeamRoleModal';
 import { LocationFilterModal } from '../../../components/Modals/LocationFilterModal';
 import { SlotDetailModal } from './components/SlotDetailModal';
 import { SortModal } from '../../../components/Modals/SortModal';
+import { DEMO_BUSINESS_ID } from './demo/demoTourData';
 
 // Başlık bu kadar px içinde kademeli soluklaşır — yavaş ve doğal his
 const HEADER_FADE_PX = 140;
 const PULL_THRESHOLD = 70;
+
+// Tanıtım turu aktifken konum kapısı atlanır: konum izni vermemiş yepyeni
+// kullanıcı da demo işletme kartını görebilmeli (tur bitince kapı geri gelir).
+const MaybeLocationGate: React.FC<{ bypass: boolean; children: React.ReactNode }> = ({ bypass, children }) =>
+   bypass ? <>{children}</> : <LocationAccessGate contentLabel="sahaları">{children}</LocationAccessGate>;
 
 export const PitchBooking: React.FC = () => {
    const {
@@ -51,6 +57,7 @@ export const PitchBooking: React.FC = () => {
       loadMoreBusinesses, refreshBusinesses,
       slotWarning, setSlotWarning,
       refetchReservations,
+      pitchesTourActive,
    } = usePitchBooking();
 
    const scrollRef = useRef<HTMLDivElement>(null);
@@ -264,7 +271,7 @@ export const PitchBooking: React.FC = () => {
             </div>
 
             {/* Filtre — sticky, her zaman görünür */}
-            <div className="sticky top-0 px-4 pb-3 pt-1" style={{ backgroundColor: '#0f172a', borderBottom: '1px solid rgba(255,255,255,0.06)', zIndex: 40, willChange: 'transform' }}>
+            <div className="sticky top-0 px-4 pb-3 pt-1" data-tour-id="pitch-filters" style={{ backgroundColor: '#0f172a', borderBottom: '1px solid rgba(255,255,255,0.06)', zIndex: 40, willChange: 'transform' }}>
                <FilterBar
                   locationFilter={locationFilter}
                   selectedDate={selectedDate}
@@ -283,7 +290,7 @@ export const PitchBooking: React.FC = () => {
 
             {/* İçerik */}
             <div className="px-4 space-y-6 pb-4" style={{ minHeight: 'calc(100% + 1px)' }}>
-               <LocationAccessGate contentLabel="sahaları">
+               <MaybeLocationGate bypass={pitchesTourActive}>
                   {filteredBusinesses.length === 0 && isLoadingBusinesses ? (
                      <div className="flex flex-col items-center justify-center py-16 text-slate-400">
                         <LoadingSpinner />
@@ -339,6 +346,7 @@ export const PitchBooking: React.FC = () => {
                            <BusinessListItem
                               key={business.id}
                               business={business}
+                              isDemo={pitchesTourActive && business.id === DEMO_BUSINESS_ID}
                               isExpanded={expandedBusinessId === business.id}
                               setExpandedBusinessId={setExpandedBusinessId}
                               selectedPitchIdInBusiness={selectedPitchIdInBusiness}
@@ -346,7 +354,7 @@ export const PitchBooking: React.FC = () => {
                               selectedDate={selectedDate}
                               pitchAnnouncements={pitchAnnouncements}
                               reservations={reservations}
-                              isAuthorized={isAuthorized()}
+                              isAuthorized={isAuthorized() || (pitchesTourActive && business.id === DEMO_BUSINESS_ID)}
                               currentUser={currentUser}
                               myChallenges={myChallenges}
                               openSlotDetail={openSlotDetail}
@@ -367,7 +375,7 @@ export const PitchBooking: React.FC = () => {
                         )}
                      </>
                   )}
-               </LocationAccessGate>
+               </MaybeLocationGate>
             </div>
          </div>
       </div>

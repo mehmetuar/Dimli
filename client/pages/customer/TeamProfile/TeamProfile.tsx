@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { UserProfile } from '../UserProfile/UserProfile';
 import { MyTeam } from '../MyTeam/MyTeam';
+import { startTour, isTourActive } from '../../../services/tourStore';
+import { isTourDone } from '../../../services/tourStorage';
 
 export const TeamProfile: React.FC = () => {
     const location = useLocation();
@@ -17,6 +19,13 @@ export const TeamProfile: React.FC = () => {
         return hasTeamModal ? 'TEAM' : 'PLAYER';
     });
 
+    // Takım turu: yalnız kayıt akışının 'pending' işaretlediği kullanıcıda, sayfaya
+    // İLK girişte bir kez. Sahalar turundan ZİNCİRLEME gelindiyse tur zaten aktif —
+    // isTourActive() guard'ı üst üste başlatmayı engeller.
+    useEffect(() => {
+        if (!isTourActive() && !isTourDone('team')) startTour('team');
+    }, []);
+
     return (
         <div
             className="fixed inset-0 bg-pitch flex flex-col overflow-hidden"
@@ -27,7 +36,7 @@ export const TeamProfile: React.FC = () => {
                 WebkitOverflowScrolling scroll konteyneri fixed modalları hapsediyor) — böylece
                 modal backdrop'u bu barı da örter; bar arkada doğal karartılmış görünür. */}
             <div className="team-profile-tabs flex-shrink-0 px-4 pt-2 pb-3">
-                <div className="flex p-1 bg-slate-800 rounded-xl border border-slate-700 shadow-lg max-w-3xl mx-auto">
+                <div className="flex p-1 bg-slate-800 rounded-xl border border-slate-700 shadow-lg max-w-3xl mx-auto" data-tour-id="team-tabs">
                     <button
                         onClick={() => setActiveTab('PLAYER')}
                         className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all ${activeTab === 'PLAYER' ? 'bg-turf-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
@@ -35,6 +44,7 @@ export const TeamProfile: React.FC = () => {
                         PROFİLİM
                     </button>
                     <button
+                        data-tour-id="team-tab-takimim"
                         onClick={() => setActiveTab('TEAM')}
                         className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all ${activeTab === 'TEAM' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
                     >

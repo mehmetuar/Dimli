@@ -14,11 +14,13 @@ interface PitchScheduleProps {
     openSlotDetail: (slotTime: string, slotEndTime: string, resList: any[], announcements: any[], approvedReservation?: any) => void;
     handleCreateAd: (pitchId: string, startTime: string) => void;
     handleUnauthorizedSlotClick: () => void;
+    /** Tanıtım turu demo sahası: GEÇTİ yok, Ara/Yol Tarifi salt görünüm, tur hedef işaretleri */
+    isDemo?: boolean;
 }
 
 export const PitchSchedule: React.FC<PitchScheduleProps> = ({
     business, selectedPitch, selectedDate, pitchAnnouncements, reservations,
-    isAuthorized, openSlotDetail, handleCreateAd, handleUnauthorizedSlotClick
+    isAuthorized, openSlotDetail, handleCreateAd, handleUnauthorizedSlotClick, isDemo
 }) => {
     const [showDirectionsModal, setShowDirectionsModal] = useState(false);
 
@@ -62,20 +64,29 @@ export const PitchSchedule: React.FC<PitchScheduleProps> = ({
                 <div className="flex items-center gap-1.5 shrink-0">
                     {(business.latitude && business.longitude) && (
                         <button
-                            onClick={() => setShowDirectionsModal(true)}
+                            // Demo saha: buton görünür ama etkisiz (salt tanıtım)
+                            onClick={() => { if (!isDemo) setShowDirectionsModal(true); }}
                             className="bg-slate-700 hover:bg-slate-600 text-white px-2.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1 transition-all shadow-lg"
                         >
                             <Navigation className="w-3.5 h-3.5 text-turf-400 shrink-0" />
                             <span>Yol Tarifi</span>
                         </button>
                     )}
-                    <a
-                        href={`tel:${business.ownerPhone || ''}`}
-                        className="bg-turf-600 hover:bg-turf-500 text-white px-2.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1 transition-all shadow-lg shadow-turf-600/20"
-                    >
-                        <Phone className="w-3.5 h-3.5 shrink-0" />
-                        <span>Ara</span>
-                    </a>
+                    {isDemo ? (
+                        // Demo saha: tel: bağlantısı yerine etkisiz buton — arama açılmaz
+                        <button className="bg-turf-600 text-white px-2.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1 transition-all shadow-lg shadow-turf-600/20">
+                            <Phone className="w-3.5 h-3.5 shrink-0" />
+                            <span>Ara</span>
+                        </button>
+                    ) : (
+                        <a
+                            href={`tel:${business.ownerPhone || ''}`}
+                            className="bg-turf-600 hover:bg-turf-500 text-white px-2.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1 transition-all shadow-lg shadow-turf-600/20"
+                        >
+                            <Phone className="w-3.5 h-3.5 shrink-0" />
+                            <span>Ara</span>
+                        </a>
+                    )}
                 </div>
             </div>
 
@@ -112,9 +123,10 @@ export const PitchSchedule: React.FC<PitchScheduleProps> = ({
                 </div>
             )}
 
-            {!isPitchClosed && <div className="grid grid-cols-3 gap-2">
+            {!isPitchClosed && <div className="grid grid-cols-3 gap-2" data-tour-id={isDemo ? 'demo-slot-grid' : undefined}>
                 {generateSlots(selectedPitch, business).map((slot: any, slotIdx: number) => {
-                    const isPast = isPastSlot(slot.startTime, selectedDate);
+                    // Demo saha: hiçbir slot GEÇTİ olmaz — 20:00 turu gece de çalışır
+                    const isPast = !isDemo && isPastSlot(slot.startTime, selectedDate);
 
                     if (isPast) {
                         return (
@@ -209,6 +221,7 @@ export const PitchSchedule: React.FC<PitchScheduleProps> = ({
                     return (
                         <div
                             key={slotIdx}
+                            data-tour-id={isDemo && slot.startTime === '20:00' ? 'demo-slot-2000' : undefined}
                             onClick={(e) => {
                                 e.stopPropagation();
                                 if (action) action();

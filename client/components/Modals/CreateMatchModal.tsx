@@ -17,6 +17,8 @@ import { DateSelectionModal } from './DateSelectionModal';
 import { TimeSelectionModal } from './TimeSelectionModal';
 import { useModalBodyClass } from '../../utils/useModalBodyClass';
 import { teamLogoSrc, teamInitialsAvatar } from '../../utils/teamColors';
+import { emitTourEvent, setDemoPhase } from '../../services/tourStore';
+import { DEMO_BUSINESS, DEMO_TEAM, isDemoId } from '../../pages/customer/PitchBooking/demo/demoTourData';
 
 interface Props {
     isOpen: boolean;
@@ -43,6 +45,9 @@ const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelected
     const { coords, radius } = useLocationContext();
     const navigate = useNavigate();
     const keyboardHeight = useKeyboardHeight();
+    // Tanıtım turu demo sahası: form gerçek gibi çalışır ama SUNUCUYA HİÇ GİDİLMEZ
+    // (kullanıcı/işletme/rezervasyon istekleri atlanır, submit sahte sohbete geçer).
+    const isDemo = isDemoId(preSelectedPitchId);
     const [businesses, setBusinesses] = useState<Business[]>([]);
 
     // Selection state
@@ -71,7 +76,8 @@ const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelected
     const [bookedTimes, setBookedTimes] = useState<string[]>([]);
     const [isDateModalOpen, setIsDateModalOpen] = useState(false);
     const [isTimeModalOpen, setIsTimeModalOpen] = useState(false);
-    const [matchType, setMatchType] = useState<'rakip_araniyor' | 'kendi_aramizda'>('rakip_araniyor');
+    // Demo turda "Kendi Aramızda" akışı anlatılır — varsayılan o başlar
+    const [matchType, setMatchType] = useState<'rakip_araniyor' | 'kendi_aramizda'>(isDemo ? 'kendi_aramizda' : 'rakip_araniyor');
 
     // Fetch nearby businesses from server (server-side geo filter)
     const fetchBusinessesNearby = async (c: { lat: number; lng: number }): Promise<Business[]> => {
@@ -83,6 +89,15 @@ const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelected
     // Fetch initial data (User & Businesses)
     useEffect(() => {
         const fetchInitialData = async () => {
+            // Demo saha: sıfır ağ isteği — sahte işletme set edilir, tur bilgilendirilir
+            if (isDemo) {
+                setBusinesses([DEMO_BUSINESS]);
+                setSelectedBusinessId(DEMO_BUSINESS.id);
+                setSelectedPitchId(preSelectedPitchId!);
+                setIsLoadingLocation(false);
+                emitTourEvent('demo-create-modal-open');
+                return;
+            }
             try {
                 // 1. Fetch User (fast — no spinner blocking the form)
                 const userRes = await api.get('/users/me');
@@ -138,7 +153,7 @@ const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelected
         };
 
         if (isOpen) {
-            setIsLoadingLocation(!preSelectedBusinessId && !coords);
+            setIsLoadingLocation(!isDemo && !preSelectedBusinessId && !coords);
             setBusinesses([]);
             setDate(preSelectedDate || getTodayDate());
             if (!preSelectedPitchId && !preSelectedBusinessId) {
@@ -156,6 +171,11 @@ const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelected
     // Fetch booked slots when pitch or date changes (conflict sonrası tekrar çağrılabilir)
     const refreshBookedSlots = useCallback(async () => {
         if (!selectedPitchId || !date) return;
+        // Demo saha: dolu saat yok, sunucuya gidilmez
+        if (isDemoId(selectedPitchId)) {
+            setBookedTimes([]);
+            return;
+        }
         try {
             const reservations = await getReservationsByPitch(selectedPitchId, date);
             const approvedReservations = reservations.filter((r: any) => r.status === ReservationStatus.APPROVED);
@@ -173,11 +193,19 @@ const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelected
         refreshBookedSlots();
     }, [refreshBookedSlots]);
 
-    const myTeam = currentUser?.team;
+    // Demo turda takımsız yeni kullanıcı da akışı deneyimleyebilsin: örnek takım
+    const myTeam = isDemo ? DEMO_TEAM : currentUser?.team;
 
     const handleSubmit = async () => {
         if (!myTeam || !selectedPitchId || !time || !date) {
             setErrorMessage('Lütfen tüm alanları doldurun');
+            return;
+        }
+        // Demo saha: POST yok, gerçek chat yok — sahte maç sohbetine geç ve turu ilerlet
+        if (isDemo) {
+            onClose();
+            setDemoPhase('demoChat');
+            emitTourEvent('demo-ad-submitted');
             return;
         }
         // Kapalı gün ön-kontrolü: API'ye gitmeden, gün-adlı net uyarı ver
@@ -335,6 +363,7 @@ const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelected
                         <div className="mb-6 animate-fade-in">
                             <div className="flex p-1 bg-slate-900 rounded-xl">
                                 <button
+                                    data-tour-id="demo-type-rakip"
                                     onClick={() => setMatchType('rakip_araniyor')}
                                     className={`flex-1 py-3 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${matchType === 'rakip_araniyor' ? 'bg-turf-600 text-white shadow-lg shadow-turf-600/30' : 'text-slate-400 hover:text-slate-200'}`}
                                 >
@@ -342,6 +371,7 @@ const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelected
                                     Rakip Aranıyor
                                 </button>
                                 <button
+                                    data-tour-id="demo-type-kendi"
                                     onClick={() => setMatchType('kendi_aramizda')}
                                     className={`flex-1 py-3 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${matchType === 'kendi_aramizda' ? 'bg-turf-600 text-white shadow-lg shadow-turf-600/30' : 'text-slate-400 hover:text-slate-200'}`}
                                 >
@@ -606,6 +636,7 @@ const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelected
                         )}
 
                         <button
+                            data-tour-id="demo-submit"
                             onClick={handleSubmit}
                             disabled={!selectedPitchId || !date || !time || isLoading || selectedPitchClosed || scheduledOfflineBlocked}
                             className="w-full bg-turf-600 disabled:bg-slate-700 disabled:text-slate-500 text-white font-black uppercase italic py-4 rounded-xl text-lg shadow-lg shadow-turf-600/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2"

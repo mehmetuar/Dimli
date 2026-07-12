@@ -6,6 +6,8 @@ import { X, Calendar, MapPin, Send, CheckCircle, Loader2, AlertTriangle } from '
 import api from '../../services/api';
 import { KeyboardAwareModal } from './KeyboardAwareModal';
 import { getErrorMessage } from '../../utils/apiError';
+import { emitTourEvent } from '../../services/tourStore';
+import { isDemoId, getDemoInviteChannel } from '../../pages/customer/PitchBooking/demo/demoTourData';
 
 interface Props {
    isOpen: boolean;
@@ -19,6 +21,11 @@ export const InviteJokerModal: React.FC<Props> = (props) => {
 };
 
 const InviteJokerModalContent: React.FC<Props> = ({ isOpen, onClose, joker }) => {
+   // Tanıtım turu demo jokeri ("Oyuncu 1"): SUNUCUYA HİÇ GİDİLMEZ — kanal listesi
+   // sahte "Dimli Halı Saha" maçıyla beslenir, davet POST'u atlanır. Not: davet
+   // POST'unun gövdesindeki jokerId api.ts URL-interceptor'ına takılmaz, bu yüzden
+   // bu dal zorunludur.
+   const isDemo = isDemoId(joker?.id);
    const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null);
    const [isSent, setIsSent] = useState(false);
    const [isSending, setIsSending] = useState(false);
@@ -37,6 +44,13 @@ const InviteJokerModalContent: React.FC<Props> = ({ isOpen, onClose, joker }) =>
       setIsLoading(true);
       setErrorMessage('');
       setSelectedMatchId(null);
+
+      if (isDemo) {
+         setMyMatches([getDemoInviteChannel()]);
+         setSentMatchIds(new Set());
+         setIsLoading(false);
+         return;
+      }
 
       Promise.all([
          api.get('/chat/channels'),
@@ -129,6 +143,16 @@ const InviteJokerModalContent: React.FC<Props> = ({ isOpen, onClose, joker }) =>
 
    const executeSendInvite = async () => {
       if (!selectedMatchId) return;
+      // Demo: POST yok — gerçek başarı ekranı gösterilir, kapanınca tur ilerler
+      if (isDemo) {
+         setIsSent(true);
+         setTimeout(() => {
+            setIsSent(false);
+            onClose();
+            emitTourEvent('demo-joker-invited');
+         }, 1600);
+         return;
+      }
       setIsSending(true);
       setErrorMessage('');
       try {
@@ -237,6 +261,7 @@ const InviteJokerModalContent: React.FC<Props> = ({ isOpen, onClose, joker }) =>
                            return (
                               <div
                                  key={channel.id}
+                                 data-tour-id={isDemoId(channel.relatedMatchId) ? 'joker-demo-match' : undefined}
                                  onClick={() => {
                                     if (isDisabled) return;
                                     setErrorMessage('');
@@ -287,6 +312,7 @@ const InviteJokerModalContent: React.FC<Props> = ({ isOpen, onClose, joker }) =>
                   </div>
 
                   <button
+                     data-tour-id="joker-send-invite"
                      onClick={handleToggleInvite}
                      disabled={!selectedMatchId || isSending}
                      className={`w-full font-bold py-3.5 rounded-xl transition-colors shadow-lg flex items-center justify-center gap-2 text-white ${selectedMatchId && sentMatchIds.has(selectedMatchId)
