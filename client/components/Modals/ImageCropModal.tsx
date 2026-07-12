@@ -1,195 +1,91 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
-import { Check, X } from 'lucide-react';
+import Cropper, { Area, Point } from 'react-easy-crop';
+import { X, ZoomIn, ZoomOut, RotateCcw, Check, AlertCircle } from 'lucide-react';
 import { useModalBodyClass } from '../../utils/useModalBodyClass';
+import { getCroppedImg } from '../../utils/cropImage';
+
+// Jest motoru react-easy-crop: odak noktalı pinch-zoom, tek parmak kaydırma,
+// restrictPosition ile sınır garantisi (görüntü çerçeveyi hep kaplar),
+// minZoom=1 = sığdırma görünümü (zoom-out her zaman başlangıca döner).
+// Çıktı üretimi: utils/cropImage.getCroppedImg (JPEG, upscale yok).
 
 interface ImageCropModalProps {
     file: File;
     onCrop: (croppedFile: File) => void;
     onCancel: () => void;
-    /** Kırpma çerçevesi en-boy oranı (genişlik / yükseklik). Varsayılan: 16/9 */
-    aspectRatio?: number;
+    aspectRatio?: number;              // varsayılan 16/9 (işletme/saha fotoğrafları)
+    cropShape?: 'rect' | 'round';      // 'round': profil/takım logosu — çıktı yine kare dosya
+    title?: string;
+    outputWidth?: number;              // varsayılan: kare 800, diğer 1280
 }
 
-const CROP_W = 320;
+const MIN_ZOOM = 1;
+const MAX_ZOOM = 5;
+const ZOOM_STEP = 0.25;
 
-function computeInitialScale(natW: number, natH: number, cropH: number): number {
-    return Math.max(CROP_W / natW, cropH / natH);
-}
+const clampZoom = (z: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z));
 
-const ImageCropModalContent: React.FC<ImageCropModalProps> = ({ file, onCrop, onCancel, aspectRatio = 16 / 9 }) => {
-    const CROP_H = Math.round(CROP_W / aspectRatio);
-    const [scale, setScale] = useState(1);
-    const [offset, setOffset] = useState({ x: 0, y: 0 });
-    const [naturalSize, setNaturalSize] = useState({ w: 0, h: 0 });
-    const [objectUrl, setObjectUrl] = useState('');
-    const [isCropping, setIsCropping] = useState(false);
+const iconButtonStyle: React.CSSProperties = {
+    width: 44,
+    height: 44,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: 'rgba(255,255,255,0.1)',
+    border: 'none',
+    borderRadius: 12,
+    color: '#e2e8f0',
+    cursor: 'pointer',
+    flexShrink: 0,
+};
 
-    const imageRef = useRef<HTMLImageElement>(null);
-    const overlayRef = useRef<HTMLDivElement>(null);
+const ImageCropModalContent: React.FC<ImageCropModalProps> = ({
+    file,
+    onCrop,
+    onCancel,
+    aspectRatio = 16 / 9,
+    cropShape = 'rect',
+    title = 'Fotoğrafı Kırp',
+    outputWidth,
+}) => {
+    const [objectUrl, setObjectUrl] = useState<string | null>(null);
+    const [crop, setCrop] = useState<Point>({ x: 0, y: 0 });
+    const [zoom, setZoom] = useState(1);
+    const [isReady, setIsReady] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [errorMsg, setErrorMsg] = useState<string | null>(null);
+    const pixelsRef = useRef<Area | null>(null);
 
-    // Sürükleme state'i — ref kullanıyoruz çünkü render tetiklememesi yeterli
-    const dragRef = useRef<{ active: boolean; startX: number; startY: number; startOffX: number; startOffY: number }>({
-        active: false, startX: 0, startY: 0, startOffX: 0, startOffY: 0,
-    });
-    const pinchRef = useRef<{ lastDist: number | null }>({ lastDist: null });
-    const offsetRef = useRef(offset);
-    const scaleRef = useRef(scale);
-
-    // ref'leri state ile senkron tut (touchmove handler'ı closure'dan okur)
-    useEffect(() => { offsetRef.current = offset; }, [offset]);
-    useEffect(() => { scaleRef.current = scale; }, [scale]);
-
-    // Object URL oluştur ve temizle
     useEffect(() => {
         const url = URL.createObjectURL(file);
         setObjectUrl(url);
         return () => URL.revokeObjectURL(url);
     }, [file]);
 
-    // touchmove passive:false kaydı (Capacitor/Android için zorunlu)
-    useEffect(() => {
-        const el = overlayRef.current;
-        if (!el) return;
-
-        const handleTouchMove = (e: TouchEvent) => {
-            e.preventDefault();
-
-            if (e.touches.length === 1) {
-                // Tek parmak: sürükle
-                if (!dragRef.current.active) return;
-                const newOffX = e.touches[0].clientX - dragRef.current.startX + dragRef.current.startOffX;
-                const newOffY = e.touches[0].clientY - dragRef.current.startY + dragRef.current.startOffY;
-                setOffset({ x: newOffX, y: newOffY });
-            } else if (e.touches.length === 2) {
-                // İki parmak: pinch zoom
-                const t1 = e.touches[0];
-                const t2 = e.touches[1];
-                const dist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
-                if (pinchRef.current.lastDist !== null) {
-                    const ratio = dist / pinchRef.current.lastDist;
-                    setScale(prev => Math.min(8, Math.max(0.3, prev * ratio)));
-                }
-                pinchRef.current.lastDist = dist;
-            }
-        };
-
-        el.addEventListener('touchmove', handleTouchMove, { passive: false });
-        return () => el.removeEventListener('touchmove', handleTouchMove);
+    const handleCropComplete = useCallback((_: Area, areaPixels: Area) => {
+        pixelsRef.current = areaPixels;
+        setIsReady(true);
     }, []);
 
-    // Resim yüklenince doğal boyutu al, başlangıç scale'i ayarla
-    const handleImageLoad = () => {
-        const img = imageRef.current;
-        if (!img) return;
-        const natW = img.naturalWidth;
-        const natH = img.naturalHeight;
-        setNaturalSize({ w: natW, h: natH });
-        setScale(computeInitialScale(natW, natH, CROP_H));
-        setOffset({ x: 0, y: 0 });
+    const handleReset = () => {
+        setZoom(1);
+        setCrop({ x: 0, y: 0 });
     };
 
-    // ── Mouse events ────────────────────────────────────────────────────────
-    const handleMouseDown = (e: React.MouseEvent) => {
-        dragRef.current = {
-            active: true,
-            startX: e.clientX,
-            startY: e.clientY,
-            startOffX: offsetRef.current.x,
-            startOffY: offsetRef.current.y,
-        };
-    };
-
-    const handleMouseMove = (e: React.MouseEvent) => {
-        if (!dragRef.current.active) return;
-        setOffset({
-            x: e.clientX - dragRef.current.startX + dragRef.current.startOffX,
-            y: e.clientY - dragRef.current.startY + dragRef.current.startOffY,
-        });
-    };
-
-    const handleMouseUp = () => { dragRef.current.active = false; };
-
-    // ── Touch events ────────────────────────────────────────────────────────
-    const handleTouchStart = (e: React.TouchEvent) => {
-        if (e.touches.length === 1) {
-            dragRef.current = {
-                active: true,
-                startX: e.touches[0].clientX,
-                startY: e.touches[0].clientY,
-                startOffX: offsetRef.current.x,
-                startOffY: offsetRef.current.y,
-            };
-            pinchRef.current.lastDist = null;
-        } else {
-            dragRef.current.active = false;
+    const handleSave = async () => {
+        if (!pixelsRef.current || !objectUrl || isProcessing) return;
+        setIsProcessing(true);
+        setErrorMsg(null);
+        try {
+            const resolvedWidth = outputWidth ?? (aspectRatio === 1 ? 800 : 1280);
+            const cropped = await getCroppedImg(objectUrl, pixelsRef.current, file.name, resolvedWidth);
+            // isProcessing resetlenmez — tüketici onCrop içinde modalı unmount eder (flash olmasın).
+            onCrop(cropped);
+        } catch {
+            setIsProcessing(false);
+            setErrorMsg('Fotoğraf kırpılamadı, tekrar deneyin.');
         }
-    };
-
-    const handleTouchEnd = () => {
-        dragRef.current.active = false;
-        pinchRef.current.lastDist = null;
-    };
-
-    // ── Mouse wheel zoom ─────────────────────────────────────────────────────
-    const handleWheel = (e: React.WheelEvent) => {
-        e.preventDefault();
-        const factor = e.deltaY > 0 ? 0.92 : 1.08;
-        setScale(prev => Math.min(8, Math.max(0.3, prev * factor)));
-    };
-
-    // ── Canvas kırpma ────────────────────────────────────────────────────────
-    const handleCrop = () => {
-        const img = imageRef.current;
-        if (!img || naturalSize.w === 0) return;
-
-        setIsCropping(true);
-
-        const viewW = window.innerWidth;
-        const viewH = window.innerHeight;
-
-        // Resimdeki sol-üst köşe viewport'ta nerede?
-        const imgLeft = viewW / 2 + offset.x - (naturalSize.w * scale) / 2;
-        const imgTop  = viewH / 2 + offset.y - (naturalSize.h * scale) / 2;
-
-        // Kırpma çerçevesinin sol-üst köşesi viewport'ta nerede?
-        const cropLeft = viewW / 2 - CROP_W / 2;
-        const cropTop  = viewH / 2 - CROP_H / 2;
-
-        // Kırpma çerçevesini doğal resim piksellerine çevir
-        const srcX = (cropLeft - imgLeft) / scale;
-        const srcY = (cropTop  - imgTop)  / scale;
-        const srcW = CROP_W / scale;
-        const srcH = CROP_H / scale;
-
-        // Yüksek çözünürlük çıktısı için canvas 2× boyut
-        const outW = CROP_W * 2;
-        const outH = CROP_H * 2;
-        const canvas = document.createElement('canvas');
-        canvas.width  = outW;
-        canvas.height = outH;
-        const ctx = canvas.getContext('2d')!;
-        ctx.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, outW, outH);
-
-        canvas.toBlob((blob) => {
-            if (!blob) { setIsCropping(false); return; }
-            const croppedFile = new File([blob], file.name, { type: 'image/jpeg' });
-            onCrop(croppedFile);
-        }, 'image/jpeg', 0.92);
-    };
-
-    const cropFrameStyle: React.CSSProperties = {
-        position: 'absolute',
-        width: CROP_W,
-        height: CROP_H,
-        top: '50%',
-        left: '50%',
-        transform: 'translate(-50%, -50%)',
-        border: '2px solid rgba(255,255,255,0.9)',
-        borderRadius: 8,
-        boxShadow: '0 0 0 9999px rgba(0,0,0,0.65)',
-        pointerEvents: 'none',
-        zIndex: 2,
     };
 
     return (
@@ -208,103 +104,200 @@ const ImageCropModalContent: React.FC<ImageCropModalProps> = ({ file, onCrop, on
             <div style={{
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'space-between',
                 padding: '12px 16px',
-                paddingTop: 'max(12px, env(safe-area-inset-top))',
+                paddingTop: 'max(16px, env(safe-area-inset-top))',
                 flexShrink: 0,
-                zIndex: 3,
+                gap: 12,
             }}>
-                <button
-                    onClick={onCancel}
-                    style={{
-                        display: 'flex', alignItems: 'center', gap: 6,
-                        background: 'rgba(255,255,255,0.15)',
-                        border: 'none', borderRadius: 20, padding: '8px 14px',
-                        color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer',
-                    }}
-                >
-                    <X size={16} /> Vazgeç
+                <button onClick={onCancel} style={iconButtonStyle} aria-label="Kapat">
+                    <X size={20} />
                 </button>
-                <p style={{ color: '#f97316', fontWeight: 800, fontSize: 13, textTransform: 'uppercase', letterSpacing: 1, margin: 0 }}>
-                    Fotoğrafı Kırp
+                <p style={{
+                    flex: 1,
+                    textAlign: 'center',
+                    color: '#f97316',
+                    fontWeight: 800,
+                    fontSize: 14,
+                    textTransform: 'uppercase',
+                    letterSpacing: 1,
+                    margin: 0,
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                }}>
+                    {title}
                 </p>
-                <button
-                    onClick={handleCrop}
-                    disabled={isCropping || naturalSize.w === 0}
-                    style={{
-                        display: 'flex', alignItems: 'center', gap: 6,
-                        background: isCropping || naturalSize.w === 0 ? '#475569' : '#ea580c',
-                        border: 'none', borderRadius: 20, padding: '8px 14px',
-                        color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer',
-                    }}
-                >
-                    <Check size={16} /> {isCropping ? 'Kırpılıyor...' : 'Kırp ve Ekle'}
-                </button>
+                {/* Başlığı ortalamak için X butonuyla eş genişlikte boşluk */}
+                <div style={{ width: 44, flexShrink: 0 }} />
             </div>
 
-            {/* ── İpucu metni ── */}
-            <p style={{
-                textAlign: 'center', color: '#94a3b8', fontSize: 12,
-                margin: '0 0 8px', flexShrink: 0, zIndex: 3,
-            }}>
-                Sahalar sayfasında tam bu boyutta görünecek
-            </p>
-
-            {/* ── Görüntü alanı ── */}
-            <div
-                ref={overlayRef}
-                onMouseDown={handleMouseDown}
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
-                onMouseLeave={handleMouseUp}
-                onTouchStart={handleTouchStart}
-                onTouchEnd={handleTouchEnd}
-                onWheel={handleWheel}
-                style={{
-                    flex: 1,
-                    position: 'relative',
-                    overflow: 'hidden',
-                    cursor: 'grab',
-                    touchAction: 'none',
-                }}
-            >
-                {/* Kırpma çerçevesi */}
-                <div style={cropFrameStyle}>
-                    {/* Köşe işaretleri */}
-                    {[
-                        { top: -2, left: -2, borderTop: '3px solid #f97316', borderLeft: '3px solid #f97316' },
-                        { top: -2, right: -2, borderTop: '3px solid #f97316', borderRight: '3px solid #f97316' },
-                        { bottom: -2, left: -2, borderBottom: '3px solid #f97316', borderLeft: '3px solid #f97316' },
-                        { bottom: -2, right: -2, borderBottom: '3px solid #f97316', borderRight: '3px solid #f97316' },
-                    ].map((s, i) => (
-                        <div key={i} style={{ position: 'absolute', width: 16, height: 16, borderRadius: 1, ...s }} />
-                    ))}
-                </div>
-
-                {/* Resim */}
+            {/* ── Kırpma alanı ── */}
+            <div style={{ flex: 1, position: 'relative' }}>
                 {objectUrl && (
-                    <img
-                        ref={imageRef}
-                        src={objectUrl}
-                        alt="Kırp"
-                        onLoad={handleImageLoad}
-                        draggable={false}
+                    <Cropper
+                        image={objectUrl}
+                        crop={crop}
+                        zoom={zoom}
+                        aspect={aspectRatio}
+                        cropShape={cropShape}
+                        showGrid={cropShape === 'rect'}
+                        minZoom={MIN_ZOOM}
+                        maxZoom={MAX_ZOOM}
+                        restrictPosition
+                        zoomWithScroll
+                        objectFit="contain"
+                        onCropChange={setCrop}
+                        onZoomChange={z => setZoom(clampZoom(z))}
+                        onCropComplete={handleCropComplete}
                         style={{
-                            position: 'absolute',
-                            top: '50%',
-                            left: '50%',
-                            transform: `translate(calc(-50% + ${offset.x}px), calc(-50% + ${offset.y}px)) scale(${scale})`,
-                            transformOrigin: 'center center',
-                            maxWidth: 'none',
-                            zIndex: 1,
-                            pointerEvents: 'none',
+                            cropAreaStyle: {
+                                border: '2px solid rgba(255,255,255,0.9)',
+                                boxShadow: '0 0 0 9999px rgba(0,0,0,0.65)',
+                            },
                         }}
                     />
                 )}
             </div>
 
-            {/* ── Alt boşluk (safe area) ── */}
-            <div style={{ flexShrink: 0, height: 'max(16px, env(safe-area-inset-bottom))' }} />
+            {/* ── Footer ── */}
+            <div style={{
+                flexShrink: 0,
+                padding: '12px 16px',
+                paddingBottom: 'max(16px, env(safe-area-inset-bottom))',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 10,
+                background: 'rgba(0,0,0,0.85)',
+            }}>
+                {errorMsg && (
+                    <div style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                        color: '#f87171', fontSize: 13, fontWeight: 600,
+                        background: 'rgba(239,68,68,0.12)',
+                        border: '1px solid rgba(239,68,68,0.3)',
+                        borderRadius: 12, padding: '10px 12px',
+                    }}>
+                        <AlertCircle size={16} style={{ flexShrink: 0 }} /> {errorMsg}
+                    </div>
+                )}
+
+                {/* Zoom kontrolü */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, minHeight: 44 }}>
+                    <button
+                        onClick={() => setZoom(z => clampZoom(z - ZOOM_STEP))}
+                        style={iconButtonStyle}
+                        aria-label="Uzaklaştır"
+                    >
+                        <ZoomOut size={20} />
+                    </button>
+                    <input
+                        type="range"
+                        min={MIN_ZOOM}
+                        max={MAX_ZOOM}
+                        step={0.01}
+                        value={zoom}
+                        onChange={e => setZoom(clampZoom(Number(e.target.value)))}
+                        className="crop-zoom-slider"
+                        style={{ flex: 1 }}
+                        aria-label="Yakınlaştırma"
+                    />
+                    <button
+                        onClick={() => setZoom(z => clampZoom(z + ZOOM_STEP))}
+                        style={iconButtonStyle}
+                        aria-label="Yakınlaştır"
+                    >
+                        <ZoomIn size={20} />
+                    </button>
+                </div>
+
+                {/* Sıfırla */}
+                <button
+                    onClick={handleReset}
+                    style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                        background: 'none', border: 'none',
+                        color: '#94a3b8', fontSize: 13, fontWeight: 700,
+                        padding: '6px 12px', cursor: 'pointer', alignSelf: 'center',
+                        minHeight: 32,
+                    }}
+                >
+                    <RotateCcw size={14} /> Sıfırla
+                </button>
+
+                {/* Aksiyonlar */}
+                <div style={{ display: 'flex', gap: 10 }}>
+                    <button
+                        onClick={onCancel}
+                        disabled={isProcessing}
+                        style={{
+                            flex: 1,
+                            height: 50,
+                            background: 'rgba(255,255,255,0.15)',
+                            border: 'none', borderRadius: 14,
+                            color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer',
+                            opacity: isProcessing ? 0.5 : 1,
+                        }}
+                    >
+                        İptal
+                    </button>
+                    <button
+                        onClick={handleSave}
+                        disabled={isProcessing || !isReady}
+                        style={{
+                            flex: 2,
+                            height: 50,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                            background: isProcessing || !isReady ? '#475569' : '#ea580c',
+                            border: 'none', borderRadius: 14,
+                            color: '#fff', fontSize: 15, fontWeight: 800, cursor: 'pointer',
+                        }}
+                    >
+                        {isProcessing ? (
+                            <>
+                                <span style={{
+                                    width: 18, height: 18, borderRadius: '50%',
+                                    border: '2px solid rgba(255,255,255,0.3)',
+                                    borderTopColor: '#fff',
+                                    animation: 'spin 0.8s linear infinite',
+                                    display: 'inline-block',
+                                }} />
+                                Kaydediliyor...
+                            </>
+                        ) : (
+                            <>
+                                <Check size={18} /> Kaydet
+                            </>
+                        )}
+                    </button>
+                </div>
+            </div>
+
+            {/* Slider + spinner stilleri (modal document.body'ye portal'landığı için lokal <style>) */}
+            <style>{`
+                @keyframes spin { to { transform: rotate(360deg); } }
+                .crop-zoom-slider {
+                    -webkit-appearance: none;
+                    appearance: none;
+                    height: 44px;
+                    background: transparent;
+                }
+                .crop-zoom-slider::-webkit-slider-runnable-track {
+                    height: 4px;
+                    border-radius: 2px;
+                    background: rgba(255,255,255,0.25);
+                }
+                .crop-zoom-slider::-webkit-slider-thumb {
+                    -webkit-appearance: none;
+                    appearance: none;
+                    width: 24px;
+                    height: 24px;
+                    border-radius: 50%;
+                    background: #f97316;
+                    border: 3px solid #fff;
+                    margin-top: -10px;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+                }
+            `}</style>
         </div>
     );
 };

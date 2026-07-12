@@ -161,6 +161,8 @@ export const TeamLogoManager: React.FC<TeamLogoManagerProps> = ({
                 <ImageCropModal
                     file={cropFile}
                     aspectRatio={1}
+                    cropShape="round"
+                    title="Takım Logosu"
                     onCrop={handleCropComplete}
                     onCancel={() => setCropFile(null)}
                 />

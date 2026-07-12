@@ -135,6 +135,8 @@ export const ProfilePhotoManager: React.FC<ProfilePhotoManagerProps> = ({
                 <ImageCropModal
                     file={cropFile}
                     aspectRatio={1}
+                    cropShape="round"
+                    title="Profil Fotoğrafı"
                     onCrop={handleCropComplete}
                     onCancel={() => setCropFile(null)}
                 />

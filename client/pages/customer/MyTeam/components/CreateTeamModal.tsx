@@ -314,6 +314,8 @@ const CreateTeamModalContent: React.FC<Props> = ({ isOpen, onClose, onCreate }) 
                 <ImageCropModal
                     file={cropFile}
                     aspectRatio={1}
+                    cropShape="round"
+                    title="Takım Logosu"
                     onCrop={handleCropComplete}
                     onCancel={() => setCropFile(null)}
                 />
