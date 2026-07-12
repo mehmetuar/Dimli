@@ -3059,3 +3059,95 @@ Doğrulama: `tsc --noEmit` (yalnız önceden var olan LocationStep) + `vite buil
 pod install yerel CocoaPods/Ruby 3.4 bug'ı — §33'teki gibi kod dışı). **Deploy:** yalnız client → yeni native
 sürüm ister. Cihaz testi: bayat cache'le soğuk açılış → saniyeler içinde Joker kendi kartı + Profilim doğru
 ilçe; uçak modu aç/kapa → reconnect'te iyileşme; 10dk hareketsiz → tek PATCH; hesap değişimi → ilçe sızmaz.
+
+## 73. Destek talebi sistemi — işletme/kullanıcı destek sayfaları + admin Destek Talepleri paneli (2026-07-12)
+
+> İstek: işletme Ayarlar'a "Destek" kartı, kullanıcı Hesap Ayarları'na (Engellenen Kullanıcılar altına)
+> "Yardım" satırı; ikisi de kategori + açıklama ile destek talebi oluşturur, geçmişini görür. Admin panelinde
+> İşletme/Kullanıcı sekmeli "Destek Talepleri" sayfası; admin yanıt yazınca başvurana in-app + FCM push
+> bildirim gider, ya da yanıtsız "İncelendi" işaretlenir. destek@dimli.com.tr yalnız mailto (sunucudan mail YOK).
+
+**Sunucu — yeni modül `server/src/support-tickets/`** (şablon: `user-reports/`):
+- `support_tickets` tek tablo, `audience: 'user'|'business'` ayırıcı + nullable `userId`/`ownerId` FK
+  (`onDelete: CASCADE`). İndeksler: `[audience,status,createdAt]`, `[userId,createdAt]`, `[ownerId,createdAt]`,
+  `[status]`. Durum makinesi: `pending → answered` (yanıtla) | `pending → reviewed` (okundu); ikisi terminal.
+- Kategori key'leri TEK KAYNAK entity'de: `USER_SUPPORT_CATEGORIES` (MATCH_RESERVATION/TEAM/TECHNICAL/
+  ACCOUNT/SUGGESTION/OTHER — PAYMENT deploy öncesi kaldırıldı, kullanıcı uygulamada ödeme yapmıyor) +
+  `BUSINESS_SUPPORT_CATEGORIES` (RESERVATION/PAYMENT_SUBSCRIPTION/TECHNICAL/ACCOUNT_OWNER/SUGGESTION/OTHER).
+  Türkçe etiketler client'ta (`client/services/supportService.ts`).
+- Uçlar (`@Controller('support-tickets')` + `JwtAuthGuard`): `POST user`, `GET user/mine`, `POST business`,
+  `GET business/mine`. JWT'de rol claim'i req.user'a GELMEDİĞİ için audience, id'nin ilgili tabloda (users /
+  business_owner) PK-varlık kontrolüyle doğrulanır; yanlış tablo → Forbidden. Kötüye kullanım: 24 saatte
+  submitter başına max 5 talep (indeksli COUNT) → Türkçe hata + mailto yönlendirme. mine uçları select'li
+  (PII'siz), take 50.
+- Admin: `admin/services/admin-support.service.ts` — `GET /admin/support-tickets` (audience+status+search,
+  COUNT+ITEMS qb deseni §61 tarzı, `paginate()` zarfı). KRİTİK: User join'i `leftJoin + addSelect` ile YALNIZ
+  gerekli kolonlar — `leftJoinAndSelect('t.user')` parola hash'i/pushToken sızdırır, KULLANMA. `PATCH :id/reply`
+  (yalnız pending; adminReply/repliedAt/status=answered + bildirim), `PATCH :id/status` (yalnız 'reviewed'),
+  `GET pending-count` (GROUP BY audience → `{total,user,business}`).
+- Bildirim: kullanıcı yanıtı → `type:'SYSTEM'` + `metadata.type:'SUPPORT_REPLY'` (userSystemPushTypes'a
+  eklendi); işletme yanıtı → yeni üst düzey tip `'SUPPORT_REPLY'` (entity union + businessPushTypes'a eklendi).
+  Çapraz ateşleme yok: SYSTEM businessPushTypes'ta değil, SUPPORT_REPLY userPushTypes'ta değil.
+
+**Admin panel:** `pages/SupportTicketsPage/` (+ `hooks/useSupportTickets.ts`, `usePaginatedList` ile) — üstte
+İşletme/Kullanıcı sekmesi + Bekleyen/Yanıtlanan/İncelenen durum sekmesi (ikisi de extraParams). Detay modalı:
+işletme → işletme adı/şehir-ilçe/işletme tel + yetkili ad/tel/e-posta ("Silinmiş işletme" notu); kullanıcı →
+ad/kullanıcıadı/tel/ilçe(`location`)/e-posta. Yanıt textarea + "Yanıtla ve Bildir" / "İncelendi Olarak İşaretle".
+Sidebar: `IconSupport` (can simidi) + pending-count badge (`r.data?.total`). Sky aksan.
+
+**Mobil:** ortak katman `client/services/supportService.ts` + ortak liste `components/Support/TicketHistoryList.tsx`
+(2 feature kullanıyor → components/ altında, §42 kuralı). İşletme: `pages/business/BusinessSupport/` — §62
+Pattern A header, ROSE aksan (hub'da boştu), formStyles token'ları, `useKeyboardHeight` padding; hub kartı +
+route `/business/settings/support`. Kullanıcı: `pages/customer/Support/SupportPage.tsx` — bg-pitch/font-sport
+dili, turf aksan; Hesap Ayarları'nda "Yardım" satırı + route `/settings/support`. Her iki sayfa: mailto kartı →
+kategori chip grid → açıklama (min 10 / max 2000, sayaç) → başarı paneli ("En kısa sürede dönüş yapacağız") →
+Taleplerim (durum chip + "Dimli Destek" yanıt bloğu). dvh/svh YOK (vh/clamp).
+
+**Bildirim tıklama yönlendirmeleri (3 nokta):** `NotificationItem` (SYSTEM+metadata SUPPORT_REPLY →
+`/settings/support`), `BusinessNotificationsPage` (tip SUPPORT_REPLY → `/business/settings/support`),
+`pushNotificationService.handleNotificationClick` (data.type SUPPORT_REPLY → `getRole()`'e göre hedef; iki
+push yolu da data.type'ı SUPPORT_REPLY taşır — kullanıcı yolunda metadata.type forward edilir).
+
+Doğrulama: `tsc --noEmit` server+admin temiz (client'ta yalnız önceden var olan LocationStep hatası);
+`nest build` + iki `vite build` ✓; eslint yeni dosyalar 0 hata; canlı DB salt-okunur kontrol: tablo henüz yok
+(deploy'da `synchronize:true` oluşturur; §9'a uygun, hiçbir yazma yapılmadı). **Deploy sırası:** önce server
+(tablo + uçlar oluşsun), sonra admin panel; mobil sayfalar yeni native sürümle yayılır ama eski sürümlerde
+görünmez (yalnız yeni menü girişleri) → kırılma yok. Cihaz testi: form gönderimi, günlük 5 limit mesajı,
+yanıt bildirimi tap → destek sayfası, mailto.
+
+## 74. Fotoğraf kırpma modalı yeniden yapımı — react-easy-crop (2026-07-12)
+
+> Belirti: profil/takım/saha fotoğrafı kırpmada pinch ile yaklaşınca geri küçültülemiyor, kenarlarda
+> görüntü "takılıyor", bazı bölgelere zoom yapılamıyordu. Kök nedenler (eski elle yazılmış motor):
+> (1) min zoom sabit 0.3 iken başlangıç cover ölçeği büyük fotoğrafta ~0.08 → başlangıca dönüş imkânsız;
+> (2) offset clamp yok + 2 parmaktan 1 parmağa geçişte touchend drag'i kapatıp yeniden silahlandırmıyor;
+> (3) zoom hep merkez-orijinli, parmak odak noktası takip edilmiyor.
+
+**Çözüm:** jest motoru **react-easy-crop 6.2.2** (`--legacy-peer-deps` ile kuruldu; React 19 uyumlu,
+kendi TS tipleri, CSS otomatik enjekte). UI tamamen bizim: `components/Modals/ImageCropModal.tsx`
+yeniden yazıldı (portal + `useModalBodyClass` konvansiyonu KORUNDU).
+
+- **Props geriye dönük uyumlu:** `{ file, onCrop, onCancel, aspectRatio?=16/9 }` + YENİ
+  `cropShape?: 'rect'|'round'` (varsayılan rect), `title?`, `outputWidth?` (varsayılan: kare 800, diğer 1280).
+- **Cropper ayarları:** `minZoom=1` (= sığdırma; zoom-out her zaman başa döner), `maxZoom=5`,
+  `restrictPosition` (görüntü çerçeveyi hep kaplar), odak noktalı pinch kütüphaneden,
+  `showGrid={cropShape==='rect'}` (üçler kuralı yalnız dikdörtgende), `objectFit="contain"`.
+- **UI:** header (X + turuncu başlık, safe-area top), flex-1 kırpma alanı, footer (safe-area bottom):
+  ZoomOut/slider/ZoomIn satırı (44px hedefler, turuncu thumb), "Sıfırla", İptal (1/3) + Kaydet (2/3,
+  spinner'lı, `isReady` olmadan disabled). Eski "Sahalar sayfasında..." ipucu metni KALDIRILDI
+  (9 tüketicinin 4'ü için yanlıştı; bağlamı title verir). Rotate bilinçli DAHİL EDİLMEDİ (EXIF zaten
+  WebView'de otomatik; ileride `rotation` prop'u ile additive eklenebilir).
+- **Çıktı:** `utils/cropImage.ts getCroppedImg()` — canvas `imageSmoothingQuality:'high'`, JPEG q0.9,
+  **upscale yok** (outW = min(hedef, kaynak kırpma genişliği)), dosya adı `.jpg`'ye normalize.
+  KURAL: daire maske YALNIZ görsel; çıktı tam kare JPEG — canvas maskeleme YAPMA (alpha yok, uygulama
+  avatarları zaten border-radius ile yuvarlak basar). EXIF manuel işlenmez (iOS ≥13.4 / Chromium ≥81
+  HTMLImageElement'i otomatik oryante eder; react-easy-crop oryante elemanı ölçer → koordinatlar tutarlı).
+- **Tüketiciler (9):** 4 müşteri tüketicisine yalnız `cropShape="round"` + `title` eklendi
+  (ProfilePhotoManager, PhotoUploadStep, CreateTeamModal, TeamLogoManager — "Profil Fotoğrafı"/"Takım
+  Logosu"); 5 işletme tüketicisi (BusinessAddPitch, PitchesAndPlanStep, BusinessDetailsStep,
+  BusinessInfoSettings, BusinessPitchSettings) SIFIR değişiklik — varsayılan 16:9 rect aynı davranış.
+
+Doğrulama: `tsc --noEmit` (yalnız önceden var LocationStep `window.google`) + `vite build` ✓. Client-only;
+sunucu/DB değişikliği yok; yeni native sürüm ister. Cihaz testi: pinch-in→pinch-out sığdırmaya döner,
+kenar pan'de çerçeve boş kalmaz, köşede odaklı zoom, 2→1 parmak geçişi akıcı, daire maske avatar/logo
+akışlarında, 16:9 ızgara saha akışlarında, iPhone kamera (EXIF) fotoğrafı dik, çıktı ≤800²/≤1280×720 `.jpg`.
