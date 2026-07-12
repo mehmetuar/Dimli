@@ -3151,3 +3151,191 @@ Doğrulama: `tsc --noEmit` (yalnız önceden var LocationStep `window.google`) +
 sunucu/DB değişikliği yok; yeni native sürüm ister. Cihaz testi: pinch-in→pinch-out sığdırmaya döner,
 kenar pan'de çerçeve boş kalmaz, köşede odaklı zoom, 2→1 parmak geçişi akıcı, daire maske avatar/logo
 akışlarında, 16:9 ızgara saha akışlarında, iPhone kamera (EXIF) fotoğrafı dik, çıktı ≤800²/≤1280×720 `.jpg`.
+
+---
+
+## 75. Uygulama içi tanıtım turu (onboarding) — demo işletme + spotlight motoru (2026-07-12)
+
+**Amaç:** Yeni kayıt olan müşteri, Hoş Geldin ekranındaki BAŞLA'ya basınca `/pitches`'te
+**uygulamalı bir tanıtım turu** görür: "Dimli Halı Saha" adlı **%100 istemci-tarafı sahte** demo
+işletme üzerinden kart aç → 20:00-21:00 boş slot → Maç Kur formu (rakip aranıyor / kendi aramızda
+anlatımı + takım gerekliliği) → **sahte maç sohbeti** ("Onay Bekliyor" + işletmeyi ara sistem mesajı).
+Joker Havuzu'na İLK girişte ayrıca 4 adımlık kısa tur. Her adımda "Atla"; Hesap Ayarları →
+**Uygulama Tanıtımı** ile tekrar izlenebilir. (Bağlamsal parçalı tur; metinler kullanıcı onaylı.)
+
+**Neden istemci-tarafı sahte veri:** Sunucuda demo kavramı yok; liste uçları aktif abonelik + onay
+filtresi uygular, `POST /reservations` public ucu zaten kaldırılmış. Demo işletme DB'ye GİRMEZ,
+hiçbir isteğe konu OLMAZ. Emniyet kemeri: `api.ts` request interceptor'ı URL'de `demo-` geçen her
+isteği reddeder (`DEMO_BLOCKED`).
+
+**Motor (kütüphanesiz):**
+- `services/tourStore.ts` — modül store (currentUserStore deseni): `{activeTour:'pitches'|'jokers'|null,
+  stepIndex, demoPhase:'idle'|'demoChat', skipConfirmOpen}`. API: `startTour/advanceStep/endTour/
+  skipTour/emitTourEvent/setDemoPhase/registerTourCleanup/isTourActive/useTour/useTourActive/
+  useAnyTourActive/requestTourSkipConfirm`.
+- `services/tourStorage.ts` — Preferences + memCache (`initTourFlags()` App'te). Anahtarlar
+  `tour_pitches_done_v1`, `tour_jokers_done_v1`. **Semantik: bayrak YOKSA görülmüş sayılır** —
+  otomatik tur yalnız kayıt akışının `markTourPending('jokers')` yazdığı kullanıcıda tetiklenir
+  (mevcut kullanıcılar güncellemede rahatsız edilmez). `startTour` bayrağı BAŞTA `done` yazar →
+  yarıda kesilse de tekrar otomatik açılmaz (resume yok, bilinçli sadelik).
+- `components/Tour/` — `tourTypes.ts` (adım modeli: `advance:'next'|'target-tap'|'event'`),
+  `tourScripts.ts` (senaryolar), `TourOverlay.tsx` (spotlight: delik div `box-shadow 0 0 0 200vmax`
+  karartma + deliğin 4 kenarında pointer-events:auto bloker → yalnız hedef tıklanabilir; rAF ile
+  rect takibi, hedef 3sn'de bulunamazsa ortalanmış karta düşer — kilitlenmez), `TourTooltip.tsx`
+  (delik üstü/altı kart, Atla+onay, safe-area sınırlı), `TourHost.tsx` (AppContent'te tek mount,
+  `useBootSplashDone` bekler), `DemoChat.tsx` (gerçek Chat'in hafif GÖRSEL replikası — rota
+  değişmez, socket çalışmaz; gerçek `MatchStatusBadge`+`getMatchStatusInfo`+`SystemMessageRenderer`
+  yeniden kullanılır, `MessageBubble` bilinçli kullanılmaz). Z-katmanları: TourOverlay z-[9990],
+  DemoChat z-[9980] (modallar 70 üstü, AnimatedSplash 9999 altı).
+- `pages/customer/PitchBooking/demo/demoTourData.ts` — `DEMO_BUSINESS` (`demo-biz-dimli`),
+  `DEMO_PITCH_ID`, `DEMO_TEAM` ("Örnek Takımım"), `isDemoId = id.startsWith('demo-')`.
+  İnce dokunuşlar: "Tanıtım" pili, adres satırında "örnek işletme, rezervasyon kabul etmez",
+  distanceKm yok (km rozeti çıkmaz), kapak `/Pitch.svg`.
+
+**Entegrasyon noktaları (hepsi demo-kapılı):**
+- `Register.tsx` CelebrationScreen `onDone`: `markTourPending('jokers') + startTour('pitches')`.
+- `usePitchBooking.ts`: `filteredBusinesses` render'da `[DEMO_BUSINESS, ...businesses]` türetilir —
+  state + `writeListCache` demo'yu HİÇ görmez (cache kirlenmesi yapısal imkânsız); ilan/rezervasyon
+  fetch'lerinde `isDemoId` kısa devre; tur temizliği (modal kapat + akordeon kapa) kayıtlı.
+- `PitchBooking.tsx`: tur aktifken `LocationAccessGate` bypass (`MaybeLocationGate`) — konum izinsiz
+  yeni kullanıcı da demo kartı görür; `isAuthorized` override'ı YALNIZ demo karta.
+- `PitchSchedule.tsx`: demo'da `isPast` hep false (gece de 20:00 tıklanır), Yol Tarifi/Ara görünür
+  ama ETKİSİZ (Ara `tel:` yerine no-op buton).
+- `CreateMatchModal.tsx`: `isDemo` dalı — `/users/me`+`getBusinesses`+rezervasyon istekleri atlanır,
+  `myTeam=DEMO_TEAM`, varsayılan `kendi_aramizda`, submit'te POST YOK → `setDemoPhase('demoChat')`.
+  Tur geçişleri event'le: `demo-create-modal-open`, `demo-ad-submitted` (yarış yok).
+- `App.tsx`: `<TourHost/>` mount, `initTourFlags()`, Android geri tuşu turda = Atla onayı,
+  RatingModal tur sırasında ertelenir. `JokerPool.tsx` mount'ta pending ise joker turu.
+- `AccountSettings.tsx` + `TourReplayModal.tsx`: iki turu tekrar başlatma.
+
+**İşletme tarafı (ileriki faz):** motor aynen; `TourId 'business'` + CongratulationsStep sonrası
+ilk dashboard açılışında onay-bekliyor bandı / PitchGrid / tarih filtresi / Ayarlar hub'ı anlatılır
+(demo varlık gerekmez).
+
+Doğrulama: `tsc --noEmit` (yalnız önceden var LocationStep `window.google`) + `vite build` ✓.
+Client-only; sunucu/DB değişikliği yok; yeni native sürüm ister. Cihaz testi bekliyor: yeni kayıt →
+tam akış, konum izni REDLİYKEN demo kart görünür, ağda `demo-` isteği sıfır (interceptor loglar),
+`cached_businesses_v2` içinde `demo-biz-dimli` YOK, turda uygulamayı öldür → resume yok,
+Ayarlar'dan iki tur tekrar izlenir, tur kapalıyken gerçek kaptan akışı birebir aynı.
+
+### §75-v2 — Cihaz geri bildirimi sonrası yeniden tasarım (2026-07-12)
+
+İlk cihaz testi geri bildirimiyle tur görsel katmanı ve kapsamı yenilendi:
+
+- **TourTooltip SİLİNDİ → `TourSheet.tsx`**: tur kartı artık repo bottom-sheet dilinde
+  (rounded-t-3xl + animate-slide-up + grab-handle + safe-area) EKRANIN ALTINA yapışık tam
+  genişlik panel — sayfa üstte NET görünür (oyun tarzı anlatıcı paneli). Yükseklik `ref +
+  ResizeObserver` ile GERÇEKTEN ölçülür; delik sheet alanına girerse sheet ÜSTE geçer
+  (rounded-b-3xl + safe-area-top). Eski sabit `innerHeight-220` varsayımı (taşma hatasının
+  kaynağı) silindi — taşma yapısal olarak imkânsız. Tipografi `clamp()` ile akışkan (JokerPool
+  başlık deseni): ekran küçüldükçe font küçülür. Adımlara `icon` chip'i eklendi (içerik-önce).
+  Ortalanmış modal KALDIRILDI: hedefsiz adımlar hafif karartma (0.55) + alt sheet; delikli
+  adımlar 0.72.
+- **Demo içerik zenginleşti**: kapak/saha görseli `client/public/demosaha.JPG` (1280×720
+  gerçek saha fotoğrafı). `getDemoReservations/getDemoAnnouncements(selectedDate)` fikstürleri:
+  18:00 DOLU (onaylı + sahte "Yıldız Spor" takımı), 19:00 ONAY BEKLİYOR, 21:00 RAKİP ARANIYOR
+  (ilan → "BURADA RAKİP ARAYANLAR (1)" kartı da dolu), 20:00/22:00 BOŞ. slotTime cihaz-YEREL
+  kurulur (`new Date(\`${date}T18:00:00\`)`) — PitchSchedule `getHours()` eşleşmesi.
+- **Senaryo revizyonu (az yazı, aşamalı)**: maç türü adımı ikiye bölündü — `demo-type-rakip`
+  ("Rakip bulmak için ilan yayınlanır. Maç Pazarı'ndan yakınındaki ilanlara da meydan
+  okuyabilirsin.") + `demo-type-kendi`. Joker adım 2 hedefi tüm liste yerine İLK joker kartı
+  (`joker-first-card`, index-0 sarmalayıcı) — koca-delik/taşma sorunu bitti.
+- **YENİ Takım turu (`TourId 'team'`, 4 adım)** + **zincirleme**: Sahalar turunun son adımı
+  (`p-go-team`, `onEnter:'close-demo-chat'` → DemoChat kapanır) alt menü TAKIM sekmesini
+  (`nav-team`) spotlight'lar; dokununca `/team`'e gider ve `chainTo:'team'` ile Takım turu
+  KESİNTİSİZ başlar (`advanceStep`: son adımda chainTo varsa endTour yerine startTour).
+  Takım turu: `team-tabs` → `team-tab-takimim` (dokun) → `team-create-btn` (NoTeamView
+  "Takım Kur") → bitiş. Tetik sigortası: Register `markTourPending('team')` de yazar —
+  Sahalar turu atlanırsa /team ilk girişte TeamProfile mount tetiği başlatır. Anahtar:
+  `tour_team_done_v1`. TourReplayModal'a "Takım Turu" eklendi. Onaylı bitiş metni artık
+  Takım turunun son adımında.
+
+Doğrulama: `tsc --noEmit` (yalnız önceden var LocationStep) + `vite build` ✓. Cihaz testi
+bekliyor: sheet hiçbir ekranda taşmaz, hedef alttayken üste flip, zincirleme akış kesintisiz,
+demo slot çeşitliliği görünür, ağda `demo-` isteği sıfır.
+
+### §75-v3 — İkinci cihaz testi düzeltmeleri (2026-07-12)
+
+- **Kaydırma kilidi**: spotlight deliği dokunuşu alta geçirdiğinden kullanıcı listeyi kaydırıp
+  hedefi ekran dışına çıkarabiliyordu. `TourOverlay` StepOverlay artık mount süresince
+  document-level **non-passive** `touchmove` dinleyicisiyle (capture) kaydırmayı engeller;
+  yalnız `[data-tour-sheet]` (TourSheet iç scroll'u) serbest. Delikten yalnız TAP geçer.
+- **Karartma azaltıldı** (kullanıcı: sayfa içeriği görünsün): `DIM_SPOTLIGHT` 0.72 → **0.5**,
+  `DIM_SOFT` 0.55 → **0.35**.
+- **Sahalar turu 10 → 12 adım**: karşılama sonrası `p-explore` (hedefsiz — "yakınındaki
+  sahaları keşfet; fiyat/yakınlık/müsaitlik/değerlendirmeye göre karşılaştır") +
+  `p-filters` (hedef `pitch-filters` = PitchBooking sticky filtre çubuğu — yakınlık/tarih/
+  sıralama ayarı). Yeni ikon anahtarı `'filter'` (SlidersHorizontal).
+
+Doğrulama: `tsc --noEmit` (yalnız önceden var LocationStep) + `vite build` ✓. Cihaz testi bekliyor.
+
+### §75-v4 — Karartma sıfırlama + dummy içerik + joker davet simülasyonu (2026-07-12)
+
+- **Karartma → parlatma**: `DIM_SOFT` (hedefsiz adımlar) tam şeffaf `rgba(0,0,0,0)` — sayfa
+  NORMAL görünür, görünmez bloker yalnız dokunuşu engeller (İleri/Atla aktif); `DIM_SPOTLIGHT`
+  **0.15**. Odak vurgusu artık karartma değil: delik her spotlight adımında `border-2
+  border-turf-400` + dış ışıma `GLOW = 0 0 28px 6px rgba(74,222,128,0.45)` taşır.
+- **DemoChat dummy mesajlar**: sistem balonlarından sonra `demo-chat-messages` sarmalayıcısında
+  Oyuncu 1/Oyuncu 2 balonları (MessageBubble other-user sınıf reçetesi elle — gerçek bileşen
+  native long-press yüzünden kullanılmaz). Sahalar turuna `p-chat-msgs` adımı ("Maçtan önce
+  arkadaşlarınla maçın hikayesini burada yaz.") → **13 adım**.
+- **Joker davet simülasyonu (jokers turu 4 → 7 adım)**: `DEMO_JOKER` ("Oyuncu 1",
+  `demo-joker-1`) `useJokerPool.visibleJokers`'a render-türetilmiş prepend (state/cache görmez);
+  akış: kart dokun → GERÇEK JokerDetailModal (saf sunum, sıfır API; `joker-invite-btn`) →
+  Maça Davet Et → GERÇEK InviteJokerModal ama **isDemo dalı**: açılış `Promise.all`'u atlanır
+  (sahte `getDemoInviteChannel()` = "Dimli Halı Saha — Ana Saha, 20:00" tek seçenek;
+  `joker-demo-match`/`joker-send-invite` hedefleri), `executeSendInvite` demo'da POST YOK →
+  gerçek "DAVET İLETİLDİ!" ekranı → 1.6s sonra kapan + `emitTourEvent('demo-joker-invited')`.
+  **ÖNEMLİ**: davet POST'u jokerId'yi GÖVDEDE taşır — api.ts URL-interceptor'ı yakalayamaz,
+  isDemo dalı bu yüzden zorunlu. Tur temizliği: useJokerPool `registerTourCleanup` ile
+  detay+davet modallarını kapatır.
+
+Doğrulama: `tsc --noEmit` (yalnız önceden var LocationStep) + `vite build` ✓. Cihaz testi bekliyor.
+
+### §75-v5 — İçerik derinleştirme + Yardım geri-tuşu düzeltmesi (2026-07-12)
+
+- **Yardım/Destek geri-tuşu döngüsü DÜZELTİLDİ (tur dışı hata, §73 destek sayfaları):**
+  müşteri `SupportPage.tsx` geri butonu `navigate('/settings/account')` ve işletme
+  `BusinessSupport/components/SupportHeader.tsx` `navigate('/business/settings')` PUSH
+  yapıyordu → geçmiş `[.., account, support, account]` olunca donanım geri tuşu Yardım'a
+  "ileri" dönüyordu. İkisi de `navigate(-1)` (pop) yapıldı. KURAL: ayar alt sayfalarının
+  sayfa-içi geri butonu HER ZAMAN `navigate(-1)` — rota push'u geri-döngüsü yaratır.
+- **Karşılama karartması**: `TourStep.backdrop?: 'dark'` — hedefsiz adımda bloker 0.85
+  karartır; YALNIZ `p-welcome` kullanır (kullanıcı kararı), diğer adımlar v4 parlaklığında.
+- **Demo işletme 2 saha**: "1 Nolu Saha" (OUTDOOR ₺1200) + "2 Nolu Saha" (INDOOR ₺1400),
+  15:00–24:00 **9'ar slot** (`buildDemoSlots`); PITCH TABS artık demo'da görünür.
+- **Sahalar turu 13 → 16 adım**: karta dokun sonrası `p-pitch-tabs` (sekme geçişi) →
+  `p-slots` → `p-facilities` (İMKANLAR) → `p-matches` (BURADA RAKİP ARAYANLAR) → 20:00...
+  Yeni hedefler BusinessListItem'da isDemo-koşullu: `demo-pitch-tabs`, `demo-facilities`,
+  `demo-active-matches`.
+- **Dummy ilanlar**: rakip takım "Yıldız Spor" → **"Demo United"** (logoUrl '' — baş-harf
+  avatarı) + "Demo City"; `getDemoAnnouncements` 3 ilan (bugün 21:00 + yarın 2 adet) →
+  "BURADA RAKİP ARAYANLAR (3)" tarih gruplu dolu; rezervasyonlar: 16/18 DOLU, 19 ONAY BEKLİYOR.
+- **DemoChat kapanış balonu**: "{{PARTY}} Maçtan sonra işletmeyi değerlendirmeyi unutma!"
+- **Joker bitiş dipnotu**: "Joker davetlerini Takım İstekleri bölümünden toplu yönetebilirsin."
+
+Doğrulama: `tsc --noEmit` (yalnız önceden var LocationStep) + `vite build` ✓. Cihaz testi bekliyor.
+
+### §75-v6 — Küçük cihaz düzeltmeleri (2026-07-12)
+
+- **Delik yüksekliği tavanı (yapısal çakışma önleme)**: TourOverlay ölçümünde delik
+  `top ≥ 8px` ve `height ≤ %50 ekran` — Rakip Arayanlar gibi uzun hedeflerde alt yarı
+  sheet'e kalır, kart/spotlight çakışması hiçbir ekranda olamaz. Küçük hedefler etkilenmez.
+- Demo ilan sayısı 3 → **2** (bugün Demo United 21:00 + yarın Demo City 20:00).
+- Demo imkanlar: iki sahaya da Soyunma Odası + Kamera Kaydı + Krampon Kiralama eklendi.
+- Metinler: p-slots "Sahanın müsaitlik durumunu buradan kontrol et..."; p-matches
+  "Bu sahada rakip arayan takımları gör, onlara maç teklif et."
+
+Doğrulama: `tsc --noEmit` (yalnız önceden var LocationStep) + `vite build` ✓. Cihaz testi bekliyor.
+
+### §75-v7 — Rakip Arayanlar kadrajı + TourSheet flip kilidi (2026-07-12)
+
+- **Demo ilan 2 → 1** (yalnız bugün Demo United 21:00): "BURADA RAKİP ARAYANLAR (1)" bölümü
+  başlık + tek kart boyutunda → spotlight tam istenen kadrajı çerçeveler (v6'nın %50-tavan
+  deliği uzun bölümde kartları ortadan kesiyordu; tavan sigorta olarak duruyor).
+- **TourSheet FLIP KİLİDİ**: alt/üst konum kararı artık türetilmiş değer değil — çakışma ilk
+  tespitte `setFlipToTop(true)` ile KİLİTLENİR, adım boyunca geri dönmez (StepOverlay key'i
+  adım değişince sıfırlar). Sınır durumdaki alt↔üst osilasyonu (Android joker 6. adım:
+  kart yanıp sönüp dokunuşu tıkıyordu) yapısal olarak bitti.
+
+Doğrulama: `tsc --noEmit` (yalnız önceden var LocationStep) + `vite build` ✓. Cihaz testi bekliyor.
