@@ -1,6 +1,7 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { LoadingSpinner } from '../../../components/UI/LoadingSpinner';
+import { Toast } from '../../../components/UI/Toast';
 
 // Hooks
 import { useUserProfile } from './hooks/useUserProfile';
@@ -76,17 +77,9 @@ export const UserProfile: React.FC = () => {
                 setIsMenuOpen={setIsMenuOpen}
             />
 
-            {/* Toast Messages */}
-            {successMessage && (
-                <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-green-500/10 border border-green-500/50 text-green-400 px-6 py-3 rounded-xl text-center shadow-lg backdrop-blur-sm animate-fade-in whitespace-nowrap">
-                    <p className="font-bold text-sm">{successMessage}</p>
-                </div>
-            )}
-            {errorMessage && (
-                <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-red-500/10 border border-red-500/50 text-red-400 px-6 py-3 rounded-xl text-center shadow-lg backdrop-blur-sm animate-fade-in whitespace-nowrap">
-                    <p className="font-bold text-sm">{errorMessage}</p>
-                </div>
-            )}
+            {/* Toast — paylaşılan üst-konum deseni (alt navbar'ın arkasında kalmaz) */}
+            {successMessage && <Toast message={successMessage} type="success" />}
+            {errorMessage && <Toast message={errorMessage} type="error" />}
 
             {/* Konum izni / GPS kapalı bottom sheet */}
             <LocationPermissionSheet

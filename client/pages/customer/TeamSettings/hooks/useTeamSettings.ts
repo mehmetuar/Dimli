@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../../../services/api';
 
@@ -19,6 +19,10 @@ export const useTeamSettings = () => {
     const [successMessage, setSuccessMessage] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
 
+    // Kaydedilmemiş değişiklik takibi: yükleme sonrası anlık görüntü; logo HARİÇ
+    // (logo yükleme/silme zaten anında PATCH'lenir). Başarılı kayıtta tazelenir.
+    const initialRef = useRef({ name: '', level: 'BEGINNER', primaryColor: '#3b82f6', secondaryColor: '#a855f7' });
+
     useEffect(() => {
         const fetchTeam = async () => {
             try {
@@ -35,6 +39,12 @@ export const useTeamSettings = () => {
                 setLogoUrl(team.logoUrl || null);
                 setPrimaryColor(team.primaryColor || '#3b82f6');
                 setSecondaryColor(team.secondaryColor || '#a855f7');
+                initialRef.current = {
+                    name: team.name || '',
+                    level: team.level || 'BEGINNER',
+                    primaryColor: team.primaryColor || '#3b82f6',
+                    secondaryColor: team.secondaryColor || '#a855f7',
+                };
 
                 const captain = team.captain;
                 const isCap = (captain && captain.id === user.id) || team.captainId === user.id;
@@ -126,6 +136,7 @@ export const useTeamSettings = () => {
                 secondaryColor,
             });
             showSuccess('Takım ayarları güncellendi!');
+            initialRef.current = { name: name.trim(), level, primaryColor, secondaryColor };
         } catch (err: any) {
             showError(err.response?.data?.message || 'Güncelleme başarısız.');
         } finally {
@@ -133,9 +144,19 @@ export const useTeamSettings = () => {
         }
     };
 
+    const dirtyFields = {
+        name: name !== initialRef.current.name,
+        level: level !== initialRef.current.level,
+        primaryColor: primaryColor !== initialRef.current.primaryColor,
+        secondaryColor: secondaryColor !== initialRef.current.secondaryColor,
+    };
+    const isDirty = Object.values(dirtyFields).some(Boolean);
+
     return {
         isLoading,
         isSaving,
+        dirtyFields,
+        isDirty,
         isUploadingLogo,
         isCaptain,
         teamId,

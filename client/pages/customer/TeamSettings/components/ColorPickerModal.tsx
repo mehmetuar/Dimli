@@ -7,30 +7,33 @@ import { hexToHsl, hslToHex, isValidHex, ensureReadableOnDark, buildTeamAccent }
 // eski koyu tonlar (Siyah #111827, Lacivert #1e3a8a, Bordo #9f1239 vb.) sohbette
 // okunmadığı için aynı aileden okunur tonlarla değiştirildi (agent.md §70).
 export const TEAM_COLORS = [
-    { label: 'Mavi', hex: '#5090f7' },
-    { label: 'Lacivert', hex: '#7594e8' },
-    { label: 'Gökyüzü', hex: '#38bdf8' },
-    { label: 'Yeşil', hex: '#22c55e' },
-    { label: 'Zümrüt', hex: '#34d399' },
-    { label: 'Çimen', hex: '#84cc16' },
-    { label: 'Kırmızı', hex: '#f15f5f' },
-    { label: 'Bordo', hex: '#fb7185' },
-    { label: 'Turuncu', hex: '#f97316' },
+    // ANA RENKLER önde (kullanıcı kararı). Koyu tonlar (Siyah/Lacivert/Bordo/Kahve)
+    // sohbet metninde ensureReadableOnDark/buildTeamAccent ile otomatik açılır —
+    // modaldaki "Sohbette Böyle Görünür" önizlemesi canlı sonucu gösterir.
+    { label: 'Siyah', hex: '#1a1a1a' },
+    { label: 'Beyaz', hex: '#f1f5f9' },
+    { label: 'Lacivert', hex: '#1e40af' },
     { label: 'Sarı', hex: '#facc15' },
+    { label: 'Kırmızı', hex: '#ef4444' },
+    { label: 'Yeşil', hex: '#22c55e' },
+    { label: 'Bordo', hex: '#9f1239' },
+    { label: 'Mavi', hex: '#3b82f6' },
+    { label: 'Turuncu', hex: '#f97316' },
     { label: 'Altın', hex: '#d97706' },
-    { label: 'Mor', hex: '#b56df8' },
-    { label: 'Koyu Mor', hex: '#a78bfa' },
-    { label: 'Pembe', hex: '#ee59a3' },
-    { label: 'Fuşya', hex: '#dc56f0' },
+    { label: 'Mor', hex: '#8b5cf6' },
+    { label: 'İndigo', hex: '#6366f1' },
+    { label: 'Pembe', hex: '#ec4899' },
+    { label: 'Fuşya', hex: '#d946ef' },
+    { label: 'Mercan', hex: '#f87171' },
+    { label: 'Gökyüzü', hex: '#38bdf8' },
     { label: 'Turkuaz', hex: '#06b6d4' },
     { label: 'Teal', hex: '#14b8a6' },
-    { label: 'Beyaz', hex: '#f1f5f9' },
-    { label: 'Gümüş', hex: '#94a3b8' },
-    { label: 'Grafit', hex: '#8b9cb8' },
-    { label: 'Füme', hex: '#9ca3af' },
-    { label: 'Mercan', hex: '#f87171' },
-    { label: 'İndigo', hex: '#8587f4' },
+    { label: 'Zümrüt', hex: '#34d399' },
+    { label: 'Çimen', hex: '#84cc16' },
     { label: 'Karamel', hex: '#d9a066' },
+    { label: 'Gümüş', hex: '#94a3b8' },
+    { label: 'Grafit', hex: '#64748b' },
+    { label: 'Kahve', hex: '#92400e' },
 ];
 
 interface ColorPickerModalProps {
@@ -238,7 +241,7 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
                                     key={c.hex}
                                     onClick={() => handlePresetClick(c.hex)}
                                     title={c.label}
-                                    className="relative w-9 h-9 rounded-full transition-transform active:scale-90 hover:scale-110 focus:outline-none"
+                                    className="relative w-9 h-9 rounded-full ring-1 ring-white/10 transition-transform active:scale-90 hover:scale-110 focus:outline-none"
                                     style={{ backgroundColor: c.hex }}
                                 >
                                     {tempColor.toLowerCase() === c.hex.toLowerCase() && (

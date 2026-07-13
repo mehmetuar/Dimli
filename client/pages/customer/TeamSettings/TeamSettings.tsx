@@ -1,6 +1,7 @@
 import React from 'react';
-import { Check, X } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import { LoadingSpinner } from '../../../components/UI/LoadingSpinner';
+import { Toast } from '../../../components/UI/Toast';
 
 import { useTeamSettings } from './hooks/useTeamSettings';
 import { TeamSettingsHeader } from './components/TeamSettingsHeader';
@@ -20,6 +21,8 @@ export const TeamSettings: React.FC = () => {
     const {
         isLoading,
         isSaving,
+        dirtyFields,
+        isDirty,
         isUploadingLogo,
         isCaptain,
         name, setName,
@@ -43,27 +46,15 @@ export const TeamSettings: React.FC = () => {
         <div className="fixed inset-0 bg-pitch flex flex-col overflow-hidden" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
             <TeamSettingsHeader
                 isCaptain={isCaptain}
-                isSaving={isSaving}
                 navigate={navigate}
-                onSave={handleSave}
             />
 
-            {/* Toast Messages */}
-            {successMessage && (
-                <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-green-500/10 border border-green-500/50 text-green-400 px-5 py-3 rounded-2xl flex items-center gap-2.5 animate-fade-in shadow-xl backdrop-blur-sm whitespace-nowrap">
-                    <Check className="w-4 h-4 flex-shrink-0" />
-                    <p className="font-bold text-sm">{successMessage}</p>
-                </div>
-            )}
-            {errorMessage && (
-                <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-red-500/10 border border-red-500/50 text-red-400 px-5 py-3 rounded-2xl flex items-center gap-2.5 animate-fade-in shadow-xl backdrop-blur-sm whitespace-nowrap">
-                    <X className="w-4 h-4 flex-shrink-0" />
-                    <p className="font-bold text-sm">{errorMessage}</p>
-                </div>
-            )}
+            {/* Toast — paylaşılan üst-konum deseni (başlıkla çakışmaz) */}
+            {successMessage && <Toast message={successMessage} type="success" />}
+            {errorMessage && <Toast message={errorMessage} type="error" />}
 
             <div className="flex-1 overflow-y-auto overscroll-contain scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
-                <div className="max-w-lg mx-auto px-4 py-5 space-y-4 pb-10">
+                <div className="max-w-lg mx-auto px-4 py-5 space-y-4" style={{ paddingBottom: 'calc(2.5rem + env(safe-area-inset-bottom))' }}>
 
                     {/* Canlı Önizleme */}
                     <TeamPreviewCard
@@ -81,6 +72,7 @@ export const TeamSettings: React.FC = () => {
                         level={level} setLevel={setLevel}
                         isCaptain={isCaptain}
                         LEVELS={LEVELS}
+                        isDirty={dirtyFields.name || dirtyFields.level}
                     />
 
                     {/* Logo & Görsel */}
@@ -100,21 +92,37 @@ export const TeamSettings: React.FC = () => {
                         primaryColor={primaryColor} setPrimaryColor={setPrimaryColor}
                         secondaryColor={secondaryColor} setSecondaryColor={setSecondaryColor}
                         isCaptain={isCaptain}
+                        isDirty={dirtyFields.primaryColor || dirtyFields.secondaryColor}
                     />
 
-                    {/* Kaydet (alt) */}
+                    {/* Kaydet (alt) — durum-duyarlı: değişiklik yoksa pasif, varsa
+                        üstünde amber hatırlatma + aktif buton (tek kayıt noktası) */}
                     {isCaptain && (
-                        <button
-                            onClick={handleSave}
-                            disabled={isSaving}
-                            className="w-full flex items-center justify-center gap-2 bg-turf-600 hover:bg-turf-500 disabled:opacity-50 text-white font-black text-base py-4 rounded-2xl transition-all shadow-lg shadow-turf-600/20 active:scale-95"
-                        >
-                            {isSaving ? (
-                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                            ) : (
-                                'Değişiklikleri Kaydet'
+                        <div className="space-y-2.5 pt-1">
+                            {isDirty && (
+                                <div className="flex items-center justify-center gap-1.5 animate-fade-in">
+                                    <AlertTriangle className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
+                                    <p className="text-amber-400 text-xs font-semibold">Kaydedilmemiş değişikliklerin var</p>
+                                </div>
                             )}
-                        </button>
+                            <button
+                                onClick={handleSave}
+                                disabled={isSaving || !isDirty}
+                                className={`w-full flex items-center justify-center gap-2 font-black text-base py-4 rounded-2xl transition-all active:scale-95 ${
+                                    isDirty
+                                        ? 'bg-turf-600 hover:bg-turf-500 text-white shadow-lg shadow-turf-600/20'
+                                        : 'bg-slate-800/80 text-slate-500 border border-slate-700/60'
+                                } disabled:active:scale-100`}
+                            >
+                                {isSaving ? (
+                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                ) : isDirty ? (
+                                    'Değişiklikleri Kaydet'
+                                ) : (
+                                    'Kaydedilecek değişiklik yok'
+                                )}
+                            </button>
+                        </div>
                     )}
                 </div>
             </div>

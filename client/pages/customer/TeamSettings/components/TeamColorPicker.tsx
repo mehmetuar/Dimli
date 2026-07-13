@@ -8,6 +8,8 @@ interface TeamColorPickerProps {
     secondaryColor: string;
     setSecondaryColor: (color: string) => void;
     isCaptain: boolean;
+    /** Bölümde kaydedilmemiş değişiklik var (amber pil gösterilir) */
+    isDirty?: boolean;
 }
 
 export const TeamColorPicker: React.FC<TeamColorPickerProps> = ({
@@ -16,6 +18,7 @@ export const TeamColorPicker: React.FC<TeamColorPickerProps> = ({
     secondaryColor,
     setSecondaryColor,
     isCaptain,
+    isDirty,
 }) => {
     const [colorModal, setColorModal] = useState<'primary' | 'secondary' | null>(null);
 
@@ -27,7 +30,12 @@ export const TeamColorPicker: React.FC<TeamColorPickerProps> = ({
             <div className="bg-slate-800/80 rounded-2xl border border-slate-700/60 overflow-hidden">
                 <div className="flex items-center gap-2 px-4 pt-4 pb-3 border-b border-slate-700/50">
                     <Palette className="w-4 h-4 text-turf-400" />
-                    <span className="text-slate-300 text-sm font-bold uppercase tracking-widest">Takım Renkleri</span>
+                    <span className="text-slate-300 text-sm font-bold uppercase tracking-widest flex-1">Takım Renkleri</span>
+                    {isDirty && (
+                        <span className="text-[10px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full uppercase tracking-wider animate-fade-in">
+                            Kaydedilmedi
+                        </span>
+                    )}
                 </div>
 
                 <div className="p-4 space-y-3">

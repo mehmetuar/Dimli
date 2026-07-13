@@ -1,18 +1,16 @@
 import React from 'react';
-import { ChevronLeft, AlertTriangle, Save, Loader2 } from 'lucide-react';
+import { ChevronLeft, AlertTriangle } from 'lucide-react';
 
 interface TeamSettingsHeaderProps {
     isCaptain: boolean;
-    isSaving: boolean;
     navigate: (path: number) => void;
-    onSave: () => void;
 }
 
+// Kaydet başlıktan KALDIRILDI (tek kayıt noktası: sayfa altındaki durum-duyarlı
+// buton) — diğer ayar sayfalarının sade başlık deseniyle tutarlı.
 export const TeamSettingsHeader: React.FC<TeamSettingsHeaderProps> = ({
     isCaptain,
-    isSaving,
     navigate,
-    onSave,
 }) => {
     return (
         <header className="bg-pitch/95 backdrop-blur-sm border-b border-slate-800/60">
@@ -30,20 +28,6 @@ export const TeamSettingsHeader: React.FC<TeamSettingsHeaderProps> = ({
                     </h1>
                 </div>
 
-                {isCaptain && (
-                    <button
-                        onClick={onSave}
-                        disabled={isSaving}
-                        className="flex items-center gap-1.5 bg-turf-600 hover:bg-turf-500 disabled:opacity-50 text-white font-bold text-sm px-4 py-2 rounded-xl transition-all active:scale-95"
-                    >
-                        {isSaving ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                            <Save className="w-4 h-4" />
-                        )}
-                        Kaydet
-                    </button>
-                )}
             </div>
 
             {!isCaptain && (
