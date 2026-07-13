@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Geolocation } from '@capacitor/geolocation';
+import type { Position } from '@capacitor/geolocation';
 import { App as CapApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 import { LocationErrorType } from '../components/LocationPermissionSheet';
@@ -82,19 +83,61 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   });
 }
 
-// İki adımlı konum: önce hızlı düşük-doğruluk (network/fused), olmazsa yüksek-doğruluk (GPS).
-// Her ikisi de JS zaman aşımıyla sınırlı. MIUI'de network sağlayıcı kapalıysa GPS'e düşülür.
+// Android'de fused getCurrentLocation'ın null döndüğü cihazlarda bilinen çözüm
+// (capacitor-plugins issue #683 ailesi): kısa süreli watchPosition — İLK fix'te
+// kapatılır; ms içinde fix yoksa timeout ile reddedilir.
+function watchFirstFix(ms: number): Promise<Position> {
+  return new Promise((resolve, reject) => {
+    let watchId: string | null = null;
+    let settled = false;
+    const finish = (fn: () => void) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      if (watchId) void Geolocation.clearWatch({ id: watchId });
+      fn();
+    };
+    const timer = setTimeout(() => finish(() => reject({ code: 3, message: 'watch-timeout' })), ms);
+    Geolocation.watchPosition({ enableHighAccuracy: true, timeout: ms }, (pos, err) => {
+      if (err) { finish(() => reject(err)); return; }
+      if (pos) finish(() => resolve(pos));
+    }).then((id) => {
+      watchId = id;
+      if (settled) void Geolocation.clearWatch({ id });
+    }).catch((err) => finish(() => reject(err)));
+  });
+}
+
+// Konum servisi kapalı / izin reddi / Play Services yok gibi hatalar tekrar
+// denemeyle DÜZELMEZ — watch fallback bu mesajlarda atlanır, hata üst kata çıkar.
+const isUnrecoverableGpsError = (err: any): boolean => {
+  const msg = String(err?.message ?? '').toLowerCase();
+  return msg.includes('not enabled') || msg.includes('location disabled')
+    || msg.includes('location services') || msg.includes('denied')
+    || msg.includes('play services');
+};
+
+// Üç adımlı konum: hızlı düşük-doğruluk (3 dk'lık önbellek fix'i kabul) →
+// yüksek-doğruluk (GPS) → watchPosition son çaresi. Hepsi JS zaman aşımıyla
+// sınırlı (asla asılı kalmaz). MIUI'de network sağlayıcı kapalıysa GPS'e düşülür.
 async function getPositionRobust() {
   try {
     return await withTimeout(
-      Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 }),
+      Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 8000, maximumAge: 180000 }),
       9000,
     );
   } catch {
-    return await withTimeout(
-      Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 }),
-      13000,
-    );
+    try {
+      return await withTimeout(
+        Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 }),
+        13000,
+      );
+    } catch (err) {
+      if (isUnrecoverableGpsError(err)) throw err;
+      // Android'de getCurrentLocation null dönebiliyor ("location unavailable")
+      // ama watch akışı fix üretebiliyor — son çare.
+      return await watchFirstFix(10000);
+    }
   }
 }
 
@@ -205,8 +248,21 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setIsLocating(true);
       setLocationError(null); // retry'da önceki hata/timeout'u temizle
       try {
-        // checkPermissions JS timeout'la sarılır; requestPermissions kullanıcı etkileşimi olduğu için sarılmaz
-        let permStatus = await withTimeout(Geolocation.checkPermissions(), 8000);
+        // checkPermissions JS timeout'la sarılır; requestPermissions kullanıcı etkileşimi olduğu için sarılmaz.
+        // ANDROID NÜANSI: konum ana anahtarı KAPALIYKEN checkPermissions durum
+        // DÖNDÜRMEZ, "Location services are not enabled" ile REJECT eder — bunu
+        // doğru karta (Konum Servisleri Kapalı → Ayarlara Git) yönlendir.
+        let permStatus;
+        try {
+          permStatus = await withTimeout(Geolocation.checkPermissions(), 8000);
+        } catch (permErr: any) {
+          const pmsg = String(permErr?.message ?? '').toLowerCase();
+          if (pmsg.includes('not enabled') || pmsg.includes('location services')) {
+            setLocationError('gps_disabled');
+            return;
+          }
+          throw permErr; // js-timeout vb. → genel catch ('timeout')
+        }
         if (userInitiated && (permStatus.location === 'prompt' || permStatus.location === 'prompt-with-rationale')) {
           permStatus = await Geolocation.requestPermissions();
         }
@@ -229,15 +285,28 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setLocationError(null);
       } catch (err: any) {
         console.warn('LocationContext GPS error:', err);
+        // KRİTİK: W3C sayısal code'ları (1/2/3) yalnız WEB implementasyonu üretir.
+        // Native Capacitor plugin'leri (Android/iOS) code TAŞIMAYAN düz string
+        // mesajlarla reject eder ("location disabled", "Location services are not
+        // enabled", "Google Play Services not available"...). Mesaj-tabanlı
+        // sınıflandırma olmadan Android'de HER hata 'timeout'a düşüyordu — GPS
+        // kapalıyken "Ayarlara Git" kartı hiç çıkmıyor, Tekrar Dene döngüleniyordu.
         const code = err?.code;
-        if (code === 2) {
-          setLocationError('gps_disabled');
-        } else if (code === 1) {
+        const msg = String(err?.message ?? '').toLowerCase();
+        if (code === 1 || msg.includes('denied')) {
           permissionStatusRef.current = 'denied';
           setPermissionStatus('denied');
           setCoords(null);
+        } else if (
+          code === 2 ||
+          msg.includes('not enabled') ||
+          msg.includes('location disabled') ||
+          msg.includes('location services') ||
+          msg.includes('play services') // Play Services yok → aynı aksiyon: cihaz ayarları
+        ) {
+          setLocationError('gps_disabled');
         } else {
-          // code 3 (plugin veya JS timeout) ve diğer her şey → yeniden denenebilir hata
+          // timeout (plugin/JS) ve bilinmeyen her şey → yeniden denenebilir hata
           setLocationError('timeout');
         }
       } finally {
