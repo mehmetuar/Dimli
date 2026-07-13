@@ -14,10 +14,11 @@ const KEYS: Record<TourId, string> = {
     pitches: 'tour_pitches_done_v1',
     jokers: 'tour_jokers_done_v1',
     team: 'tour_team_done_v1',
+    marketplace: 'tour_marketplace_done_v1',
 };
 
 // init öncesi güvenli varsayılan: "görülmüş" — yanlışlıkla erken tur açılmaz
-const memCache: Record<TourId, 'done' | 'pending'> = { pitches: 'done', jokers: 'done', team: 'done' };
+const memCache: Record<TourId, 'done' | 'pending'> = { pitches: 'done', jokers: 'done', team: 'done', marketplace: 'done' };
 
 // Uygulama başlangıcında bir kez çağrılır — memCache'i doldurur
 export async function initTourFlags(): Promise<void> {

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import api from '../../../../services/api';
+import { isDemoId } from '../../PitchBooking/demo/demoTourData';
 
 interface MarketplaceActionsProps {
     myTeam: any;
@@ -28,6 +29,12 @@ export const useMarketplaceActions = ({
 
     const handleSubmitChallenge = async (note: string) => {
         if (!myTeam || !selectedMatch) return;
+        // Emniyet: demo ilana meydan okuma POST'u atılmaz (id GÖVDEDE taşınır,
+        // api.ts URL-interceptor'ı yakalayamaz — joker davetiyle aynı gerekçe)
+        if (isDemoId(selectedMatch.id)) {
+            setIsChallengeModalOpen(false);
+            return;
+        }
         try {
             const response = await api.post('/challenges', {
                 fromTeamId: myTeam.id,

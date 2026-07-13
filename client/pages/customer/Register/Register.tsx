@@ -194,6 +194,7 @@ export const Register: React.FC = () => {
                     // pending yalnız tur atlanırsa devreye giren sigortadır).
                     void markTourPending('jokers');
                     void markTourPending('team');
+                    void markTourPending('marketplace');
                     startTour('pitches');
                     navigate(CUSTOMER_HOME, { replace: true });
                 }}

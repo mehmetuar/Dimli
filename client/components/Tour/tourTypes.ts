@@ -1,6 +1,6 @@
 // Tanıtım turu adım modeli — tourScripts.ts bu şekle göre senaryo tanımlar,
 // TourOverlay/TourSheet bu şekle göre çizer. Yeni tur eklemek = TourId'ye üye + script.
-export type TourId = 'pitches' | 'jokers' | 'team';
+export type TourId = 'pitches' | 'jokers' | 'team' | 'marketplace';
 
 // TourSheet'te başlık yanında renkli chip olarak gösterilen ikon anahtarları
 export type TourStepIcon =
@@ -31,10 +31,22 @@ export interface TourStep {
     spotlightPadding?: number;
     /** İleri butonunun etiketi ('next' adımlarında; varsayılan 'İleri') */
     nextLabel?: string;
-    /** Adıma girerken çalışan yan etki (ör. sahte sohbeti kapat) */
-    onEnter?: 'close-demo-chat';
+    /** Adıma girerken çalışan yan etki (ör. sahte sohbeti kapat / demo takımı gizle) */
+    onEnter?: 'close-demo-chat' | 'hide-demo-team';
     /** Hedefsiz adımda arka planı koyu karart (yalnız karşılama kartı kullanır) */
     backdrop?: 'dark';
     /** SON adımda: tur bitince endTour yerine bu tur zincirleme başlar */
     chainTo?: TourId;
+    /**
+     * Kompakt kart: HEP altta, mini yükseklik (≤150px) — modal-içi adımlarda
+     * spotlight'lanan kart TAM görünür kalsın diye (flip yok, delik tavanı
+     * sheet'in üstünde biter).
+     */
+    compact?: boolean;
+    /**
+     * 'lines': dikdörtgen çerçeve yerine tam genişlik + yalnız üst/alt turf
+     * çizgisi — yatay kaydırılabilir satırlarda (filtre çubukları) kenar
+     * çizgisinin kesik butonlarla "çakışma" algısını önler.
+     */
+    frame?: 'lines';
 }

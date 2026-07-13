@@ -14,16 +14,26 @@ import { SortModal } from '../../../components/Modals/SortModal';
 import { useMarketplace } from './hooks/useMarketplace';
 import { useMarketplaceActions } from './hooks/useMarketplaceActions';
 import { MatchAnnouncementCard } from './components/MatchAnnouncementCard';
+import { BusinessInfoModal } from './components/BusinessInfoModal';
 import { DateFilterModal } from '../PitchBooking/components/DateFilterModal';
+import { startTour, isTourActive, registerTourCleanup } from '../../../services/tourStore';
+import { isTourDone } from '../../../services/tourStorage';
+import { isDemoId } from '../PitchBooking/demo/demoTourData';
 
 // Başlık bu kadar px içinde kademeli soluklaşır — yavaş ve doğal his
 const HEADER_FADE_PX = 140;
 const PULL_THRESHOLD = 70;
 
+// Tanıtım turu aktifken konum kapısı atlanır: konum izni vermemiş yeni kullanıcı
+// da demo ilanı görebilmeli (PitchBooking'deki MaybeLocationGate deseni).
+const MaybeLocationGate: React.FC<{ bypass: boolean; children: React.ReactNode }> = ({ bypass, children }) =>
+  bypass ? <>{children}</> : <LocationAccessGate contentLabel="maç ilanlarını">{children}</LocationAccessGate>;
+
 export const Marketplace: React.FC = () => {
   const {
     currentUser,
     myTeam,
+    marketplaceTourActive,
     matches,
     setMatches,
     isLoading,
@@ -91,6 +101,11 @@ export const Marketplace: React.FC = () => {
   const [headerOpacity, setHeaderOpacity] = useState(1);
   const [pullDistance, setPullDistance] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [selectedBusinessInfo, setSelectedBusinessInfo] = useState<{
+    businessId: string;
+    pitchId: string;
+    distanceKm?: number;
+  } | null>(null);
 
   useEffect(() => {
     return () => {
@@ -98,6 +113,22 @@ export const Marketplace: React.FC = () => {
       document.documentElement.style.removeProperty('--header-pointer-events');
     };
   }, []);
+
+  // Maç Pazarı turu: yalnız kayıt akışının 'pending' işaretlediği kullanıcıda,
+  // sayfaya İLK girişte bir kez (başka tur açıkken asla üstüne binmez).
+  useEffect(() => {
+    if (!isTourActive() && !isTourDone('marketplace')) startTour('marketplace');
+  }, []);
+
+  // Tur biterken/atlanırken açık kalan işletme/takım modallarını temizle.
+  useEffect(() => {
+    if (!marketplaceTourActive) return;
+    const unregister = registerTourCleanup(() => {
+      setSelectedTeamId(null);
+      setSelectedBusinessInfo(null);
+    });
+    return unregister;
+  }, [marketplaceTourActive]);
 
   const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     const el = e.currentTarget;
@@ -161,6 +192,7 @@ export const Marketplace: React.FC = () => {
       <CreateMatchModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
+        preSelectedDate={selectedDate}
         onCreated={({ date }) => {
           // Tarih filtresi yeni ilanı gizlemesin; kendi ilanları listede zaten en üstte sabitlenir.
           if (date !== selectedDate) setSelectedDate(date);
@@ -175,6 +207,13 @@ export const Marketplace: React.FC = () => {
           currentUserId={currentUser?.id}
         />
       )}
+      <BusinessInfoModal
+        isOpen={!!selectedBusinessInfo}
+        onClose={() => setSelectedBusinessInfo(null)}
+        businessId={selectedBusinessInfo?.businessId ?? null}
+        pitchId={selectedBusinessInfo?.pitchId ?? null}
+        distanceKm={selectedBusinessInfo?.distanceKm}
+      />
       <LocationFilterModal
         isOpen={isLocationFilterOpen}
         onClose={() => setIsLocationFilterOpen(false)}
@@ -288,7 +327,7 @@ export const Marketplace: React.FC = () => {
         </div>
 
         {/* Filtre — sticky, her zaman görünür */}
-        <div className="sticky top-0 px-3 pb-3 pt-1" style={{ backgroundColor: '#0f172a', borderBottom: '1px solid rgba(255,255,255,0.06)', zIndex: 40, willChange: 'transform' }}>
+        <div className="sticky top-0 px-3 pb-3 pt-1" data-tour-id="marketplace-filters" style={{ backgroundColor: '#0f172a', borderBottom: '1px solid rgba(255,255,255,0.06)', zIndex: 40, willChange: 'transform' }}>
           <div className="flex gap-1.5 overflow-x-auto scrollbar-hide">
             <button
               onClick={() => setIsDateFilterOpen(true)}
@@ -339,7 +378,7 @@ export const Marketplace: React.FC = () => {
 
         {/* İçerik */}
         <div className="px-4 pt-3 space-y-5 pb-4" style={{ minHeight: 'calc(100% + 1px)' }}>
-          <LocationAccessGate contentLabel="maç ilanlarını">
+          <MaybeLocationGate bypass={marketplaceTourActive}>
             {isLoading && matches.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-slate-400">
                 <LoadingSpinner />
@@ -361,6 +400,7 @@ export const Marketplace: React.FC = () => {
                 {displayMatches.map((announcement) => (
                   <MatchAnnouncementCard
                     key={announcement.id}
+                    isDemo={marketplaceTourActive && isDemoId(announcement.id)}
                     announcement={announcement}
                     myTeam={myTeam}
                     myChallenges={myChallenges}
@@ -368,6 +408,7 @@ export const Marketplace: React.FC = () => {
                     canChallenge={canChallenge}
                     getPitchDetails={getPitchDetails}
                     setSelectedTeamId={setSelectedTeamId}
+                    onOpenBusinessInfo={setSelectedBusinessInfo}
                     handleDeleteAdClick={handleDeleteAdClick}
                     handleCancelClick={handleCancelClick}
                     handleOpenChallengeModal={handleOpenChallengeModal}
@@ -381,7 +422,7 @@ export const Marketplace: React.FC = () => {
                 )}
               </>
             )}
-          </LocationAccessGate>
+          </MaybeLocationGate>
         </div>
       </div>
 

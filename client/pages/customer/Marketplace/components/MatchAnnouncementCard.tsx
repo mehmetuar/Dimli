@@ -19,9 +19,12 @@ interface MatchAnnouncementCardProps {
         business: { id?: string; name?: string; district?: string | null; city?: string | null } | null;
     };
     setSelectedTeamId: (teamId: string) => void;
+    onOpenBusinessInfo: (details: { businessId: string; pitchId: string; distanceKm?: number }) => void;
     handleDeleteAdClick: (adId: string) => void;
     handleCancelClick: (challengeId: string) => void;
     handleOpenChallengeModal: (announcement: any) => void;
+    /** Tanıtım turu demo ilanı — "Tanıtım" pili + tur hedef işaretleri */
+    isDemo?: boolean;
 }
 
 /** Bitiş saati: sunucunun slot'tan bulduğu endTime; yoksa +1 saat kuralı */
@@ -45,9 +48,11 @@ export const MatchAnnouncementCard: React.FC<MatchAnnouncementCardProps> = ({
     canChallenge,
     getPitchDetails,
     setSelectedTeamId,
+    onOpenBusinessInfo,
     handleDeleteAdClick,
     handleCancelClick,
-    handleOpenChallengeModal
+    handleOpenChallengeModal,
+    isDemo
 }) => {
     const isOwnTeam = announcement.teamId === myTeam?.id;
     const { pitch, business } = getPitchDetails(announcement);
@@ -63,6 +68,7 @@ export const MatchAnnouncementCard: React.FC<MatchAnnouncementCardProps> = ({
 
     return (
         <div
+            data-tour-id={isDemo ? 'market-demo-card' : undefined}
             className={`relative rounded-3xl border overflow-hidden ${isOwnTeam
                 ? 'bg-turf-900/20 border-turf-500/50'
                 : 'bg-slate-800 border-slate-700'
@@ -70,6 +76,13 @@ export const MatchAnnouncementCard: React.FC<MatchAnnouncementCardProps> = ({
         >
             {/* Ambient glow */}
             <div className={`absolute -right-10 -top-10 w-40 h-40 rounded-full blur-2xl pointer-events-none ${isOwnTeam ? 'bg-turf-600/20' : 'bg-slate-700/20'}`} />
+
+            {/* Demo ilan: ince "Tanıtım" işareti — gerçek ilan sanılmasın */}
+            {isDemo && (
+                <div className="absolute top-3 right-3 z-20 bg-sky-950/80 backdrop-blur px-2.5 py-1 rounded-lg border border-sky-500/40 shadow-lg">
+                    <span className="text-sky-300 text-[10px] font-bold uppercase tracking-widest">Tanıtım</span>
+                </div>
+            )}
 
             <div className="p-4 relative z-10">
 
@@ -95,7 +108,7 @@ export const MatchAnnouncementCard: React.FC<MatchAnnouncementCardProps> = ({
                 )}
 
                 {/* ── Team header row ── */}
-                <div className="flex items-center gap-3 mb-4">
+                <div className="flex items-center gap-3 mb-4" data-tour-id={isDemo ? 'market-demo-team' : undefined}>
 
                     {/* Logo — halka takım renginde (ince aksan) */}
                     <button
@@ -177,7 +190,22 @@ export const MatchAnnouncementCard: React.FC<MatchAnnouncementCardProps> = ({
                     </div>
 
                     {/* Location — full width */}
-                    <div className="col-span-2 bg-slate-900/50 rounded-xl border border-slate-700/50 overflow-hidden">
+                    <button
+                        type="button"
+                        data-tour-id={isDemo ? 'market-demo-venue' : undefined}
+                        disabled={!pitch?.id || !business?.id}
+                        onClick={() => {
+                            if (pitch?.id && business?.id) {
+                                onOpenBusinessInfo({
+                                    businessId: business.id,
+                                    pitchId: pitch.id,
+                                    distanceKm: announcement.distanceKm,
+                                });
+                            }
+                        }}
+                        className="col-span-2 bg-slate-900/50 rounded-xl border border-slate-700/50 overflow-hidden text-left transition-colors active:bg-slate-800 enabled:active:border-turf-500/60 disabled:cursor-default"
+                        aria-label={pitch && business ? `${business.name || 'İşletme'} ve ${pitch.name} bilgilerini görüntüle` : undefined}
+                    >
                         <div className="flex items-center gap-2 px-3 pt-2 pb-1.5 border-b border-slate-700/40">
                             <div className="flex-shrink-0 bg-slate-800 p-1.5 rounded-lg">
                                 <MapPin className="w-3.5 h-3.5 text-turf-500" />
@@ -213,7 +241,7 @@ export const MatchAnnouncementCard: React.FC<MatchAnnouncementCardProps> = ({
                                 <span className="text-xs text-slate-500 italic">Saha bilgisi yükleniyor...</span>
                             )}
                         </div>
-                    </div>
+                    </button>
 
                     {/* Price — full width */}
                     <div className="col-span-2 flex items-center gap-3 bg-slate-900/50 p-2.5 rounded-xl border border-slate-700/50">

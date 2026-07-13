@@ -13,6 +13,8 @@ interface UpcomingMatch {
     status: string;
     /** Sunucunun eşleşen slottan hesapladığı bitiş saati ("HH:mm"); eski sunucuda yok */
     endTime?: string | null;
+    /** Hazır mesafe (km) — varsa koordinat hesabının önüne geçer (demo fikstürü kullanır) */
+    distanceKm?: number;
     pitch?: {
         name?: string;
         timeSlots?: { startTime: string; endTime: string }[];
@@ -90,6 +92,7 @@ export const UpcomingMatchesModal: React.FC<UpcomingMatchesModalProps> = ({
                     
                     {/* z-20: başlık satırı da z-10 — buton altta kalırsa dokunuşları başlık yutar */}
                     <button
+                        data-tour-id="team-upcoming-close"
                         onClick={onClose}
                         aria-label="Kapat"
                         className="absolute top-3 right-3 bg-slate-900/50 p-3 rounded-full text-slate-400 hover:text-white hover:bg-slate-700 active:bg-slate-700 transition-colors z-20 backdrop-blur-sm shadow-sm"
@@ -143,9 +146,10 @@ export const UpcomingMatchesModal: React.FC<UpcomingMatchesModalProps> = ({
                             // Distance calculation
                             const businessLat = match.pitch?.business?.latitude;
                             const businessLng = match.pitch?.business?.longitude;
-                            const distanceKm = coords && businessLat != null && businessLng != null
-                                ? calculateDistance(coords.lat, coords.lng, businessLat, businessLng)
-                                : null;
+                            const distanceKm = match.distanceKm
+                                ?? (coords && businessLat != null && businessLng != null
+                                    ? calculateDistance(coords.lat, coords.lng, businessLat, businessLng)
+                                    : null);
 
                             // Determine Home and Away for display logic
                             const isHome = match.team?.id === currentTeamId;
@@ -155,6 +159,7 @@ export const UpcomingMatchesModal: React.FC<UpcomingMatchesModalProps> = ({
                             return (
                                 <div
                                     key={match.id}
+                                    data-tour-id={match.id?.startsWith?.('demo-') ? 'team-upcoming-item' : undefined}
                                     className="bg-slate-900/40 rounded-3xl border border-turf-500/20 overflow-hidden hover:border-turf-500/40 transition-all duration-300 relative group"
                                 >
                                     {/* Glassmorphism Background Highlight */}
@@ -203,7 +208,7 @@ export const UpcomingMatchesModal: React.FC<UpcomingMatchesModalProps> = ({
                                                         {myTeam?.logoUrl ? (
                                                             <img src={myTeam.logoUrl} alt="" className="w-full h-full object-cover" onError={(e) => { const el = e.currentTarget; el.onerror = null; el.src = teamInitialsAvatar(myTeam?.name); }} />
                                                         ) : (
-                                                            myTeam?.name?.charAt(0) || 'S'
+                                                            myTeam?.name?.slice(0, 2).toUpperCase() || 'TK'
                                                         )}
                                                     </div>
                                                     <span className="text-white font-bold text-xs sm:text-sm text-center leading-tight truncate w-full">
@@ -232,7 +237,7 @@ export const UpcomingMatchesModal: React.FC<UpcomingMatchesModalProps> = ({
                                                         {otherTeam.logoUrl ? (
                                                             <img src={otherTeam.logoUrl} alt="" className="w-full h-full object-cover" onError={(e) => { const el = e.currentTarget; el.onerror = null; el.src = teamInitialsAvatar(otherTeam?.name); }} />
                                                         ) : (
-                                                            otherTeam.name.charAt(0)
+                                                            otherTeam.name?.slice(0, 2).toUpperCase()
                                                         )}
                                                     </div>
                                                     <span className="text-white font-bold text-xs sm:text-sm text-center leading-tight truncate w-full">

@@ -8,6 +8,7 @@ import { LevelBadge } from '../UI/LevelBadge';
 import { FairPlayScore } from '../UI/FairPlayScore';
 import { useModalBodyClass } from '../../utils/useModalBodyClass';
 import { toHex, teamLogoSrc, teamInitialsAvatar } from '../../utils/teamColors';
+import { DEMO_RIVAL_TEAM, isDemoId } from '../../pages/customer/PitchBooking/demo/demoTourData';
 
 interface TeamDetailModalProps {
     isOpen: boolean;
@@ -26,6 +27,14 @@ export const TeamDetailModal: React.FC<TeamDetailModalProps> = ({ isOpen, onClos
     useEffect(() => {
         const fetchTeamDetails = async () => {
             if (!isOpen || !teamId) return;
+            // Tanıtım turu demo takımı (Dimli United): sunucuya gidilmez
+            if (isDemoId(teamId)) {
+                setTeam(DEMO_RIVAL_TEAM as any);
+                setRoster((DEMO_RIVAL_TEAM.players ?? []) as any);
+                setHomeBusiness(null);
+                setLoading(false);
+                return;
+            }
             setLoading(true);
             try {
                 // Fetch Team
@@ -70,11 +79,21 @@ export const TeamDetailModal: React.FC<TeamDetailModalProps> = ({ isOpen, onClos
     // Portal: sayfa içi scroll container'ların compositing context'ine takılmasın
     // (agent.md §35) — backdrop tüm viewport'u ve tab bar'ı örter.
     return createPortal(
-        <div className="fixed inset-0 z-[60] flex items-center justify-center px-4 bg-black/90 backdrop-blur-sm animate-fade-in">
-            <div className="bg-slate-800 w-full max-w-lg rounded-3xl border border-slate-700/50 overflow-hidden relative shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[85vh] animate-slide-up">
+        <div
+            className="fixed inset-0 z-[60] flex items-center justify-center px-4 bg-black/90 backdrop-blur-sm animate-fade-in"
+            // Demo (tanıtım turu): panel kompakt tur kartının üstündeki alana sığdırılır —
+            // spotlight çerçevesi panel kenarını sarar, içerikten (Oyuncu 2 satırı) geçmez
+            style={isDemoId(teamId) ? { paddingBottom: 176 } : undefined}
+        >
+            <div
+                data-tour-id={isDemoId(teamId) ? 'market-team-modal' : undefined}
+                className="bg-slate-800 w-full max-w-lg rounded-3xl border border-slate-700/50 overflow-hidden relative shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[85vh] animate-slide-up"
+                style={isDemoId(teamId) ? { maxHeight: 'calc(100vh - 208px)' } : undefined}
+            >
 
                 {/* Close Button */}
                 <button
+                    data-tour-id={isDemoId(teamId) ? 'market-team-close' : undefined}
                     onClick={onClose}
                     className="absolute top-4 right-4 bg-black/40 hover:bg-black/60 p-2 rounded-full text-white transition-colors z-20 backdrop-blur-sm"
                 >
@@ -114,7 +133,10 @@ export const TeamDetailModal: React.FC<TeamDetailModalProps> = ({ isOpen, onClos
                             </div>
                         </div>
 
-                        <div className="pt-16 px-6 pb-6 overflow-y-auto">
+                        {/* flex-1 min-h-0: panel flex-col + overflow-hidden — bu sınıflar
+                            olmadan kolon yükseklik sınırında KAYDIRMAK yerine kırpılıyordu
+                            (küçük ekranlarda gerçek takım kartları için de gerekli) */}
+                        <div className="pt-16 px-6 pb-6 overflow-y-auto flex-1 min-h-0">
                             {/* Team Identity */}
                             <div className="flex justify-between items-start mb-6">
                                 <div>

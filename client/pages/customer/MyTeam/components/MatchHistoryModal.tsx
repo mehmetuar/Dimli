@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import { X, Trophy, Star, CheckCircle, Building2, Shield, MapPin, Users, Calendar, Clock } from 'lucide-react';
 import { MatchHistoryItem, PendingRating } from '../../../../types';
 import { RatingModal } from '../../../../components/Modals/RatingModal';
+import { emitTourEvent } from '../../../../services/tourStore';
+import { isDemoId } from '../../PitchBooking/demo/demoTourData';
 import api from '../../../../services/api';
 import { useModalBodyClass } from '../../../../utils/useModalBodyClass';
 import { addOneHour } from '../../../../utils/time';
@@ -76,6 +78,15 @@ export const MatchHistoryModal: React.FC<MatchHistoryModalProps> = ({
         const current = selectedForRating;
         if (!current) return;
 
+        // Tanıtım turu demo maçı: POST atılmaz — yerel "Değerlendirildi" durumu
+        // işlenir ve tur bir sonraki adıma geçer (tam simülasyon, sunucu sıfır).
+        if (isDemoId(reservationId)) {
+            applyRatingResult(reservationId, businessScore, fairPlayScore);
+            setSelectedForRating(null);
+            emitTourEvent('demo-rating-submitted');
+            return;
+        }
+
         try {
             if (current.needsBusinessRating && businessScore > 0) {
                 await api.post('/ratings', {
@@ -104,6 +115,11 @@ export const MatchHistoryModal: React.FC<MatchHistoryModalProps> = ({
     };
 
     const handleRatingSkip = () => {
+        // Demo turda "Sonra" da turu ilerletir — aksi halde event hiç gelmez ve
+        // adım kilitlenirdi (kullanıcı yalnız Atla ile çıkabilirdi)
+        if (selectedForRating && isDemoId(selectedForRating.reservationId)) {
+            emitTourEvent('demo-rating-submitted');
+        }
         setSelectedForRating(null);
     };
 
@@ -121,6 +137,7 @@ export const MatchHistoryModal: React.FC<MatchHistoryModalProps> = ({
                     
                     {/* z-20: başlık satırı da z-10 — buton altta kalırsa dokunuşları başlık yutar */}
                     <button
+                        data-tour-id="team-history-close"
                         onClick={onClose}
                         aria-label="Kapat"
                         className="absolute top-3 right-3 bg-slate-900/50 p-3 rounded-full text-slate-400 hover:text-white hover:bg-slate-700 active:bg-slate-700 transition-colors z-20 backdrop-blur-sm shadow-sm"
@@ -242,6 +259,7 @@ export const MatchHistoryModal: React.FC<MatchHistoryModalProps> = ({
                                                     <span className="text-purple-300 font-black text-[clamp(9px,2.6vw,10px)] uppercase tracking-wider truncate">Puan Bekliyor</span>
                                                 </div>
                                                 <button
+                                                    data-tour-id={isDemoId(match.reservationId) ? 'team-history-rate' : undefined}
                                                     onClick={() => openRatingForMatch(match)}
                                                     className="shrink-0 bg-purple-600 hover:bg-purple-500 text-white font-bold text-[clamp(9px,2.8vw,11px)] uppercase tracking-wider px-3 py-1.5 rounded-lg transition-all shadow-lg shadow-purple-600/20 active:scale-95 border border-purple-500"
                                                 >

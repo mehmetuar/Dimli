@@ -181,6 +181,9 @@ export interface Business {
   rating: number;
   ratingCount?: number;
   phone: string;
+  // Müşteri API'si işletmenin sahibi/yetkilisine ait aranabilir numarayı
+  // güvenli, düz alan olarak döndürür (owner nesnesi döndürülmez).
+  ownerPhone?: string | null;
   coverImageUrl?: string;
   logoUrl?: string;
   // facilities moved to Pitch

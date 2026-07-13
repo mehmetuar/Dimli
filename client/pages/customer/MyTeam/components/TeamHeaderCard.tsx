@@ -39,6 +39,7 @@ export const TeamHeaderCard: React.FC<TeamHeaderCardProps> = ({
 
     return (
         <div
+            data-tour-id="team-header"
             className="rounded-2xl p-4 sm:p-6 border border-slate-700 relative overflow-hidden"
             style={{
                 background: `linear-gradient(135deg, ${toHex((myTeam as any).primaryColor)}18 0%, #1e293b 50%, ${toHex((myTeam as any).secondaryColor || (myTeam as any).primaryColor)}12 100%)`
@@ -81,6 +82,7 @@ export const TeamHeaderCard: React.FC<TeamHeaderCardProps> = ({
                                 <button
                                     ref={codeRef}
                                     type="button"
+                                    data-tour-id="team-code"
                                     title="Kodu kopyala"
                                     className="inline-flex items-center gap-1 text-[10px] font-mono text-slate-400 bg-slate-900/60 px-1.5 py-0.5 rounded border border-slate-700 select-none active:scale-95 transition-transform"
                                 >

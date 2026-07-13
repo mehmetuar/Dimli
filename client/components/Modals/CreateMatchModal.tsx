@@ -446,13 +446,17 @@ const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelected
                                             <div key={business.id} className={`rounded-xl border transition-all overflow-hidden ${selectedBusinessId === business.id ? 'border-turf-500 bg-slate-900' : 'border-slate-700 bg-slate-900/50'}`}>
                                                 <div
                                                     onClick={() => {
+                                        // İşletme değişiminde seçili saat SIFIRLANIR: yeni işletmenin
+                                        // slot şablonu farklı olabilir ya da o saat dolu olabilir
                                         if (selectedBusinessId === business.id) {
                                             setSelectedBusinessId(null);
                                             setSelectedPitchId('');
+                                            setTime('');
                                         } else {
                                             setSelectedBusinessId(business.id);
                                             const firstPitch = business.pitches?.[0];
                                             if (firstPitch) setSelectedPitchId(firstPitch.id);
+                                            setTime('');
                                         }
                                     }}
                                                     className="p-3 cursor-pointer flex items-center gap-3 hover:bg-slate-800 transition-colors"
@@ -476,7 +480,11 @@ const CreateMatchModalContent: React.FC<Props> = ({ isOpen, onClose, preSelected
                                                         {business.pitches?.map(pitch => (
                                                             <div
                                                                 key={pitch.id}
-                                                                onClick={() => setSelectedPitchId(pitch.id)}
+                                                                onClick={() => {
+                                                                    // Saha değişiminde de saat sıfırlanır (slot şablonları saha başına farklı)
+                                                                    if (pitch.id !== selectedPitchId) setTime('');
+                                                                    setSelectedPitchId(pitch.id);
+                                                                }}
                                                                 className={`p-2 rounded-lg flex items-center justify-between cursor-pointer text-xs ${selectedPitchId === pitch.id ? 'bg-turf-900/40 text-turf-400 border border-turf-500/30' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
                                                             >
                                                                 <div className="flex items-center gap-2">

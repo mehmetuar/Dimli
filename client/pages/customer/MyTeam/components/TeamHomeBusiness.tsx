@@ -33,7 +33,7 @@ export const TeamHomeBusiness: React.FC<TeamHomeBusinessProps> = ({
 
     return (
         <>
-        <div className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden">
+        <div className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden" data-tour-id="team-home-business">
             <div className="p-4 border-b border-slate-700 flex justify-between items-center">
                 <h3 className="font-sport font-bold text-base sm:text-xl text-white flex items-center gap-2 min-w-0">
                     <Store className="w-5 h-5 text-turf-500 shrink-0" />

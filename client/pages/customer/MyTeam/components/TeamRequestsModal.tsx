@@ -87,6 +87,7 @@ export const TeamRequestsModal: React.FC<TeamRequestsModalProps> = ({
 
     const tabBtn = (key: Tab, label: string, count: number) => (
         <button
+            data-tour-id={key === 'JOKERS' ? 'team-requests-joker-tab' : undefined}
             onClick={() => setTab(key)}
             className={`flex-1 py-3 text-[11px] sm:text-xs font-bold uppercase tracking-wider rounded-xl transition-all !whitespace-nowrap ${
                 tab === key ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-slate-500 hover:text-slate-300'
@@ -108,6 +109,7 @@ export const TeamRequestsModal: React.FC<TeamRequestsModalProps> = ({
                         <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 to-slate-900" />
                         {/* z-20: başlık satırı da z-10 — buton altta kalırsa dokunuşları başlık yutar */}
                         <button
+                            data-tour-id="team-requests-close"
                             onClick={onClose}
                             aria-label="Kapat"
                             className="absolute top-3 right-3 bg-slate-900/50 p-3 rounded-full text-slate-400 hover:text-white hover:bg-slate-700 active:bg-slate-700 transition-colors z-20 backdrop-blur-sm shadow-sm"
@@ -138,7 +140,7 @@ export const TeamRequestsModal: React.FC<TeamRequestsModalProps> = ({
                     </div>
 
                     {/* Content */}
-                    <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+                    <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4" data-tour-id="team-requests-list">
                         {loading ? (
                             <div className="flex flex-col items-center justify-center py-16 gap-4">
                                 <div className="w-10 h-10 border-3 border-blue-500 border-t-transparent rounded-full animate-spin" />

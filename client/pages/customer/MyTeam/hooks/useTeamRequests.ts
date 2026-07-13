@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../../../../services/api';
+import { isDemoId, getDemoTeamRequests } from '../../PitchBooking/demo/demoTourData';
 
 // Takım İstekleri modalı verisi: giden meydan okumalar + joker davetleri.
 // Yalnız modal açıkken çekilir; iptal handler'ları optimistic günceller.
@@ -10,6 +11,15 @@ export const useTeamRequests = (teamId: string | undefined, isOpen: boolean) => 
 
     const fetchAll = useCallback(async () => {
         if (!teamId) return;
+        // Tanıtım turu demo takımı: sunucuya gidilmez — dummy meydan okuma +
+        // Oyuncu 1'e joker daveti fikstürü basılır
+        if (isDemoId(teamId)) {
+            const demo = getDemoTeamRequests();
+            setChallenges(demo.challenges);
+            setJokerGroups(demo.jokerGroups);
+            setLoading(false);
+            return;
+        }
         setLoading(true);
         try {
             const [ch, jk] = await Promise.all([

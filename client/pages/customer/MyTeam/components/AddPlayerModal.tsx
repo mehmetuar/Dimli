@@ -6,6 +6,7 @@ import { Browser } from '@capacitor/browser';
 import api from '../../../../services/api';
 import { KeyboardAwareModal } from '../../../../components/Modals/KeyboardAwareModal';
 import { getToken, decodeTokenPayload } from '../../../../services/authStorage';
+import { isDemoId } from '../../PitchBooking/demo/demoTourData';
 import { normalizeUsername } from '../../../../utils/username';
 
 interface Props {
@@ -49,6 +50,12 @@ const AddPlayerModalContent: React.FC<Props> = ({ isOpen, onClose, currentRoster
             return;
         }
 
+        // Tanıtım turu demo takımı: arama sunucuya gitmez
+        if (isDemoId(teamId)) {
+            setSearchResults([]);
+            return;
+        }
+
         try {
             const response = await api.get(`/users/search?q=${encodeURIComponent(normalized)}`);
             // Zaten kadroda olanları ele
@@ -73,6 +80,7 @@ const AddPlayerModalContent: React.FC<Props> = ({ isOpen, onClose, currentRoster
 
     const handleInvite = async (userId: string) => {
         if (!teamId) return;
+        if (isDemoId(teamId)) return; // demo: davet POST'u yok
         setInviteError(null);
         try {
             await api.post(`/teams/${teamId}/players`, { userId });
@@ -133,7 +141,7 @@ const AddPlayerModalContent: React.FC<Props> = ({ isOpen, onClose, currentRoster
                         </h2>
                         <p className="text-slate-400 text-xs">Takımı güçlendir, arkadaşlarını çağır.</p>
                     </div>
-                    <button onClick={onClose} className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white hover:bg-red-500 transition-colors">
+                    <button data-tour-id="team-addplayer-close" onClick={onClose} className="p-2 bg-slate-800 rounded-full text-slate-400 hover:text-white hover:bg-red-500 transition-colors">
                         <X className="w-5 h-5" />
                     </button>
                 </div>
@@ -147,7 +155,7 @@ const AddPlayerModalContent: React.FC<Props> = ({ isOpen, onClose, currentRoster
                             onChange={(e) => handleSearch(e.target.value)}
                             placeholder="Kullanıcı adı veya isim ara..."
                             className="w-full bg-slate-900 border border-slate-700 rounded-xl py-3 pl-10 pr-4 text-white text-sm focus:border-turf-500 focus:outline-none"
-                            autoFocus
+                            autoFocus={!isDemoId(teamId)}
                         />
                         <Search className="absolute left-3 top-3 w-5 h-5 text-slate-500" />
                     </div>
@@ -208,7 +216,7 @@ const AddPlayerModalContent: React.FC<Props> = ({ isOpen, onClose, currentRoster
 
                     {/* Invite Link Section (Growth Hacking) */}
                     {(showInviteLink || (!searchTerm && searchResults.length === 0)) && (
-                        <div className="pt-4 border-t border-slate-700 mt-4">
+                        <div className="pt-4 border-t border-slate-700 mt-4" data-tour-id="team-invite-share">
                             <h4 className="text-xs font-bold text-slate-400 uppercase mb-3 flex items-center gap-2">
                                 <Share2 className="w-4 h-4" /> Arkadaşını Davet Et
                             </h4>

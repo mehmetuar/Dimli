@@ -16,6 +16,7 @@ export const TeamActionButtons: React.FC<TeamActionButtonsProps> = ({
     return (
         <>
             <button
+                data-tour-id="team-btn-upcoming"
                 onClick={() => {
                     setIsUpcomingMatchesOpen(true);
                     fetchUpcomingMatches();
@@ -30,6 +31,7 @@ export const TeamActionButtons: React.FC<TeamActionButtonsProps> = ({
                 Tüm üyelere görünür; iptal/geri al yalnız kaptan/yardımcıda (modal içinde).
                 Renk: lacivert — modal içi mavi/lacivert tonlarıyla tutarlı. */}
             <button
+                data-tour-id="team-btn-requests"
                 onClick={() => setIsTeamRequestsOpen(true)}
                 className="w-full bg-gradient-to-r from-blue-600 to-indigo-700 text-white font-bold py-3 rounded-xl hover:from-blue-500 hover:to-indigo-600 transition-all shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2"
             >
@@ -38,6 +40,7 @@ export const TeamActionButtons: React.FC<TeamActionButtonsProps> = ({
             </button>
 
             <button
+                data-tour-id="team-btn-history"
                 onClick={() => {
                     setIsMatchHistoryOpen(true);
                     fetchMatchHistory();

@@ -1,4 +1,5 @@
 import api from '../../../../services/api';
+import { isDemoId } from '../../PitchBooking/demo/demoTourData';
 
 interface TeamRosterProps {
     myTeam: any;
@@ -19,6 +20,7 @@ export const useTeamRoster = ({
 
     const handleKickPlayer = (playerId: string) => {
         if (!myTeam) return;
+        if (isDemoId(myTeam.id)) return; // tanıtım turu: mutasyon yok
 
         setPlayerActionsModal({ isOpen: false, player: null });
 
@@ -44,6 +46,7 @@ export const useTeamRoster = ({
     const handleRevokeViceCaptain = async (playerId: string) => {
         try {
             if (!myTeam?.id) return;
+            if (isDemoId(myTeam.id)) return; // tanıtım turu: mutasyon yok
 
             const response = await api.patch(`/teams/${myTeam.id}/vice-captains`, {
                 remove: playerId
@@ -63,6 +66,7 @@ export const useTeamRoster = ({
 
     const handlePromotePlayer = async (playerId: string, role: 'CAPTAIN' | 'VICE') => {
         if (!myTeam) return;
+        if (isDemoId(myTeam.id)) return; // tanıtım turu: mutasyon yok
 
         // Ön-kontrol: 2 yardımcı doluyken API'ye gitmeden uyarı modalı
         // (server'da da 409 guard'ı var — bayat state yarışına karşı aşağıdaki catch eşler).

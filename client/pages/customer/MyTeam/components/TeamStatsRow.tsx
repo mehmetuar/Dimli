@@ -9,7 +9,7 @@ interface TeamStatsRowProps {
 
 export const TeamStatsRow: React.FC<TeamStatsRowProps> = ({ myTeam, matchCount }) => {
     return (
-        <div className="grid grid-cols-3 gap-2 sm:gap-3">
+        <div className="grid grid-cols-3 gap-2 sm:gap-3" data-tour-id="team-stats">
             <div className="bg-slate-800 p-2 sm:p-4 rounded-xl border border-slate-700 text-center flex flex-col justify-center min-w-0">
                 <div className="text-slate-400 text-[8px] xs:text-[9px] sm:text-xs font-bold uppercase mb-1 leading-tight">Oynanan Maç</div>
                 <div className="text-white font-sport text-base xs:text-xl sm:text-3xl font-bold">{matchCount}</div>

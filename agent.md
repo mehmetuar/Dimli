@@ -3339,3 +3339,227 @@ Doğrulama: `tsc --noEmit` (yalnız önceden var LocationStep) + `vite build` �
   kart yanıp sönüp dokunuşu tıkıyordu) yapısal olarak bitti.
 
 Doğrulama: `tsc --noEmit` (yalnız önceden var LocationStep) + `vite build` ✓. Cihaz testi bekliyor.
+
+### §75-v8 — Maç Pazarı turu + Derin Takımım turu (2026-07-13)
+
+**Maç Pazarı turu (`TourId 'marketplace'`, 10 adım):** `/` ilk ziyarette (Register
+`markTourPending('marketplace')`). "Dimli United" demo ilanı (`getDemoMarketAd`) —
+`useMarketplace.filteredMatches` memo'sunda render-türetilmiş prepend (tarih emniyet
+filtresinden bağımsız; state/cache temiz). Kart tamamen ilan objesinden çizilir (kart başına
+fetch yok). Akış: filtreler → demo kart ("Tanıtım" pili) → saha adı DOKUN → `BusinessInfoModal`
+(isDemo kısa devre: fetch yok, DEMO_BUSINESS basılır) → kapat → takım adı DOKUN →
+`TeamDetailModal` (isDemo: iki fetch de atlanır, zenginleştirilmiş DEMO_RIVAL_TEAM kadrolu) →
+kapat → bitiş. `useMarketplaceActions.handleSubmitChallenge`'da isDemo guard'ı (id GÖVDEDE —
+URL-interceptor yetmez). MaybeLocationGate bypass deseni burada da.
+
+**Derin Takımım turu (21 adım, eski 4 adımlık senaryonun YERİNE):** REPLİKA DEĞİL — gerçek
+MyTeam sayfasına render-türetilmiş demo takım enjeksiyonu: `MyTeam.tsx`'te `teamTourDemo =
+activeTour==='team' && !demoTeamHidden` → `myTeam/roster/homeBusiness` shadow'lanır
+(`getDemoMyTeam(currentUser)`: captainId = GERÇEK kullanıcı → kaptan-özel tüm kontroller
+görünür; Oyuncu 2 hazır yrd. kaptan; shortId ORNEK-1). `fetchUser` gerçek state'i undefined'a
+çekse bile görüntü bozulmaz; loading kapısı turda gevşer. Hook guard'ları:
+`useMyTeam.fetchUpcomingMatches/fetchMatchHistory` (fikstür döner — /ratings/history URL'i
+interceptor'a takılmadığından guard ŞART), `useTeamRequests` (dummy meydan okuma + Oyuncu 1'e
+joker daveti — joker turuyla süreklilik), `AddPlayerModal` (arama/davet no-op + demo'da
+autoFocus KAPALI — klavye açılmasın), `useTeamRoster` mutasyonları no-op,
+`MatchHistoryModal.handleRatingSubmit` (POST yok → `applyRatingResult` yerel "Değerlendirildi"
++ `demo-rating-submitted` event'i; "Sonra"/skip de event'i atar — adım kilitlenmesin).
+Akış: sekmeler → başlık kartı → TAKIM KODU chip'i → istatistikler → Yaklaşan Maçlar
+(Kesinleştirildi fikstürü) → Takım İstekleri → Geçmiş Maçlar → Değerlendir → GERÇEK
+RatingModal'da tam simülasyon → EV SAHİBİ SAHA → Oyuncu Ekle → davet linki paylaşımı →
+yrd. kaptan satırı → FİNAL: `onEnter:'hide-demo-team'` (`TourState.demoTeamHidden`) → demo
+kaybolur, NoTeamView'daki `team-create-btn` spotlight — "Şimdi sıra sende!" [Bitir].
+Sahalar turundaki `p-go-team.chainTo:'team'` aynen zincirlenir.
+
+Yeni data-tour-id'ler: marketplace-filters, market-demo-card/venue/team,
+market-business-modal/close, market-team-modal/close; team-header, team-code, team-stats,
+team-btn-upcoming/requests/history, team-upcoming-item/close, team-requests-list/close,
+team-history-rate/close, team-rating-modal (RatingModal, koşulsuz), team-home-business,
+team-add-player, team-invite-share, team-addplayer-close, team-player-vice.
+
+Doğrulama: `tsc --noEmit` (yalnız önceden var LocationStep) + `vite build` ✓. Cihaz testi
+bekliyor. İşletme tarafı turu hâlâ ileriki faz.
+
+### §75-v9 — Cihaz testi görsel revizyonları (2026-07-13)
+
+- **TourSheet `compact` varyantı**: modal-içi adımlarda (m-demo-card, m-venue-in, m-team-in,
+  t-upcoming-in, t-requests-in, t-requests-joker-in, t-rating, t-invite-link) kart TAM görünür —
+  mini alt bar (≤150px: chip+sayaç+başlık+Atla satırı, gövde, İleri/ipucu), flip YOK; TourOverlay
+  compact adımda delik tavanını %50 yerine `innerHeight - 170 - top` yapar.
+- **Delik yatay clamp**: `left ≥ 8`, `right ≤ innerWidth-8` — tam genişlik hedeflerde (filtre
+  çubukları) simetrik çerçeve.
+- **Demo veri**: Dimli United kadrosu `name` alanıyla "Oyuncu 1/2/3" (TeamDetailModal `player.name`
+  okur — isimsiz görünüyordu); renkler HEX (Dimli United lacivert #1e3a8a/#1e40af, Örnek Takımım
+  koyu yeşil #14532d/#166534 — UpcomingMatchesModal gradyanı ham renk kullanır, toHex hex
+  passthrough); DEMO_BUSINESS 4.7 (42 değerlendirme) + ownerPhone dummy (+90 312 000 00 00 —
+  BusinessInfoModal'da düzgün Ara butonu) + `distanceKm: 7.42` her yerde sabit (Sahalar kartı,
+  market ilanı, işletme modalı, kesinleşmiş maç).
+- **UpcomingMatchesModal**: `match.distanceKm ?? koordinat-hesabı` (additive) + takım logo
+  fallback'i tek harf → **2 harf** `name.slice(0,2).toUpperCase()` (takım kurulum default'u).
+- **market-demo-team** hedefi isim butonundan takım başlık SATIRINA taşındı (logo dahil çerçeve).
+- **Takım İstekleri joker sekmesi**: `team-requests-joker-tab` hedefi + 2 yeni adım (sekmeye dokun
+  → Oyuncu 1 daveti anlatımı) — team turu 21 → **23 adım**.
+
+Doğrulama: `tsc --noEmit` (yalnız önceden var LocationStep) + `vite build` ✓. Cihaz testi bekliyor.
+
+### §75-v10 — Üç ince görsel ayar (2026-07-13)
+
+- **`TourStep.frame:'lines'`**: filtre adımlarında (p-filters, m-filters) dikdörtgen çerçeve
+  yerine TAM GENİŞLİK delik + yalnız üst/alt 2px turf gradyan çizgi — yatay kaydırılan satırda
+  kesik butonla ("İlanlarımı Gizle") kenar çizgisi çakışma algısı bitti.
+- **Üste açılan kart da MİNİ**: TourSheet'te `flipToTop` artık compact mini düzeni ÜSTE yapışık
+  render eder (`rounded-b-3xl` + safe-area-top) — "yukarıdan açılan modal" her yerde küçük,
+  içerik kapanmaz. Büyük kart yalnız alt + kompakt olmayan adımlarda.
+- **p-slots compact**: Saat Akışı adımı mini alt barla — 9 slot + saha sekmeleri tam görünür.
+- **Dimli United kadrosu 3 → 2** (Oyuncu 3 silindi): takım kartı taşmadan sığar.
+
+Doğrulama: `tsc --noEmit` (yalnız önceden var LocationStep) + `vite build` ✓. Cihaz testi bekliyor.
+
+### §75-v11 — Logo ortalama + joker başarı modalı + eğitim modu notları (2026-07-13)
+
+- **Demo takım logosu**: TeamHeaderCard'da `isDemoId(myTeam.id)` → `object-contain p-2`
+  (icon.png şeffaf kenarlı, cover kırpıp kaydırıyordu); gerçek takımlar object-cover aynen.
+- **Joker davet başarı modalı YENİLENDİ** (gerçek + demo): CheckCircle+bounce yerine
+  `ball-success.json` Lottie (loop=false; v12'de rolling-football'dan düzeltildi) — `onComplete` VE 2.5s emniyet zamanlayıcısı
+  `closeSuccess()`'ı çağırır (idempotent, closedRef). Sabit 2000ms timeout kalktı.
+- **Bayat spotlight düzeltmesi**: demo `executeSendInvite` event'i (`demo-joker-invited`)
+  artık HEMEN atar → tur anında hedefsiz bitiş kartına geçer, donuk delik kalmaz; başarı
+  animasyonu arkada temiz oynayıp kendiliğinden kapanır.
+- **Eğitim modu dipnotları**: j-send "gerçek davet gönderilmez", p-submit "gerçek ilan
+  yayınlanmaz", t-rating "değerlendirme kaydedilmez" + mini (compact/üst) düzene footnote
+  satırı desteği eklendi.
+
+Doğrulama: `tsc --noEmit` (yalnız önceden var LocationStep) + `vite build` ✓. Cihaz testi bekliyor.
+
+### §75-v12 — İki minik düzeltme (2026-07-13)
+
+- Joker davet başarı animasyonu `rolling-football.json` → **`ball-success.json`** (yanlış
+  dosya belirtilmişti; onComplete + 2.5s emniyet düzeni aynen).
+- Demo takım logosu `p-2` → **`p-1`** (bir tık büyük, contain ortalaması aynen).
+
+Doğrulama: `tsc --noEmit` (yalnız önceden var LocationStep) + `vite build` ✓.
+
+### §75-v13 — Joker başarı modalı: yalnız animasyon + tam süre (2026-07-13)
+
+- `fallback={null}`: eski tik hiçbir koşulda (lazy chunk/JSON yüklenirken, reduce-motion'da)
+  görünmez — yalnız ball-success animasyonu.
+- Zamanlayıcı düzeni: kapanışın asıl tetikleyicisi `onComplete`; yedek zamanlayıcı
+  reduce-motion'da 1.5s, normalde 8s (animasyon 3.27s — 2.5s'lik eski yedek ortadan
+  kesiyordu, artık asla kesmez).
+
+Doğrulama: `tsc --noEmit` (yalnız önceden var LocationStep) + `vite build` ✓.
+
+### §75-v14 — Demo logo kesin çözümü + Takım Ruhu metni (2026-07-13)
+
+- **Demo takım logosu KESİN çözüm**: `DEMO_TEAM.logoUrl = ''` — TeamHeaderCard'ın yerleşik
+  2-harf gradyan logosu ("ÖR", koyu yeşil) çizilir (takım kurulumundaki default logo);
+  icon.png ve v11/v12'nin object-contain geçici çözümleri tamamen kaldırıldı (görsel
+  kırpma/ölçek sorunu yapısal olarak imkânsız). TeamHeaderCard orijinal haline döndü.
+- **TAKIM RUHU**: Takımım turunda bio override → "Sahaların yeni yıldızı"
+  (getDemoMyTeam.description da aynı).
+
+Doğrulama: `tsc --noEmit` (yalnız önceden var LocationStep) + `vite build` ✓.
+
+### §75-v15 — Takım turu finali: çift buton odağı + joker notu (2026-07-13)
+
+- `team-create-btn` hedefi NoTeamView'da tekil butondan iki butonu ("Takım Bul" + "Takım Kur")
+  saran konteynere taşındı — final spotlight'ı ikisini birlikte çerçeveler.
+- t-finish dipnotu: "İstersen takım kurmadan, sadece joker modunu aktif ederek de maçlara
+  katılabilirsin." + tekrar izleme bilgisi.
+
+Doğrulama: `tsc --noEmit` (yalnız önceden var LocationStep) + `vite build` ✓.
+
+### §76. Maç Değerlendirme formu premium yenileme (2026-07-13)
+
+`RatingModal.tsx` — Geçmiş Maçlar modalının tasarım diline çekildi (props/akış sözleşmesi ve
+`data-tour-id="team-rating-modal"` aynen):
+- Başlık: gradyan overlay + tintli ikon kutusu + font-sport clamp başlık; gradyan/ikon
+  ADIM-DUYARLI (işletme sarı → fair-play yeşil, 500ms yumuşak geçiş). Panel animate-slide-up.
+- RENK KURALI: **fair-play = YEŞİL** (turf — FairPlayScore ile tutarlı; eski indigo tamamen
+  kalktı), **işletme = SARI**. Sekmeler, ikon çipleri, yıldızlar (StarRating color yellow/green)
+  ve birincil buton (işletme adımı bg-yellow-500 text-slate-900 "Devam Et →", fair-play
+  bg-turf-600 "Gönder") bu dile uyar; puan etiketi renk-uyumlu + seçimde fade-in.
+- Tek adımlı akış (yalnız işletme/yalnız fair-play), businessDeleted dalı, Sonra Yap, adım
+  kilidi aynen.
+
+Doğrulama: `tsc --noEmit` (yalnız önceden var LocationStep) + `vite build` ✓. Cihaz testi bekliyor.
+
+### §77. Maç Kur formu: saat sıfırlama + Maç Pazarı tarih senkronu (2026-07-13)
+
+- `CreateMatchModal` browse modunda işletme değişince (seçim + deselect) ve saha değişince
+  `setTime('')` — önceki işletme/sahanın saati yeni seçimde geçersiz/dolu olabilirdi (saat
+  listesi zaten dinamik: TimeSelectionModal seçili sahanın timeSlots'ından üretir).
+- `Marketplace` FAB'ı `preSelectedDate={selectedDate}` geçirir — form sayfadaki seçili
+  tarihle açılır (modal açılış efekti setDate(preSelectedDate || bugün)).
+- Sabitlenmiş akışlar (Sahalar slot dokunuşu / Ev Sahibi Saha) ve tur demo akışı etkilenmez.
+
+Doğrulama: `tsc --noEmit` (yalnız önceden var LocationStep) + `vite build` ✓.
+
+### §78. Paylaşılan Toast + Takım Ayarları premium yenileme + ana renk preset'leri (2026-07-13)
+
+- **YENİ `components/UI/Toast.tsx`** — uygulamanın İLK paylaşılan toast'ı: `fixed z-[70]`,
+  `top: calc(env(safe-area-inset-top) + 72px)` (alt navbar'dan bağımsız), Check/X ikonlu,
+  clamp metin. KURAL: sayfa-içi inline toast konumlandırma YASAK — bu bileşeni kullan.
+  Geçirilenler: UserProfile (bottom-24 navbar arkasında kalıyordu) + TeamSettings (top-20
+  başlıkla çakışıyordu). MyTeam'inki (top-24, çalışıyor) ileride taşınabilir.
+- **Takım Ayarları**: sağ üst Kaydet KALDIRILDI (tek kayıt noktası: alt buton);
+  `useTeamSettings`'e dirty takibi (initialRef anlık görüntüsü, logo hariç — logo zaten
+  anında PATCH'lenir; başarılı kayıtta tazelenir). UI: değişen bölümlerde amber
+  "Kaydedilmedi" pili (Takım Kimliği / Takım Renkleri), alt buton durum-duyarlı
+  (!isDirty → pasif "Kaydedilecek değişiklik yok"; isDirty → amber "Kaydedilmemiş
+  değişikliklerin var" notu + aktif turf buton); içerik pb'sine safe-area-bottom.
+- **TEAM_COLORS yenilendi** (tek kaynak ColorPickerModal — TeamSettings ana+ikincil ve
+  CreateTeamModal otomatik): ANA RENKLER önde (Siyah #1a1a1a, Beyaz, Lacivert #1e40af,
+  Sarı, Kırmızı, Yeşil, Bordo #9f1239, Mavi) + 16 destek rengi (24, 8×3). Koyu tonlar
+  sohbette `ensureReadableOnDark` ile açılır (önizleme canlı sonucu gösterir, kayıt ham
+  renktir); çiplere `ring-1 ring-white/10` (siyah/beyaz koyu zeminde seçilebilir).
+
+Doğrulama: `tsc --noEmit` (yalnız önceden var LocationStep) + `vite build` ✓. Cihaz testi bekliyor.
+
+### §79. Android konum arızası — native hata sınıflandırması + watch fallback (2026-07-13)
+
+**Belirti:** Android'de Maç Pazarı/Sahalar/Joker "Konumunuz alınıyor..." → "Tekrar Dene"
+döngüsü; iOS sorunsuz. **Kök neden (2 katman):**
+1. **KALICI KURAL — Capacitor native plugin hataları W3C numeric code TAŞIMAZ** (yalnız web
+   implementasyonu taşır). Android Geolocation reject'leri düz string'dir: "location
+   unavailable", "location disabled", "Google Play Services not available"; konum ana
+   anahtarı kapalıyken checkPermissions bile durum döndürmek yerine "Location services are
+   not enabled" ile REJECT eder. LocationContext catch'i err.code===1/2/3'e baktığından
+   Android'deki HER hata 'timeout'a düşüyor, gps_disabled/denied kartları cihazda hiç
+   çıkmıyordu. → Mesaj-tabanlı sınıflandırma eklendi (denied / not enabled / location
+   disabled / location services / play services); numeric code yolu web için duruyor.
+2. Fused getCurrentLocation soğuk fix/iç mekânda null dönebiliyor ("location unavailable",
+   bilinen issue #683 ailesi). → `getPositionRobust` üç adım oldu: düşük doğruluk
+   (maximumAge 60sn→180sn — bayat fix kabul, ilçe kapısı >250m zaten) → yüksek doğruluk →
+   **watchFirstFix(10sn)** son çaresi (İLK fix'te clearWatch; kurtarılamaz hatalarda —
+   isUnrecoverableGpsError — atlanır). checkPermissions reject'i de kendi try/catch'inde
+   gps_disabled'a yönlendirilir.
+
+Doğrulama: `tsc --noEmit` (yalnız önceden var LocationStep) + `vite build` ✓. Android cihaz
+testi bekliyor: konum anahtarı KAPALI → "Konum Servisleri Kapalı/Ayarlara Git"; AÇIK + iç
+mekân → watch fallback fix; izin reddi → izin kartı; iOS regresyonsuz.
+
+### §75-v17 — Modal spotlight çakışması: panel sığdırma (2026-07-13)
+
+Kök: m-venue-in / m-team-in adımlarında delik modal PANELİN TAMAMINI hedefler; panel kompakt
+kart rezervinden uzunsa delik tavanı çerçeve çizgisini içerikten geçiriyordu (Krampon Kiralama
+alt satıra düşünce, dar ekranda Oyuncu 2 satırı). **Yapısal çözüm:** demo'da panel tur
+kartının üstündeki alana sığdırılır — backdrop `paddingBottom:176` + panel
+`maxHeight: calc(100vh - 208px)` (BusinessInfoModal + TeamDetailModal, isDemoId koşullu;
+TourOverlay COMPACT_RESERVE=170 ile uyumlu). Delik gerçek panel kenarını sardığından çizginin
+içerikten geçmesi geometrik olarak imkânsız; uzayan içerik panel içi kaydırmaya düşer.
++ Genel düzeltme: TeamDetailModal içerik kolonuna `flex-1 min-h-0` — panel overflow-hidden
+flex-col olduğundan bu olmadan GERÇEK modalda da küçük ekranda içerik kaydırılamıyordu.
+
+Doğrulama: `tsc --noEmit` (yalnız önceden var LocationStep) + `vite build` ✓. Cihaz testi bekliyor.
+
+### §75-v18 — İşletme kartı: imkanlar tam görünür (2026-07-13)
+
+v17 panel küçültmesi sonrası, sabit alt buton şeridi (Ara/Yol Tarifi) hep görünürken
+imkanlar kaydırma altında kayboluyordu. Demo-koşullu kompaktlaştırma (gerçek modal aynen):
+kapak h-40→h-28, buton şeridi p-3 + paddingBottom 12 (panel ekran dibinde değil — safe-area
+gereksizdi), DEMO_BUSINESS.address kısaltıldı ("Örnek işletme — rezervasyon kabul etmez.").
+~90px kazanç → 6 imkan rozeti butonların üstünde kaydırmasız görünür; iç kaydırma çok küçük
+ekranlar için güvenlik ağı olarak kalır, çerçeve v17 gereği panel kenarında.
+
+Doğrulama: `tsc --noEmit` (yalnız önceden var LocationStep) + `vite build` ✓. Cihaz testi bekliyor.

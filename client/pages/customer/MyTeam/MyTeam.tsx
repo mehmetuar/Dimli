@@ -20,6 +20,8 @@ import { NoTeamView } from './components/NoTeamView';
 import { TeamSettingsMenu } from './components/TeamSettingsMenu';
 import { PlayerDetailModal } from '../../../components/Modals/PlayerDetailModal';
 import { Player } from '../../../types';
+import { useTour, registerTourCleanup } from '../../../services/tourStore';
+import { getDemoMyTeam, DEMO_BUSINESS } from '../PitchBooking/demo/demoTourData';
 
 export const MyTeam: React.FC = () => {
     const location = useLocation();
@@ -38,8 +40,8 @@ export const MyTeam: React.FC = () => {
         }
     }, [location.state]);
     const {
-        currentUser, isLoading, teamResolved, loadError, fetchUser, myTeam, setMyTeam, roster, setRoster,
-        businesses, isBusinessListLoading, homeBusiness, bio, setBio, isEditingBio, setIsEditingBio,
+        currentUser, isLoading, teamResolved, loadError, fetchUser, myTeam: realMyTeam, setMyTeam, roster: realRoster, setRoster,
+        businesses, isBusinessListLoading, homeBusiness: realHomeBusiness, bio: realBio, setBio, isEditingBio, setIsEditingBio,
         upcomingMatches, isUpcomingLoading, fetchUpcomingMatches,
         matchHistory, matchHistoryTotal, hasMoreMatchHistory, isMatchHistoryLoading,
         isLoadingMoreHistory, fetchMatchHistory, loadMoreMatchHistory, applyRatingResult,
@@ -47,6 +49,39 @@ export const MyTeam: React.FC = () => {
         handleSaveBio, handleSetHomeBusiness, handleCreateTeam, handleLeaveTeam,
         isLocationFilterOpen, setIsLocationFilterOpen, locationFilter, applyLocationFilter,
     } = useMyTeam(modals);
+
+    // ── Tanıtım turu (Takımım): demo takım RENDER'DA türetilir — useMyTeam'in
+    // fetchUser'ı gerçek state'i undefined'a çekse bile görüntü bozulmaz; state
+    // ve TEAM_CACHE_KEY demo'yu hiç görmez. demoTeamHidden (turun finali) true
+    // olunca gerçek boş duruma dönülür → NoTeamView + Takım Kur spotlight'lanır.
+    const tour = useTour();
+    const teamTourDemo = tour.activeTour === 'team' && !tour.demoTeamHidden;
+    const demoTeam = teamTourDemo ? getDemoMyTeam(currentUser) : null;
+    const myTeam = demoTeam ?? realMyTeam;
+    const roster = teamTourDemo
+        ? demoTeam.players.map((p: any) => ({
+            id: p.id,
+            name: p.full_name || p.username,
+            position: p.position || 'Orta Saha',
+            avatarUrl: p.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.full_name || '?')}&background=random&size=100`,
+        }))
+        : realRoster;
+    const homeBusiness = teamTourDemo ? DEMO_BUSINESS : realHomeBusiness;
+    // TAKIM RUHU: demo takımda dummy metin (gerçek bio state'i boş — yeni kullanıcı)
+    const bio = teamTourDemo ? 'Sahaların yeni yıldızı' : realBio;
+
+    // Tur biterken/atlanırken açık kalan modalları temizle
+    useEffect(() => {
+        if (!teamTourDemo) return;
+        const unregister = registerTourCleanup(() => {
+            modals.setIsUpcomingMatchesOpen(false);
+            modals.setIsMatchHistoryOpen(false);
+            modals.setIsTeamRequestsOpen(false);
+            modals.setIsAddPlayerModalOpen(false);
+            modals.setPlayerActionsModal({ isOpen: false, player: null });
+        });
+        return unregister;
+    }, [teamTourDemo]);
 
     const rosterActions = useTeamRoster({
         myTeam, setMyTeam, setRoster,
@@ -62,7 +97,8 @@ export const MyTeam: React.FC = () => {
     // isLoading: currentUser hiç yokken (ilk soğuk açılış)
     // !myTeam && !teamResolved: kullanıcı snapshot'ı var ama takım henüz sunucudan
     //   çözülmedi ve önbellekte cevap yok → NoTeamView flash'ı yerine dönen top
-    if (isLoading || (!myTeam && !teamResolved)) {
+    // (tur demo takımı gösterirken bekletme yapılmaz)
+    if (!teamTourDemo && (isLoading || (!myTeam && !teamResolved))) {
         return <LoadingSpinner fullScreen text="Takım Yükleniyor..." />;
     }
 

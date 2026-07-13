@@ -12,13 +12,15 @@ import { markTourDone } from './tourStorage';
 export interface TourState {
     activeTour: TourId | null;
     stepIndex: number;
-    /** 'demoChat': sahte maç sohbeti ekranı açık (Sahalar turu 7-8. adımlar) */
+    /** 'demoChat': sahte maç sohbeti ekranı açık (Sahalar turu chat adımları) */
     demoPhase: 'idle' | 'demoChat';
+    /** Takımım turu finali: demo takım gizlendi → gerçek Takım Kur görünür */
+    demoTeamHidden: boolean;
     /** Atla onayı kartı açık (Atla butonu veya Android geri tuşu tetikler) */
     skipConfirmOpen: boolean;
 }
 
-let state: TourState = { activeTour: null, stepIndex: 0, demoPhase: 'idle', skipConfirmOpen: false };
+let state: TourState = { activeTour: null, stepIndex: 0, demoPhase: 'idle', demoTeamHidden: false, skipConfirmOpen: false };
 const listeners = new Set<() => void>();
 // Tur biterken çalışacak temizlikler (modal kapat, akordeonu kapa...) — sayfalar kaydeder
 const cleanups = new Set<() => void>();
@@ -46,7 +48,7 @@ export function getCurrentStep(): TourStep | null {
 export function startTour(id: TourId): void {
     runCleanups();
     void markTourDone(id);
-    state = { activeTour: id, stepIndex: 0, demoPhase: 'idle', skipConfirmOpen: false };
+    state = { activeTour: id, stepIndex: 0, demoPhase: 'idle', demoTeamHidden: false, skipConfirmOpen: false };
     listeners.forEach((l) => l());
 }
 
@@ -67,7 +69,7 @@ export function advanceStep(): void {
 export function endTour(): void {
     if (!state.activeTour) return;
     runCleanups();
-    set({ activeTour: null, stepIndex: 0, demoPhase: 'idle', skipConfirmOpen: false });
+    set({ activeTour: null, stepIndex: 0, demoPhase: 'idle', demoTeamHidden: false, skipConfirmOpen: false });
 }
 
 export const skipTour = endTour;
@@ -80,6 +82,11 @@ export function emitTourEvent(eventId: string): void {
 
 export function setDemoPhase(phase: TourState['demoPhase']): void {
     if (state.activeTour) set({ demoPhase: phase });
+}
+
+/** Takımım turu finali: demo takımı gizle (NoTeamView + Takım Kur geri gelsin). */
+export function hideDemoTeam(): void {
+    if (state.activeTour) set({ demoTeamHidden: true });
 }
 
 /** Atla onayını aç (Atla butonu + Android geri tuşu buraya gelir). */

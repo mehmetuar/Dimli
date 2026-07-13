@@ -60,14 +60,85 @@ export const TourSheet: React.FC<Props> = ({ step, stepIndex, total, hole }) => 
     }, [step, skipConfirmOpen]);
 
     // Delik alttaki sheet bölgesiyle çakışıyorsa üste kilitle (tek yönlü).
+    // Compact adımlarda flip YOK: sheet hep altta, delik tavanı overlay'de kısılır.
     useLayoutEffect(() => {
-        if (flipToTop || !hole || sheetH <= 0) return;
+        if (step.compact || flipToTop || !hole || sheetH <= 0) return;
         if (hole.top + hole.height > window.innerHeight - sheetH - 8) {
             setFlipToTop(true);
         }
-    }, [hole, sheetH, flipToTop]);
+    }, [hole, sheetH, flipToTop, step.compact]);
 
     const icon = step.icon ? ICONS[step.icon] : null;
+
+    // ── Mini düzen: kompakt adımlar (altta) VE üste açılan kart (flipToTop) —
+    // "yukarıdan açılan modal" da artık küçük, içerik kapanmaz (kullanıcı kararı)
+    const miniTop = flipToTop && !step.compact;
+    if ((step.compact || flipToTop) && !skipConfirmOpen) {
+        return (
+            <div
+                ref={sheetRef}
+                data-tour-sheet
+                className={`fixed left-0 right-0 bg-slate-900/95 backdrop-blur-md shadow-2xl shadow-black/60 ${
+                    miniTop
+                        ? 'top-0 rounded-b-3xl border-b border-slate-700 animate-fade-in'
+                        : 'bottom-0 rounded-t-3xl border-t border-slate-700 animate-slide-up'
+                }`}
+                style={{
+                    pointerEvents: 'auto',
+                    paddingTop: miniTop ? 'max(10px, env(safe-area-inset-top))' : undefined,
+                    paddingBottom: miniTop ? undefined : 'max(12px, env(safe-area-inset-bottom))',
+                }}
+            >
+                <div className={`absolute left-0 right-0 h-[3px] bg-gradient-to-r from-transparent via-turf-500 to-transparent ${miniTop ? 'bottom-0' : 'top-0'}`} />
+                <div className="max-w-md mx-auto px-4 pt-3 pb-1">
+                    <div className="flex items-center gap-2 mb-1.5">
+                        {icon && <div className={`p-1 rounded-lg shrink-0 ${icon.chip}`}>{icon.node}</div>}
+                        <span className="text-[10px] font-black text-turf-400 bg-turf-900/40 border border-turf-500/30 px-2 py-0.5 rounded-full tracking-widest shrink-0">
+                            {stepIndex + 1} / {total}
+                        </span>
+                        <h3
+                            className="font-sport font-black text-white italic uppercase tracking-wide leading-tight truncate flex-1"
+                            style={{ fontSize: 'clamp(0.85rem, 3.8vw, 1.05rem)' }}
+                        >
+                            {step.title}
+                        </h3>
+                        <button
+                            onClick={requestTourSkipConfirm}
+                            className="text-slate-400 hover:text-white text-xs font-bold px-2.5 py-2 -mr-1 rounded-lg transition-colors shrink-0"
+                        >
+                            Atla
+                        </button>
+                    </div>
+                    <p className="text-slate-300 leading-snug" style={{ fontSize: 'clamp(0.72rem, 3vw, 0.85rem)' }}>
+                        {step.body}
+                    </p>
+                    {step.footnote && (
+                        <p className="text-slate-500 leading-snug mt-1" style={{ fontSize: 'clamp(0.6rem, 2.6vw, 0.7rem)' }}>
+                            {step.footnote}
+                        </p>
+                    )}
+                    <div className="mt-2">
+                        {step.advance === 'next' ? (
+                            <button
+                                onClick={advanceStep}
+                                className="w-full min-h-[44px] bg-turf-600 hover:bg-turf-500 active:scale-[0.97] text-white font-black uppercase italic py-2.5 rounded-xl shadow-lg shadow-turf-600/20 transition-all"
+                                style={{ fontSize: 'clamp(0.75rem, 3.2vw, 0.9rem)' }}
+                            >
+                                {step.nextLabel ?? 'İleri'}
+                            </button>
+                        ) : (
+                            <div className="flex items-center justify-center gap-2 py-2">
+                                <span className="w-2 h-2 bg-turf-400 rounded-full animate-ping" />
+                                <span className="text-turf-400 font-bold uppercase tracking-widest" style={{ fontSize: 'clamp(0.62rem, 2.8vw, 0.72rem)' }}>
+                                    Vurgulanan alana dokun
+                                </span>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div

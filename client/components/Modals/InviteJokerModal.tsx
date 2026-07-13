@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { X, Calendar, MapPin, Send, CheckCircle, Loader2, AlertTriangle } from 'lucide-react';
 import api from '../../services/api';
 import { KeyboardAwareModal } from './KeyboardAwareModal';
+import { LottiePlayer } from '../UI/LottiePlayer';
 import { getErrorMessage } from '../../utils/apiError';
 import { emitTourEvent } from '../../services/tourStore';
 import { isDemoId, getDemoInviteChannel } from '../../pages/customer/PitchBooking/demo/demoTourData';
@@ -141,16 +142,38 @@ const InviteJokerModalContent: React.FC<Props> = ({ isOpen, onClose, joker }) =>
       }
    };
 
+   // Başarı ekranını kapat — rolling-football animasyonu bitince (onComplete)
+   // VE emniyet zamanlayıcısıyla çağrılır; idempotent (çift tetiklenme güvenli).
+   const closedRef = React.useRef(false);
+   const closeSuccess = () => {
+      if (closedRef.current) return;
+      closedRef.current = true;
+      setIsSent(false);
+      onClose();
+      setInviteNote('');
+      setSelectedMatchId(null);
+   };
+
+   // Kapanışın ASIL tetikleyicisi onComplete (animasyon 3.27s tamamen oynar).
+   // Zamanlayıcı yalnız YEDEK: reduce-motion'da animasyon hiç oynamayacağından
+   // kısa (1.5s); normalde uzun (8s — yalnız yükleme başarısız olursa devreye
+   // girer, animasyonu asla ortadan kesmez).
+   useEffect(() => {
+      if (!isSent) return;
+      closedRef.current = false;
+      const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+      const t = setTimeout(closeSuccess, reduce ? 1500 : 8000);
+      return () => clearTimeout(t);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+   }, [isSent]);
+
    const executeSendInvite = async () => {
       if (!selectedMatchId) return;
-      // Demo: POST yok — gerçek başarı ekranı gösterilir, kapanınca tur ilerler
+      // Demo: POST yok — event HEMEN atılır (tur bayat spotlight bırakmadan
+      // bitiş kartına geçer), başarı animasyonu arkada temiz oynar ve kapanır.
       if (isDemo) {
          setIsSent(true);
-         setTimeout(() => {
-            setIsSent(false);
-            onClose();
-            emitTourEvent('demo-joker-invited');
-         }, 1600);
+         emitTourEvent('demo-joker-invited');
          return;
       }
       setIsSending(true);
@@ -163,12 +186,6 @@ const InviteJokerModalContent: React.FC<Props> = ({ isOpen, onClose, joker }) =>
          });
          setSentMatchIds(prev => new Set(prev).add(selectedMatchId));
          setIsSent(true);
-         setTimeout(() => {
-            setIsSent(false);
-            onClose();
-            setInviteNote('');
-            setSelectedMatchId(null);
-         }, 2000);
       } catch (error: any) {
          console.error('Failed to toggle joker invite:', error);
          setErrorMessage(getErrorMessage(error, 'İşlem başarısız.'));
@@ -213,8 +230,20 @@ const InviteJokerModalContent: React.FC<Props> = ({ isOpen, onClose, joker }) =>
       >
             {isSent ? (
                <div className="text-center py-8">
-                  <div className="w-20 h-20 bg-turf-600 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce shadow-neon">
-                     <CheckCircle className="w-10 h-10 text-white" />
+                  {/* Başarı animasyonu oynar, bitince modal kendiliğinden kapanır
+                      (emniyet: 2.5s zamanlayıcı) */}
+                  <div className="w-24 h-24 mx-auto mb-4">
+                     {/* fallback bilinçli YOK: eski tik hiçbir koşulda (yükleme/
+                         reduce-motion) görünmez — yalnız animasyon (kullanıcı kararı) */}
+                     <LottiePlayer
+                        src="/animations/ball-success.json"
+                        loop={false}
+                        autoplay
+                        onComplete={closeSuccess}
+                        ariaLabel="Davet iletildi"
+                        style={{ width: '100%', height: '100%' }}
+                        fallback={null}
+                     />
                   </div>
                   <h3 className="text-2xl font-black text-white italic uppercase tracking-wide">DAVET İLETİLDİ!</h3>
                   <p className="text-slate-400 mt-2 text-sm">

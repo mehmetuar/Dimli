@@ -7,6 +7,8 @@ import { useCurrentUser } from '../../../../hooks/useCurrentUser';
 import { readListCache, writeListCache, MATCHES_CACHE_KEY } from '../../../../utils/listCache';
 import { isNetworkError } from '../../../../utils/apiError';
 import { useOnReconnect } from '../../../../hooks/useOnReconnect';
+import { useTourActive } from '../../../../services/tourStore';
+import { getDemoMarketAd } from '../../PitchBooking/demo/demoTourData';
 
 const PAGE_SIZE = 50;
 
@@ -184,20 +186,29 @@ export const useMarketplace = () => {
   // Sıralama + tarih filtresi artık SUNUCUDA (tüm aday küme üzerinde doğru).
   // Burada yalnız: kendi takım ilanlarını üste sabitleme, bayat sayfa-0
   // önbelleğine karşı ucuz tarih emniyet filtresi ve "ilanlarımı gizle".
+  // Tanıtım turu: demo "Dimli United" ilanı RENDER'DA türetilerek başa eklenir —
+  // matches state'i ve writeListCache demo'yu hiç görmez (Sahalar demo deseni).
+  const marketplaceTourActive = useTourActive('marketplace');
+
   const filteredMatches = useMemo(() => {
     const myTeamId = myTeam?.id;
     const byDate = !selectedDate ? matches : matches.filter(m => m.date === selectedDate);
     const mine = myTeamId ? byDate.filter(m => m.teamId === myTeamId) : [];
     const others = myTeamId ? byDate.filter(m => m.teamId !== myTeamId) : byDate;
-    if (hideMyListings) return others;
-    return [...mine, ...others];
-  }, [matches, selectedDate, myTeam, hideMyListings]);
+    const result = hideMyListings ? others : [...mine, ...others];
+    if (!marketplaceTourActive) return result;
+    // Demo ilan tarih emniyet filtresinden bağımsız hep görünür (tarihi seçili güne uyar)
+    const t = new Date();
+    const todayStr = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+    return [getDemoMarketAd(selectedDate || todayStr), ...result];
+  }, [matches, selectedDate, myTeam, hideMyListings, marketplaceTourActive]);
 
   useEffect(() => () => setIsDateFilterOpen(false), []);
 
   return {
     currentUser,
     myTeam,
+    marketplaceTourActive,
     matches,
     setMatches,
     isLoading,

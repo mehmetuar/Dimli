@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { TOUR_SCRIPTS } from './tourScripts';
 import { TourStep } from './tourTypes';
-import { useTour, advanceStep, setDemoPhase } from '../../services/tourStore';
+import { useTour, advanceStep, setDemoPhase, hideDemoTeam } from '../../services/tourStore';
 import { TourSheet } from './TourSheet';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -33,9 +33,10 @@ const StepOverlay: React.FC<{ step: TourStep; stepIndex: number; total: number }
     const [targetLost, setTargetLost] = useState(false);
     const lastHoleRef = useRef<Hole | null>(null);
 
-    // Adım giriş yan etkisi (ör. Sahalar son adımı: sahte sohbeti kapat, sayfa geri gelsin)
+    // Adım giriş yan etkisi (sahte sohbeti kapat / demo takımı gizle)
     useEffect(() => {
         if (step.onEnter === 'close-demo-chat') setDemoPhase('idle');
+        if (step.onEnter === 'hide-demo-team') hideDemoTeam();
     }, [step]);
 
     // KAYDIRMA KİLİDİ: delik dokunuşu alta geçirdiğinden kullanıcı listeyi kaydırıp
@@ -71,15 +72,25 @@ const StepOverlay: React.FC<{ step: TourStep; stepIndex: number; total: number }
                     try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch { /* eski WebView */ }
                 }
                 const r = el.getBoundingClientRect();
-                // Delik yüksekliği ekranın %50'sini aşamaz: uzun hedeflerde (ör. Rakip
-                // Arayanlar bölümü) alt yarı sheet'e kalır — kart/spotlight çakışması
-                // yapısal olarak imkânsız. Küçük hedefler etkilenmez.
+                // Delik sınırları:
+                // - Yatay clamp: her kenardan ≥8px — tam genişlik hedeflerde (filtre
+                //   çubuğu) sol/sağ simetrik boşluk, taşma yok.
+                // - Normal adım: yükseklik ≤ %50 ekran (alt yarı sheet'e kalır).
+                // - Compact adım: sheet HEP altta mini (~150px) — delik yalnız sheet
+                //   rezervine kadar iner, modal kartı TAM görünür.
                 const rawTop = r.top - pad;
+                const top = Math.max(rawTop, 8);
+                const rawLeft = r.left - pad;
+                const left = Math.max(rawLeft, 8);
+                const rawHeight = r.height + pad * 2 - (top - rawTop);
+                const COMPACT_RESERVE = 170; // mini sheet + nefes payı
                 const next: Hole = {
-                    top: Math.max(rawTop, 8),
-                    left: r.left - pad,
-                    width: r.width + pad * 2,
-                    height: Math.min(r.height + pad * 2 - (Math.max(rawTop, 8) - rawTop), window.innerHeight * 0.5),
+                    top,
+                    left,
+                    width: Math.min(r.width + pad * 2 - (left - rawLeft), window.innerWidth - left - 8),
+                    height: step.compact
+                        ? Math.min(rawHeight, window.innerHeight - COMPACT_RESERVE - top)
+                        : Math.min(rawHeight, window.innerHeight * 0.5),
                 };
                 const prev = lastHoleRef.current;
                 // Her karede setState olmasın — 0.5px üstü değişimde güncelle
@@ -114,6 +125,11 @@ const StepOverlay: React.FC<{ step: TourStep; stepIndex: number; total: number }
 
     const tappable = step.advance === 'target-tap' || step.advance === 'event';
     const showHole = !!step.target && !!hole && !targetLost;
+    // 'lines' çerçevesi: tam genişlik + yalnız üst/alt çizgi (yan kenar yok —
+    // yatay kaydırılan satırlarda kesik butonla "çakışma" algısı olmaz)
+    const lines = step.frame === 'lines';
+    const hLeft = lines ? 0 : hole?.left ?? 0;
+    const hWidth = lines && hole ? window.innerWidth : hole?.width ?? 0;
 
     return (
         <div className="fixed inset-0 z-[9990]" style={{ pointerEvents: 'none' }}>
@@ -121,21 +137,27 @@ const StepOverlay: React.FC<{ step: TourStep; stepIndex: number; total: number }
                 <>
                     {/* Delik: hafif karartma + hedefi parlatan turf ışıması — dokunuş yakalamaz */}
                     <div
-                        className={`fixed rounded-2xl border-2 border-turf-400 ${tappable ? 'animate-pulse' : ''}`}
+                        className={lines ? 'fixed' : `fixed rounded-2xl border-2 border-turf-400 ${tappable ? 'animate-pulse' : ''}`}
                         style={{
-                            top: hole.top, left: hole.left, width: hole.width, height: hole.height,
-                            boxShadow: `0 0 0 200vmax ${DIM_SPOTLIGHT}, ${GLOW}`,
+                            top: hole.top, left: hLeft, width: hWidth, height: hole.height,
+                            boxShadow: lines ? `0 0 0 200vmax ${DIM_SPOTLIGHT}` : `0 0 0 200vmax ${DIM_SPOTLIGHT}, ${GLOW}`,
                             pointerEvents: 'none',
                         }}
                     />
+                    {lines && (
+                        <>
+                            <div className="fixed h-[2px] bg-gradient-to-r from-transparent via-turf-400 to-transparent" style={{ top: hole.top - 2, left: 0, right: 0, pointerEvents: 'none' }} />
+                            <div className="fixed h-[2px] bg-gradient-to-r from-transparent via-turf-400 to-transparent" style={{ top: hole.top + hole.height, left: 0, right: 0, pointerEvents: 'none' }} />
+                        </>
+                    )}
                     {/* 4 kenar bloker — delik dışındaki her dokunuşu yutar */}
                     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, height: Math.max(0, hole.top), pointerEvents: 'auto' }} />
                     <div style={{ position: 'fixed', top: hole.top + hole.height, left: 0, right: 0, bottom: 0, pointerEvents: 'auto' }} />
-                    <div style={{ position: 'fixed', top: hole.top, left: 0, width: Math.max(0, hole.left), height: hole.height, pointerEvents: 'auto' }} />
-                    <div style={{ position: 'fixed', top: hole.top, left: hole.left + hole.width, right: 0, height: hole.height, pointerEvents: 'auto' }} />
+                    <div style={{ position: 'fixed', top: hole.top, left: 0, width: Math.max(0, hLeft), height: hole.height, pointerEvents: 'auto' }} />
+                    <div style={{ position: 'fixed', top: hole.top, left: hLeft + hWidth, right: 0, height: hole.height, pointerEvents: 'auto' }} />
                     {/* Salt gösterim adımlarında deliğin üstü de kapalı */}
                     {!tappable && (
-                        <div style={{ position: 'fixed', top: hole.top, left: hole.left, width: hole.width, height: hole.height, pointerEvents: 'auto' }} />
+                        <div style={{ position: 'fixed', top: hole.top, left: hLeft, width: hWidth, height: hole.height, pointerEvents: 'auto' }} />
                     )}
                 </>
             ) : (

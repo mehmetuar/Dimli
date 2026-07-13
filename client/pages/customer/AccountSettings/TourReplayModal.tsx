@@ -1,7 +1,7 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { X, MapPin, Zap, Users, ChevronRight } from 'lucide-react';
+import { X, MapPin, Zap, Users, Megaphone, ChevronRight } from 'lucide-react';
 import { startTour } from '../../../services/tourStore';
 import { useModalBodyClass } from '../../../utils/useModalBodyClass';
 
@@ -27,6 +27,17 @@ export const TourReplayModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 onClose();
                 startTour('pitches');
                 navigate('/pitches');
+            },
+        },
+        {
+            icon: <Megaphone className="w-5 h-5" />,
+            color: 'bg-orange-500/20 text-orange-400',
+            label: 'Maç Pazarı Turu',
+            desc: 'İlanlar, filtreler, işletme ve takım kartları',
+            run: () => {
+                onClose();
+                startTour('marketplace');
+                navigate('/');
             },
         },
         {

@@ -49,6 +49,7 @@ export const TeamRoster: React.FC<TeamRosterProps> = ({
                             <span className="text-[9px] bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded font-bold uppercase border border-red-500/30 whitespace-nowrap">Kadro Dolu</span>
                         ) : (
                             <button
+                                data-tour-id="team-add-player"
                                 onClick={() => setIsAddPlayerModalOpen(true)}
                                 className="bg-turf-600 hover:bg-turf-500 text-white p-1.5 rounded-lg transition-colors shadow-lg shadow-turf-600/20 shrink-0"
                                 title="Oyuncu Ekle / Davet Et"
@@ -68,6 +69,7 @@ export const TeamRoster: React.FC<TeamRosterProps> = ({
                         // Satıra dokunma → oyuncu bilgi kartı (kendine dokununca kendi kartı).
                         <div
                             key={player.id}
+                            data-tour-id={myTeam.viceCaptainIds?.includes(player.id!) ? 'team-player-vice' : undefined}
                             onClick={() => setPlayerCardModal({ isOpen: true, player })}
                             className="flex items-center gap-3 p-2 rounded-lg bg-slate-900/50 hover:bg-slate-700/50 active:bg-slate-700/70 transition-colors group cursor-pointer"
                         >

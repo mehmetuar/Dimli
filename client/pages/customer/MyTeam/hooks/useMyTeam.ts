@@ -9,6 +9,15 @@ import { getCurrentUserSnapshot } from '../../../../services/currentUserStore';
 import { isNetworkError } from '../../../../utils/apiError';
 import { readObjectCache, writeObjectCache, TEAM_CACHE_KEY } from '../../../../utils/listCache';
 import { useOnReconnect } from '../../../../hooks/useOnReconnect';
+import { getTourSnapshot } from '../../../../services/tourStore';
+import { getDemoUpcomingMatches, getDemoMatchHistory } from '../../PitchBooking/demo/demoTourData';
+
+// Takımım turu demo modu (çağrı anında okunur): tur aktif ve demo takım henüz
+// gizlenmemişken modal fetch'leri fikstür döner — sunucuya HİÇ gidilmez.
+const isTeamTourDemo = (): boolean => {
+    const s = getTourSnapshot();
+    return s.activeTour === 'team' && !s.demoTeamHidden;
+};
 
 // Kadro projeksiyonu — fetch/cache-hydrate/create yollarında aynı eşleme.
 // Liste alanlarına ek olarak oyuncu kartının (PlayerDetailModal) ihtiyaç
@@ -192,6 +201,11 @@ export const useMyTeam = (modals: any) => {
     }, [modals.isEditingPitch, coords, radius]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const fetchUpcomingMatches = async () => {
+        if (isTeamTourDemo()) {
+            setUpcomingMatches(getDemoUpcomingMatches(currentUser));
+            setIsUpcomingLoading(false);
+            return;
+        }
         if (!myTeam?.id) return;
         setIsUpcomingLoading(true);
         try {
@@ -208,6 +222,15 @@ export const useMyTeam = (modals: any) => {
 
     // reset=true → sayfa 0'dan (modal açılışı); reset=false → sonraki sayfayı ekle.
     const fetchMatchHistory = async (reset = true) => {
+        if (isTeamTourDemo()) {
+            // Demo: /ratings/history URL'inde demo- geçmediğinden interceptor'a
+            // takılmaz — gerçek (boş) geçmiş gelmesin diye burada kesilir.
+            setMatchHistory(getDemoMatchHistory());
+            setMatchHistoryTotal(1);
+            setHasMoreMatchHistory(false);
+            setIsMatchHistoryLoading(false);
+            return;
+        }
         if (!reset && historyFetchingRef.current) return;
         historyFetchingRef.current = true;
         const gen = reset ? ++historyGenRef.current : historyGenRef.current;
