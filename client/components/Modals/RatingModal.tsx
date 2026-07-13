@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, Shield } from 'lucide-react';
+import { Building2, Shield, Star } from 'lucide-react';
 import { PendingRating } from '../../types';
 import { useModalBodyClass } from '../../utils/useModalBodyClass';
 import { StarRating } from '../UI/StarRating';
@@ -17,6 +17,8 @@ interface RatingModalProps {
 const LABELS: Record<number, string> = { 1: 'Berbat', 2: 'Kötü', 3: 'Orta', 4: 'İyi', 5: 'Harika!' };
 const FP_LABELS: Record<number, string> = { 1: 'Çok Kötü', 2: 'Kötü', 3: 'Orta', 4: 'İyi', 5: 'Mükemmel!' };
 
+// Renk dili (uygulama geneliyle tutarlı): işletme = SARI (yıldız/rozet
+// varsayılanı), fair-play = YEŞİL (FairPlayScore yeşili). Indigo kullanılmaz.
 export const RatingModal: React.FC<RatingModalProps> = ({ pending, onSubmit, onSkip }) => {
     useModalBodyClass(true);
     useEffect(() => { (document.activeElement as HTMLElement)?.blur(); }, []);
@@ -43,6 +45,7 @@ export const RatingModal: React.FC<RatingModalProps> = ({ pending, onSubmit, onS
 
     const activeScore = step === 'business' ? businessScore : fairPlayScore;
     const canProceed = (activeScore > 0 || (step === 'business' && pending.businessDeleted)) && !submitting;
+    const isBusinessStep = step === 'business';
 
     const handlePrimaryAction = async () => {
         if (step === 'business' && hasBothSteps) {
@@ -68,14 +71,37 @@ export const RatingModal: React.FC<RatingModalProps> = ({ pending, onSubmit, onS
 
     return (
         <div className="fixed inset-0 z-[80] flex items-center justify-center px-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-            <div className="w-full max-w-sm bg-slate-800 rounded-3xl border border-slate-700 shadow-2xl overflow-hidden">
-                {/* Header */}
-                <div className="bg-gradient-to-b from-slate-900 to-slate-800 px-5 py-4 border-b border-turf-600/20">
-                    <p className="text-turf-400 text-xs font-semibold uppercase tracking-widest mb-0.5">
-                        Maç Değerlendirmesi
-                    </p>
-                    <p className="text-white font-bold text-sm">{matchDate} · {matchTime} - {matchEndTime}</p>
-                    <p className="text-slate-400 text-xs mt-0.5">{pending.pitchName} — {pending.businessName}</p>
+            <div className="w-full max-w-sm bg-slate-800 rounded-3xl border border-slate-700/50 shadow-2xl overflow-hidden animate-slide-up" data-tour-id="team-rating-modal">
+                {/* Header — Geçmiş Maçlar başlık dili: gradyan overlay + tintli ikon kutusu.
+                    Gradyan adım-duyarlı: işletme sarı, fair-play yeşil (yumuşak geçiş). */}
+                <div className="p-5 border-b border-slate-700/50 relative overflow-hidden">
+                    <div
+                        className={`absolute inset-0 transition-colors duration-500 bg-gradient-to-br ${
+                            isBusinessStep ? 'from-yellow-600/20' : 'from-turf-600/25'
+                        } to-slate-900`}
+                    />
+                    <div className="flex items-center gap-3 relative z-10">
+                        <div
+                            className={`p-3 rounded-2xl border shadow-lg transition-colors duration-500 ${
+                                isBusinessStep
+                                    ? 'bg-yellow-500/20 border-yellow-500/20 shadow-yellow-500/10'
+                                    : 'bg-turf-500/20 border-turf-500/20 shadow-turf-500/10'
+                            }`}
+                        >
+                            <Star className={`w-6 h-6 transition-colors duration-500 ${isBusinessStep ? 'text-yellow-400' : 'text-turf-400'}`} />
+                        </div>
+                        <div className="min-w-0">
+                            <h3 className="text-[clamp(15px,4.6vw,19px)] font-sport font-black text-white uppercase italic tracking-wide">
+                                Maç Değerlendirmesi
+                            </h3>
+                            <p className="text-[clamp(11px,3vw,12px)] text-slate-300 font-semibold truncate">
+                                {matchDate} · {matchTime} - {matchEndTime}
+                            </p>
+                            <p className="text-[clamp(10px,2.8vw,11px)] text-slate-400 truncate">
+                                {pending.pitchName} — {pending.businessName}
+                            </p>
+                        </div>
+                    </div>
                 </div>
 
                 {/* Clickable Tab Indicator (only when both steps needed) */}
@@ -92,7 +118,7 @@ export const RatingModal: React.FC<RatingModalProps> = ({ pending, onSubmit, onS
                                 pending.businessDeleted
                                     ? 'text-slate-700 cursor-not-allowed'
                                     : step === 'business'
-                                    ? 'text-turf-400 border-b-2 border-turf-400'
+                                    ? 'text-yellow-400 border-b-2 border-yellow-400'
                                     : 'text-slate-500 hover:text-slate-300'
                             }`}
                         >
@@ -109,7 +135,7 @@ export const RatingModal: React.FC<RatingModalProps> = ({ pending, onSubmit, onS
                             }}
                             className={`flex-1 py-2.5 text-center text-xs font-bold transition-colors ${
                                 step === 'fairplay'
-                                    ? 'text-indigo-400 border-b-2 border-indigo-400'
+                                    ? 'text-turf-400 border-b-2 border-turf-400'
                                     : pending.needsBusinessRating && businessScore === 0
                                     ? 'text-slate-700 cursor-not-allowed'
                                     : 'text-slate-500 hover:text-slate-300'
@@ -135,33 +161,37 @@ export const RatingModal: React.FC<RatingModalProps> = ({ pending, onSubmit, onS
                         </div>
                     ) : step === 'business' ? (
                         <>
-                            <div className="flex items-center gap-2 mb-5">
+                            <div className="flex items-center gap-2.5 mb-5">
                                 <div className="bg-yellow-500/10 p-2 rounded-xl border border-yellow-500/20">
                                     <Building2 className="w-5 h-5 text-yellow-400" />
                                 </div>
-                                <div>
-                                    <p className="text-white font-bold text-sm">{pending.businessName}</p>
+                                <div className="min-w-0">
+                                    <p className="text-white font-bold text-sm truncate">{pending.businessName}</p>
                                     <p className="text-slate-400 text-xs">Tesis deneyimini değerlendir</p>
                                 </div>
                             </div>
-                            <StarRating value={businessScore} onChange={setBusinessScore} />
-                            <p className="text-center text-slate-400 text-xs mt-2 h-4">
+                            <div className="py-1">
+                                <StarRating value={businessScore} onChange={setBusinessScore} color="yellow" />
+                            </div>
+                            <p className={`text-center text-xs font-bold mt-2.5 h-4 transition-colors ${businessScore > 0 ? 'text-yellow-300 animate-fade-in' : 'text-slate-500'}`}>
                                 {LABELS[businessScore] ?? ''}
                             </p>
                         </>
                     ) : (
                         <>
-                            <div className="flex items-center gap-2 mb-5">
-                                <div className="bg-indigo-500/10 p-2 rounded-xl border border-indigo-500/20">
-                                    <Shield className="w-5 h-5 text-indigo-400" />
+                            <div className="flex items-center gap-2.5 mb-5">
+                                <div className="bg-turf-500/10 p-2 rounded-xl border border-turf-500/20">
+                                    <Shield className="w-5 h-5 text-turf-400" />
                                 </div>
-                                <div>
-                                    <p className="text-white font-bold text-sm">{pending.opponentTeamName}</p>
+                                <div className="min-w-0">
+                                    <p className="text-white font-bold text-sm truncate">{pending.opponentTeamName}</p>
                                     <p className="text-slate-400 text-xs">Rakip takımın fair play'ini değerlendir</p>
                                 </div>
                             </div>
-                            <StarRating value={fairPlayScore} onChange={setFairPlayScore} color="green" />
-                            <p className="text-center text-slate-400 text-xs mt-2 h-4">
+                            <div className="py-1">
+                                <StarRating value={fairPlayScore} onChange={setFairPlayScore} color="green" />
+                            </div>
+                            <p className={`text-center text-xs font-bold mt-2.5 h-4 transition-colors ${fairPlayScore > 0 ? 'text-turf-300 animate-fade-in' : 'text-slate-500'}`}>
                                 {FP_LABELS[fairPlayScore] ?? ''}
                             </p>
                         </>
@@ -170,8 +200,10 @@ export const RatingModal: React.FC<RatingModalProps> = ({ pending, onSubmit, onS
                     <button
                         onClick={handlePrimaryAction}
                         disabled={!canProceed}
-                        className={`mt-5 w-full py-3 rounded-2xl font-bold text-sm text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95 ${
-                            step === 'fairplay' ? 'bg-indigo-600' : 'bg-turf-600'
+                        className={`mt-5 w-full py-3.5 rounded-2xl font-black text-sm uppercase tracking-wide disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95 shadow-lg ${
+                            isBusinessStep && hasBothSteps
+                                ? 'bg-yellow-500 hover:bg-yellow-400 text-slate-900 shadow-yellow-500/20'
+                                : 'bg-turf-600 hover:bg-turf-500 text-white shadow-turf-600/20'
                         }`}
                     >
                         {buttonLabel}
