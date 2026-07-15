@@ -87,6 +87,10 @@ export const BusinessNotificationsPage: React.FC = () => {
             navigate('/business/settings/support');
             return;
         }
+        if (notif.type === 'SUBSCRIPTION_EXPIRED' || notif.type === 'SUBSCRIPTION_REMINDER') {
+            navigate('/business/settings/subscription');
+            return;
+        }
         if (notif.metadata?.date) {
             navigate('/business/dashboard', { state: { selectedDate: notif.metadata.date } });
         }

@@ -9,6 +9,7 @@ import { PendingDowngradeBanner } from './components/PendingDowngradeBanner';
 import { InactiveStatusWarning } from './components/InactiveStatusWarning';
 import { SubscriptionActionButtons } from './components/SubscriptionActionButtons';
 import { PromoCodeRedeemSection } from './components/PromoCodeRedeemSection';
+import { ComplimentaryExpiryBanner } from './components/ComplimentaryExpiryBanner';
 import { StoreCancelPromptModal } from './components/StoreCancelPromptModal';
 import { PromoCodeModal } from '../../../components/Modals/PromoCodeModal';
 import { DeleteAccountSection } from './components/DeleteAccountSection';
@@ -43,6 +44,7 @@ export const BusinessSubscriptionSettings: React.FC = () => {
         showStoreCancelModal, setShowStoreCancelModal,
         handleRedeemPromo,
         handleSelectPlan,
+        handleBuyCurrentPlan,
         handlePitchSelectionConfirm,
         handleDowngradeConfirm,
         handleRestorePurchases,
@@ -115,6 +117,11 @@ export const BusinessSubscriptionSettings: React.FC = () => {
                                     status={status}
                                     statusLabel={statusLabel}
                                     statusColor={statusColor}
+                                />
+                                <ComplimentaryExpiryBanner
+                                    subscription={subscription}
+                                    purchaseLoading={purchaseLoading}
+                                    onBuy={handleBuyCurrentPlan}
                                 />
                                 <PendingDowngradeBanner
                                     subscription={subscription}

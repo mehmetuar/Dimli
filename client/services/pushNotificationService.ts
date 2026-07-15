@@ -132,6 +132,10 @@ const handleNotificationClick = (data: any) => {
             : '#/settings/support';
         return;
     }
+    if (data.type === 'SUBSCRIPTION_EXPIRED' || data.type === 'SUBSCRIPTION_REMINDER') {
+        window.location.hash = '#/business/settings/subscription';
+        return;
+    }
     if (data.type === 'CHAT' || data.isChatRedirect) {
         window.location.hash = data.channelId ? `#/chat?channelId=${data.channelId}` : '#/chat';
     } else if (data.type === 'JOIN_REQUEST') {

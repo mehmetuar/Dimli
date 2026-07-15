@@ -79,6 +79,13 @@ export const useBusinessSubscriptionSettings = () => {
         setTimeout(() => setToast(null), 3500);
     };
 
+    // Davetli üyelik bitişinde/expired'da mevcut planı doğrudan satın al (IAP).
+    // handleSelectPlan aynı planType'ı yükseltme/yeni-satın-alma dalına sokar →
+    // purchasePlan + confirm-purchase (complimentary alanları temizlenir, ACTIVE).
+    const handleBuyCurrentPlan = () => {
+        if (subscription?.planType) handleSelectPlan(subscription.planType);
+    };
+
     const handleSelectPlan = async (planType: string) => {
         const newPlanEntry = PLAN_ENTRIES.find(([, pl]) => pl.planType === planType);
         const newPitchCount = newPlanEntry ? Number(newPlanEntry[0]) : 0;
@@ -339,6 +346,7 @@ export const useBusinessSubscriptionSettings = () => {
         showStoreCancelModal, setShowStoreCancelModal,
         handleRedeemPromo,
         handleSelectPlan,
+        handleBuyCurrentPlan,
         handlePitchSelectionConfirm,
         handleDowngradeConfirm,
         handleRestorePurchases,
