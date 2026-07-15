@@ -33,8 +33,11 @@ export const useBusinessSubscriptionSettings = () => {
     // Davet kodu kullanımı (mevcut işletme)
     const [promoCode, setPromoCodeRaw] = useState('');
     const [promoRedeemLoading, setPromoRedeemLoading] = useState(false);
+    const [promoError, setPromoError] = useState('');
+    const [showPromoModal, setShowPromoModal] = useState(false);
     const [showStoreCancelModal, setShowStoreCancelModal] = useState(false);
-    const setPromoCode = (v: string) => setPromoCodeRaw(v.toUpperCase());
+    const setPromoCode = (v: string) => { setPromoCodeRaw(v.toUpperCase()); if (promoError) setPromoError(''); };
+    const openPromoModal = () => { setPromoCodeRaw(''); setPromoError(''); setShowPromoModal(true); };
 
     // Düşürme akışında SEÇİLEN saha ID'leri — silme/pasifleştirme YOK; asıl
     // işlem satın alma tamamlanınca schedule-downgrade'de sunucuda yapılır.
@@ -208,21 +211,24 @@ export const useBusinessSubscriptionSettings = () => {
         }
     };
 
-    const handleRedeemPromo = async () => {
+    // Modal başarıda kapanabilsin diye boolean döner; hata modal içinde gösterilir.
+    const handleRedeemPromo = async (): Promise<boolean> => {
         const code = promoCode.trim();
-        if (!code) return;
+        if (!code) return false;
         setPromoRedeemLoading(true);
+        setPromoError('');
+        // Mağaza aboneliği hâlâ yenilenebilir mi (redeem SONRASI state değişmeden önce oku).
+        const hadStoreSub = Capacitor.isNativePlatform() && !!subscription?.revenuecatCustomerId;
         try {
             await api.post('/promo-codes/redeem', { code });
             setPromoCodeRaw('');
             await fetchSubscription();
             showToast('Davet kodun uygulandı. Aboneliğin artık ücretsiz.', 'success');
-            // Mağaza aboneliği hâlâ yenilenebilir — kullanıcıyı iptale yönlendir.
-            if (Capacitor.isNativePlatform() && subscription?.revenuecatCustomerId) {
-                setShowStoreCancelModal(true);
-            }
+            if (hadStoreSub) setShowStoreCancelModal(true);
+            return true;
         } catch (err) {
-            showToast(getErrorMessage(err, 'Davet kodu uygulanamadı. Lütfen tekrar deneyin.'), 'error');
+            setPromoError(getErrorMessage(err, 'Davet kodu uygulanamadı. Lütfen tekrar deneyin.'));
+            return false;
         } finally {
             setPromoRedeemLoading(false);
         }
@@ -328,7 +334,8 @@ export const useBusinessSubscriptionSettings = () => {
         downgradeLoading,
         toast,
         downgradePurchaseRef,
-        promoCode, setPromoCode, promoRedeemLoading,
+        promoCode, setPromoCode, promoRedeemLoading, promoError,
+        showPromoModal, openPromoModal, setShowPromoModal,
         showStoreCancelModal, setShowStoreCancelModal,
         handleRedeemPromo,
         handleSelectPlan,

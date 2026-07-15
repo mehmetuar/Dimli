@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { CheckCircle, ShieldCheck, CreditCard, Building2, Ticket, X } from 'lucide-react';
 import { SUBSCRIPTION_PLANS } from '../../hooks/useBusinessRegister';
 import { RegisterSection } from '../RegisterSection';
+import { PromoCodeModal } from '../../../../../components/Modals/PromoCodeModal';
 
 interface PaymentStepProps {
     formData: any;
@@ -13,7 +14,7 @@ interface PaymentStepProps {
     promoStatus: 'idle' | 'checking' | 'applied' | 'invalid';
     promoDurationMonths: number | null;
     promoError: string;
-    applyPromoCode: () => void;
+    applyPromoCode: () => Promise<boolean>;
     clearPromoCode: () => void;
 }
 
@@ -24,6 +25,7 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
     promoCode, setPromoCode, promoStatus, promoDurationMonths, promoError,
     applyPromoCode, clearPromoCode,
 }) => {
+    const [showPromoModal, setShowPromoModal] = useState(false);
     const count = formData.selectedPitchCount;
     const plan = SUBSCRIPTION_PLANS[count] || SUBSCRIPTION_PLANS[5];
     const promoApplied = promoStatus === 'applied';
@@ -105,36 +107,30 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
                         </div>
                     ) : (
                         <>
-                            <p className="text-slate-400 text-xs mb-2.5">
-                                İş ortaklarımızdan aldığın bir davet kodun varsa buraya gir.
+                            <p className="text-slate-400 text-xs mb-3">
+                                İş ortaklarımızdan aldığın bir davet kodun varsa uygulayabilirsin.
                             </p>
-                            <div className="flex gap-2">
-                                <input
-                                    type="text"
-                                    value={promoCode}
-                                    onChange={e => setPromoCode(e.target.value)}
-                                    placeholder="DIMLI-XXXXXXXX"
-                                    autoCapitalize="characters"
-                                    autoCorrect="off"
-                                    spellCheck={false}
-                                    className="flex-1 min-w-0 bg-slate-900/60 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-600 font-mono tracking-wide focus:outline-none focus:border-sky-500/60"
-                                />
-                                <button
-                                    type="button"
-                                    onClick={applyPromoCode}
-                                    disabled={promoStatus === 'checking' || !promoCode.trim()}
-                                    className="shrink-0 bg-slate-700 hover:bg-slate-600 text-white px-4 rounded-xl font-black text-sm transition-all disabled:opacity-50"
-                                >
-                                    {promoStatus === 'checking' ? '...' : 'Uygula'}
-                                </button>
-                            </div>
-                            {promoStatus === 'invalid' && promoError && (
-                                <p className="text-red-400 text-xs font-bold mt-2">{promoError}</p>
-                            )}
+                            <button
+                                type="button"
+                                onClick={() => setShowPromoModal(true)}
+                                className="w-full flex items-center justify-center gap-2 bg-slate-700/60 hover:bg-slate-700 border border-slate-600/60 text-white py-2.5 rounded-xl font-black text-sm transition-all"
+                            >
+                                <Ticket className="w-4 h-4 text-sky-300" /> Davet Kodu Kullan
+                            </button>
                         </>
                     )}
                 </div>
             </RegisterSection>
+
+            <PromoCodeModal
+                isOpen={showPromoModal}
+                onClose={() => setShowPromoModal(false)}
+                code={promoCode}
+                setCode={setPromoCode}
+                loading={promoStatus === 'checking'}
+                error={promoStatus === 'invalid' ? promoError : undefined}
+                onSubmit={applyPromoCode}
+            />
 
             {/* İşletme özeti */}
             <RegisterSection icon={Building2} title="İşletme Özeti" bare>

@@ -85,9 +85,10 @@ export const useBusinessRegister = () => {
         }
     };
 
-    const applyPromoCode = async () => {
+    // Modal başarıda (applied) kapanabilsin diye boolean döner.
+    const applyPromoCode = async (): Promise<boolean> => {
         const code = promoCode.trim();
-        if (!code) return;
+        if (!code) return false;
         setPromoStatus('checking');
         setPromoError('');
         try {
@@ -95,10 +96,11 @@ export const useBusinessRegister = () => {
             if (res.data?.valid) {
                 setPromoStatus('applied');
                 setPromoDurationMonths(res.data.durationMonths ?? null);
-            } else {
-                setPromoStatus('invalid');
-                setPromoError(res.data?.message || 'Davet kodu geçersiz.');
+                return true;
             }
+            setPromoStatus('invalid');
+            setPromoError(res.data?.message || 'Davet kodu geçersiz.');
+            return false;
         } catch (err) {
             setPromoStatus('invalid');
             const retry = getRetryAfterSeconds(err);
@@ -107,6 +109,7 @@ export const useBusinessRegister = () => {
                     ? `Çok fazla deneme yaptınız. ${retry} sn sonra tekrar deneyin.`
                     : getErrorMessage(err, 'Kod doğrulanamadı. Lütfen tekrar deneyin.'),
             );
+            return false;
         }
     };
 

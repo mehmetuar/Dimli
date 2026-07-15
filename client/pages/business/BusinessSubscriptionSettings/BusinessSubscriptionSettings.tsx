@@ -10,6 +10,7 @@ import { InactiveStatusWarning } from './components/InactiveStatusWarning';
 import { SubscriptionActionButtons } from './components/SubscriptionActionButtons';
 import { PromoCodeRedeemSection } from './components/PromoCodeRedeemSection';
 import { StoreCancelPromptModal } from './components/StoreCancelPromptModal';
+import { PromoCodeModal } from '../../../components/Modals/PromoCodeModal';
 import { DeleteAccountSection } from './components/DeleteAccountSection';
 import { PlanPickerModal } from './components/PlanPickerModal';
 import { DeleteModal } from './components/DeleteModal';
@@ -37,7 +38,8 @@ export const BusinessSubscriptionSettings: React.FC = () => {
         downgradeLoading,
         toast,
         downgradePurchaseRef,
-        promoCode, setPromoCode, promoRedeemLoading,
+        promoCode, setPromoCode, promoRedeemLoading, promoError,
+        showPromoModal, openPromoModal, setShowPromoModal,
         showStoreCancelModal, setShowStoreCancelModal,
         handleRedeemPromo,
         handleSelectPlan,
@@ -145,12 +147,7 @@ export const BusinessSubscriptionSettings: React.FC = () => {
 
                                 {/* Davet kodu girişi — davetli üyelik dışındaki tüm durumlarda */}
                                 {!isComplimentary && (
-                                    <PromoCodeRedeemSection
-                                        promoCode={promoCode}
-                                        setPromoCode={setPromoCode}
-                                        loading={promoRedeemLoading}
-                                        onRedeem={handleRedeemPromo}
-                                    />
+                                    <PromoCodeRedeemSection onOpen={openPromoModal} />
                                 )}
                             </>
                         )}
@@ -214,6 +211,16 @@ export const BusinessSubscriptionSettings: React.FC = () => {
                     downgradePurchaseRef.current = null;
                 }}
                 onConfirm={handleDowngradeConfirm}
+            />
+
+            <PromoCodeModal
+                isOpen={showPromoModal}
+                onClose={() => setShowPromoModal(false)}
+                code={promoCode}
+                setCode={setPromoCode}
+                loading={promoRedeemLoading}
+                error={promoError}
+                onSubmit={handleRedeemPromo}
             />
 
             <StoreCancelPromptModal
