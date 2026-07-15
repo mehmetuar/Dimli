@@ -3563,3 +3563,53 @@ gereksizdi), DEMO_BUSINESS.address kısaltıldı ("Örnek işletme — rezervasy
 ekranlar için güvenlik ağı olarak kalır, çerçeve v17 gereği panel kenarında.
 
 Doğrulama: `tsc --noEmit` (yalnız önceden var LocationStep) + `vite build` ✓. Cihaz testi bekliyor.
+
+### §80. Davet (promo) kodu ile ücretsiz işletme aboneliği (2026-07-15)
+
+**Amaç:** İlk ~20 işletmeye tamamen ücretsiz erişim. Store offer code / RevenueCat
+promotional entitlement KULLANILMADI — abonelik durumunun kaynağı zaten sunucudaki
+`subscriptions` tablosu; store kodları süresiz ücretsizliği desteklemez. Tamamen kendi
+sunucu-tarafı kod sistemi kuruldu.
+
+**Veri modeli:**
+- Yeni `promo-codes/` modülü: `promo_codes` (code `DIMLI-XXXXXXXX`, durationMonths null=süresiz,
+  maxRedemptions/usedCount, isActive, expiresAt) + `promo_code_redemptions` (denetim izi,
+  unique (promoCodeId, ownerId)).
+- `subscriptions` enum'a `COMPLIMENTARY` + kolonlar `complimentaryUntil` (null=süresiz),
+  `complimentaryReminderSentAt`, `promoCodeId`. Flag değil enum — webhook guard/cron/rozet tek
+  alandan okur.
+
+**Kritik kararlar:**
+- **Webhook guard (subscription.service.ts handleWebhook):** `status===COMPLIMENTARY` ise TÜM
+  RC event tipleri atlanır. Mevcut işletme kod kullandıktan sonra store aboneliği hâlâ
+  RENEWAL/EXPIRATION üretebilir; RENEWAL statüyü ACTIVE'e çevirip sonraki EXPIRATION erişimi
+  öldürürdü. Ücretliye dönüş tek yoldan: confirm-purchase (complimentary alanlarını temizler).
+- **Yeni kayıtta IAP atlanır** (useBusinessRegister handleSubmit: promoApplied → purchasePlan +
+  linkRevenueCatUser ATLANIR). RC ID hiç oluşmaz → webhook eşleşmesi asla kurulmaz (doğal koruma).
+  Redeem, kayıt transaction'ı İÇİNDE (auth.service, commit öncesi) — atomik; geçersiz kod tüm kaydı
+  rollback eder.
+- **Atomik tüketim (yarış):** koşullu UPDATE `usedCount=usedCount+1 WHERE usedCount<maxRedemptions`
+  → affected!==1 ise ConflictException. Postgres satır kilidi eşzamanlı kaydı serileştirir.
+- **Süre dolumu:** genel trial-expiry cron'u sunucuda YOK; SubscriptionService'e saatlik
+  `@Cron` eklendi (complimentaryUntil<=now → EXPIRED + bildirim; 7 gün kala tek hatırlatma). Yalnız
+  Subscription+Notification repo → SubscriptionModule yaprak kalır.
+- **Store aboneliği programatik iptal EDİLEMEZ:** mevcut işletme redeem sonrası native'de
+  StoreCancelPromptModal + mevcut `openStoreSubscriptions()` helper'ı ile kullanıcı kendi iptal
+  eder; iptal etmese bile webhook guard sistemsel zararı önler (yalnız kullanıcı ödemeye devam eder).
+- **Apple 3.1.1 dili:** client UI'da yalnız "davet/partner kodu / erişim" — kupon/indirim/ödeme
+  YASAK. App Review notu: "partner onboarding invitation codes, not sold".
+- **Modül zinciri:** Auth/Admin → PromoCodes → Subscription (döngüsüz; SubscriptionModule yaprak).
+  Public `/promo-codes/validate` auth'suz + PromoThrottlerGuard (named 'promo' 10/dk, enumeration
+  koruması). Admin CRUD admin.controller'da AdminJwtAuthGuard.
+- **Status gate'leri** (`['active','trial','complimentary']`): BusinessDashboard, useBusinessAddPitch,
+  useBusinessPitchList, useBusinessSubscriptionSettings.
+
+**Admin panel:** yeni PromoCodesPage + usePromoCodes (usePaginatedList), kod üret/listele/deaktive,
+üretilen kod kopyalama modalı, redemption listesi. IconTicket + route + sidebar.
+
+**Doğrulama:** 3 pakette build + server lint temiz. Canlı DB'de riskli enum ALTER önceden manuel
+uygulandı (`ALTER TYPE subscriptions_status_enum ADD VALUE 'complimentary'` ✓) — deploy'daki
+synchronize enum'u tam görüp yeniden yaratmayacak, yalnız yeni tabloları + nullable kolonları
+ekleyecek. Deploy sırası: server → client-admin → mobil (yeni native build + store inceleme).
+Kod alanı yalnız yeni binary'de; sunucu eski istemcileri değiştirmeden kabul eder. Cihaz testi +
+uçtan uca akış (kayıt/redeem/cron/webhook) deploy sonrası bekliyor.
