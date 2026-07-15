@@ -1,7 +1,7 @@
 import React from 'react';
 import {
     IconClock, IconCheck, IconX, IconPause, IconPending,
-    IconChevronRight, IconPitch,
+    IconChevronRight, IconPitch, IconAlertCircle,
 } from '../../components/Icons';
 import SearchInput from '../../components/SearchInput';
 import Pagination from '../../components/Pagination';
@@ -71,12 +71,23 @@ const ApplicationsList: React.FC<ApplicationsListProps> = ({ status }) => {
     const {
         applications, total, totalPages, page, setPage,
         search, setSearch, loading, navigate,
+        processingId, toast, suspend, activate,
     } = useApplicationsList(status);
     const cfg = STATUS_CONFIG[status];
     const { Icon } = cfg;
 
     return (
         <div className="p-6 max-w-5xl mx-auto">
+            {toast && (
+                <div className={`fixed top-4 right-4 z-[60] px-4 py-3 rounded-xl shadow-2xl text-sm font-bold flex items-center gap-2 border
+                    ${toast.type === 'success'
+                        ? 'bg-emerald-900/90 border-emerald-500/40 text-emerald-300'
+                        : 'bg-red-900/90 border-red-500/40 text-red-300'}`}
+                >
+                    {toast.type === 'success' ? <IconCheck size={14} /> : <IconAlertCircle size={14} />}
+                    {toast.text}
+                </div>
+            )}
             <div className="flex items-center gap-3 mb-6">
                 <div className={`w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center ${cfg.iconColor}`}>
                     <Icon size={18} />
@@ -167,10 +178,38 @@ const ApplicationsList: React.FC<ApplicationsListProps> = ({ status }) => {
                                         )}
                                     </div>
                                 </div>
-                                <div className="flex flex-col items-end gap-1 shrink-0">
+                                <div className="flex flex-col items-end gap-2 shrink-0">
                                     <span className="text-slate-500 text-xs">
                                         {new Date(app.createdAt).toLocaleDateString('tr-TR')}
                                     </span>
+                                    {status === 'active' && (
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                if (window.confirm(`"${app.name}" işletmesini askıya almak istediğinize emin misiniz? Müşteri tarafında görünmez olacak.`)) {
+                                                    suspend(app.id);
+                                                }
+                                            }}
+                                            disabled={processingId === app.id}
+                                            className="text-xs font-black px-3 py-1.5 rounded-lg border border-amber-500/30 text-amber-300 hover:bg-amber-500/10 transition-all disabled:opacity-50"
+                                        >
+                                            {processingId === app.id ? '…' : 'Askıya Al'}
+                                        </button>
+                                    )}
+                                    {status === 'suspended' && (
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                if (window.confirm(`"${app.name}" işletmesini yeniden aktifleştirmek istediğinize emin misiniz?`)) {
+                                                    activate(app.id);
+                                                }
+                                            }}
+                                            disabled={processingId === app.id}
+                                            className="text-xs font-black px-3 py-1.5 rounded-lg border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 transition-all disabled:opacity-50"
+                                        >
+                                            {processingId === app.id ? '…' : 'Aktifleştir'}
+                                        </button>
+                                    )}
                                     <IconChevronRight size={16} className="text-slate-500 group-hover:text-orange-400 transition-colors" />
                                 </div>
                             </div>
