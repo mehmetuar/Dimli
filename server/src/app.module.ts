@@ -27,6 +27,7 @@ import { UserReportsModule } from './user-reports/user-reports.module';
 import { SupportTicketsModule } from './support-tickets/support-tickets.module';
 import { FacilitiesModule } from './facilities/facilities.module';
 import { PresetNotesModule } from './preset-notes/preset-notes.module';
+import { PromoCodesModule } from './promo-codes/promo-codes.module';
 
 @Module({
   imports: [
@@ -70,6 +71,9 @@ import { PresetNotesModule } from './preset-notes/preset-notes.module';
         // guard eklenemez; IP başına dakikada 30 (CGNAT'ta paylaşımlı IP + kayıtta
         // logo/saha foto burst'ü için cömert). UploadThrottlerGuard ile uygulanır.
         { name: 'upload', ttl: 60_000, limit: 30 },
+        // Davet kodu doğrulama (POST /promo-codes/validate) — auth'suz, kod
+        // enumeration'ı sınırlar. PromoThrottlerGuard ile uygulanır.
+        { name: 'promo', ttl: 60_000, limit: 10 },
       ],
     }),
     AuthModule,
@@ -95,6 +99,7 @@ import { PresetNotesModule } from './preset-notes/preset-notes.module';
     SupportTicketsModule,
     FacilitiesModule,
     PresetNotesModule,
+    PromoCodesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
