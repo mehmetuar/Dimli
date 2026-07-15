@@ -21,6 +21,7 @@ import {
 import { Pitch } from '../pitches/entities/pitch.entity';
 import { BusinessOwner } from '../business-owner/entities/business-owner.entity';
 import { Notification } from '../notifications/notification.entity';
+import { FirebaseService } from '../firebase/firebase.service';
 import type { RevenueCatWebhookPayload } from './dto/revenuecat-webhook';
 
 export const SUBSCRIPTION_PLANS: Record<
@@ -49,6 +50,9 @@ export class SubscriptionService {
     private businessOwnerRepository: Repository<BusinessOwner>,
     @InjectRepository(Notification)
     private notificationRepository: Repository<Notification>,
+    // Firebase leaf servis — NotificationsModule'deki gibi ad-hoc provider;
+    // cron davetli üyelik hatırlatmalarını push olarak da gönderir (yaprak bozulmaz).
+    private firebaseService: FirebaseService,
   ) {}
 
   getPlans() {
@@ -203,6 +207,7 @@ export class SubscriptionService {
     // temizle (aksi halde expiry cron'u ücretli aboneliği hedef alabilir).
     subscription.complimentaryUntil = null;
     subscription.complimentaryReminderSentAt = null;
+    subscription.complimentaryReminderStage = 0;
     subscription.promoCodeId = null;
 
     const saved = await this.subscriptionRepository.save(subscription);
@@ -368,12 +373,69 @@ export class SubscriptionService {
   // bitişini bu cron yönetir. Yalnız Subscription + Notification repo kullanır
   // → SubscriptionModule yaprak kalır. complimentaryUntil=null (süresiz) hiç
   // yakalanmaz.
+  // İşletme sahibine bildirim (DB) + best-effort push. Modül döngüsü nedeniyle
+  // NotificationsService yerine doğrudan repo + Firebase (yaprak kural). metadata
+  // { screen:'subscription' } → client bildirime/push'a tıklayınca abonelik ayarları.
+  private async notifyOwner(
+    ownerId: string,
+    type: 'SUBSCRIPTION_EXPIRED' | 'SUBSCRIPTION_REMINDER',
+    title: string,
+    message: string,
+  ): Promise<void> {
+    await this.notificationRepository.save(
+      this.notificationRepository.create({
+        userId: ownerId,
+        type,
+        title,
+        message,
+        read: false,
+        metadata: { screen: 'subscription' },
+      }),
+    );
+    try {
+      const owner = await this.businessOwnerRepository.findOne({
+        where: { id: ownerId },
+      });
+      if (owner?.pushToken) {
+        await this.firebaseService.sendToDevice(
+          owner.pushToken,
+          title,
+          message,
+          {
+            type,
+            screen: 'subscription',
+          },
+        );
+      }
+    } catch (err) {
+      this.logger.warn(
+        `Davetli üyelik push gönderilemedi (owner ${ownerId}): ${String(err)}`,
+      );
+    }
+  }
+
+  private formatPlanPrice(planType: string): string {
+    const plan = SUBSCRIPTION_PLANS[planType];
+    if (!plan) return '';
+    return `${Number(plan.pricePerMonth).toLocaleString('tr-TR')} TL/ay`;
+  }
+
+  private formatTrDate(d: Date): string {
+    return d.toLocaleDateString('tr-TR', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'Europe/Istanbul',
+    });
+  }
+
   @Cron(CronExpression.EVERY_HOUR, { name: 'complimentary_expiry' })
   async processComplimentaryExpiry(): Promise<void> {
     const now = new Date();
+    const DAY = 24 * 60 * 60 * 1000;
 
     // 1) Süresi dolanlar → EXPIRED (complimentary alanları denetim izi olarak
-    //    KORUNUR; client'taki mevcut expired UI'ı devreye girer).
+    //    KORUNUR; client'taki expired gate satın almaya zorlar).
     const due = await this.subscriptionRepository.find({
       where: {
         status: SubscriptionStatus.COMPLIMENTARY,
@@ -384,15 +446,14 @@ export class SubscriptionService {
       try {
         sub.status = SubscriptionStatus.EXPIRED;
         await this.subscriptionRepository.save(sub);
-        await this.notificationRepository.save(
-          this.notificationRepository.create({
-            userId: sub.ownerId,
-            type: 'SUBSCRIPTION_EXPIRED',
-            title: 'Davetli Üyeliğiniz Sona Erdi',
-            message:
-              'Davetli ücretsiz üyeliğinizin süresi doldu. Hizmete devam etmek için abonelik ayarlarından bir plan seçebilirsiniz.',
-            read: false,
-          }),
+        const price = this.formatPlanPrice(sub.planType);
+        await this.notifyOwner(
+          sub.ownerId,
+          'SUBSCRIPTION_EXPIRED',
+          'Davetli Üyeliğiniz Sona Erdi',
+          `Davetli ücretsiz üyeliğinizin süresi doldu. Sahalarınızın yayında kalması için ${
+            price ? `planınızı (${price}) ` : 'planınızı '
+          }abonelik ayarlarından satın alabilirsiniz.`,
         );
       } catch (err) {
         this.logger.error(
@@ -402,27 +463,39 @@ export class SubscriptionService {
       }
     }
 
-    // 2) 7 gün kala tek seferlik hatırlatma (complimentaryReminderSentAt IS NULL).
-    const reminderWindow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    // 2) Kademeli hatırlatma: 1 ay (≤30g), 1 hafta (≤7g), 3 gün (≤3g) kala.
+    //    Her kademe bir kez; complimentaryReminderStage yalnız ileri gider.
+    const monthWindow = new Date(now.getTime() + 30 * DAY);
     const toRemind = await this.subscriptionRepository.find({
       where: {
         status: SubscriptionStatus.COMPLIMENTARY,
-        complimentaryReminderSentAt: IsNull(),
-        complimentaryUntil: Between(now, reminderWindow),
+        complimentaryUntil: Between(now, monthWindow),
       },
     });
     for (const sub of toRemind) {
       try {
-        await this.notificationRepository.save(
-          this.notificationRepository.create({
-            userId: sub.ownerId,
-            type: 'SUBSCRIPTION_REMINDER',
-            title: 'Davetli Üyeliğiniz Sona Eriyor',
-            message:
-              'Davetli ücretsiz üyeliğinizin bitişine az kaldı. Kesintisiz devam için abonelik ayarlarından bir plan seçebilirsiniz.',
-            read: false,
-          }),
+        if (!sub.complimentaryUntil) continue;
+        const daysLeft =
+          (sub.complimentaryUntil.getTime() - now.getTime()) / DAY;
+        const targetStage = daysLeft <= 3 ? 3 : daysLeft <= 7 ? 2 : 1;
+        if (targetStage <= sub.complimentaryReminderStage) continue;
+
+        const price = this.formatPlanPrice(sub.planType);
+        const dateStr = this.formatTrDate(sub.complimentaryUntil);
+        const leadLabel =
+          targetStage === 3
+            ? 'son 3 gün'
+            : targetStage === 2
+              ? 'yaklaşık 1 hafta'
+              : 'yaklaşık 1 ay';
+        await this.notifyOwner(
+          sub.ownerId,
+          'SUBSCRIPTION_REMINDER',
+          'Davetli Üyeliğiniz Sona Eriyor',
+          `Davetli ücretsiz üyeliğinizin bitişine ${leadLabel} kaldı (${dateStr}). ` +
+            `Kesintisiz devam için planınızı${price ? ` (${price})` : ''} abonelik ayarlarından şimdi satın alabilirsiniz.`,
         );
+        sub.complimentaryReminderStage = targetStage;
         sub.complimentaryReminderSentAt = now;
         await this.subscriptionRepository.save(sub);
       } catch (err) {

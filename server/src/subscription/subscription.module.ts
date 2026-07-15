@@ -6,6 +6,7 @@ import { Subscription } from './entities/subscription.entity';
 import { Pitch } from '../pitches/entities/pitch.entity';
 import { BusinessOwner } from '../business-owner/entities/business-owner.entity';
 import { Notification } from '../notifications/notification.entity';
+import { FirebaseService } from '../firebase/firebase.service';
 
 // ⚠️ Yalnız ENTITY forFeature'ları eklenir — modül importu (Notifications/
 // Pitches/Reservations) döngü yaratır; SubscriptionModule yaprak kalmalı.
@@ -19,7 +20,9 @@ import { Notification } from '../notifications/notification.entity';
     ]),
   ],
   controllers: [SubscriptionController],
-  providers: [SubscriptionService],
+  // FirebaseService ad-hoc provider (NotificationsModule deseni) — cron push için;
+  // Firebase leaf olduğundan modül döngüsü yaratmaz, yaprak kural korunur.
+  providers: [SubscriptionService, FirebaseService],
   exports: [SubscriptionService],
 })
 export class SubscriptionModule {}
