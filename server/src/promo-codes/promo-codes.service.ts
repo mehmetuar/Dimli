@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomInt } from 'crypto';
-import { DataSource, EntityManager, Repository } from 'typeorm';
+import { DataSource, EntityManager, In, Repository } from 'typeorm';
 import { PromoCode } from './entities/promo-code.entity';
 import { PromoCodeRedemption } from './entities/promo-code-redemption.entity';
 import { CreatePromoCodesDto } from './dto/create-promo-codes.dto';
@@ -45,6 +45,8 @@ export class PromoCodesService {
     private readonly promoRepository: Repository<PromoCode>,
     @InjectRepository(PromoCodeRedemption)
     private readonly redemptionRepository: Repository<PromoCodeRedemption>,
+    @InjectRepository(BusinessOwner)
+    private readonly businessOwnerRepository: Repository<BusinessOwner>,
     private readonly subscriptionService: SubscriptionService,
     private readonly dataSource: DataSource,
   ) {}
@@ -273,6 +275,7 @@ export class PromoCodesService {
       qb.andWhere('p.usedCount >= p.maxRedemptions');
     }
 
+    // Sayaç ayrı bir sorgu ile (getCount + aynı qb'de getMany yan etki riski).
     const total = await qb.getCount();
     const codes = await qb
       .orderBy('p.created_at', 'DESC')
@@ -280,34 +283,50 @@ export class PromoCodesService {
       .take(limit)
       .getMany();
 
-    // Sayfadaki kodların kullanımlarını tek sorguda çek (owner + business).
+    // Kullanımları çek + owner/işletme adını ayrı sorguyla eşle. Raw entity join
+    // KULLANMA: redemption.ownerId varchar, business_owner.id uuid → join'de
+    // "uuid = character varying" hatası (500). Parametreli In() ise güvenli (kolon
+    // değil param karşılaştırması → Postgres implicit cast eder).
     const codeIds = codes.map((c) => c.id);
-    const redemptions: RedemptionRow[] = codeIds.length
-      ? await this.redemptionRepository
-          .createQueryBuilder('r')
-          .leftJoin(BusinessOwner, 'o', 'o.id = r.ownerId')
-          .leftJoin('o.business', 'b')
-          .select([
-            'r.id AS id',
-            'r.promoCodeId AS "promoCodeId"',
-            'r.ownerId AS "ownerId"',
-            'r.context AS context',
-            'r.redeemed_at AS "redeemedAt"',
-            'o.fullName AS "ownerName"',
-            'o.email AS email',
-            'b.name AS "businessName"',
-          ])
-          .where('r.promoCodeId IN (:...codeIds)', { codeIds })
-          .orderBy('r.redeemed_at', 'DESC')
-          .getRawMany<RedemptionRow>()
-      : [];
+    let redemptionsByCode = new Map<string, RedemptionRow[]>();
+    if (codeIds.length) {
+      const rawRedemptions = await this.redemptionRepository.find({
+        where: { promoCodeId: In(codeIds) },
+        order: { redeemedAt: 'DESC' },
+      });
+      const ownerIds = [...new Set(rawRedemptions.map((r) => r.ownerId))];
+      // o.id (uuid) ::text karşılaştırması: redemption.ownerId varchar → doğrudan
+      // In() uuid kolonuyla "uuid = text" hatası verebilir; ::text cast garanti.
+      // select ile yalnız gerekli kolonlar (parola hash'i yüklenmez).
+      const owners = ownerIds.length
+        ? await this.businessOwnerRepository
+            .createQueryBuilder('o')
+            .leftJoin('o.business', 'b')
+            .select(['o.id', 'o.fullName', 'o.email', 'b.id', 'b.name'])
+            .where('o.id::text IN (:...ownerIds)', { ownerIds })
+            .getMany()
+        : [];
+      const ownerById = new Map(owners.map((o) => [o.id, o]));
 
-    const byCode = new Map<string, RedemptionRow[]>();
-    for (const r of redemptions) {
-      const arr = byCode.get(r.promoCodeId) ?? [];
-      arr.push(r);
-      byCode.set(r.promoCodeId, arr);
+      redemptionsByCode = rawRedemptions.reduce((map, r) => {
+        const owner = ownerById.get(r.ownerId);
+        const row: RedemptionRow = {
+          id: r.id,
+          promoCodeId: r.promoCodeId,
+          ownerId: r.ownerId,
+          context: r.context,
+          redeemedAt: r.redeemedAt,
+          ownerName: owner?.fullName ?? null,
+          email: owner?.email ?? null,
+          businessName: owner?.business?.name ?? null,
+        };
+        const arr = map.get(r.promoCodeId) ?? [];
+        arr.push(row);
+        map.set(r.promoCodeId, arr);
+        return map;
+      }, new Map<string, RedemptionRow[]>());
     }
+    const byCode = redemptionsByCode;
 
     const items = codes.map((c) => ({
       ...c,
