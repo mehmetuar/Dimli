@@ -6,6 +6,7 @@ import {
   IsNumber,
   IsArray,
   ValidateNested,
+  MaxLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -141,4 +142,12 @@ export class RegisterBusinessDto {
   @IsString()
   @IsOptional()
   revenuecatAnonymousId?: string;
+
+  // Davet/partner kodu — geçerliyse IAP atlanır, ücretsiz (complimentary)
+  // abonelik oluşturulur. Global whitelist nedeniyle DTO'da tanımlı olmak
+  // ZORUNLU (aksi halde payload'dan strip edilir).
+  @IsString()
+  @IsOptional()
+  @MaxLength(32)
+  promoCode?: string;
 }

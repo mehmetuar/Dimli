@@ -14,6 +14,7 @@ import { OtpLock } from './entities/otp-lock.entity';
 import { OtpSecurityService } from './otp-security.service';
 import { SmsModule } from '../sms/sms.module';
 import { SubscriptionModule } from '../subscription/subscription.module';
+import { PromoCodesModule } from '../promo-codes/promo-codes.module';
 import { OtpThrottlerGuard } from '../common/otp-throttler.guard';
 
 @Module({
@@ -23,6 +24,7 @@ import { OtpThrottlerGuard } from '../common/otp-throttler.guard';
     PassportModule,
     SmsModule,
     SubscriptionModule,
+    PromoCodesModule,
     TypeOrmModule.forFeature([OtpCode, OtpSendLog, OtpLock]),
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'SECRET_KEY',

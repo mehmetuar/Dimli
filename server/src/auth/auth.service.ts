@@ -22,6 +22,7 @@ import { OtpCode } from './entities/otp-code.entity';
 import { SmsService } from '../sms/sms.service';
 import type { User } from '../users/user.entity';
 import { SubscriptionService } from '../subscription/subscription.service';
+import { PromoCodesService } from '../promo-codes/promo-codes.service';
 import { OtpSecurityService } from './otp-security.service';
 
 @Injectable()
@@ -33,6 +34,7 @@ export class AuthService {
     private dataSource: DataSource,
     private smsService: SmsService,
     private subscriptionService: SubscriptionService,
+    private promoCodesService: PromoCodesService,
     private otpSecurity: OtpSecurityService,
     @InjectRepository(OtpCode)
     private otpRepository: Repository<OtpCode>,
@@ -649,10 +651,24 @@ export class AuthService {
         }
       }
 
+      // 4b. Davet kodu (varsa) — commit ÖNCESİ, transaction İÇİNDE tüketilir:
+      // kod tüketimi + redemption + complimentary abonelik atomik. Geçersiz/limit
+      // dolu kod tüm kaydı geri alır (client ön-doğrulama yaptığından nadir).
+      if (data.promoCode) {
+        await this.promoCodesService.redeemInTransaction(
+          queryRunner.manager,
+          data.promoCode,
+          savedOwner.id,
+          data.planType ?? '1_pitch',
+          'registration',
+        );
+      }
+
       await queryRunner.commitTransaction();
 
-      // 5. Trial abonelik oluştur (planType varsa)
-      if (data.planType) {
+      // 5. Trial abonelik oluştur (planType varsa VE davet kodu YOKSA — davet
+      // kodu yolunda complimentary abonelik transaction içinde zaten oluşturuldu)
+      if (!data.promoCode && data.planType) {
         try {
           await this.subscriptionService.createTrialSubscription(
             savedOwner.id,
