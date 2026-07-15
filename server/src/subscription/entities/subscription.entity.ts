@@ -19,6 +19,16 @@ export enum SubscriptionStatus {
   COMPLIMENTARY = 'complimentary',
 }
 
+// Müşteri tarafında işletmenin görünür + rezervasyon alabilir sayıldığı abonelik
+// statüleri. TEK KAYNAK — business/reservation/match-announcements sorguları bunu
+// kullanır (davetli üyeler ücretli üyeler gibi tam görünür). Yeni bir "görünür"
+// statü eklenirse yalnız burada güncelle.
+export const CUSTOMER_VISIBLE_SUBSCRIPTION_STATUSES: string[] = [
+  SubscriptionStatus.ACTIVE,
+  SubscriptionStatus.TRIAL,
+  SubscriptionStatus.COMPLIMENTARY,
+];
+
 @Entity('subscriptions')
 export class Subscription {
   @PrimaryGeneratedColumn('uuid')
@@ -71,9 +81,15 @@ export class Subscription {
   @Column({ nullable: true, type: 'timestamp' })
   complimentaryUntil: Date | null;
 
-  // Süre bitişine 7 gün kala tek seferlik hatırlatma bildirimi damgası.
+  // Süre bitişine 7 gün kala tek seferlik hatırlatma damgası (eski tek-eşik
+  // mantığı; çoklu kademe complimentaryReminderStage ile yönetilir).
   @Column({ nullable: true, type: 'timestamp' })
   complimentaryReminderSentAt: Date | null;
+
+  // Gönderilen son hatırlatma kademesi: 0=hiç, 1=1 ay, 2=1 hafta, 3=3 gün kala.
+  // Aynı kademe tekrar gönderilmez; kademe yalnız ileri gider.
+  @Column({ type: 'smallint', default: 0 })
+  complimentaryReminderStage: number;
 
   // Hangi promosyon kodundan geldiği (denetim izi).
   @Column({ nullable: true, type: 'varchar' })

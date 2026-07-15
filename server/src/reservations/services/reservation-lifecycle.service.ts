@@ -33,6 +33,7 @@ import { CreateReservationDto } from '../dto/create-reservation.dto';
 import { NotificationsService } from '../../notifications/notifications.service';
 import { assertNoteWithinLimit } from '../../common/text-limit.util';
 import { SubscriptionService } from '../../subscription/subscription.service';
+import { CUSTOMER_VISIBLE_SUBSCRIPTION_STATUSES } from '../../subscription/entities/subscription.entity';
 import { ReservationSupportService } from './reservation-support.service';
 import {
   isPitchClosedOnDate,
@@ -274,7 +275,10 @@ export class ReservationLifecycleService {
     const subscription = await this.subscriptionService.findByOwner(
       pitch.business.owner.id,
     );
-    if (!subscription || !['active', 'trial'].includes(subscription.status)) {
+    if (
+      !subscription ||
+      !CUSTOMER_VISIBLE_SUBSCRIPTION_STATUSES.includes(subscription.status)
+    ) {
       throw new ForbiddenException(
         'Bu işletmenin aboneliği aktif değil, rezervasyon yapılamaz.',
       );

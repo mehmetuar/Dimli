@@ -9,6 +9,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule'; // Import Cron
 import { MatchAnnouncement } from './match-announcement.entity';
+import { CUSTOMER_VISIBLE_SUBSCRIPTION_STATUSES } from '../subscription/entities/subscription.entity';
 import { User } from '../users/user.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 import { assertNoteWithinLimit } from '../common/text-limit.util';
@@ -480,7 +481,9 @@ export class MatchAnnouncementsService {
                    AND p."isActive" = true
                    AND b.status = 'active'
                    AND b."deletedAt" IS NULL
-                   AND s.status IN ('active', 'trial')
+                   AND s.status IN (${CUSTOMER_VISIBLE_SUBSCRIPTION_STATUSES.map(
+                     (st) => `'${st}'`,
+                   ).join(', ')})
                    AND b.latitude  IS NOT NULL
                    AND b.longitude IS NOT NULL
                    AND b.latitude  BETWEEN $5 AND $6

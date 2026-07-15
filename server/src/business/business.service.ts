@@ -8,6 +8,7 @@ import { Repository } from 'typeorm';
 import { Business } from './entities/business.entity';
 import { UpdateBusinessDto } from './dto/update-business.dto';
 import { SubscriptionService } from '../subscription/subscription.service';
+import { CUSTOMER_VISIBLE_SUBSCRIPTION_STATUSES } from '../subscription/entities/subscription.entity';
 import { computeBoundingBox } from '../common/geo.util';
 
 interface GeoFilter {
@@ -71,7 +72,7 @@ export class BusinessService {
         .andWhere('business.status = :status', { status: 'active' })
         .andWhere('business.deletedAt IS NULL')
         .andWhere('subscription.status IN (:...subStatuses)', {
-          subStatuses: ['active', 'trial'],
+          subStatuses: CUSTOMER_VISIBLE_SUBSCRIPTION_STATUSES,
         })
         .getMany();
       return businesses
@@ -184,7 +185,7 @@ export class BusinessService {
       .andWhere('business.status = :status', { status: 'active' })
       .andWhere('business.deletedAt IS NULL')
       .andWhere('subscription.status IN (:...subStatuses)', {
-        subStatuses: ['active', 'trial'],
+        subStatuses: CUSTOMER_VISIBLE_SUBSCRIPTION_STATUSES,
       })
       .andWhere(`${distanceExpr} <= :radius`)
       .setParameters({ lat, lng, radius })
@@ -257,7 +258,7 @@ export class BusinessService {
       )
       .where('business.id IN (:...ids)', { ids })
       .andWhere('subscription.status IN (:...subStatuses)', {
-        subStatuses: ['active', 'trial'],
+        subStatuses: CUSTOMER_VISIBLE_SUBSCRIPTION_STATUSES,
       })
       .getMany();
   }
@@ -370,7 +371,10 @@ export class BusinessService {
     const subscription = await this.subscriptionService.findByOwner(
       business.owner.id,
     );
-    if (!subscription || !['active', 'trial'].includes(subscription.status)) {
+    if (
+      !subscription ||
+      !CUSTOMER_VISIBLE_SUBSCRIPTION_STATUSES.includes(subscription.status)
+    ) {
       throw new ForbiddenException('Bu işletmenin aboneliği aktif değil.');
     }
     business.pitches = (business.pitches ?? []).filter(
