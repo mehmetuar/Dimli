@@ -20,6 +20,7 @@ import { SupportTicket } from '../support-tickets/support-ticket.entity';
 import { FacilitiesModule } from '../facilities/facilities.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { FilesModule } from '../files/files.module';
+import { PromoCodesModule } from '../promo-codes/promo-codes.module';
 import { AdminStatsCacheService } from './services/admin-stats-cache.service';
 import { AdminAuthService } from './services/admin-auth.service';
 import { AdminStatisticsService } from './services/admin-statistics.service';
@@ -49,6 +50,7 @@ import { AdminSupportService } from './services/admin-support.service';
     FacilitiesModule,
     NotificationsModule,
     FilesModule,
+    PromoCodesModule,
     JwtModule.register({
       secret: process.env.ADMIN_JWT_SECRET || 'ADMIN_SECRET_KEY',
       signOptions: { expiresIn: '8h' },

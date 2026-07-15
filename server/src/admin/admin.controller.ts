@@ -13,6 +13,8 @@ import {
 } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { AdminJwtAuthGuard } from './admin-jwt-auth.guard';
+import { PromoCodesService } from '../promo-codes/promo-codes.service';
+import { CreatePromoCodesDto } from '../promo-codes/dto/create-promo-codes.dto';
 import { ReportStatus } from '../user-reports/user-report.entity';
 import {
   SupportAudience,
@@ -22,7 +24,10 @@ import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 
 @Controller('admin')
 export class AdminController {
-  constructor(private readonly adminService: AdminService) {}
+  constructor(
+    private readonly adminService: AdminService,
+    private readonly promoCodesService: PromoCodesService,
+  ) {}
 
   // ─── Auth ─────────────────────────────────────────────────────────────────
 
@@ -278,6 +283,38 @@ export class AdminController {
   @Delete('users/:userId/chat-ban')
   async chatUnbanUser(@Param('userId') userId: string) {
     return this.adminService.chatUnbanUser(userId);
+  }
+
+  // ─── Promosyon (davet) kodları ────────────────────────────────────────────
+
+  @UseGuards(AdminJwtAuthGuard)
+  @Get('promo-codes')
+  async getPromoCodes(
+    @Query() pagination: PaginationQueryDto,
+    @Query('status') status?: string,
+  ) {
+    return this.promoCodesService.list({ ...pagination, status });
+  }
+
+  @UseGuards(AdminJwtAuthGuard)
+  @Post('promo-codes')
+  async createPromoCodes(
+    @Body() body: CreatePromoCodesDto,
+    @Request() req: { user: Express.User },
+  ) {
+    return this.promoCodesService.createCodes(body, req.user.id);
+  }
+
+  @UseGuards(AdminJwtAuthGuard)
+  @Patch('promo-codes/:id/deactivate')
+  async deactivatePromoCode(@Param('id') id: string) {
+    return this.promoCodesService.setActive(id, false);
+  }
+
+  @UseGuards(AdminJwtAuthGuard)
+  @Patch('promo-codes/:id/activate')
+  async activatePromoCode(@Param('id') id: string) {
+    return this.promoCodesService.setActive(id, true);
   }
 
   // ─── Maintenance ──────────────────────────────────────────────────────────

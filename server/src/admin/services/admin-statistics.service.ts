@@ -52,7 +52,7 @@ export class AdminStatisticsService {
       .addSelect('s.planType', 'planType')
       .addSelect('COUNT(*)', 'cnt')
       .addSelect('COALESCE(SUM(s.pricePerMonth), 0)', 'sum')
-      .where("s.status IN ('active', 'trial')")
+      .where("s.status IN ('active', 'trial', 'complimentary')")
       .groupBy('s.status')
       .addGroupBy('s.planType')
       .orderBy('s.planType', 'ASC')
@@ -60,6 +60,7 @@ export class AdminStatisticsService {
 
     let activeCount = 0;
     let trialCount = 0;
+    let complimentaryCount = 0;
     let totalMRR = 0;
     const planMap: Record<string, { count: number; monthlyRevenue: number }> =
       {};
@@ -68,6 +69,9 @@ export class AdminStatisticsService {
       const sum = Number(r.sum);
       if (r.status === 'active') activeCount += cnt;
       if (r.status === 'trial') trialCount += cnt;
+      if (r.status === 'complimentary') complimentaryCount += cnt;
+      // Davetli (complimentary) pricePerMonth=0 → MRR'ı etkilemez, ama byPlan
+      // dağılımında görünür kalması için toplam yine de eklenir (0).
       totalMRR += sum;
       if (!planMap[r.planType])
         planMap[r.planType] = { count: 0, monthlyRevenue: 0 };
@@ -129,6 +133,7 @@ export class AdminStatisticsService {
       revenue: {
         activeSubscriptions: activeCount,
         trialSubscriptions: trialCount,
+        complimentarySubscriptions: complimentaryCount,
         totalMRR,
         byPlan,
       },
