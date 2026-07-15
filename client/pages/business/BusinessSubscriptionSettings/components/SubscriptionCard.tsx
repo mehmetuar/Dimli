@@ -66,6 +66,18 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
                     </span>
                 </div>
             )}
+            {status === 'complimentary' && (
+                <div className="flex justify-between items-center">
+                    <span className="text-slate-400 text-sm">Ücretsiz erişim</span>
+                    <span className="text-white text-sm font-medium">
+                        {subscription.complimentaryUntil
+                            ? new Date(subscription.complimentaryUntil).toLocaleDateString('tr-TR', {
+                                  day: 'numeric', month: 'long', year: 'numeric',
+                              }) + '\'e kadar'
+                            : 'Süresiz'}
+                    </span>
+                </div>
+            )}
             {subscription.pricePerMonth > 0 && (
                 <div className="flex justify-between items-center">
                     <span className="text-slate-400 text-sm">Aylık ücret</span>

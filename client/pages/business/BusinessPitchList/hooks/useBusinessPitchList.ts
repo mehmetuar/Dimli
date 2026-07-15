@@ -60,7 +60,7 @@ export const useBusinessPitchList = () => {
 
     // Abonelik kapsamında "kullanılan" saha sayısı: onaylı + onay bekleyen
     const usedPitchCount = pitches.filter(p => p.approvalStatus !== 'rejected').length;
-    const hasActiveSub = subscription && ['active', 'trial'].includes(subscription.status);
+    const hasActiveSub = subscription && ['active', 'trial', 'complimentary'].includes(subscription.status);
     const canAddPitch = !!hasActiveSub && usedPitchCount < (subscription?.pitchCount ?? 0);
 
     return {

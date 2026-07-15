@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Capacitor } from '@capacitor/core';
 import { useAuth } from '../../../../contexts/AuthContext';
 import api from '../../../../services/api';
 import { getOwnerId } from '../../../../services/authStorage';
 import { purchasePlan, linkRevenueCatUser, restoreRevenueCatPurchases, purchaseErrorToTurkish } from '../../../../services/revenuecatService';
+import { getErrorMessage } from '../../../../utils/apiError';
 import { SUBSCRIPTION_PLANS } from '../../BusinessRegister/hooks/useBusinessRegister';
 import { PLAN_ENTRIES } from '../utils';
 
@@ -27,6 +29,12 @@ export const useBusinessSubscriptionSettings = () => {
     const [selectionConflict, setSelectionConflict] = useState<{ pitchId: string; conflicts: any[] } | null>(null);
     const [downgradeLoading, setDowngradeLoading] = useState(false);
     const [toast, setToast] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+
+    // Davet kodu kullanımı (mevcut işletme)
+    const [promoCode, setPromoCodeRaw] = useState('');
+    const [promoRedeemLoading, setPromoRedeemLoading] = useState(false);
+    const [showStoreCancelModal, setShowStoreCancelModal] = useState(false);
+    const setPromoCode = (v: string) => setPromoCodeRaw(v.toUpperCase());
 
     // Düşürme akışında SEÇİLEN saha ID'leri — silme/pasifleştirme YOK; asıl
     // işlem satın alma tamamlanınca schedule-downgrade'de sunucuda yapılır.
@@ -200,6 +208,26 @@ export const useBusinessSubscriptionSettings = () => {
         }
     };
 
+    const handleRedeemPromo = async () => {
+        const code = promoCode.trim();
+        if (!code) return;
+        setPromoRedeemLoading(true);
+        try {
+            await api.post('/promo-codes/redeem', { code });
+            setPromoCodeRaw('');
+            await fetchSubscription();
+            showToast('Davet kodun uygulandı. Aboneliğin artık ücretsiz.', 'success');
+            // Mağaza aboneliği hâlâ yenilenebilir — kullanıcıyı iptale yönlendir.
+            if (Capacitor.isNativePlatform() && subscription?.revenuecatCustomerId) {
+                setShowStoreCancelModal(true);
+            }
+        } catch (err) {
+            showToast(getErrorMessage(err, 'Davet kodu uygulanamadı. Lütfen tekrar deneyin.'), 'error');
+        } finally {
+            setPromoRedeemLoading(false);
+        }
+    };
+
     const handleRestorePurchases = async () => {
         setRestoreLoading(true);
         try {
@@ -230,18 +258,24 @@ export const useBusinessSubscriptionSettings = () => {
 
     /* ── derived ── */
     const status = subscription?.status ?? null;
-    const isActive = status === 'active' || status === 'trial';
+    const isComplimentary = status === 'complimentary';
+    const isActive = status === 'active' || status === 'trial' || isComplimentary;
     const isExpiredOrCancelled = status === 'expired' || status === 'cancelled';
+    // Mağaza aboneliği hâlâ bağlıysa (davet kodu öncesi ödemesi olan işletme)
+    // kalıcı iptal hatırlatması gösterilir.
+    const showStoreCancelReminder = isComplimentary && !!subscription?.revenuecatCustomerId;
 
     const statusLabel: Record<string, string> = {
         active: 'Aktif', trial: 'Deneme Sürümü',
         expired: 'Süresi Doldu', cancelled: 'İptal Edildi',
+        complimentary: 'Davetli Üyelik',
     };
     const statusColor: Record<string, string> = {
         active: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20',
         trial: 'text-orange-400 bg-orange-400/10 border-orange-400/20',
         expired: 'text-red-400 bg-red-400/10 border-red-400/20',
         cancelled: 'text-red-400 bg-red-400/10 border-red-400/20',
+        complimentary: 'text-sky-400 bg-sky-400/10 border-sky-400/20',
     };
 
     const planLabel = (() => {
@@ -294,6 +328,9 @@ export const useBusinessSubscriptionSettings = () => {
         downgradeLoading,
         toast,
         downgradePurchaseRef,
+        promoCode, setPromoCode, promoRedeemLoading,
+        showStoreCancelModal, setShowStoreCancelModal,
+        handleRedeemPromo,
         handleSelectPlan,
         handlePitchSelectionConfirm,
         handleDowngradeConfirm,
@@ -301,7 +338,9 @@ export const useBusinessSubscriptionSettings = () => {
         handleDeleteAccount,
         status,
         isActive,
+        isComplimentary,
         isExpiredOrCancelled,
+        showStoreCancelReminder,
         statusLabel,
         statusColor,
         planLabel,

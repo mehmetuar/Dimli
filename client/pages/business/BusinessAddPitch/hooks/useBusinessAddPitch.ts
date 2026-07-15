@@ -52,7 +52,7 @@ export const useBusinessAddPitch = () => {
                 const pitches = pitchesResponse.data ?? [];
                 const subscription = subscriptionResponse.data ?? null;
                 const usedPitchCount = pitches.filter((p: any) => p.approvalStatus !== 'rejected').length;
-                const hasActiveSub = subscription && ['active', 'trial'].includes(subscription.status);
+                const hasActiveSub = subscription && ['active', 'trial', 'complimentary'].includes(subscription.status);
                 const canAddPitch = !!hasActiveSub && usedPitchCount < (subscription?.pitchCount ?? 0);
 
                 if (!canAddPitch) { navigate('/business/settings/pitches', { replace: true }); return; }

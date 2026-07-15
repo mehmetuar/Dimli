@@ -112,7 +112,7 @@ export const BusinessDashboard: React.FC = () => {
         );
     }
 
-    const hasActiveSubscription = subscription && ['active', 'trial'].includes(subscription.status);
+    const hasActiveSubscription = subscription && ['active', 'trial', 'complimentary'].includes(subscription.status);
     const isPending = businessStatus === 'pending';
     const isSuspended = businessStatus === 'suspended';
     const isRejected = businessStatus === 'rejected';

@@ -8,6 +8,8 @@ import { SubscriptionCard } from './components/SubscriptionCard';
 import { PendingDowngradeBanner } from './components/PendingDowngradeBanner';
 import { InactiveStatusWarning } from './components/InactiveStatusWarning';
 import { SubscriptionActionButtons } from './components/SubscriptionActionButtons';
+import { PromoCodeRedeemSection } from './components/PromoCodeRedeemSection';
+import { StoreCancelPromptModal } from './components/StoreCancelPromptModal';
 import { DeleteAccountSection } from './components/DeleteAccountSection';
 import { PlanPickerModal } from './components/PlanPickerModal';
 import { DeleteModal } from './components/DeleteModal';
@@ -35,6 +37,9 @@ export const BusinessSubscriptionSettings: React.FC = () => {
         downgradeLoading,
         toast,
         downgradePurchaseRef,
+        promoCode, setPromoCode, promoRedeemLoading,
+        showStoreCancelModal, setShowStoreCancelModal,
+        handleRedeemPromo,
         handleSelectPlan,
         handlePitchSelectionConfirm,
         handleDowngradeConfirm,
@@ -42,7 +47,9 @@ export const BusinessSubscriptionSettings: React.FC = () => {
         handleDeleteAccount,
         status,
         isActive,
+        isComplimentary,
         isExpiredOrCancelled,
+        showStoreCancelReminder,
         statusLabel,
         statusColor,
         planLabel,
@@ -115,6 +122,18 @@ export const BusinessSubscriptionSettings: React.FC = () => {
                                         .map((p: any) => p.name)}
                                 />
                                 <InactiveStatusWarning status={status} />
+
+                                {/* Davetli üyelik + hâlâ bağlı mağaza aboneliği → kalıcı iptal hatırlatması */}
+                                {showStoreCancelReminder && (
+                                    <button
+                                        onClick={() => setShowStoreCancelModal(true)}
+                                        className="w-full text-left bg-amber-500/10 border border-amber-500/30 rounded-2xl px-4 py-3 text-amber-200 text-xs font-medium leading-relaxed"
+                                    >
+                                        Mağaza aboneliğin devam ediyor olabilir — bir sonraki dönemde
+                                        ücretlendirilmemek için iptal etmek üzere dokun.
+                                    </button>
+                                )}
+
                                 <SubscriptionActionButtons
                                     isExpiredOrCancelled={isExpiredOrCancelled}
                                     isActive={isActive}
@@ -123,6 +142,16 @@ export const BusinessSubscriptionSettings: React.FC = () => {
                                     onOpenPicker={() => setShowPlanPicker(true)}
                                     onRestorePurchases={handleRestorePurchases}
                                 />
+
+                                {/* Davet kodu girişi — davetli üyelik dışındaki tüm durumlarda */}
+                                {!isComplimentary && (
+                                    <PromoCodeRedeemSection
+                                        promoCode={promoCode}
+                                        setPromoCode={setPromoCode}
+                                        loading={promoRedeemLoading}
+                                        onRedeem={handleRedeemPromo}
+                                    />
+                                )}
                             </>
                         )}
 
@@ -185,6 +214,11 @@ export const BusinessSubscriptionSettings: React.FC = () => {
                     downgradePurchaseRef.current = null;
                 }}
                 onConfirm={handleDowngradeConfirm}
+            />
+
+            <StoreCancelPromptModal
+                visible={showStoreCancelModal}
+                onClose={() => setShowStoreCancelModal(false)}
             />
         </div>
     );
