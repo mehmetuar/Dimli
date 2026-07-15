@@ -68,6 +68,55 @@ export const useBusinessRegister = () => {
     // Şifre doğrulama (backend'e gönderilmez)
     const [ownerPasswordConfirm, setOwnerPasswordConfirm] = useState('');
 
+    // ─── Davet kodu (opsiyonel) ─────────────────────────────────────────────
+    // Geçerli kod uygulanırsa ödeme (IAP) adımı atlanır, ücretsiz abonelik açılır.
+    const [promoCode, setPromoCodeRaw] = useState('');
+    const [promoStatus, setPromoStatus] = useState<'idle' | 'checking' | 'applied' | 'invalid'>('idle');
+    const [promoDurationMonths, setPromoDurationMonths] = useState<number | null>(null);
+    const [promoError, setPromoError] = useState('');
+
+    // Kod değişirse önceki "applied/invalid" durumu düşer (yeniden doğrulama gerekir).
+    const setPromoCode = (v: string) => {
+        setPromoCodeRaw(v.toUpperCase());
+        if (promoStatus !== 'idle') {
+            setPromoStatus('idle');
+            setPromoDurationMonths(null);
+            setPromoError('');
+        }
+    };
+
+    const applyPromoCode = async () => {
+        const code = promoCode.trim();
+        if (!code) return;
+        setPromoStatus('checking');
+        setPromoError('');
+        try {
+            const res = await api.post('/promo-codes/validate', { code });
+            if (res.data?.valid) {
+                setPromoStatus('applied');
+                setPromoDurationMonths(res.data.durationMonths ?? null);
+            } else {
+                setPromoStatus('invalid');
+                setPromoError(res.data?.message || 'Davet kodu geçersiz.');
+            }
+        } catch (err) {
+            setPromoStatus('invalid');
+            const retry = getRetryAfterSeconds(err);
+            setPromoError(
+                retry
+                    ? `Çok fazla deneme yaptınız. ${retry} sn sonra tekrar deneyin.`
+                    : getErrorMessage(err, 'Kod doğrulanamadı. Lütfen tekrar deneyin.'),
+            );
+        }
+    };
+
+    const clearPromoCode = () => {
+        setPromoCodeRaw('');
+        setPromoStatus('idle');
+        setPromoDurationMonths(null);
+        setPromoError('');
+    };
+
     // Modal states
     const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
     const [locationModalStep, setLocationModalStep] = useState<'CITY' | 'DISTRICT'>('CITY');
@@ -272,9 +321,14 @@ export const useBusinessRegister = () => {
     const handleSubmit = async () => {
         setIsLoading(true);
         setError('');
+        // Geçerli davet kodu varsa ödeme (IAP) tamamen atlanır.
+        const promoApplied = promoStatus === 'applied';
         try {
-            // ADIM 1: Satın alma — başarısız / iptal olursa hata fırlar, kayıt YAPILMAZ
-            const rcAnonymousId = await purchasePlan(formData.planType);
+            // ADIM 1: Satın alma — başarısız / iptal olursa hata fırlar, kayıt YAPILMAZ.
+            // Davet kodu uygulandıysa store'a hiç gidilmez (rcAnonymousId=undefined).
+            const rcAnonymousId = promoApplied
+                ? undefined
+                : await purchasePlan(formData.planType);
 
             // ADIM 2: Fotoğraf yükle (sahalar + işletme kartı görseli)
             const [pitchesWithImages, businessCoverUrl] = await Promise.all([
@@ -331,7 +385,9 @@ export const useBusinessRegister = () => {
                     imageUrl: p.imageUrl,
                 })),
                 planType: formData.planType,
-                revenuecatAnonymousId: rcAnonymousId,
+                // Davet kodu yolunda RC anonim ID yok; ücretli yolda gönderilir.
+                revenuecatAnonymousId: promoApplied ? undefined : rcAnonymousId,
+                promoCode: promoApplied ? promoCode.trim() : undefined,
             };
             const response = await api.post('/auth/business/register', payload);
 
@@ -342,9 +398,11 @@ export const useBusinessRegister = () => {
                 initializePushNotifications();
             }
 
-            // ADIM 4: Anonim RC kullanıcısını gerçek ownerId'ye bağla
+            // ADIM 4: Anonim RC kullanıcısını gerçek ownerId'ye bağla — davet kodu
+            // yolunda RC'de satın alma olmadığından ATLANIR (logIn gereksiz alias
+            // yaratır ve ileride webhook ownerId eşleşme yüzeyi açar).
             const ownerId = response.data?.ownerId || response.data?.owner?.id;
-            if (ownerId) {
+            if (!promoApplied && ownerId) {
                 await linkRevenueCatUser(ownerId).catch(() => {});
             }
 
@@ -353,7 +411,8 @@ export const useBusinessRegister = () => {
             // Backend hatası → sunucudan gelen Türkçe mesaj; satın alma/RevenueCat hatası → Türkçe helper
             // (ham İngilizce SDK mesajı asla gösterilmez). İptalde kayıt-bağlamlı mesaj.
             let msg: string;
-            if (err?.response) {
+            if (err?.response || promoApplied) {
+                // Backend hatası ya da davet kodu yolu (satın alma yok) → sunucu mesajı.
                 msg = getErrorMessage(err, 'Bir hata oluştu. Lütfen tekrar deneyin.');
             } else {
                 const p = purchaseErrorToTurkish(err);
@@ -430,6 +489,8 @@ export const useBusinessRegister = () => {
         otpSent, otpSending, otpVerified, resendCountdown,
         otpCode, setOtpCode,
         ownerPasswordConfirm, setOwnerPasswordConfirm,
+        promoCode, setPromoCode, promoStatus, promoDurationMonths, promoError,
+        applyPromoCode, clearPromoCode,
         updateOwner, updateBusiness, updatePitch,
         setPitchCount, toggleFacility, toggleClosedDay, addTimeSlot, removeTimeSlot,
         sendOtp, verifyOtp,

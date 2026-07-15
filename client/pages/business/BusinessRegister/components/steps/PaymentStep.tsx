@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle, ShieldCheck, CreditCard, Building2 } from 'lucide-react';
+import { CheckCircle, ShieldCheck, CreditCard, Building2, Ticket, X } from 'lucide-react';
 import { SUBSCRIPTION_PLANS } from '../../hooks/useBusinessRegister';
 import { RegisterSection } from '../RegisterSection';
 
@@ -7,13 +7,31 @@ interface PaymentStepProps {
     formData: any;
     eulaAccepted: boolean;
     setEulaAccepted: (v: boolean) => void;
+    // Davet kodu
+    promoCode: string;
+    setPromoCode: (v: string) => void;
+    promoStatus: 'idle' | 'checking' | 'applied' | 'invalid';
+    promoDurationMonths: number | null;
+    promoError: string;
+    applyPromoCode: () => void;
+    clearPromoCode: () => void;
 }
 
 // Submit butonu + hata bandı artık kabuk (AuthWizardLayout) tarafında; burada yalnız özet + onay.
 // Not: kök öğeye animasyon sınıfı KOYMA — AuthWizardLayout içeriği `animate-step-in` ile sarar.
-export const PaymentStep: React.FC<PaymentStepProps> = ({ formData, eulaAccepted, setEulaAccepted }) => {
+export const PaymentStep: React.FC<PaymentStepProps> = ({
+    formData, eulaAccepted, setEulaAccepted,
+    promoCode, setPromoCode, promoStatus, promoDurationMonths, promoError,
+    applyPromoCode, clearPromoCode,
+}) => {
     const count = formData.selectedPitchCount;
     const plan = SUBSCRIPTION_PLANS[count] || SUBSCRIPTION_PLANS[5];
+    const promoApplied = promoStatus === 'applied';
+
+    const durationText =
+        promoDurationMonths == null
+            ? 'Süresiz ücretsiz erişim'
+            : `${promoDurationMonths} ay boyunca ücretsiz erişim`;
 
     const benefits: React.ReactNode[] = [
         <>İlk <strong className="text-white">3 ay ücretsiz</strong></>,
@@ -34,20 +52,87 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({ formData, eulaAccepted
                             </p>
                         </div>
                         <div className="text-right shrink-0">
-                            <p className="font-black text-orange-400 whitespace-nowrap" style={{ fontSize: 'clamp(1rem, 4.5vw, 1.25rem)' }}>
-                                {plan.price.toLocaleString('tr-TR')} TL<span className="text-sm text-slate-400">/ay</span>
-                            </p>
+                            {promoApplied ? (
+                                <span className="inline-block text-[11px] font-black px-2.5 py-1 rounded-full bg-sky-500/15 text-sky-300 border border-sky-500/30">
+                                    Davet kodu uygulandı
+                                </span>
+                            ) : (
+                                <p className="font-black text-orange-400 whitespace-nowrap" style={{ fontSize: 'clamp(1rem, 4.5vw, 1.25rem)' }}>
+                                    {plan.price.toLocaleString('tr-TR')} TL<span className="text-sm text-slate-400">/ay</span>
+                                </p>
+                            )}
                         </div>
                     </div>
 
                     <div className="border-t border-slate-700 pt-4 space-y-2">
-                        {benefits.map((node, i) => (
-                            <div key={i} className="flex items-center gap-2" style={{ fontSize: 'clamp(0.8rem, 2vh, 0.9rem)' }}>
-                                <CheckCircle className="text-green-500 shrink-0" size={16} />
-                                <span className="text-slate-300">{node}</span>
+                        {promoApplied ? (
+                            <div className="flex items-center gap-2" style={{ fontSize: 'clamp(0.8rem, 2vh, 0.9rem)' }}>
+                                <CheckCircle className="text-sky-400 shrink-0" size={16} />
+                                <span className="text-slate-300">{durationText}</span>
                             </div>
-                        ))}
+                        ) : (
+                            benefits.map((node, i) => (
+                                <div key={i} className="flex items-center gap-2" style={{ fontSize: 'clamp(0.8rem, 2vh, 0.9rem)' }}>
+                                    <CheckCircle className="text-green-500 shrink-0" size={16} />
+                                    <span className="text-slate-300">{node}</span>
+                                </div>
+                            ))
+                        )}
                     </div>
+                </div>
+            </RegisterSection>
+
+            {/* Davet Kodu */}
+            <RegisterSection icon={Ticket} title="Davet Kodu" desc="İş ortağı kodun varsa" bare>
+                <div className="bg-slate-800/50 backdrop-blur-md rounded-2xl border border-slate-700/50 p-4 shadow-[0_8px_30px_rgba(0,0,0,0.15)]">
+                    {promoApplied ? (
+                        <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-sky-500/15 border border-sky-500/30 flex items-center justify-center shrink-0">
+                                <Ticket className="w-4 h-4 text-sky-300" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <p className="text-white font-bold text-sm truncate">{promoCode}</p>
+                                <p className="text-sky-300/80 text-xs">{durationText}</p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={clearPromoCode}
+                                className="text-slate-400 hover:text-slate-200 transition-colors p-1 shrink-0"
+                                aria-label="Kodu kaldır"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+                    ) : (
+                        <>
+                            <p className="text-slate-400 text-xs mb-2.5">
+                                İş ortaklarımızdan aldığın bir davet kodun varsa buraya gir.
+                            </p>
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    value={promoCode}
+                                    onChange={e => setPromoCode(e.target.value)}
+                                    placeholder="DIMLI-XXXXXXXX"
+                                    autoCapitalize="characters"
+                                    autoCorrect="off"
+                                    spellCheck={false}
+                                    className="flex-1 min-w-0 bg-slate-900/60 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-600 font-mono tracking-wide focus:outline-none focus:border-sky-500/60"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={applyPromoCode}
+                                    disabled={promoStatus === 'checking' || !promoCode.trim()}
+                                    className="shrink-0 bg-slate-700 hover:bg-slate-600 text-white px-4 rounded-xl font-black text-sm transition-all disabled:opacity-50"
+                                >
+                                    {promoStatus === 'checking' ? '...' : 'Uygula'}
+                                </button>
+                            </div>
+                            {promoStatus === 'invalid' && promoError && (
+                                <p className="text-red-400 text-xs font-bold mt-2">{promoError}</p>
+                            )}
+                        </>
+                    )}
                 </div>
             </RegisterSection>
 

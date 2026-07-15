@@ -51,6 +51,8 @@ export const BusinessRegister: React.FC = () => {
         formData,
         otpSending, resendCountdown, otpCode, setOtpCode,
         ownerPasswordConfirm, setOwnerPasswordConfirm,
+        promoCode, setPromoCode, promoStatus, promoDurationMonths, promoError,
+        applyPromoCode, clearPromoCode,
         updateOwner, updateBusiness, updatePitch,
         setPitchCount, toggleFacility, toggleClosedDay, addTimeSlot, removeTimeSlot,
         sendOtp, verifyOtp,
@@ -216,6 +218,13 @@ export const BusinessRegister: React.FC = () => {
                         formData={formData}
                         eulaAccepted={eulaAccepted}
                         setEulaAccepted={setEulaAccepted}
+                        promoCode={promoCode}
+                        setPromoCode={setPromoCode}
+                        promoStatus={promoStatus}
+                        promoDurationMonths={promoDurationMonths}
+                        promoError={promoError}
+                        applyPromoCode={applyPromoCode}
+                        clearPromoCode={clearPromoCode}
                     />
                 )}
             </AuthWizardLayout>
