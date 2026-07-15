@@ -14,6 +14,9 @@ export enum SubscriptionStatus {
   ACTIVE = 'active',
   EXPIRED = 'expired',
   CANCELLED = 'cancelled',
+  // Davet/partner kodu ile verilen ücretsiz erişim. Kaynağı bu tablodur; RC
+  // store olayları bu durumu ETKİLEMEZ (handleWebhook guard'ı). pricePerMonth=0.
+  COMPLIMENTARY = 'complimentary',
 }
 
 @Entity('subscriptions')
@@ -62,6 +65,19 @@ export class Subscription {
 
   @Column({ nullable: true, type: 'timestamp' })
   pendingPlanEffectiveAt: Date | null;
+
+  // ─── Davet kodu (complimentary) alanları ───────────────────────────────────
+  // null = süresiz (ömür boyu) ücretsiz; dolu = bu tarihte cron EXPIRED'a düşürür.
+  @Column({ nullable: true, type: 'timestamp' })
+  complimentaryUntil: Date | null;
+
+  // Süre bitişine 7 gün kala tek seferlik hatırlatma bildirimi damgası.
+  @Column({ nullable: true, type: 'timestamp' })
+  complimentaryReminderSentAt: Date | null;
+
+  // Hangi promosyon kodundan geldiği (denetim izi).
+  @Column({ nullable: true, type: 'varchar' })
+  promoCodeId: string | null;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

@@ -86,7 +86,9 @@ export class Notification {
     | 'PITCH_DELETION_REMINDER'
     | 'PITCH_DELETED'
     | 'PITCH_DELETION_CANCELLED'
-    | 'SUPPORT_REPLY';
+    | 'SUPPORT_REPLY'
+    | 'SUBSCRIPTION_EXPIRED'
+    | 'SUBSCRIPTION_REMINDER';
 
   @Column({ nullable: true })
   title: string;

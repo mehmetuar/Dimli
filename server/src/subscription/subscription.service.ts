@@ -5,7 +5,15 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { EntityManager, IsNull, Not, Repository } from 'typeorm';
+import { Cron, CronExpression } from '@nestjs/schedule';
+import {
+  Between,
+  EntityManager,
+  IsNull,
+  LessThanOrEqual,
+  Not,
+  Repository,
+} from 'typeorm';
 import {
   Subscription,
   SubscriptionStatus,
@@ -72,6 +80,40 @@ export class SubscriptionService {
     });
 
     return this.subscriptionRepository.save(subscription);
+  }
+
+  /**
+   * Davet/partner kodu ile ücretsiz abonelik oluşturur (yeni kayıt yolu).
+   * `pricePerMonth=0`, `status=COMPLIMENTARY`. `complimentaryUntil=null` ise
+   * süresiz (cron dokunmaz), dolu ise o tarihte cron EXPIRED'a düşürür.
+   * Transaction içinde çağrılabilmesi için opsiyonel `manager` alır (kayıt
+   * akışı bunu queryRunner.manager ile geçer — atomik).
+   */
+  async createComplimentarySubscription(
+    ownerId: string,
+    planType: string,
+    complimentaryUntil: Date | null,
+    promoCodeId: string,
+    manager?: EntityManager,
+  ): Promise<Subscription> {
+    const plan = SUBSCRIPTION_PLANS[planType];
+    if (!plan) throw new NotFoundException('Geçersiz plan tipi.');
+
+    const repo =
+      manager?.getRepository(Subscription) ?? this.subscriptionRepository;
+
+    const subscription = repo.create({
+      ownerId,
+      planType,
+      pitchCount: plan.pitchCount,
+      pricePerMonth: 0,
+      status: SubscriptionStatus.COMPLIMENTARY,
+      complimentaryUntil,
+      complimentaryReminderSentAt: null,
+      promoCodeId,
+    });
+
+    return repo.save(subscription);
   }
 
   private applyPendingPlanIfDue(subscription: Subscription): boolean {
@@ -157,6 +199,11 @@ export class SubscriptionService {
     subscription.pendingPlanType = null;
     subscription.pendingPlanEffectiveAt = null;
     if (!subscription.trialEndsAt) subscription.trialEndsAt = trialEndsAt;
+    // Davetli üyelikten bilinçli ücretliye geçiş: complimentary kalıntısını
+    // temizle (aksi halde expiry cron'u ücretli aboneliği hedef alabilir).
+    subscription.complimentaryUntil = null;
+    subscription.complimentaryReminderSentAt = null;
+    subscription.promoCodeId = null;
 
     const saved = await this.subscriptionRepository.save(subscription);
     await this.clearScheduledPitchDeletions(ownerId);
@@ -280,6 +327,19 @@ export class SubscriptionService {
 
     if (!subscription) return;
 
+    // Davetli (complimentary) abonelik store olaylarından ETKİLENMEZ. Mevcut bir
+    // işletme kod kullandıktan sonra store aboneliği bir süre daha
+    // RENEWAL/CANCELLATION/EXPIRATION üretebilir; hiçbiri ücretsiz erişimi
+    // bozmamalı. RENEWAL statüyü ACTIVE'e çevirir, ardından gelen EXPIRATION
+    // erişimi öldürürdü — bu yüzden TÜM tipler atlanır. Ücretliye bilinçli
+    // dönüş tek yoldan olur: confirm-purchase (complimentary alanlarını temizler).
+    if (subscription.status === SubscriptionStatus.COMPLIMENTARY) {
+      this.logger.log(
+        `Webhook ${type} atlandı — davetli (complimentary) abonelik (owner ${subscription.ownerId}).`,
+      );
+      return;
+    }
+
     switch (type) {
       case 'INITIAL_PURCHASE':
       case 'RENEWAL':
@@ -300,5 +360,77 @@ export class SubscriptionService {
     }
 
     await this.subscriptionRepository.save(subscription);
+  }
+
+  // ─── Davetli (complimentary) üyelik süre yönetimi ─────────────────────────
+  // Sunucuda genel bir trial-expiry cron'u YOK (trialEndsAt geçince kimse
+  // dokunmaz; EXPIRED yalnız RC webhook'la gelir). Süreli davetli üyeliklerin
+  // bitişini bu cron yönetir. Yalnız Subscription + Notification repo kullanır
+  // → SubscriptionModule yaprak kalır. complimentaryUntil=null (süresiz) hiç
+  // yakalanmaz.
+  @Cron(CronExpression.EVERY_HOUR, { name: 'complimentary_expiry' })
+  async processComplimentaryExpiry(): Promise<void> {
+    const now = new Date();
+
+    // 1) Süresi dolanlar → EXPIRED (complimentary alanları denetim izi olarak
+    //    KORUNUR; client'taki mevcut expired UI'ı devreye girer).
+    const due = await this.subscriptionRepository.find({
+      where: {
+        status: SubscriptionStatus.COMPLIMENTARY,
+        complimentaryUntil: LessThanOrEqual(now),
+      },
+    });
+    for (const sub of due) {
+      try {
+        sub.status = SubscriptionStatus.EXPIRED;
+        await this.subscriptionRepository.save(sub);
+        await this.notificationRepository.save(
+          this.notificationRepository.create({
+            userId: sub.ownerId,
+            type: 'SUBSCRIPTION_EXPIRED',
+            title: 'Davetli Üyeliğiniz Sona Erdi',
+            message:
+              'Davetli ücretsiz üyeliğinizin süresi doldu. Hizmete devam etmek için abonelik ayarlarından bir plan seçebilirsiniz.',
+            read: false,
+          }),
+        );
+      } catch (err) {
+        this.logger.error(
+          `Davetli üyelik süre dolumu işlenemedi (owner ${sub.ownerId}):`,
+          err,
+        );
+      }
+    }
+
+    // 2) 7 gün kala tek seferlik hatırlatma (complimentaryReminderSentAt IS NULL).
+    const reminderWindow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const toRemind = await this.subscriptionRepository.find({
+      where: {
+        status: SubscriptionStatus.COMPLIMENTARY,
+        complimentaryReminderSentAt: IsNull(),
+        complimentaryUntil: Between(now, reminderWindow),
+      },
+    });
+    for (const sub of toRemind) {
+      try {
+        await this.notificationRepository.save(
+          this.notificationRepository.create({
+            userId: sub.ownerId,
+            type: 'SUBSCRIPTION_REMINDER',
+            title: 'Davetli Üyeliğiniz Sona Eriyor',
+            message:
+              'Davetli ücretsiz üyeliğinizin bitişine az kaldı. Kesintisiz devam için abonelik ayarlarından bir plan seçebilirsiniz.',
+            read: false,
+          }),
+        );
+        sub.complimentaryReminderSentAt = now;
+        await this.subscriptionRepository.save(sub);
+      } catch (err) {
+        this.logger.error(
+          `Davetli üyelik hatırlatması gönderilemedi (owner ${sub.ownerId}):`,
+          err,
+        );
+      }
+    }
   }
 }
