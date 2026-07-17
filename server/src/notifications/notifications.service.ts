@@ -217,6 +217,136 @@ export class NotificationsService {
       .catch(() => {});
   }
 
+  // Takıma doğrudan eklenen oyuncuya haber ver (AddPlayerModal yolu — katılım
+  // isteği kabulünden farklı: o yol JOIN_REQUEST_ACCEPTED gönderir).
+  // Client'taki global useTeamEventsSync bu tipte currentUserStore'u zorla tazeler.
+  async createPlayerAddedNotification(
+    teamId: string,
+    playerId: string,
+  ): Promise<void> {
+    const team = await this.teamsService.findOne(teamId);
+    if (!team) return;
+
+    const notification = this.notificationsRepository.create({
+      userId: playerId,
+      type: 'TEAM_ADDED',
+      title: 'Takıma Eklendin',
+      message: `${team.name} takımına eklendin!`,
+      metadata: { teamId },
+      read: false,
+    });
+
+    await this.notificationsRepository.save(notification);
+    this.gateway?.server
+      ?.to(playerId)
+      .emit('notification', { type: 'TEAM_ADDED' });
+    this.usersRepository
+      .findOne({ where: { id: playerId } })
+      .then((user) => {
+        if (user?.pushToken && !this.gateway?.isUserActive(playerId)) {
+          void this.pushToUser(
+            user.id,
+            user.pushToken,
+            'Takıma Eklendin',
+            `${team.name} takımına eklendin!`,
+            { type: 'TEAM_ADDED' },
+          );
+        }
+      })
+      .catch(() => {});
+  }
+
+  // Rolü değişen oyuncuya haber ver (kaptanlık devri / yardımcı atama / yetki alma).
+  // role: yeni rol — CAPTAIN | VICE | MEMBER (MEMBER = yardımcılık kaldırıldı).
+  async createRoleChangedNotification(
+    teamId: string,
+    playerId: string,
+    role: 'CAPTAIN' | 'VICE' | 'MEMBER',
+  ): Promise<void> {
+    const team = await this.teamsService.findOne(teamId);
+    if (!team) return;
+
+    const texts: Record<typeof role, { title: string; message: string }> = {
+      CAPTAIN: {
+        title: 'Kaptanlık Sende',
+        message: `${team.name} takımının yeni kaptanı sensin!`,
+      },
+      VICE: {
+        title: 'Yardımcı Kaptan Oldun',
+        message: `${team.name} takımında yardımcı kaptan olarak atandın.`,
+      },
+      MEMBER: {
+        title: 'Yetki Güncellendi',
+        message: `${team.name} takımındaki yardımcı kaptanlık yetkin kaldırıldı.`,
+      },
+    };
+    const { title, message } = texts[role];
+
+    const notification = this.notificationsRepository.create({
+      userId: playerId,
+      type: 'TEAM_ROLE_CHANGED',
+      title,
+      message,
+      metadata: { teamId, role },
+      read: false,
+    });
+
+    await this.notificationsRepository.save(notification);
+    this.gateway?.server
+      ?.to(playerId)
+      .emit('notification', { type: 'TEAM_ROLE_CHANGED' });
+    this.usersRepository
+      .findOne({ where: { id: playerId } })
+      .then((user) => {
+        if (user?.pushToken && !this.gateway?.isUserActive(playerId)) {
+          void this.pushToUser(
+            user.id,
+            user.pushToken,
+            title,
+            message,
+            { type: 'TEAM_ROLE_CHANGED' },
+          );
+        }
+      })
+      .catch(() => {});
+  }
+
+  // Takım silindiğinde kalan üyelere haber ver. Takım bu noktada ÇOKTAN
+  // silinmiş olduğundan findOne ÇAĞRILMAZ — ad ve üye listesi parametre alınır.
+  async createTeamDeletedNotification(
+    teamName: string,
+    memberIds: string[],
+  ): Promise<void> {
+    for (const memberId of memberIds) {
+      const notification = this.notificationsRepository.create({
+        userId: memberId,
+        type: 'TEAM_DELETED',
+        title: 'Takım Silindi',
+        message: `${teamName} takımı kaptan tarafından silindi.`,
+        read: false,
+      });
+
+      await this.notificationsRepository.save(notification);
+      this.gateway?.server
+        ?.to(memberId)
+        .emit('notification', { type: 'TEAM_DELETED' });
+      this.usersRepository
+        .findOne({ where: { id: memberId } })
+        .then((user) => {
+          if (user?.pushToken && !this.gateway?.isUserActive(memberId)) {
+            void this.pushToUser(
+              user.id,
+              user.pushToken,
+              'Takım Silindi',
+              `${teamName} takımı kaptan tarafından silindi.`,
+              { type: 'TEAM_DELETED' },
+            );
+          }
+        })
+        .catch(() => {});
+    }
+  }
+
   async create(data: Partial<Notification>): Promise<Notification> {
     const notification = this.notificationsRepository.create(data);
     const saved = await this.notificationsRepository.save(notification);

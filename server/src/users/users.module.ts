@@ -9,6 +9,8 @@ import { Notification } from '../notifications/notification.entity';
 import { Team } from '../teams/team.entity';
 import { GeoModule } from '../geo/geo.module';
 import { FilesModule } from '../files/files.module';
+import { GatewayModule } from '../gateway/gateway.module';
+import { FirebaseService } from '../firebase/firebase.service';
 
 @Module({
   imports: [
@@ -21,8 +23,12 @@ import { FilesModule } from '../files/files.module';
     ]),
     GeoModule,
     FilesModule,
+    // Kaptanlık devri bildirimi (notifyNewCaptain) için socket + push.
+    // NotificationsModule DEĞİL: Users→Notifications→Teams→Users döngüsü olurdu;
+    // GatewayModule ve FirebaseService bağımsız → döngü yok.
+    GatewayModule,
   ],
-  providers: [UsersService],
+  providers: [UsersService, FirebaseService],
   controllers: [UsersController],
   exports: [UsersService],
 })

@@ -36,6 +36,7 @@ export interface NotificationMetadata {
   metaV?: number;
   matchDate?: string;
   matchTime?: string;
+  role?: string; // TEAM_ROLE_CHANGED: 'CAPTAIN' | 'VICE' | 'MEMBER'
   team?: NotificationTeamMeta | null;
   opponentTeam?: NotificationTeamMeta | null;
   [k: string]: unknown;
@@ -88,7 +89,10 @@ export class Notification {
     | 'PITCH_DELETION_CANCELLED'
     | 'SUPPORT_REPLY'
     | 'SUBSCRIPTION_EXPIRED'
-    | 'SUBSCRIPTION_REMINDER';
+    | 'SUBSCRIPTION_REMINDER'
+    | 'TEAM_ADDED'
+    | 'TEAM_ROLE_CHANGED'
+    | 'TEAM_DELETED';
 
   @Column({ nullable: true })
   title: string;

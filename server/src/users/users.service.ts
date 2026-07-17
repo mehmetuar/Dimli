@@ -4,6 +4,7 @@ import {
   UnauthorizedException,
   ConflictException,
   BadRequestException,
+  Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -22,6 +23,8 @@ import { ReverseGeocodeService } from '../geo/reverse-geocode.service';
 import { normalizeUsername } from './username.util';
 import { CloudinaryService } from '../files/cloudinary.service';
 import { sanitizeUser } from '../common/sanitize-user.util';
+import { AppGateway } from '../gateway/app.gateway';
+import { FirebaseService } from '../firebase/firebase.service';
 
 // getJokers yanıt öğesi: sanitize edilmiş kullanıcı + hesaplanan mesafe.
 export type JokerListItem = User & { distanceKm: number };
@@ -47,6 +50,12 @@ export class UsersService {
     private teamRepository: Repository<Team>,
     private reverseGeocode: ReverseGeocodeService,
     private cloudinaryService: CloudinaryService,
+    // NotificationsService ENJEKTE EDİLMEZ (Users→Notifications→Teams→Users
+    // döngüsü — purgeTeamRaw'daki raw-SQL kararıyla aynı gerekçe). Kaptanlık
+    // devri bildirimi eldeki notificationRepository + döngüsüz GatewayModule/
+    // FirebaseService ile doğrudan yazılır.
+    @Optional() private gateway: AppGateway,
+    private firebaseService: FirebaseService,
   ) {}
 
   normalizePhone(phone: string): string {
@@ -341,6 +350,53 @@ export class UsersService {
    * Tek transaction: yarıda kalırsa hiçbir şey değişmez.
    * teamName: rezervasyon ad-snapshot'ı (rakip "Bu takım artık mevcut değil" bilgisi).
    */
+  // Hesap silmede kaptanlığı devralan oyuncuya TEAM_ROLE_CHANGED bildirimi:
+  // DB kaydı + socket + (uygulama açık değilse) push. NotificationsService'in
+  // createRoleChangedNotification CAPTAIN dalıyla AYNI metinler — orada metin
+  // değişirse burası da güncellenmeli (döngüsüz DI için bilinçli kopya).
+  private async notifyNewCaptain(
+    teamId: string,
+    teamName: string,
+    newCaptainId: string,
+  ): Promise<void> {
+    const title = 'Kaptanlık Sende';
+    const message = `${teamName} takımının yeni kaptanı sensin!`;
+
+    const notification = this.notificationRepository.create({
+      userId: newCaptainId,
+      type: 'TEAM_ROLE_CHANGED',
+      title,
+      message,
+      metadata: { teamId, role: 'CAPTAIN' },
+      read: false,
+    });
+    await this.notificationRepository.save(notification);
+
+    this.gateway?.server
+      ?.to(newCaptainId)
+      .emit('notification', { type: 'TEAM_ROLE_CHANGED' });
+
+    const user = await this.usersRepository.findOne({
+      where: { id: newCaptainId },
+    });
+    if (user?.pushToken && !this.gateway?.isUserActive(newCaptainId)) {
+      const r = await this.firebaseService.sendToDevice(
+        user.pushToken,
+        title,
+        message,
+        { type: 'TEAM_ROLE_CHANGED' },
+        1,
+      );
+      if (r.invalidToken) {
+        // notifications.service.pushToUser ile aynı öz-iyileşme
+        await this.usersRepository.query(
+          'UPDATE "user" SET "pushToken" = NULL WHERE id = $1 AND "pushToken" = $2',
+          [newCaptainId, user.pushToken],
+        );
+      }
+    }
+  }
+
   private async purgeTeamRaw(teamId: string, teamName: string): Promise<void> {
     await this.usersRepository.manager.transaction(async (em) => {
       await em.query(`DELETE FROM "challenges" WHERE "fromTeamId" = $1`, [
@@ -465,6 +521,12 @@ export class UsersService {
                 viceCaptainIds.filter((id) => id !== newCaptainId).join(','),
                 team.id,
               ],
+            );
+            // Yeni kaptana haber ver (best-effort: bildirim hatası hesap
+            // silmeyi düşürmez). Client'ın global team-event dinleyicisi
+            // TEAM_ROLE_CHANGED ile currentUserStore'u zorla tazeler.
+            void this.notifyNewCaptain(team.id, team.name, newCaptainId).catch(
+              () => {},
             );
           }
         } else {

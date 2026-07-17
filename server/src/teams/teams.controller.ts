@@ -10,6 +10,8 @@ import {
   Patch,
   HttpException,
   InternalServerErrorException,
+  ForbiddenException,
+  NotFoundException,
 } from '@nestjs/common';
 import { TeamsService } from './teams.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -26,6 +28,26 @@ export class TeamsController {
     private readonly chatService: ChatService,
     private readonly notificationsService: NotificationsService,
   ) {}
+
+  // Requester'ın takımda yönetici yetkisi olduğunu doğrula.
+  // viceAllowed=false → yalnız kaptan (rol değişiklikleri); true → kaptan veya yardımcı.
+  // Servis metodları requester almadığından (addPlayer/updatePlayerRole/updateViceCaptains)
+  // yetki kontrolü burada yapılır — UI zaten kapılı, bu guard yetkisiz RAW istekleri keser.
+  private async assertTeamManager(
+    teamId: string,
+    requesterId: string,
+    viceAllowed: boolean,
+  ): Promise<void> {
+    const team = await this.teamsService.findOne(teamId);
+    if (!team) throw new NotFoundException('Takım bulunamadı.');
+    const isCaptain =
+      (team.captain && team.captain.id === requesterId) ||
+      team.captainId === requesterId;
+    const isVice = !!team.viceCaptainIds?.includes(requesterId);
+    if (!(isCaptain || (viceAllowed && isVice))) {
+      throw new ForbiddenException('Bu işlem için yetkiniz yok.');
+    }
+  }
 
   @UseGuards(JwtAuthGuard)
   @Post()
@@ -66,8 +88,21 @@ export class TeamsController {
 
   @UseGuards(JwtAuthGuard)
   @Post(':id/players')
-  addPlayer(@Param('id') id: string, @Body('userId') userId: string) {
-    return this.teamsService.addPlayer(id, userId);
+  async addPlayer(
+    @Param('id') id: string,
+    @Body('userId') userId: string,
+    @Request() req: { user: Express.User },
+  ) {
+    await this.assertTeamManager(id, req.user.id, true);
+    const team = await this.teamsService.addPlayer(id, userId);
+    // Eklenen oyuncuya haber ver — client'ın global team-event dinleyicisi
+    // currentUserStore'u tazeler. Best-effort: bildirim hatası eklemeyi düşürmez.
+    // (Katılım isteği kabul yolu servisi DOĞRUDAN çağırır ve kendi
+    // JOIN_REQUEST_ACCEPTED bildirimini gönderir — çifte bildirim olmaz.)
+    void this.notificationsService
+      .createPlayerAddedNotification(id, userId)
+      .catch(() => {});
+    return team;
   }
 
   @UseGuards(JwtAuthGuard)
@@ -101,21 +136,45 @@ export class TeamsController {
 
   @UseGuards(JwtAuthGuard)
   @Patch(':id/players/:playerId/role')
-  updatePlayerRole(
+  async updatePlayerRole(
     @Param('id') id: string,
     @Param('playerId') playerId: string,
     @Body('role') role: 'CAPTAIN' | 'VICE',
+    @Request() req: { user: Express.User },
   ) {
-    return this.teamsService.updatePlayerRole(id, playerId, role);
+    // Rol değişikliği (kaptanlık devri dahil) yalnız kaptanın yetkisi.
+    await this.assertTeamManager(id, req.user.id, false);
+    const team = await this.teamsService.updatePlayerRole(id, playerId, role);
+    void this.notificationsService
+      .createRoleChangedNotification(id, playerId, role)
+      .catch(() => {});
+    return team;
   }
 
   @UseGuards(JwtAuthGuard)
   @Patch(':id/vice-captains')
-  updateViceCaptains(
+  async updateViceCaptains(
     @Param('id') id: string,
     @Body() dto: { add?: string; remove?: string },
+    @Request() req: { user: Express.User },
   ) {
-    return this.teamsService.updateViceCaptains(id, dto.add, dto.remove);
+    await this.assertTeamManager(id, req.user.id, false);
+    const team = await this.teamsService.updateViceCaptains(
+      id,
+      dto.add,
+      dto.remove,
+    );
+    if (dto.add) {
+      void this.notificationsService
+        .createRoleChangedNotification(id, dto.add, 'VICE')
+        .catch(() => {});
+    }
+    if (dto.remove) {
+      void this.notificationsService
+        .createRoleChangedNotification(id, dto.remove, 'MEMBER')
+        .catch(() => {});
+    }
+    return team;
   }
 
   @UseGuards(JwtAuthGuard)
@@ -167,7 +226,25 @@ export class TeamsController {
 
   @UseGuards(JwtAuthGuard)
   @Delete(':id')
-  deleteTeam(@Param('id') id: string, @Request() req: { user: Express.User }) {
-    return this.teamsService.deleteTeam(id, req.user.id);
+  async deleteTeam(
+    @Param('id') id: string,
+    @Request() req: { user: Express.User },
+  ) {
+    // Silmeden ÖNCE ad + üye listesi yakalanır (silme sonrası findOne null döner).
+    // Kaptan guard'ı serviste ('Sadece kaptan takımı silebilir') — burada tekrar yok.
+    const team = await this.teamsService.findOne(id);
+    const teamName = team?.name;
+    const memberIds = (team?.players ?? [])
+      .map((p) => p.id)
+      .filter((pid) => pid !== req.user.id);
+    const result = await this.teamsService.deleteTeam(id, req.user.id);
+    // Kalan üyelere haber ver (client tek-üyeli takımda sunar → liste çoğunlukla boş;
+    // raw API ile çok-üyeli silme de kapsanır). Best-effort.
+    if (teamName && memberIds.length > 0) {
+      void this.notificationsService
+        .createTeamDeletedNotification(teamName, memberIds)
+        .catch(() => {});
+    }
+    return result;
   }
 }

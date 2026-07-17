@@ -405,7 +405,12 @@ export class TeamsService implements OnModuleInit {
       }
     }
 
-    return this.teamsRepository.save(team);
+    // Save dönüşü DEĞİL findOne döndürülür: kaptanlık devrinde save(team)'in
+    // döndürdüğü nesnedeki captainId skaleri devir ÖNCESİ değeri taşıyabiliyor
+    // (yalnız captain ilişkisi atanıyor). Client bu yanıtı doğrudan
+    // currentUserStore'a seed ettiği için yanıt kanonik/taze olmak zorunda.
+    await this.teamsRepository.save(team);
+    return this.findOne(teamId) as Promise<Team>;
   }
 
   async updateViceCaptains(
@@ -436,7 +441,9 @@ export class TeamsService implements OnModuleInit {
       team.viceCaptainIds = team.viceCaptainIds.filter((id) => id !== remove);
     }
 
-    return this.teamsRepository.save(team);
+    // updatePlayerRole ile aynı gerekçe: yanıt client'a seed edildiği için kanonik olmalı.
+    await this.teamsRepository.save(team);
+    return this.findOne(teamId) as Promise<Team>;
   }
 
   async updateHomePitch(teamId: string, homePitchId: string): Promise<Team> {
