@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../../../services/api';
+import { seedCurrentUser } from '../../../../services/currentUserStore';
 
 export const useTeamSettings = () => {
     const navigate = useNavigate();
@@ -93,7 +94,8 @@ export const useTeamSettings = () => {
             const fullUrl: string = res.data.url;
             setLogoUrl(fullUrl);
             // Auto-save to DB immediately — no need to press Kaydet for logo changes
-            await api.patch(`/teams/${teamId}`, { logoUrl: fullUrl });
+            const patchRes = await api.patch(`/teams/${teamId}`, { logoUrl: fullUrl });
+            seedCurrentUser({ team: patchRes.data }); // ortak store'daki takım (logo) bayat kalmasın
             // Delete old cloud image after successful upload
             if (oldLogoUrl && oldLogoUrl.includes('cloudinary.com')) {
                 await deleteCloudImage(oldLogoUrl);
@@ -113,7 +115,8 @@ export const useTeamSettings = () => {
         const oldLogoUrl = logoUrl;
         setLogoUrl(null);
         try {
-            await api.patch(`/teams/${teamId}`, { logoUrl: null });
+            const patchRes = await api.patch(`/teams/${teamId}`, { logoUrl: null });
+            seedCurrentUser({ team: patchRes.data }); // ortak store'daki takım (logo) bayat kalmasın
             if (oldLogoUrl && oldLogoUrl.includes('cloudinary.com')) {
                 await deleteCloudImage(oldLogoUrl);
             }
@@ -128,13 +131,16 @@ export const useTeamSettings = () => {
 
         setIsSaving(true);
         try {
-            await api.patch(`/teams/${teamId}`, {
+            const patchRes = await api.patch(`/teams/${teamId}`, {
                 name: name.trim(),
                 level,
                 logoUrl: logoUrl ?? null,
                 primaryColor,
                 secondaryColor,
             });
+            // Ortak store'daki takım (ad/seviye/renkler) bayat kalmasın —
+            // Maç Pazarı kartları, chat forma degradesi vb. buradan okur.
+            seedCurrentUser({ team: patchRes.data });
             showSuccess('Takım ayarları güncellendi!');
             initialRef.current = { name: name.trim(), level, primaryColor, secondaryColor };
         } catch (err: any) {

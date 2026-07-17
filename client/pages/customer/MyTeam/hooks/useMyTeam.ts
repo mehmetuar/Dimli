@@ -5,10 +5,11 @@ import { Team, Player, Business, MatchHistoryItem } from '../../../../types';
 import { SuccessType } from '../../../../components/Modals/SuccessModal';
 import { useLocationContext } from '../../../../contexts/LocationContext';
 import { LocationFilter } from '../../../../components/Modals/LocationFilterModal';
-import { getCurrentUserSnapshot } from '../../../../services/currentUserStore';
+import { getCurrentUserSnapshot, seedCurrentUser } from '../../../../services/currentUserStore';
 import { isNetworkError } from '../../../../utils/apiError';
 import { readObjectCache, writeObjectCache, TEAM_CACHE_KEY } from '../../../../utils/listCache';
 import { useOnReconnect } from '../../../../hooks/useOnReconnect';
+import { useOnTeamChanged } from '../../../../hooks/useOnTeamChanged';
 import { getTourSnapshot } from '../../../../services/tourStore';
 import { getDemoUpcomingMatches, getDemoMatchHistory } from '../../PitchBooking/demo/demoTourData';
 
@@ -145,6 +146,10 @@ export const useMyTeam = (modals: any) => {
 
     // Ağ geri gelince profil + takım tazele (banner yeşil onayıyla eşzamanlı).
     useOnReconnect(fetchUser);
+    // Takım olayı (atılma/rol değişimi/silme vb.) → lokal state'i tazele.
+    // MyTeam ortak store'a abone değildir (snapshot-once); bu köprü olmadan
+    // sayfa açıkken gelen değişiklikler ancak remount/reconnect'te görünürdü.
+    useOnTeamChanged(fetchUser);
 
     // Ev sahibi işletme: tekil ids fetch'i (TeamDetailModal deseni) — kart, yarıçap
     // listesine bağımlı DEĞİL. Ev işletmesi seçili yarıçapın dışında kalsa bile dolar;
@@ -289,6 +294,7 @@ export const useMyTeam = (modals: any) => {
         try {
             const response = await api.patch(`/teams/${myTeam.id}/description`, { description: bio });
             setMyTeam(response.data);
+            seedCurrentUser({ team: response.data }); // ortak store'daki takım kopyası bayat kalmasın
             setIsEditingBio(false);
         } catch (error) {
             setErrorMessage('Takım ruhu kaydedilemedi.');
@@ -300,6 +306,7 @@ export const useMyTeam = (modals: any) => {
         try {
             const response = await api.patch(`/teams/${myTeam.id}/home-business`, { homeBusinessId: businessId });
             setMyTeam(response.data);
+            seedCurrentUser({ team: response.data }); // ortak store'daki takım kopyası bayat kalmasın
             // Kart anında dolsun (liste elemanı elimizde); effect ids fetch'iyle doğrular.
             setHomeBusiness(businesses.find(b => b.id === businessId) ?? null);
             modals.setIsEditingPitch(false);
@@ -321,6 +328,11 @@ export const useMyTeam = (modals: any) => {
             if (Array.isArray(created.players)) {
                 setRoster(mapRoster(created.players));
             }
+            // Ortak store'u ANINDA besle: Maç Pazarı/Sahalar/Bildirimler/Chat
+            // kaptan yetkilerini currentUser.team'den okur — seed olmadan 30sn
+            // TTL yüzünden "Sadece Kaptan ve Yardımcıları" kilidi geç kalkıyordu.
+            // created tam findOne şekli (captainId + viceCaptainIds dahil).
+            seedCurrentUser({ team: created, teamId: created.id });
             modals.setIsCreateTeamModalOpen(false);
             setSuccessMessage('Takım başarıyla oluşturuldu!');
             setSuccessType('TEAM_CREATED');
@@ -344,6 +356,8 @@ export const useMyTeam = (modals: any) => {
                             await api.delete(`/teams/${myTeam.id}`);
                             setMyTeam(undefined);
                             setRoster([]);
+                            // Ortak store'dan da düş — takımsız kullanıcı yetkileri anında doğru olsun
+                            seedCurrentUser({ team: null, teamId: null });
                             navigate('/team');
                         } catch (err: any) {
                             const msg = err.response?.data?.message || 'Takım silinemedi.';
@@ -380,6 +394,8 @@ export const useMyTeam = (modals: any) => {
                     await api.delete(`/teams/${myTeam.id}/leave`);
                     setMyTeam(undefined);
                     setRoster([]);
+                    // Ortak store'dan da düş (leave yanıtı void — null seed yeterli)
+                    seedCurrentUser({ team: null, teamId: null });
                     navigate('/team');
                 } catch (err: any) {
                     setErrorMessage(err.response?.data?.message || 'Takımdan ayrılınamadı.');

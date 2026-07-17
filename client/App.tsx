@@ -22,6 +22,7 @@ import { OfflineBanner } from './components/OfflineBanner';
 import { getToken, getRole } from './services/authStorage';
 import { fetchCurrentUser } from './services/currentUserStore';
 import { useKeyboardScroll } from './utils/useKeyboardScroll';
+import { useTeamEventsSync } from './hooks/useTeamEventsSync';
 import { savePendingInvite, getPendingInvite, clearPendingInvite } from './services/pendingInvite';
 import { BusinessInviteNoticeModal } from './components/Modals/BusinessInviteNoticeModal';
 import { TourHost } from './components/Tour/TourHost';
@@ -102,6 +103,9 @@ const PageLoader = () => (
 
 function AppContent() {
   useKeyboardScroll();
+  // Takım olayı (atılma/kabul/ekleme/rol/silme) → currentUserStore zorla tazele
+  // + 'team:changed' yayını (agent.md §82). Rota fark etmeksizin tek dinleyici.
+  useTeamEventsSync();
   const location = useLocation();
   const navigate = useNavigate();
   const { isReady, token, isBusiness, isCustomer, logout } = useAuth();

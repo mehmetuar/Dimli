@@ -32,7 +32,7 @@ export interface JoinRequest {
 
 export interface Notification {
     id: string;
-    type: 'JOIN_REQUEST' | 'CHALLENGE' | 'MATCH_RESULT' | 'REMATCH_PROPOSAL' | 'SYSTEM' | 'MATCH_REMINDER' | 'RESERVATION_REQUEST' | 'JOKER_INVITE' | 'TEAM_KICKED' | 'JOIN_REQUEST_ACCEPTED';
+    type: 'JOIN_REQUEST' | 'CHALLENGE' | 'MATCH_RESULT' | 'REMATCH_PROPOSAL' | 'SYSTEM' | 'MATCH_REMINDER' | 'RESERVATION_REQUEST' | 'JOKER_INVITE' | 'TEAM_KICKED' | 'JOIN_REQUEST_ACCEPTED' | 'TEAM_ADDED' | 'TEAM_ROLE_CHANGED' | 'TEAM_DELETED';
     relatedId: string;
     metadata: any;
     read: boolean;

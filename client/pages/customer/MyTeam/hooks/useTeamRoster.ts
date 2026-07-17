@@ -1,4 +1,5 @@
 import api from '../../../../services/api';
+import { seedCurrentUser, fetchCurrentUser } from '../../../../services/currentUserStore';
 import { isDemoId } from '../../PitchBooking/demo/demoTourData';
 
 interface TeamRosterProps {
@@ -53,6 +54,7 @@ export const useTeamRoster = ({
             });
 
             setMyTeam(response.data);
+            seedCurrentUser({ team: response.data }); // viceCaptainIds ortak store'da da tazelensin
             setSuccessMessage('Oyuncunun yetkileri alındı.');
             setSuccessType('ROLE_REMOVED');
         } catch (error: any) {
@@ -79,8 +81,14 @@ export const useTeamRoster = ({
         try {
             const response = await api.patch(`/teams/${myTeam.id}/players/${playerId}/role`, { role });
             setMyTeam(response.data);
+            // Ortak store'u tazele: kaptanlık devrinde ESKİ kaptanın (bu kullanıcı)
+            // Maç Pazarı/Chat kaptan yetkileri anında düşmeli.
+            seedCurrentUser({ team: response.data });
 
             if (role === 'CAPTAIN') {
+                // Sigorta: eski sunucu sürümü save() dönüşünde bayat captainId
+                // taşıyabilir (yeni sürüm findOne döndürür) — zorla /users/me çek.
+                void fetchCurrentUser({ force: true });
                 setSuccessMessage('Kaptanlık başarıyla devredildi.');
                 setSuccessType('CAPTAIN');
             } else {

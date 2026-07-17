@@ -142,6 +142,9 @@ const handleNotificationClick = (data: any) => {
         window.location.hash = '#/notifications?tab=JOIN_REQUESTS';
     } else if (data.type === 'CHALLENGE' || data.type === 'JOKER_INVITE' || data.type === 'REMATCH_PROPOSAL') {
         window.location.hash = '#/notifications?tab=MATCH_REQUESTS';
+    } else if (data.type === 'TEAM_ADDED' || data.type === 'TEAM_ROLE_CHANGED') {
+        // Takıma eklendin / rolün değişti → doğrudan Takımım sayfası
+        window.location.hash = '#/team';
     } else {
         window.location.hash = '#/notifications';
     }

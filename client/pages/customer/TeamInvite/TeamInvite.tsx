@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Loader2, Users, AlertCircle, CheckCircle, ArrowLeft } from 'lucide-react';
 import api from '../../../services/api';
+import { seedCurrentUser } from '../../../services/currentUserStore';
 import { LevelBadge } from '../../../components/UI/LevelBadge';
 import { Team } from '../../../types';
 import { teamLogoSrc, teamInitialsAvatar } from '../../../utils/teamColors';
@@ -48,7 +49,10 @@ export const TeamInvite: React.FC = () => {
         setStatus('joining');
         setErrorMessage('');
         try {
-            await api.post(`/teams/${team.id}/join-via-invite`);
+            const res = await api.post(`/teams/${team.id}/join-via-invite`);
+            // Sunucu tam takımı döndürür (findOne şekli) — ortak store'u anında
+            // besle ki /team açılmadan önce bile yetkiler/takım bilgisi doğru olsun.
+            seedCurrentUser({ team: res.data, teamId: res.data?.id });
             setStatus('joined');
             setTimeout(() => navigate('/team', { replace: true }), 1200);
         } catch (err: any) {

@@ -86,7 +86,14 @@ export function fetchCurrentUser(opts: { force?: boolean } = {}): Promise<any | 
         return Promise.resolve(null);
     }
     if (!hydrated) hydrateFromStorage();
-    if (inFlight) return inFlight;
+    if (inFlight) {
+        // force isteği in-flight (muhtemelen mutasyon-ÖNCESİ) fetch'e yutulmasın:
+        // mevcut istek bitince zorla bir tur daha atılır (takım-olayı senkronu
+        // bunun tazeliğine güvenir; yutulursa bayat veri 30sn "taze" sayılırdı).
+        return opts.force
+            ? inFlight.then(() => fetchCurrentUser({ force: true }))
+            : inFlight;
+    }
     if (!opts.force && user && Date.now() - lastFetchedAt < STALE_MS) {
         return Promise.resolve(user);
     }

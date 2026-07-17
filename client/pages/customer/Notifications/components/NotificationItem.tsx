@@ -50,6 +50,9 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({
         if (type === 'JOIN_REQUEST') return 'bg-blue-500';
         if (type === 'JOIN_REQUEST_ACCEPTED') return 'bg-turf-500';
         if (type === 'TEAM_KICKED') return 'bg-red-500';
+        if (type === 'TEAM_ADDED') return 'bg-turf-500';
+        if (type === 'TEAM_ROLE_CHANGED') return 'bg-blue-500';
+        if (type === 'TEAM_DELETED') return 'bg-red-500';
         if (type === 'CHALLENGE') return 'bg-turf-500';
         if (type === 'REMATCH_PROPOSAL') return 'bg-purple-500';
         if (type === 'MATCH_REMINDER') return 'bg-yellow-500';
@@ -63,6 +66,9 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({
         if (type === 'JOIN_REQUEST') return 'bg-blue-500/20 text-blue-500';
         if (type === 'JOIN_REQUEST_ACCEPTED') return 'bg-turf-500/20 text-turf-500';
         if (type === 'TEAM_KICKED') return 'bg-red-500/20 text-red-500';
+        if (type === 'TEAM_ADDED') return 'bg-turf-500/20 text-turf-500';
+        if (type === 'TEAM_ROLE_CHANGED') return 'bg-blue-500/20 text-blue-500';
+        if (type === 'TEAM_DELETED') return 'bg-red-500/20 text-red-500';
         if (type === 'CHALLENGE' || metaType === 'MATCH_APPROVED') return 'bg-turf-500/20 text-turf-500';
         if (type === 'REMATCH_PROPOSAL') return 'bg-purple-500/20 text-purple-500';
         if (type === 'MATCH_REMINDER') return 'bg-yellow-500/20 text-yellow-500';
@@ -77,6 +83,9 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({
         if (type === 'JOIN_REQUEST') return <UserPlus className="w-4 h-4" />;
         if (type === 'JOIN_REQUEST_ACCEPTED') return <UserCheck className="w-4 h-4" />;
         if (type === 'TEAM_KICKED') return <UserX className="w-4 h-4" />;
+        if (type === 'TEAM_ADDED') return <UserCheck className="w-4 h-4" />;
+        if (type === 'TEAM_ROLE_CHANGED') return <ShieldCheck className="w-4 h-4" />;
+        if (type === 'TEAM_DELETED') return <XCircle className="w-4 h-4" />;
         if (type === 'JOKER_INVITE') return <UserPlus className="w-4 h-4 text-turf-500" />;
         if (type === 'CHALLENGE' || metaType === 'MATCH_APPROVED') return <ShieldCheck className="w-4 h-4" />;
         if (type === 'REMATCH_PROPOSAL') return <Swords className="w-4 h-4" />;
@@ -92,6 +101,9 @@ export const NotificationItem: React.FC<NotificationItemProps> = ({
         if (type === 'JOIN_REQUEST') return 'Yeni Katılma İsteği';
         if (type === 'JOIN_REQUEST_ACCEPTED') return 'Katılma İsteği Onaylandı';
         if (type === 'TEAM_KICKED') return 'Takımdan Çıkarıldınız';
+        if (type === 'TEAM_ADDED') return 'Takıma Eklendin';
+        if (type === 'TEAM_ROLE_CHANGED') return stripNotificationEmoji(notifObj.title) || 'Rol Güncellendi';
+        if (type === 'TEAM_DELETED') return 'Takım Silindi';
         if (type === 'JOKER_INVITE') return 'Yeni Joker Daveti';
         if (type === 'CHALLENGE') return 'Yeni Meydan Okuma';
         if (type === 'MATCH_RESULT') return 'Maç Sonucu';
