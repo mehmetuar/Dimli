@@ -3613,3 +3613,162 @@ synchronize enum'u tam görüp yeniden yaratmayacak, yalnız yeni tabloları + n
 ekleyecek. Deploy sırası: server → client-admin → mobil (yeni native build + store inceleme).
 Kod alanı yalnız yeni binary'de; sunucu eski istemcileri değiştirmeden kabul eder. Cihaz testi +
 uçtan uca akış (kayıt/redeem/cron/webhook) deploy sonrası bekliyor.
+
+---
+
+### §81. Basılı afiş QR kodu + cihaza göre mağaza yönlendirmesi (2026-07-17)
+
+**Amaç:** A5 basılı afişteki tek QR kod, okutan kişiyi iPhone ise App Store'a, Android ise
+Play Store'a atsın.
+
+**Temel kısıt:** QR kod sabit metin taşır, içinde mantık çalıştıramaz — "hangi telefon?"
+kararını QR veremez, hedef sunucu verir. Firebase Dynamic Links / Branch.io gibi servislerin
+yaptığı da budur (Dynamic Links Ağustos 2025'te kapandı). Site zaten elimizde olduğu için
+üçüncü parti servis kullanılmadı.
+
+**Akış:** QR → `https://www.dimli.com.tr/qr` → `web/app/qr/route.ts` User-Agent'a bakar → 302.
+**`www.` şart:** apex `dimli.com.tr` Vercel'de www'ya 307 atıyor; www'suz QR her okutmada
+fazladan bir durak demek. "www." QR sürümünü büyütmüyor (37×37 aynı) — bedava.
+- `/iPhone|iPad|iPod/i` → `APP_STORE_URL`
+- `/Android/i` → `GOOGLE_PLAY_URL` (+ `?k=` varsa Play `referrer` param'ı)
+- diğer → `/indir` (iki rozetin de olduğu mevcut sayfa)
+
+Mağaza URL'leri `web/components/StoreBadges.tsx`'ten **import edilir**, kopyalanmaz (tek kaynak).
+
+**İki zorunlu detay — atlanırsa afiş sessizce bozulur:**
+1. `export const dynamic = 'force-dynamic'` — Next 14'te GET Route Handler varsayılan olarak
+   STATİK değerlendirilir; UA'ya bakan uç statik olursa ilk cevap herkese servis edilir.
+   Build çıktısında `/qr` mutlaka `ƒ (Dynamic)` görünmeli, `○ (Static)` değil.
+2. **302 + `Cache-Control: no-store`** — CDN bir iPhone'a verilen App Store yönlendirmesini
+   önbelleğe alırsa Android kullanıcıları da App Store'a düşer. 301 asla kullanılmaz.
+
+**Bakım modu:** `web/middleware.ts` matcher'ında `/qr` muaf tutuldu (`.well-known` ve `invite`
+gibi). Basılı afiş geri çağrılamaz — bakım modu QR'ı öldürmemeli. **`/qr` yolunun adı afiş
+basıldıktan sonra ASLA değiştirilemez.**
+
+**Kampanya etiketi:** `/qr?k=<etiket>`, `[a-z0-9_-]{1,32}` ile doğrulanır (ham girdi mağaza
+URL'ine sızmaz). Play Console Kazanım raporunda görünür. App Store karşılığı (`pt`/`ct`)
+App Store Connect kurulumu istediği için eklenmedi.
+
+**Afiş:** `marketing/` (poster-a5.html + dimli-qr.svg + dimli-lockup.svg + gen-lockup.cjs +
+phone-sahalar.png + poster-a5.pdf + README). Detaylı kurallar `marketing/README.md`'de. Özet: QR
+beyaz kartta koyu modül (yeşile basılmaz), ~48.6mm görünen kenar, `box-shadow` yok (PDF'te opak gri
+dikdörtgen basılıyor), üst yarı canlı yeşilde lacivert metin / alt yarı koyu yeşilde beyaz metin
+(yeşili tüllemek çamurlaştırıyordu). QR SVG'sinin viewBox'ı 4 modüllük sessiz alanı zaten içerir —
+görünen QR, svg genişliğinin 29/37'si.
+
+**Afiş tipografisi (2026-07-17 yeniden tasarım):** Anton (başlık) + Inter (gövde). Asıl sorun
+tipografi değil hiyerarşi yokluğuydu — poster kuralı tek baskın mesajın görsel ağırlığın ~%70'ini
+taşıması; 180 karakterlik paragraf başlık + alt başlık + 4 çipe bölündü. Başlık
+"HALISAHANIN HİKAYESİ / DİMLİ'DE BAŞLAR", her satır kenardan kenara (126mm).
+Öğrenilen tuzaklar:
+- **Başlık puntoları ölçülür, tahmin edilmez.** Anton headless Chrome'da ölçüldü (100px'te
+  820.2px / 622.8px) → 15.37mm / 20.24mm. Başlık metni değişirse yeniden ölçülmeli.
+- **`line-height: 1`'in altına inilmez** — Anton'un İ noktaları cap yüksekliğinin üstüne çıkıyor,
+  0.86'da satırlar çakışıyordu.
+- **Türkçe büyük harf CSS ile YAPILMAZ** (`text-transform` yerel ayara bağlı, i→I mi İ mi) —
+  metin HTML'e hazır büyük harf yazıldı.
+- **`overflow: hidden` taşmayı sessizce yutuyor**, PDF yine "tek sayfa" diyor. İlk denemede içerik
+  220.3mm/210.1mm'ydi, `dimli.com.tr` kırpılmıştı. Gerçek kontrol: alt satır görünüyor mu.
+- **Logo = `client/public/dimli.png`** (2026-07-17 rev.2, `marketing/dimli-logo.png` kopyası):
+  parlak lime D + düz "DİMLİ", kendi koyu stadyum zemini ile. Yuvarlatılmış kare plakada,
+  **dolgusuz** — görselin kendi zemini olduğu için dolgu koyunca dikiş oluşuyor.
+  `transform: scale(1.18)` ŞART: logo görselin yalnız %42 genişliğini / %58 yüksekliğini kaplıyor
+  (ölçüldü: bbox 435×597 / 1024×1024), 1:1'de plakada kayboluyor; logo tuvalde tam merkezde
+  (512,511) olduğu için ortadan büyütmek güvenli. Eski `dimli-mark.png` (icon.png kırpımı) silindi.
+  - **Alternatif (üretildi, şu an kullanılmıyor):** `dimli-lockup.svg` = açılış animasyonunun
+    durağan son karesi (el yazısı DİMLİ). `gen-lockup.cjs` vektörleri `AnimatedSplash.tsx` +
+    `splashWordmark.ts`'ten **okuyup** üretir (elle kopyalama yok: ~10KB bezier).
+  - **Tuzak (lockup kullanılırsa):** `WORDMARK_DOT_REVEALS` ve `mask="splash-pen-reveal"` içindeki
+    `m1`-`m9` **artwork değil**, kalem-süpürme animasyon geometrisi — çizilmez. İ noktaları zaten
+    harf path'lerinde baked. Harfler hem `fill` **hem** 4 birim `stroke` ile çizilir, yoksa incelir.
+    Splash yeşili `#2f8a22` koyudur ve laciverte göre tasarlanmıştır; canlı yeşilde kaybolur.
+- **Çerçeveler afişin en kritik öğesi** (afiş sahalara asılıyor; oyuncu uygulamayı onları okuyarak
+  anlıyor): tam genişlik lacivert satırlar + beyaz kalın metin + yeşil nokta. Yer açmak için alt
+  başlık atıldı (çerçeveler aynı işi daha iyi yapıyordu). CTA/rozetler/ÜCRETSİZ, QR'ın altına sağ
+  kolona alındı — sahnede QR'ın yanındaki ~14mm boş dikey alanı kullanır ve ekran görüntüsünün
+  40×85mm (düz, kırpılmamış) kalmasını sağlar. `.stage`de `align-items: flex-start` — QR kartının
+  üst kenarı telefonunkiyle birebir hizalı (`center`da sağ kolon uzun olduğu için QR yukarı
+  kayıyordu). QR ile çerçeveler arası 2mm boşluk korunmalı.
+- **"ÜCRETSİZ" eklendi** — uygulama oyunculara ücretsiz ama afişte hiç yazmıyordu; sahada afişi
+  gören kişinin ilk sorusu "para mı?" oluyor.
+**Doğrulama (CANLI ✓):** Yerel 6 UA senaryosu geçti (iPhone/iPad→App Store, Android→Play,
+masaüstü→/indir, `?k=saha1`→referrer, `?k=<script>`→temizlendi; hepsi 302 + no-store).
+Build temiz, `/qr` = ƒ (Dynamic). Commit `4d06511` main'e push'landı, Vercel deploy indi.
+**Canlı doğrulandı:** üç senaryo da doğru; CDN önbellek testi 8 dönüşümlü istekte temiz
+(iPhone hep App Store, Android hep Play — zehirlenme yok). Uçtan uca: basılmış PDF'ten jsQR ile
+okunan URL (`https://www.dimli.com.tr/qr` ✓, 300/500/700px; yeniden tasarım sonrası 4/4) gerçek isteklerle takip edildi →
+iPhone'da Apple `itms-appss://`'e çeviriyor (App Store uygulaması açılıyor), Android'de Play 200.
+**Kalan: tek deneme baskısı + gerçek telefonla kâğıttan okutma — toplu baskı öncesi zorunlu.**
+
+**Bulunan ilgisiz açık:** `web/public/.well-known/assetlinks.json` parmak izi hâlâ
+`REPLACE_WITH_RELEASE_KEYSTORE_SHA256_FINGERPRINT` → Android App Links doğrulanmıyor, takım
+davet linkleri Android'de uygulama yerine tarayıcıda açılıyor. QR akışını etkilemez (QR zaten
+tarayıcıda açılmalı), ayrı iş.
+
+### §82. Takım durumu senkronu: kaptan uyarısı gecikmesi + takım-olayı yayını (2026-07-17)
+
+**Belirti:** Yeni kullanıcıyla takım oluşturunca Maç Pazarı'nda "Sadece Kaptan ve
+Yardımcıları" kilidi bir süre kalkmıyordu. Kök neden tekil bug değil sistemik eksiklik:
+HİÇBİR takım üyeliği mutasyonu ortak `currentUserStore`'u güncellemiyordu (store yalnız
+30sn TTL / 8dk keepalive / reconnect / LocationContext seed'iyle tazeleniyordu). Bayat
+`currentUser.team`: Maç Pazarı `canChallenge`, Sahalar `isAuthorized`, Bildirimler
+`isTeamLeader`, Chat kaptan aksiyonları (+ iptal isteğinde bayat `team.id` gönderimi).
+
+**Çözüm (full-stack, deploy sırası server→client):**
+
+*Server:*
+- 3 yeni bildirim tipi: `TEAM_ADDED` (doğrudan ekleme), `TEAM_ROLE_CHANGED`
+  (metadata.role: CAPTAIN|VICE|MEMBER), `TEAM_DELETED`. `notifications.type` kolonu düz
+  varchar (canlı DB'de doğrulandı) → migration/ALTER GEREKMEDİ.
+- `notifications.service.ts`: `createPlayerAddedNotification` / `createRoleChangedNotification`
+  / `createTeamDeletedNotification` (createPlayerRemovedNotification deseni: DB + socket + push).
+  `createTeamDeletedNotification` ad+üyeIds parametre alır (takım çoktan silinmiş olur).
+- `teams.service.ts` `updatePlayerRole`/`updateViceCaptains`: `return save(team)` →
+  `await save; return findOne(teamId)`. KRİTİK: kaptanlık devrinde save() dönüşündeki
+  `captainId` skaleri devir ÖNCESİ değeri taşıyabiliyordu (yalnız captain ilişkisi atanıyor);
+  client yanıtı store'a seed ettiği için yanıt kanonik olmak zorunda.
+- `teams.controller.ts`: `assertTeamManager` guard'ı — `addPlayer` (kaptan+yardımcı),
+  `updatePlayerRole`/`updateViceCaptains` (yalnız kaptan). GÜVENLİK: bu endpoint'lerde daha
+  önce HİÇ requester kontrolü yoktu (§65 denetiminden kaçmış — herhangi bir oturumlu kullanıcı
+  herhangi bir takımda rol değiştirebiliyordu). `deleteTeam`: silmeden önce ad+üye listesi
+  yakalanıp silme sonrası kalan üyelere TEAM_DELETED. Bildirimler `.catch(() => {})` best-effort.
+- `users.service.ts` hesap silme kaptanlık devri → `notifyNewCaptain` (TEAM_ROLE_CHANGED).
+  DI: NotificationsService ENJEKTE EDİLMEDİ (Users→Notifications→Teams→Users döngüsü,
+  purgeTeamRaw raw-SQL kararıyla aynı gerekçe) → eldeki `notificationRepository` + döngüsüz
+  `GatewayModule`/`FirebaseService` ile doğrudan yazılır (metinler NotificationsService
+  CAPTAIN dalıyla senkron tutulmalı).
+
+*Client:*
+- **Kendi aksiyonlarına satır içi seed** (`seedCurrentUser({team: <tam findOne şekli> | null, teamId})`):
+  oluşturma/ayrılma/silme (`useMyTeam`), davetle katılım (`TeamInvite`), yardımcı atama-alma +
+  kaptanlık devri (`useTeamRoster` — devirde ek `fetchCurrentUser({force:true})` sigortası:
+  eski sunucu bayat captainId dönebilir), açıklama/ev-sahibi (`useMyTeam`), logo/ad/seviye/renk
+  (`useTeamSettings` — PATCH yanıtları önceden çöpe atılıyordu). KURAL: store'a asla parça team
+  seed etme (seed TTL'i sıfırlar, eksik şekil 30sn "taze" sayılır).
+- **`client/hooks/useTeamEventsSync.ts`** (AppContent'te bir kez): socket 'notification'
+  tipi {TEAM_KICKED, JOIN_REQUEST_ACCEPTED, TEAM_ADDED, TEAM_ROLE_CHANGED, TEAM_DELETED}
+  ise `fetchCurrentUser({force:true})` + `window 'team:changed'` yayını. Ek: her socket
+  'connect'te bir kez zorla tazele (iOS arka planda socket askıya alınır, kaçan emitler
+  resume'da telafi edilir).
+- **`client/hooks/useOnTeamChanged.ts`**: useOnReconnect emsali ('team:changed'); MyTeam
+  `fetchUser`'ı buna bağlandı (MyTeam store'a abone DEĞİL — snapshot-once, köprü şart).
+- **`currentUserStore.fetchCurrentUser`**: in-flight varken gelen `force` isteği artık
+  yutulmaz — mevcut istek bitince zorla bir tur daha atılır.
+- **Maç Pazarı `permissionsReady`** (`currentUser != null`): soğuk açılışta kartlar
+  localStorage cache'inden user'dan ÖNCE basılır → kilit yerine buton yüksekliğinde nötr
+  `animate-pulse` iskelet (`MatchAnnouncementCard`; demo kart hariç).
+- Bildirim görselleştirme: 3 yeni tip için NotificationItem ikon/renk/başlık dalları;
+  push tıklaması TEAM_ADDED/TEAM_ROLE_CHANGED → `#/team`.
+
+**Geriye uyumluluk:** Eski client + yeni server → yeni tipler genel dinleyicilere düşer
+(rozet+liste), NotificationItem bilinmeyen tipi varsayılanla basar. Yeni client + eski
+server → seed'ler çalışır, 3 yeni tip gelmez, devir sigortası bayat captainId'yi örter.
+
+**Doğrulama:** server nest build + boot (tüm modüller DI hatasız) ✓; client vite build +
+tsc (dokunulan dosyalar temiz) ✓; canlı DB'de `notifications.type` varchar doğrulandı
+(salt-okunur sorgu). İki cihazlı senaryo testleri + yeni native sürüm YAYINI BEKLİYOR.
+
+**Not:** Aynı batch'te §-siz küçük iş: Maç Pazarı + Joker pull-to-refresh düzeltmesi
+(`handleTouchEnd` `requestLocation()` → `refetch()` force; `useMarketplace.refetch` artık
+promise döndürür — spinner fetch bitene dek döner). Sahalar/Chat zaten force çekiyordu.
