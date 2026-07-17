@@ -139,10 +139,9 @@ export const useMarketplace = () => {
     doFetch(false, false);
   }, [hasMore, doFetch]);
 
-  // İlan yayınlandıktan hemen sonra listeyi tazele (offset başa döner)
-  const refetch = () => {
-    doFetch(true, true);
-  };
+  // İlan yayınlandıktan hemen sonra / pull-to-refresh'te listeyi tazele (offset başa döner).
+  // Promise DÖNDÜRÜR: pull-to-refresh spinner'ı fetch bitene kadar dönebilsin (usePitchBooking.refreshBusinesses deseni).
+  const refetch = () => doFetch(true, true);
 
   // Ağ geri gelince sayfa-0 tazele (OfflineBanner yeşil onayıyla eşzamanlı).
   useOnReconnect(() => doFetch(true, true));
@@ -152,6 +151,11 @@ export const useMarketplace = () => {
   };
 
   const myTeam = currentUser?.team;
+
+  // Kullanıcı/yetki bilgisi yüklendi mi — kartlar cache'ten user'dan ÖNCE
+  // basıldığından, false iken "Sadece Kaptan" kilidi yerine nötr iskelet
+  // gösterilir. Warm cache'te isLoading hep false olduğundan doğru sinyal bu.
+  const permissionsReady = currentUser != null;
 
   const isAuthorized = () => {
     if (!myTeam || !currentUser) return false;
@@ -208,6 +212,7 @@ export const useMarketplace = () => {
   return {
     currentUser,
     myTeam,
+    permissionsReady,
     marketplaceTourActive,
     matches,
     setMatches,

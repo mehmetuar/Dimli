@@ -14,6 +14,10 @@ interface MatchAnnouncementCardProps {
     myChallenges: any[];
     isAuthorized: boolean;
     canChallenge: boolean;
+    /** currentUser store'dan yüklendi mi — false iken kilit yerine nötr placeholder
+     *  (soğuk açılışta kartlar cache'ten user'dan ÖNCE basılır; erken "Sadece
+     *  Kaptan" kilidi yanlış iddia olurdu) */
+    permissionsReady: boolean;
     getPitchDetails: (announcement: any) => {
         pitch: { id: string; name: string; pricePerHour?: number; imageUrl?: string; endTime?: string } | null;
         business: { id?: string; name?: string; district?: string | null; city?: string | null } | null;
@@ -46,6 +50,7 @@ export const MatchAnnouncementCard: React.FC<MatchAnnouncementCardProps> = ({
     myChallenges,
     isAuthorized,
     canChallenge,
+    permissionsReady,
     getPitchDetails,
     setSelectedTeamId,
     onOpenBusinessInfo,
@@ -292,6 +297,10 @@ export const MatchAnnouncementCard: React.FC<MatchAnnouncementCardProps> = ({
                             <X className="w-4 h-4" /> İsteği İptal Et
                         </span>
                     </button>
+                ) : (!permissionsReady && !isDemo) ? (
+                    /* Kullanıcı/yetki henüz yüklenmedi: kilit İDDİA ETME, buton
+                       yüksekliğinde nötr iskelet göster (soğuk açılış penceresi) */
+                    <div className="w-full bg-slate-700/40 border border-slate-600/40 py-3 rounded-xl h-[46px] animate-pulse" />
                 ) : canChallenge ? (
                     <button
                         onClick={() => handleOpenChallengeModal(announcement)}

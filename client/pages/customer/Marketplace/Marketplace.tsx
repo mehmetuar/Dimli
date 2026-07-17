@@ -69,7 +69,7 @@ export const Marketplace: React.FC = () => {
     setIsSortOpen,
     hideMyListings,
     setHideMyListings,
-    requestLocation,
+    permissionsReady,
   } = useMarketplace();
 
   const {
@@ -164,13 +164,16 @@ export const Marketplace: React.FC = () => {
       hasTriggeredRefreshRef.current = true;
       setIsRefreshing(true);
       try {
-        await requestLocation();
+        // Konum aynı olsa da sayfa 0'ı ZORLA yenile (Sahalar deseni). Eski hâli
+        // requestLocation() çağırıyordu → koordinat değişmeyince fetch guard'ı
+        // no-op ediyor, spinner dönüp veri yenilenmiyordu.
+        await refetch();
       } finally {
         setIsRefreshing(false);
       }
     }
     setPullDistance(0);
-  }, [pullDistance, requestLocation]);
+  }, [pullDistance, refetch]);
 
   const pullIndicatorH = isRefreshing ? 56 : pullDistance;
   const displayMatches = filteredMatches;
@@ -406,6 +409,7 @@ export const Marketplace: React.FC = () => {
                     myChallenges={myChallenges}
                     isAuthorized={authorized}
                     canChallenge={canChallenge}
+                    permissionsReady={permissionsReady}
                     getPitchDetails={getPitchDetails}
                     setSelectedTeamId={setSelectedTeamId}
                     onOpenBusinessInfo={setSelectedBusinessInfo}

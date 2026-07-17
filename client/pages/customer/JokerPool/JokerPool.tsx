@@ -37,7 +37,6 @@ export const JokerPool: React.FC = () => {
       applyLocationFilter,
       visibleJokers,
       handleSaveProfile,
-      requestLocation,
    } = useJokerPool();
 
    const scrollRef = useRef<HTMLDivElement>(null);
@@ -96,13 +95,16 @@ export const JokerPool: React.FC = () => {
          hasTriggeredRefreshRef.current = true;
          setIsRefreshing(true);
          try {
-            await requestLocation();
+            // Konum aynı olsa da sayfa 0'ı ZORLA yenile (Sahalar deseni). Eski hâli
+            // requestLocation() idi → koordinat değişmeyince fetch guard'ı no-op
+            // ediyor, spinner dönüp joker havuzu yenilenmiyordu.
+            await refetch();
          } finally {
             setIsRefreshing(false);
          }
       }
       setPullDistance(0);
-   }, [pullDistance, requestLocation]);
+   }, [pullDistance, refetch]);
 
    const pullIndicatorH = isRefreshing ? 56 : pullDistance;
 
