@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X, Users, Repeat, Swords, Trash2, Check, Loader2 } from 'lucide-react';
 import api from '../../../../services/api';
-import { useModalBodyClass } from '../../../../utils/useModalBodyClass';
+import { KeyboardAwareModal } from '../../../../components/Modals/KeyboardAwareModal';
 import { teamLogoSrc, teamInitialsAvatar } from '../../../../utils/teamColors';
 
 // Sabit kapatmaya abone takım atama/yönetme modalı. Takım seçimi yalnız takım
@@ -93,8 +93,6 @@ export const AssignSubscriberModal: React.FC<AssignSubscriberModalProps> = ({
     onClose,
     onChanged,
 }) => {
-    useModalBodyClass(isOpen);
-
     const [mode, setMode] = useState<'single' | 'rival'>('single');
     const [code1, setCode1] = useState('');
     const [code2, setCode2] = useState('');
@@ -167,8 +165,6 @@ export const AssignSubscriberModal: React.FC<AssignSubscriberModalProps> = ({
     useEffect(() => { lookup(code1, setTeam1, setSearching1, setNotFound1, debounce1); }, [code1]);
     useEffect(() => { lookup(code2, setTeam2, setSearching2, setNotFound2, debounce2); }, [code2]);
 
-    if (!isOpen || !closureId) return null;
-
     const sameTeam = mode === 'rival' && team1 && team2 && team1.id === team2.id;
     const canSubmit =
         !submitting && !!team1 && (mode === 'single' || (!!team2 && !sameTeam));
@@ -207,13 +203,19 @@ export const AssignSubscriberModal: React.FC<AssignSubscriberModalProps> = ({
     };
 
     return (
-        <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 backdrop-blur-sm" onClick={onClose}>
-            <div
-                className="bg-slate-800 w-[min(calc(100vw-2rem),420px)] rounded-2xl border border-slate-700 max-h-[85vh] overflow-y-auto animate-scale-in shadow-2xl p-[clamp(1rem,4vw,1.375rem)]"
-                style={{ overscrollBehavior: 'contain' }}
-                onClick={(e) => e.stopPropagation()}
-            >
-                <div className="flex justify-between items-start mb-4">
+        // Klavye-farkında standart sarmalayıcı: klavye açılınca panel klavyenin
+        // üstüne hizalanır, başlık sabit kalır, inputlar kaydırılabilir gövdede
+        // olduğundan global useKeyboardScroll odaklanan inputu görünür kılar.
+        <KeyboardAwareModal
+            isOpen={isOpen && !!closureId}
+            onClose={onClose}
+            portalToBody
+            zClassName="z-[60]"
+            panelClassName="bg-slate-800 w-full max-w-[420px] rounded-2xl border border-slate-700 shadow-2xl animate-scale-in"
+            bodyClassName="px-[clamp(1rem,4vw,1.375rem)] pb-[clamp(1rem,4vw,1.375rem)]"
+            maxHeightClassName="max-h-[85vh]"
+            header={
+                <div className="flex justify-between items-start p-[clamp(1rem,4vw,1.375rem)] pb-3">
                     <div>
                         <h3 className="text-[clamp(1.05rem,5vw,1.25rem)] font-black text-white leading-tight flex items-center gap-2">
                             <Repeat className="w-5 h-5 text-emerald-400 shrink-0" />
@@ -227,8 +229,9 @@ export const AssignSubscriberModal: React.FC<AssignSubscriberModalProps> = ({
                         <X className="w-5 h-5" />
                     </button>
                 </div>
-
-                {loadingCurrent ? (
+            }
+        >
+            {loadingCurrent ? (
                     <div className="flex items-center justify-center py-10">
                         <Loader2 className="w-6 h-6 text-slate-400 animate-spin" />
                     </div>
@@ -334,7 +337,6 @@ export const AssignSubscriberModal: React.FC<AssignSubscriberModalProps> = ({
                         </button>
                     </div>
                 )}
-            </div>
-        </div>
+        </KeyboardAwareModal>
     );
 };
