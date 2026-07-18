@@ -8,6 +8,7 @@ import { listPresetNotes, createPresetNote, PresetNote } from '../../../../servi
 import { isNetworkError } from '../../../../utils/apiError';
 import { readObjectCache, writeObjectCache, BIZ_DASHBOARD_CACHE_KEY } from '../../../../utils/listCache';
 import { useOnReconnect } from '../../../../hooks/useOnReconnect';
+import { todayStr, addDaysStr } from '../../../../utils/today';
 
 // Yalnız BUGÜNÜN önbelleği geçerli — dashboard tarih bağımlı; dünkü özet
 // bugünmüş gibi gösterilmez. Tarih seçilmişse cache miss (kabul edilir).
@@ -16,9 +17,35 @@ const readTodayDashboardCache = () => {
     return cached?.date === new Date().toISOString().split('T')[0] ? cached : null;
 };
 
+// Seçilen tarihi localStorage'a yaz/oku (FilterContext emsali): işletme kullanıcısı
+// takvimden bir gün seçince, kendisi DEĞİŞTİRENE kadar o gün seçili kalsın —
+// dashboard'a her dönüşte/uygulama açılışında bugüne resetlenmesin.
+const BIZ_DATE_KEY = 'biz_dashboard_selected_date';
+const loadBizDate = (): string => { try { return localStorage.getItem(BIZ_DATE_KEY) ?? ''; } catch { return ''; } };
+const saveBizDate = (d: string) => { try { localStorage.setItem(BIZ_DATE_KEY, d); } catch {} };
+
 export const useBusinessDashboard = () => {
     const location = useLocation();
-    const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+    // Saklı tarihi geri yükle. Takvim seçilebilir aralığı [bugün-90, bugün+30]
+    // (BusinessDateFilterModal); bu aralık dışındaysa (ör. uygulama 3+ ay kapalı
+    // kalmış → takvim o günü artık seçemez) bugüne düş. Aralıktaysa AYNEN koru —
+    // geçmiş tarih dahil (işletme paneli geçmişe bakmaya izin verir; kullanıcı
+    // "değiştirene kadar kalsın" dedi → bugüne ZORLA çekilmez).
+    const [selectedDate, setSelectedDateState] = useState(() => {
+        const t = todayStr();
+        const stored = loadBizDate();
+        if (!stored) return t;
+        const min = addDaysStr(new Date(), -90);
+        const max = addDaysStr(new Date(), 30);
+        return (stored < min || stored > max) ? t : stored; // YYYY-MM-DD leksikografik = kronolojik
+    });
+
+    // Dışa verilen setter: ELLE seçim localStorage'a yazılır (kalıcı olur).
+    // Deep-link (bildirim) tarihi bunu KULLANMAZ → geçici kalır (aşağıya bakınız).
+    const setSelectedDate = useCallback((d: string) => {
+        setSelectedDateState(d);
+        saveBizDate(d);
+    }, []);
     // Stale-while-revalidate: bugünün önbelleği varsa soğuk açılışta anında basılır
     // ("mavi ekran" yerine); arkada normal fetch sürer.
     const [dashboardData, setDashboardData] = useState<any>(() => readTodayDashboardCache()?.data ?? null);
@@ -42,7 +69,9 @@ export const useBusinessDashboard = () => {
 
     // Bildirimden gelinen tarihi (+ varsa slot hedefini) uygula (YYYY-MM-DD).
     // Regex guard: legacy tr-TR stringi ('4 Temmuz') yoksayılır ki dashboard
-    // sorgusu bozulmasın. setSelectedDate mevcut useEffect'i tetikleyip yeniden yükler.
+    // sorgusu bozulmasın. Ham setter (setSelectedDateState) kullanılır → bu tarih
+    // GEÇİCİDİR, localStorage'a YAZILMAZ: dashboard'a normal dönüşte en son ELLE
+    // seçilen tarihe dönülür (yalnız kullanıcının takvim seçimi kalıcıdır).
     useEffect(() => {
         const state = location.state as {
             selectedDate?: string;
@@ -54,7 +83,7 @@ export const useBusinessDashboard = () => {
                 pendingOpenSlotRef.current = { ...state.openSlot, date: incoming };
                 setFocusPitchId(state.openSlot.pitchId);
             }
-            setSelectedDate(incoming);
+            setSelectedDateState(incoming);
             window.history.replaceState({}, ''); // geri/yenilemede tekrar tetiklenmesin
             // Tarih zaten seçiliyse yeni fetch tetiklenmez → mevcut veriyle hemen aç.
             if (incoming === selectedDate) tryOpenPendingSlot(dashboardData, incoming);
