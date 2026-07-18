@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   Logger,
@@ -9,6 +10,7 @@ import {
   Between,
   DataSource,
   EntityManager,
+  In,
   MoreThanOrEqual,
   Repository,
 } from 'typeorm';
@@ -18,6 +20,8 @@ import { RecurringClosure } from '../entities/recurring-closure.entity';
 import { MatchAnnouncement } from '../../match-announcements/match-announcement.entity';
 import { Pitch } from '../../pitches/entities/pitch.entity';
 import { User } from '../../users/user.entity';
+import { Team } from '../../teams/team.entity';
+import { ChatService } from '../../chat/chat.service';
 import { NotificationsService } from '../../notifications/notifications.service';
 import { ReservationSupportService } from './reservation-support.service';
 import { ReservationLifecycleService } from './reservation-lifecycle.service';
@@ -42,11 +46,33 @@ export class ReservationRecurringService {
     private reservationRepository: Repository<Reservation>,
     @InjectRepository(Pitch)
     private pitchRepository: Repository<Pitch>,
+    @InjectRepository(Team)
+    private teamRepository: Repository<Team>,
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
     private notificationsService: NotificationsService,
     private dataSource: DataSource,
     private support: ReservationSupportService,
     private lifecycle: ReservationLifecycleService,
+    // ChatModule ReservationsModule'e düz import'la bağlı (ReservationSupportService
+    // emsali) — yeni modül import'u gerekmez.
+    private chatService: ChatService,
   ) {}
+
+  // Kanal adı/bildirim metinleri sunucuda üretilir — client locale'ine güvenilmez.
+  private static readonly DAY_LABELS: Record<string, string> = {
+    Monday: 'Pazartesi',
+    Tuesday: 'Salı',
+    Wednesday: 'Çarşamba',
+    Thursday: 'Perşembe',
+    Friday: 'Cuma',
+    Saturday: 'Cumartesi',
+    Sunday: 'Pazar',
+  };
+
+  private dayLabel(dayOfWeek: string): string {
+    return ReservationRecurringService.DAY_LABELS[dayOfWeek] ?? dayOfWeek;
+  }
 
   async manualFill(pitchId: string, ownerId: string, slotTime: Date) {
     this.logger.log(
@@ -295,6 +321,10 @@ export class ReservationRecurringService {
     slotTime: Date,
     startTime: string,
     endTime: string,
+    // Opsiyonel tek adımda abone ataması — eski client'lar bu alanları
+    // göndermez, davranış birebir korunur.
+    teamShortId?: string,
+    opponentTeamShortId?: string,
   ) {
     const pitch = await this.pitchRepository.findOne({
       where: { id: pitchId },
@@ -331,6 +361,15 @@ export class ReservationRecurringService {
       this.logger.log(
         `Recurring closure ${existingClosure.id} reused for pitch ${pitchId} (${dayOfWeek} ${startTime}-${endTime}); re-blocked ${firstOccurrence.toISOString()}.`,
       );
+
+      if (teamShortId) {
+        await this.assignTeamToClosure(
+          existingClosure.id,
+          ownerId,
+          teamShortId,
+          opponentTeamShortId,
+        );
+      }
 
       return {
         success: true,
@@ -372,6 +411,15 @@ export class ReservationRecurringService {
       `Recurring closure ${saved.id} created for pitch ${pitchId} (${dayOfWeek} ${startTime}-${endTime}). Blocked ${blockedCount}, skipped ${skippedCount}.`,
     );
 
+    if (teamShortId) {
+      await this.assignTeamToClosure(
+        saved.id,
+        ownerId,
+        teamShortId,
+        opponentTeamShortId,
+      );
+    }
+
     return {
       success: true,
       recurringClosure: saved,
@@ -385,8 +433,185 @@ export class ReservationRecurringService {
     await this.lifecycle.assertPitchOwnedBy(pitchId, ownerId);
     return this.recurringClosureRepository.find({
       where: { pitchId, isActive: true },
+      relations: ['team', 'opponentTeam'],
       order: { createdAt: 'ASC' },
     });
+  }
+
+  // Takım kodunu (shortId, ABC-123) birebir sorguyla çözer — tüm takımları
+  // yükleyip aramak yerine unique index'e gider (ölçeklenebilirlik şartı).
+  private async resolveTeamByCode(code: string): Promise<Team> {
+    const normalized = code.trim().toUpperCase();
+    if (!/^[A-Z]{3}-\d{3}$/.test(normalized)) {
+      throw new BadRequestException(
+        'Geçersiz takım kodu. Örnek format: ABC-123',
+      );
+    }
+    const team = await this.teamRepository
+      .createQueryBuilder('team')
+      .where('UPPER(team.short_id) = :shortId', { shortId: normalized })
+      .getOne();
+    if (!team) {
+      throw new NotFoundException(`${normalized} kodlu takım bulunamadı.`);
+    }
+    return team;
+  }
+
+  private async getTeamMemberIds(teamIds: string[]): Promise<string[]> {
+    if (!teamIds.length) return [];
+    const members = await this.userRepository.find({
+      where: { teamId: In(teamIds) },
+      select: ['id'],
+    });
+    return members.map((m) => m.id);
+  }
+
+  // Sabit kapatmaya takım atar (tek takım veya rakipli çift takım) ve atanan
+  // takım(lar)ın tüm oyuncularını içeren kalıcı abone (SUBSCRIPTION) kanalını
+  // açar. Önceki atama varsa kanalıyla birlikte değiştirilir. Onay akışı yok —
+  // işletmenin tek taraflı işlemidir.
+  async assignTeamToClosure(
+    closureId: string,
+    ownerId: string,
+    teamShortId: string,
+    opponentTeamShortId?: string,
+  ) {
+    const closure = await this.recurringClosureRepository.findOne({
+      where: { id: closureId, isActive: true },
+    });
+    if (!closure) {
+      throw new NotFoundException('Sürekli kapatma kuralı bulunamadı');
+    }
+
+    // GÜVENLİK: yalnız sahanın işletme sahibi atama yapabilir.
+    await this.lifecycle.assertPitchOwnedBy(closure.pitchId, ownerId);
+
+    const pitch = await this.pitchRepository.findOne({
+      where: { id: closure.pitchId },
+      relations: ['business'],
+    });
+    if (!pitch) throw new NotFoundException('Saha bulunamadı.');
+    // Silinmesi planlanmış/silinmiş sahaya yeni abonelik açılamaz (§60 uyumu).
+    if (pitch.deletedAt || pitch.scheduledDeletionAt) {
+      throw new ConflictException(
+        'Bu saha silinmek üzere — yeni abonelik atanamaz.',
+      );
+    }
+
+    const team = await this.resolveTeamByCode(teamShortId);
+    let opponentTeam: Team | null = null;
+    if (opponentTeamShortId) {
+      opponentTeam = await this.resolveTeamByCode(opponentTeamShortId);
+      if (opponentTeam.id === team.id) {
+        throw new BadRequestException('İki takım kodu aynı olamaz.');
+      }
+    }
+
+    // Önceki atama varsa: kanalını kapat + eski üyeleri bilgilendir.
+    const previousTeamIds = [closure.teamId, closure.opponentTeamId].filter(
+      (id): id is string => !!id,
+    );
+    if (previousTeamIds.length) {
+      const previousMemberIds = await this.getTeamMemberIds(previousTeamIds);
+      await this.chatService.deleteSubscriptionChannelByClosure(closure.id);
+      await this.notificationsService.createSubscriptionNotification(
+        previousMemberIds,
+        'Abonelik Sona Erdi',
+        `${pitch.business?.name ?? pitch.name} sahasındaki her ${this.dayLabel(closure.dayOfWeek)} ${closure.startTime} aboneliğiniz işletme tarafından sonlandırıldı.`,
+      );
+    }
+
+    closure.teamId = team.id;
+    closure.opponentTeamId = opponentTeam?.id ?? null;
+    await this.recurringClosureRepository.save(closure);
+
+    const players = await this.userRepository.find({
+      where: {
+        teamId: In(opponentTeam ? [team.id, opponentTeam.id] : [team.id]),
+      },
+    });
+
+    const businessName = pitch.business?.name ?? pitch.name;
+    const dayLabel = this.dayLabel(closure.dayOfWeek);
+    const channelName = `${businessName} — Her ${dayLabel} ${closure.startTime}`;
+
+    const channel = await this.chatService.createSubscriptionChannel(
+      closure.id,
+      channelName,
+      players,
+    );
+
+    // Sistem mesajı: push'u atlanır (skipPush) — aynı olay için aşağıdaki
+    // abonelik bildirimi zaten push gönderiyor (§13/§17 çift push kuralı).
+    const matchupText = opponentTeam
+      ? `${team.name} ile ${opponentTeam.name} takımları`
+      : `${team.name} takımı`;
+    await this.chatService.sendMessage(
+      channel.id,
+      null,
+      `{{STADIUM}} Bu sohbet, ${businessName} — ${pitch.name} sahasındaki her ${dayLabel} ${closure.startTime}–${closure.endTime} sabit rezervasyon aboneliğiniz için oluşturuldu.\n\n${matchupText} bu saate abonedir. Sohbet, işletme aboneliği sonlandırana kadar açık kalır.`,
+      true,
+      undefined,
+      true,
+    );
+
+    await this.notificationsService.createSubscriptionNotification(
+      players.map((p) => p.id),
+      'Sabit Rezervasyon Aboneliği',
+      `${businessName}, takımınızı her ${dayLabel} ${closure.startTime}–${closure.endTime} sabit rezervasyon abonesi olarak ekledi.`,
+    );
+
+    this.logger.log(
+      `Subscriber assigned to closure ${closure.id}: team=${team.id}${opponentTeam ? ` opponent=${opponentTeam.id}` : ''}; channel=${channel.id}`,
+    );
+
+    return {
+      success: true,
+      recurringClosure: await this.recurringClosureRepository.findOne({
+        where: { id: closure.id },
+        relations: ['team', 'opponentTeam'],
+      }),
+    };
+  }
+
+  // Atamayı kaldırır: abone kanalı (mesaj geçmişiyle) silinir, üyeler bilgilendirilir.
+  async unassignTeamFromClosure(closureId: string, ownerId: string) {
+    const closure = await this.recurringClosureRepository.findOne({
+      where: { id: closureId },
+    });
+    if (!closure) {
+      throw new NotFoundException('Sürekli kapatma kuralı bulunamadı');
+    }
+
+    // GÜVENLİK: yalnız sahanın işletme sahibi atamayı kaldırabilir.
+    await this.lifecycle.assertPitchOwnedBy(closure.pitchId, ownerId);
+
+    const assignedTeamIds = [closure.teamId, closure.opponentTeamId].filter(
+      (id): id is string => !!id,
+    );
+    if (!assignedTeamIds.length) {
+      return { success: true, removed: false };
+    }
+
+    const memberIds = await this.getTeamMemberIds(assignedTeamIds);
+    await this.chatService.deleteSubscriptionChannelByClosure(closure.id);
+
+    closure.teamId = null;
+    closure.opponentTeamId = null;
+    await this.recurringClosureRepository.save(closure);
+
+    const pitch = await this.pitchRepository.findOne({
+      where: { id: closure.pitchId },
+      relations: ['business'],
+    });
+    await this.notificationsService.createSubscriptionNotification(
+      memberIds,
+      'Abonelik Sona Erdi',
+      `${pitch?.business?.name ?? 'İşletme'} sahasındaki her ${this.dayLabel(closure.dayOfWeek)} ${closure.startTime} aboneliğiniz işletme tarafından sonlandırıldı.`,
+    );
+
+    this.logger.log(`Subscriber unassigned from closure ${closure.id}.`);
+    return { success: true, removed: true };
   }
 
   // Sürekli kapatma kuralını tamamen kaldırır: kuralı siler ve bu kurala bağlı,
@@ -402,6 +627,25 @@ export class ReservationRecurringService {
 
     // GÜVENLİK: yalnız sahanın işletme sahibi kuralı kaldırabilir.
     await this.lifecycle.assertPitchOwnedBy(closure.pitchId, ownerId);
+
+    // Abone ataması varsa: kanalı açıkça sil (channelRemoved yayını için — salt
+    // FK CASCADE'e bırakılırsa client'lar olayı alamaz) ve üyeleri bilgilendir.
+    const assignedTeamIds = [closure.teamId, closure.opponentTeamId].filter(
+      (id): id is string => !!id,
+    );
+    if (assignedTeamIds.length) {
+      const memberIds = await this.getTeamMemberIds(assignedTeamIds);
+      await this.chatService.deleteSubscriptionChannelByClosure(closure.id);
+      const pitchForName = await this.pitchRepository.findOne({
+        where: { id: closure.pitchId },
+        relations: ['business'],
+      });
+      await this.notificationsService.createSubscriptionNotification(
+        memberIds,
+        'Abonelik Sona Erdi',
+        `${pitchForName?.business?.name ?? 'İşletme'} sahasındaki her ${this.dayLabel(closure.dayOfWeek)} ${closure.startTime} aboneliğiniz, sabit kapatma kaldırıldığı için sona erdi.`,
+      );
+    }
 
     closure.isActive = false;
     await this.recurringClosureRepository.save(closure);

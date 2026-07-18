@@ -227,7 +227,7 @@ export interface PitchOwner {
 // New Chat Types
 export interface ChatChannel {
   id: string;
-  type: 'DM' | 'MATCH_GROUP' | 'TEAM_INTERNAL';
+  type: 'DM' | 'MATCH_GROUP' | 'TEAM_INTERNAL' | 'JOKER_NEGOTIATION' | 'SUBSCRIPTION';
   name: string; // "Şişli United" or "Salı 22:00 Maçı"
   avatarUrl?: string;
   lastMessage: string;

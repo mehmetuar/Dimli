@@ -299,13 +299,9 @@ export class NotificationsService {
       .findOne({ where: { id: playerId } })
       .then((user) => {
         if (user?.pushToken && !this.gateway?.isUserActive(playerId)) {
-          void this.pushToUser(
-            user.id,
-            user.pushToken,
-            title,
-            message,
-            { type: 'TEAM_ROLE_CHANGED' },
-          );
+          void this.pushToUser(user.id, user.pushToken, title, message, {
+            type: 'TEAM_ROLE_CHANGED',
+          });
         }
       })
       .catch(() => {});
@@ -341,6 +337,40 @@ export class NotificationsService {
               `${teamName} takımı kaptan tarafından silindi.`,
               { type: 'TEAM_DELETED' },
             );
+          }
+        })
+        .catch(() => {});
+    }
+  }
+
+  // Abone (sabit rezervasyon) ataması/kaldırması: üyelere in-app bildirim +
+  // (uygulama arka plandaysa) push. type 'SYSTEM' — eski client'lar bilinmeyen
+  // tip görmez, migration gerekmez. Metinler çağıran tarafta kurulur.
+  async createSubscriptionNotification(
+    memberIds: string[],
+    title: string,
+    message: string,
+  ): Promise<void> {
+    for (const memberId of memberIds) {
+      const notification = this.notificationsRepository.create({
+        userId: memberId,
+        type: 'SYSTEM',
+        title,
+        message,
+        read: false,
+      });
+
+      await this.notificationsRepository.save(notification);
+      this.gateway?.server
+        ?.to(memberId)
+        .emit('notification', { type: 'SYSTEM' });
+      this.usersRepository
+        .findOne({ where: { id: memberId } })
+        .then((user) => {
+          if (user?.pushToken && !this.gateway?.isUserActive(memberId)) {
+            void this.pushToUser(user.id, user.pushToken, title, message, {
+              type: 'SYSTEM',
+            });
           }
         })
         .catch(() => {});
@@ -1100,7 +1130,12 @@ export class NotificationsService {
     senderId: string | null,
     senderName: string,
     channelId: string,
-    channelType: 'DM' | 'MATCH_GROUP' | 'TEAM_INTERNAL' | 'JOKER_NEGOTIATION',
+    channelType:
+      | 'DM'
+      | 'MATCH_GROUP'
+      | 'TEAM_INTERNAL'
+      | 'JOKER_NEGOTIATION'
+      | 'SUBSCRIPTION',
     channelName: string | null,
     content: string,
     participantUserIds: string[],
@@ -1171,6 +1206,8 @@ export class NotificationsService {
         return `${senderName} · ${channelName || 'Maç Sohbeti'}`;
       case 'TEAM_INTERNAL':
         return `${senderName} · Takım Sohbeti`;
+      case 'SUBSCRIPTION':
+        return `${senderName} · ${channelName || 'Abone Sohbeti'}`;
       default:
         return senderName;
     }

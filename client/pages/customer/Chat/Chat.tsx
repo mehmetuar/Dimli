@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useMemo } from 'react';
-import { Send, ChevronLeft, Users, Shield, Star, Phone, ArrowDown, Swords, MoreVertical, X, ChevronRight, Trash2, XCircle, AlertTriangle, Undo2, UserMinus, UserPlus, RefreshCw, CheckCircle, MessageCircle } from 'lucide-react';
+import { Send, ChevronLeft, Users, Shield, Star, Phone, ArrowDown, Swords, MoreVertical, X, ChevronRight, Trash2, XCircle, AlertTriangle, Undo2, UserMinus, UserPlus, RefreshCw, CheckCircle, MessageCircle, Repeat, MapPin } from 'lucide-react';
 import { useChat } from './hooks/useChat';
 import { useMessageActions } from './hooks/useMessageActions';
 import { OfflineEmptyState } from '../../../components/OfflineEmptyState';
@@ -112,22 +112,30 @@ export const Chat: React.FC = () => {
   const opponentTeam = null; // Simplification as in original
   const opponentJoker = null; // Simplification as in original
 
-  // Rakipli MATCH_GROUP chatlerinde ev/misafir takım renkleri — "kendi aramızda"
-  // (opponentTeamId yok), TEAM_INTERNAL, DM, JOKER_NEGOTIATION kanallarında null kalır.
+  // Rakipli MATCH_GROUP + rakipli SUBSCRIPTION chatlerinde ev/misafir takım
+  // renkleri — "kendi aramızda" (opponentTeamId yok), tek takımlı abonelik,
+  // TEAM_INTERNAL, DM, JOKER_NEGOTIATION kanallarında null kalır.
   const teamChatColors = useMemo(() => {
     const res = activeChannel?.reservation as any;
     const ad = activeChannel?.avatarData as any;
-    if (activeChannel?.type !== 'MATCH_GROUP' || !res?.teamId || !res?.opponentTeamId) {
+    // Abone kanalı: takım id'leri rezervasyondan değil avatarData.subscription'dan
+    const homeTeamId = activeChannel?.type === 'SUBSCRIPTION'
+      ? ad?.subscription?.homeTeamId
+      : activeChannel?.type === 'MATCH_GROUP' ? res?.teamId : null;
+    const awayTeamId = activeChannel?.type === 'SUBSCRIPTION'
+      ? ad?.subscription?.awayTeamId
+      : activeChannel?.type === 'MATCH_GROUP' ? res?.opponentTeamId : null;
+    if (!homeTeamId || !awayTeamId) {
       return null;
     }
     const { home, away } = resolveTeamChatColors(
       ad?.homeTeamColor, ad?.awayTeamColor,
       ad?.homeTeamSecondaryColor, ad?.awayTeamSecondaryColor,
-      res.teamId, res.opponentTeamId,
+      homeTeamId, awayTeamId,
     );
     return {
-      homeTeamId: res.teamId,
-      awayTeamId: res.opponentTeamId,
+      homeTeamId,
+      awayTeamId,
       homeAccent: home,
       awayAccent: away,
       homeLogo: ad?.homeTeamLogo,
@@ -136,6 +144,21 @@ export const Chat: React.FC = () => {
       awayName: ad?.awayTeamName,
     };
   }, [activeChannel]);
+
+  // Abone kanalı başlığına dokununca açılan basit bilgi modalı — veri tamamen
+  // avatarData.subscription'dan gelir, ek endpoint yok.
+  const [isSubscriptionInfoOpen, setIsSubscriptionInfoOpen] = React.useState(false);
+  const SUB_DAY_LABELS: Record<string, string> = {
+    Monday: 'Pazartesi', Tuesday: 'Salı', Wednesday: 'Çarşamba', Thursday: 'Perşembe',
+    Friday: 'Cuma', Saturday: 'Cumartesi', Sunday: 'Pazar',
+  };
+  const handleHeaderTap = () => {
+    if (activeChannel?.type === 'SUBSCRIPTION') {
+      setIsSubscriptionInfoOpen(true);
+    } else {
+      handleOpenMatchDetail();
+    }
+  };
 
   const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
     endRef.current?.scrollIntoView({ behavior });
@@ -425,6 +448,47 @@ export const Chat: React.FC = () => {
         currentUser={currentUser}
       />
 
+      {/* Abone kanalı bilgi modalı — veri avatarData.subscription'dan (endpoint yok) */}
+      {isSubscriptionInfoOpen && activeChannel?.type === 'SUBSCRIPTION' && (() => {
+        const sub = (activeChannel?.avatarData as any)?.subscription;
+        if (!sub) return null;
+        return (
+          <div className="fixed inset-0 bg-black/80 z-[80] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setIsSubscriptionInfoOpen(false)}>
+            <div className="bg-slate-800 w-[min(calc(100vw-2rem),380px)] rounded-2xl border border-emerald-500/20 p-5 animate-scale-in shadow-2xl" onClick={(e) => e.stopPropagation()}>
+              <div className="flex justify-between items-start mb-4">
+                <h3 className="text-white font-black text-base flex items-center gap-2">
+                  <Repeat className="w-5 h-5 text-emerald-400 shrink-0" />
+                  Sabit Rezervasyon Aboneliği
+                </h3>
+                <button onClick={() => setIsSubscriptionInfoOpen(false)} className="p-1.5 bg-slate-700/50 rounded-full text-slate-300">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="space-y-3">
+                <div className="bg-slate-900/60 rounded-xl p-3 border border-slate-700/50">
+                  <div className="text-[10px] text-slate-500 font-bold uppercase mb-1 flex items-center gap-1">
+                    <MapPin className="w-3 h-3" /> Saha
+                  </div>
+                  <div className="text-white font-bold text-sm">{sub.businessName}</div>
+                  {sub.pitchName && sub.pitchName !== sub.businessName && (
+                    <div className="text-slate-400 text-xs mt-0.5">{sub.pitchName}</div>
+                  )}
+                </div>
+                <div className="bg-emerald-500/10 rounded-xl p-3 border border-emerald-500/25">
+                  <div className="text-[10px] text-emerald-400 font-bold uppercase mb-1">Abonelik Saati</div>
+                  <div className="text-white font-black text-sm">
+                    Her {SUB_DAY_LABELS[sub.dayOfWeek] || sub.dayOfWeek} {sub.startTime} – {sub.endTime}
+                  </div>
+                </div>
+                <p className="text-slate-400 text-[11px] leading-relaxed">
+                  Bu sohbet, işletme tarafından takımınıza atanan sabit rezervasyon aboneliğine bağlıdır ve işletme aboneliği sonlandırana kadar açık kalır.
+                </p>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Spacer */}
       <div className="bg-slate-900 w-full flex-shrink-0 pt-safe-top" />
 
@@ -440,6 +504,29 @@ export const Chat: React.FC = () => {
 
           {(() => {
             const ad = activeChannel?.avatarData;
+            if (activeChannel?.type === 'SUBSCRIPTION') {
+              if (ad?.subscription?.awayTeamId) {
+                return (
+                  <div
+                    className="relative w-10 h-10 bg-slate-900 rounded-xl border border-slate-700 flex-shrink-0 cursor-pointer active:scale-90 transition-transform overflow-visible"
+                    onClick={handleHeaderTap}
+                  >
+                    <img src={ad.homeTeamLogo || teamAvatarFallback(ad.homeTeamName || '')} className="w-[22px] h-[22px] rounded-md object-cover absolute top-0.5 left-0.5 z-10" />
+                    <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+                      <span className="text-[6px] font-black text-emerald-500 bg-slate-950/90 px-0.5 rounded leading-none">VS</span>
+                    </div>
+                    <img src={ad.awayTeamLogo || teamAvatarFallback(ad.awayTeamName || '')} className="w-[22px] h-[22px] rounded-md object-cover absolute bottom-0.5 right-0.5 z-10 border border-slate-900" />
+                  </div>
+                );
+              }
+              return (
+                <img
+                  src={ad?.homeTeamLogo || teamAvatarFallback(ad?.homeTeamName || activeChannel?.name || '')}
+                  className="w-10 h-10 rounded-xl bg-slate-800 object-cover cursor-pointer active:scale-90 transition-transform"
+                  onClick={handleHeaderTap}
+                />
+              );
+            }
             if (
               activeChannel?.type === 'MATCH_GROUP' &&
               ad?.matchType !== 'kendi_aramizda' &&
@@ -484,10 +571,15 @@ export const Chat: React.FC = () => {
               />
             );
           })()}
-          <div className="flex-1 min-w-0" onClick={handleOpenMatchDetail} style={{ cursor: activeChannel?.relatedMatchId ? 'pointer' : 'default' }}>
+          <div className="flex-1 min-w-0" onClick={handleHeaderTap} style={{ cursor: (activeChannel?.relatedMatchId || activeChannel?.type === 'SUBSCRIPTION') ? 'pointer' : 'default' }}>
             <h2 className="text-white font-bold leading-tight text-sm sm:text-base md:text-lg truncate">{activeChannel?.name}</h2>
             <div className="flex flex-col text-[10px] sm:text-xs text-slate-400 mt-0.5">
-              {activeChannel?.type === 'MATCH_GROUP' ? (
+              {activeChannel?.type === 'SUBSCRIPTION' ? (
+                <span className="flex items-center gap-1 text-emerald-400 font-medium mt-0.5">
+                  <Repeat className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                  Sabit Rezervasyon Aboneliği
+                </span>
+              ) : activeChannel?.type === 'MATCH_GROUP' ? (
                 <>
                   <span className="flex items-center gap-1 text-turf-500 font-medium">
                     <Users className="w-2.5 h-2.5 sm:w-3 sm:h-3" />

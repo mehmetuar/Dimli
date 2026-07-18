@@ -652,6 +652,22 @@ export class TeamsService implements OnModuleInit {
              )`,
         [teamId],
       );
+      // Abone (SUBSCRIPTION) kanalları: takımın atandığı sabit kapatmalara bağlı
+      // sohbetler takım silinince kapanır; atama kolonları da boşaltılır (FK SET
+      // NULL'a ek olarak açıkça — kanal silme takım silmeden önce gelmek zorunda).
+      await em.query(
+        `DELETE FROM "chat_channels"
+           WHERE "relatedClosureId" IN (
+             SELECT id FROM "recurring_closures"
+              WHERE "teamId" = $1 OR "opponentTeamId" = $1
+           )`,
+        [teamId],
+      );
+      await em.query(
+        `UPDATE "recurring_closures" SET "teamId" = NULL, "opponentTeamId" = NULL
+           WHERE "teamId" = $1 OR "opponentTeamId" = $1`,
+        [teamId],
+      );
       // Maç ilanları: TÜM statüler (geçmiş/iptal dahil) —
       // reservation.matchAnnouncementId FK'sı ON DELETE SET NULL, güvenli
       await em.query(`DELETE FROM "match_announcements" WHERE "team_id" = $1`, [

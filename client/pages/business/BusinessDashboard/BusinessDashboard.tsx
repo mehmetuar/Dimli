@@ -15,6 +15,7 @@ import { useBusinessDashboard } from './hooks/useBusinessDashboard';
 import { DashboardHeader } from './components/DashboardHeader';
 import { PitchGrid } from './components/PitchGrid';
 import { SlotDetailModal } from './components/SlotDetailModal';
+import { AssignSubscriberModal } from './components/AssignSubscriberModal';
 import { DashboardActionModals } from './components/DashboardActionModals';
 
 export const BusinessDashboard: React.FC = () => {
@@ -59,6 +60,11 @@ export const BusinessDashboard: React.FC = () => {
         handleManualFillSlot,
         handleRecurringCloseSlot,
         handleRemoveRecurringClosure,
+        assignModal,
+        openAssignSubscriber,
+        closeAssignSubscriber,
+        handleSubscriberChanged,
+        closureAssignments,
         processing,
         silentRefetch,
         presetNotes,
@@ -278,6 +284,19 @@ export const BusinessDashboard: React.FC = () => {
                 handleManualFillSlot={handleManualFillSlot}
                 handleRecurringCloseSlot={handleRecurringCloseSlot}
                 handleRemoveRecurringClosure={handleRemoveRecurringClosure}
+                closureAssignments={closureAssignments}
+                openAssignSubscriber={openAssignSubscriber}
+            />
+
+            {/* Abone takım atama/yönetme (sabit kapatma → abone chat'i) */}
+            <AssignSubscriberModal
+                isOpen={assignModal.isOpen}
+                closureId={assignModal.closureId}
+                pitchId={assignModal.pitchId}
+                dayLabel={assignModal.dayLabel}
+                timeLabel={assignModal.timeLabel}
+                onClose={closeAssignSubscriber}
+                onChanged={handleSubscriberChanged}
             />
 
             {/* General Action Modal (Approve or Note) */}

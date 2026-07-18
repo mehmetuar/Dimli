@@ -34,6 +34,8 @@ export class ReservationsService {
     slotTime: Date,
     startTime: string,
     endTime: string,
+    teamShortId?: string,
+    opponentTeamShortId?: string,
   ) {
     return this.recurring.createRecurringClosure(
       pitchId,
@@ -41,7 +43,27 @@ export class ReservationsService {
       slotTime,
       startTime,
       endTime,
+      teamShortId,
+      opponentTeamShortId,
     );
+  }
+
+  assignTeamToClosure(
+    closureId: string,
+    ownerId: string,
+    teamShortId: string,
+    opponentTeamShortId?: string,
+  ) {
+    return this.recurring.assignTeamToClosure(
+      closureId,
+      ownerId,
+      teamShortId,
+      opponentTeamShortId,
+    );
+  }
+
+  unassignTeamFromClosure(closureId: string, ownerId: string) {
+    return this.recurring.unassignTeamFromClosure(closureId, ownerId);
   }
 
   findRecurringClosuresByPitch(pitchId: string, ownerId: string) {

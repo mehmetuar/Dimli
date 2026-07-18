@@ -62,6 +62,8 @@ export class PitchDowngradeService {
     private subscriptionRepository: Repository<Subscription>,
     @InjectRepository(BusinessOwner)
     private businessOwnerRepository: Repository<BusinessOwner>,
+    @InjectRepository(RecurringClosure)
+    private recurringClosureRepository: Repository<RecurringClosure>,
     private reservationsService: ReservationsService,
     private subscriptionService: SubscriptionService,
     private notificationsService: NotificationsService,
@@ -158,6 +160,30 @@ export class PitchDowngradeService {
           conflicts: conflicts.map((c) => ({
             id: c.id,
             slotTime: c.slotTime,
+            teamName: c.team?.name || 'Bilinmiyor',
+          })),
+        });
+      }
+
+      // Abone takım atanmış sabit kapatma = ileri tarihli kesinleşmiş maç
+      // (kullanıcı kararı): işletme önce atamayı kaldırmalı ki abone chat'i
+      // her zaman açıkça sonlandırılmış olsun.
+      const closureRepo =
+        manager?.getRepository(RecurringClosure) ??
+        this.recurringClosureRepository;
+      const subscribedClosures = await closureRepo.find({
+        where: { pitchId: pitch.id, isActive: true, teamId: Not(IsNull()) },
+        relations: ['team'],
+      });
+      if (subscribedClosures.length > 0) {
+        throw new ConflictException({
+          message: 'Abone takımlı sabit rezervasyonlar var',
+          pitchId: pitch.id,
+          conflicts: subscribedClosures.map((c) => ({
+            id: c.id,
+            type: 'SUBSCRIPTION',
+            dayOfWeek: c.dayOfWeek,
+            startTime: c.startTime,
             teamName: c.team?.name || 'Bilinmiyor',
           })),
         });
@@ -479,6 +505,24 @@ export class PitchDowngradeService {
           { id: In(strayApproved.map((r) => r.id)) },
           { status: ReservationStatus.CANCELLED },
         );
+      }
+
+      // Savunmacı: abone atamalı kapatma kalmışsa (precheck engellemeliydi)
+      // kanalları sil ve atamayı boşalt — yetim SUBSCRIPTION kanalı kalmasın.
+      const assignedClosures = await manager
+        .getRepository(RecurringClosure)
+        .find({ where: { pitchId, teamId: Not(IsNull()) } });
+      if (assignedClosures.length > 0) {
+        this.logger.warn(
+          `Saha ${pitchId} silinirken ${assignedClosures.length} abone atamalı sabit kapatma bulundu (beklenmiyordu) — kanallar temizleniyor.`,
+        );
+        await manager.query(
+          `DELETE FROM chat_channels WHERE "relatedClosureId" = ANY($1)`,
+          [assignedClosures.map((c) => c.id)],
+        );
+        await manager
+          .getRepository(RecurringClosure)
+          .update({ pitchId }, { teamId: null, opponentTeamId: null });
       }
 
       // Sürekli kapatma kuralları pasif — 3AM top-up cron'u ölü sahaya slot

@@ -24,6 +24,9 @@ interface SlotDetailModalProps {
     handleManualFillSlot: (pitchId: string, slotTime: string) => void;
     handleRecurringCloseSlot: (pitchId: string, slotTime: string, startTime: string, endTime: string) => void;
     handleRemoveRecurringClosure: (recurringClosureId: string) => void;
+    // Abone takım ataması: kural id → kural (team/opponentTeam ilişkileriyle)
+    closureAssignments: Record<string, any>;
+    openAssignSubscriber: (closureId: string) => void;
 }
 
 export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
@@ -37,7 +40,9 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
     handleRejectMatchRequest,
     handleManualFillSlot,
     handleRecurringCloseSlot,
-    handleRemoveRecurringClosure
+    handleRemoveRecurringClosure,
+    closureAssignments,
+    openAssignSubscriber
 }) => {
     const [playerWarning, setPlayerWarning] = React.useState<{
         isOpen: boolean; message: string; reservationId: string;
@@ -114,9 +119,45 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                                                 ? 'Bu saat sürekli kapatma kuralı nedeniyle her hafta otomatik olarak kapatılıyor.'
                                                 : 'Bu saat işletme tarafından manuel olarak kapatılmıştır.'}
                                         </p>
+                                        {/* Abone takım ataması — atanmış takım çipleri (varsa) */}
+                                        {res.recurringClosureId && closureAssignments[res.recurringClosureId]?.team && (
+                                            <div className="w-full px-4 mb-4">
+                                                <div className="bg-emerald-500/10 border border-emerald-500/25 rounded-xl p-3">
+                                                    <div className="text-[10px] text-emerald-400 font-black uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                                                        <Users className="w-3.5 h-3.5 shrink-0" />
+                                                        Abone Takım
+                                                    </div>
+                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                        {[closureAssignments[res.recurringClosureId].team, closureAssignments[res.recurringClosureId].opponentTeam]
+                                                            .filter(Boolean)
+                                                            .map((t: any, i: number) => (
+                                                                <React.Fragment key={t.id}>
+                                                                    {i > 0 && <span className="text-slate-500 font-black italic text-[11px]">VS</span>}
+                                                                    <span className="inline-flex items-center gap-1.5 bg-slate-900/60 border border-slate-600/60 rounded-full pl-1 pr-3 py-1">
+                                                                        <img
+                                                                            src={teamLogoSrc(t)}
+                                                                            alt={t.name}
+                                                                            className="w-5 h-5 rounded-full object-cover"
+                                                                            onError={(e) => { const el = e.currentTarget; el.onerror = null; el.src = teamInitialsAvatar(t.name); }}
+                                                                        />
+                                                                        <span className="text-white text-[11px] font-bold truncate max-w-[110px]">{t.name}</span>
+                                                                    </span>
+                                                                </React.Fragment>
+                                                            ))}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
                                         {/* Geçmiş saatte boşa çıkarma/kaldırma anlamsız → butonlar gizli */}
                                         {!isSlotPast && (res.recurringClosureId ? (
                                             <div className="flex flex-col gap-2 w-full px-4">
+                                                <button
+                                                    onClick={() => openAssignSubscriber(res.recurringClosureId)}
+                                                    className="w-full bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 py-[clamp(0.6rem,2.5vw,0.75rem)] rounded-xl font-bold text-[clamp(0.7rem,3.5vw,0.875rem)] transition-all flex items-center justify-center gap-2"
+                                                >
+                                                    <Users className="w-[clamp(0.9rem,3.5vw,1.1rem)] h-[clamp(0.9rem,3.5vw,1.1rem)] shrink-0" />
+                                                    <span>{closureAssignments[res.recurringClosureId]?.team ? 'Aboneyi Yönet' : 'Abone Takım Ata'}</span>
+                                                </button>
                                                 <button
                                                     onClick={() => handleCancelClick(res.id)}
                                                     className="w-full bg-slate-700/50 hover:bg-slate-600 text-white py-[clamp(0.6rem,2.5vw,0.75rem)] rounded-xl font-bold text-[clamp(0.7rem,3.5vw,0.875rem)] transition-all flex items-center justify-center gap-2 border border-slate-600/50"

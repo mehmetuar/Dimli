@@ -415,6 +415,21 @@ export class UsersService {
              )`,
         [teamId],
       );
+      // Abone (SUBSCRIPTION) kanalları + atama kolonları — teams.service.ts
+      // purgeTeam ile SENKRON.
+      await em.query(
+        `DELETE FROM "chat_channels"
+           WHERE "relatedClosureId" IN (
+             SELECT id FROM "recurring_closures"
+              WHERE "teamId" = $1 OR "opponentTeamId" = $1
+           )`,
+        [teamId],
+      );
+      await em.query(
+        `UPDATE "recurring_closures" SET "teamId" = NULL, "opponentTeamId" = NULL
+           WHERE "teamId" = $1 OR "opponentTeamId" = $1`,
+        [teamId],
+      );
       await em.query(`DELETE FROM "match_announcements" WHERE "team_id" = $1`, [
         teamId,
       ]);

@@ -133,6 +133,61 @@ export const useBusinessDashboard = () => {
 
     const [cancelReservationId, setCancelReservationId] = useState<string | null>(null);
 
+    // ── Abone takım ataması (sabit kapatma → abone chat'i) ──
+    const [assignModal, setAssignModal] = useState<{
+        isOpen: boolean;
+        closureId: string | null;
+        pitchId: string | null;
+        dayLabel: string;
+        timeLabel: string;
+    }>({ isOpen: false, closureId: null, pitchId: null, dayLabel: '', timeLabel: '' });
+
+    // Seçili slottaki SÜREKLİ DOLU kartında mevcut atamayı (takım çipleri)
+    // gösterebilmek için sahanın kural listesi lazily çekilir (kural id → kural).
+    const [closureAssignments, setClosureAssignments] = useState<Record<string, any>>({});
+
+    useEffect(() => {
+        const closureIds: string[] = (selectedSlot?.reservations || [])
+            .map((r: any) => r.recurringClosureId)
+            .filter(Boolean);
+        if (!closureIds.length || !selectedSlot?.pitchId) return;
+        let cancelled = false;
+        api.get(`/reservations/recurring-closures/pitch/${selectedSlot.pitchId}`)
+            .then((res) => {
+                if (cancelled) return;
+                const map: Record<string, any> = {};
+                for (const c of res.data || []) map[c.id] = c;
+                setClosureAssignments(map);
+            })
+            .catch(() => { /* çipler gösterilemezse kart yine çalışır */ });
+        return () => { cancelled = true; };
+    }, [selectedSlot?.pitchId, selectedSlot?.reservations]);
+
+    const openAssignSubscriber = (closureId: string) => {
+        if (!selectedSlot) return;
+        setAssignModal({
+            isOpen: true,
+            closureId,
+            pitchId: selectedSlot.pitchId,
+            dayLabel: new Date(selectedDate).toLocaleDateString('tr-TR', { weekday: 'long' }),
+            timeLabel: `${selectedSlot.startTime} - ${selectedSlot.endTime}`,
+        });
+    };
+
+    const closeAssignSubscriber = () => setAssignModal(prev => ({ ...prev, isOpen: false }));
+
+    // Atama/kaldırma sonrası: dashboard + kart çipleri tazelenir.
+    const handleSubscriberChanged = () => {
+        setClosureAssignments({});
+        setSelectedSlot(null);
+        setSuccessModal({
+            isOpen: true,
+            message: 'Abonelik güncellendi.',
+            type: 'DEFAULT',
+        });
+        fetchDashboard();
+    };
+
     useEffect(() => {
         fetchDashboard();
     }, [selectedDate]);
@@ -420,14 +475,38 @@ export const useBusinessDashboard = () => {
             onConfirm: async () => {
                 setConfirmModal(prev => ({ ...prev, isOpen: false }));
                 try {
-                    await api.post(`/reservations/recurring-closures`, { pitchId, slotTime, startTime, endTime });
-                    setSuccessModal({
-                        isOpen: true,
-                        message: 'Saat sürekli kapatıldı. Her hafta otomatik olarak kapalı görünecek.',
-                        type: 'DEFAULT'
-                    });
+                    const res = await api.post(`/reservations/recurring-closures`, { pitchId, slotTime, startTime, endTime });
                     setSelectedSlot(null);
                     fetchDashboard();
+                    // Opsiyonel tek adımda abone takım ataması: kapatma başarılı →
+                    // işletmeye sorulur; kabul ederse atama modalı açılır.
+                    const closureId = res.data?.recurringClosure?.id;
+                    if (closureId) {
+                        setConfirmModal({
+                            isOpen: true,
+                            title: 'Abone Takım Ata',
+                            message: `Saat sürekli kapatıldı. Bu saate abone olan bir takım varsa takım kodunu girerek atayabilirsiniz — takım için kalıcı bir abone sohbeti oluşturulur.`,
+                            isDangerous: false,
+                            confirmText: 'Takım Ata',
+                            cancelText: 'Şimdi Değil',
+                            onConfirm: () => {
+                                setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                                setAssignModal({
+                                    isOpen: true,
+                                    closureId,
+                                    pitchId,
+                                    dayLabel: dayName,
+                                    timeLabel: `${startTime} - ${endTime}`,
+                                });
+                            },
+                        });
+                    } else {
+                        setSuccessModal({
+                            isOpen: true,
+                            message: 'Saat sürekli kapatıldı. Her hafta otomatik olarak kapalı görünecek.',
+                            type: 'DEFAULT'
+                        });
+                    }
                 } catch (error: any) {
                     console.error('Recurring close error:', error);
                     alert(error.response?.data?.message || 'İşlem başarısız.');
@@ -541,6 +620,11 @@ export const useBusinessDashboard = () => {
         handleManualFillSlot,
         handleRecurringCloseSlot,
         handleRemoveRecurringClosure,
+        assignModal,
+        openAssignSubscriber,
+        closeAssignSubscriber,
+        handleSubscriberChanged,
+        closureAssignments,
         processing,
         silentRefetch,
         presetNotes,

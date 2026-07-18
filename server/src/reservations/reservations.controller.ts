@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Delete,
   Body,
   Param,
@@ -49,6 +50,9 @@ export class ReservationsController {
       slotTime: string;
       startTime: string;
       endTime: string;
+      // Opsiyonel tek adımda abone takım ataması (eski client'lar göndermez)
+      teamShortId?: string;
+      opponentTeamShortId?: string;
     },
   ) {
     return this.reservationsService.createRecurringClosure(
@@ -57,7 +61,34 @@ export class ReservationsController {
       istanbulNaiveStringToUtc(body.slotTime),
       body.startTime,
       body.endTime,
+      body.teamShortId,
+      body.opponentTeamShortId,
     );
+  }
+
+  // Sabit kapatmaya abone takım atama/değiştirme — takım kodu (ABC-123) ile.
+  @UseGuards(JwtAuthGuard)
+  @Patch('recurring-closures/:id/team')
+  assignTeamToClosure(
+    @Param('id') id: string,
+    @Request() req: { user: Express.User },
+    @Body() body: { teamShortId: string; opponentTeamShortId?: string },
+  ) {
+    return this.reservationsService.assignTeamToClosure(
+      id,
+      req.user.id,
+      body.teamShortId,
+      body.opponentTeamShortId,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('recurring-closures/:id/team')
+  unassignTeamFromClosure(
+    @Param('id') id: string,
+    @Request() req: { user: Express.User },
+  ) {
+    return this.reservationsService.unassignTeamFromClosure(id, req.user.id);
   }
 
   @UseGuards(JwtAuthGuard)

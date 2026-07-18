@@ -109,6 +109,15 @@ export const useChat = () => {
         if (socket) {
             let debounceTimer: ReturnType<typeof setTimeout> | null = null;
             const onChannelCreated = () => fetchChannels();
+            // Kanal kaldırıldı (abonelik sonlandı / takımdan çıkarıldı): açık olan
+            // kanal buysa listeye dön, listeyi tazele. Eski client'lar bu olayı
+            // dinlemez — 60sn polling ile yakalar.
+            const onChannelRemoved = (payload?: { channelId?: string }) => {
+                if (payload?.channelId) {
+                    setSelectedChannelId((prev) => (prev === payload.channelId ? null : prev));
+                }
+                fetchChannels();
+            };
             const onNewMessage = () => {
                 if (debounceTimer) clearTimeout(debounceTimer);
                 debounceTimer = setTimeout(() => {
@@ -117,11 +126,13 @@ export const useChat = () => {
                 }, 1500);
             };
             socket.on('channelCreated', onChannelCreated);
+            socket.on('channelRemoved', onChannelRemoved);
             socket.on('newMessage', onNewMessage);
             return () => {
                 clearInterval(interval);
                 if (debounceTimer) clearTimeout(debounceTimer);
                 socket.off('channelCreated', onChannelCreated);
+                socket.off('channelRemoved', onChannelRemoved);
                 socket.off('newMessage', onNewMessage);
             };
         }

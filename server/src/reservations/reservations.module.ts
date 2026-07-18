@@ -19,6 +19,7 @@ import { TimeSlot } from '../pitches/entities/time-slot.entity';
 import { BusinessOwner } from '../business-owner/entities/business-owner.entity';
 import { MatchAnnouncement } from '../match-announcements/match-announcement.entity';
 import { User } from '../users/user.entity';
+import { Team } from '../teams/team.entity';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { User } from '../users/user.entity';
       BusinessOwner,
       MatchAnnouncement,
       User,
+      Team,
     ]),
     ChatModule,
     NotificationsModule,

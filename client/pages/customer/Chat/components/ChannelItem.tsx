@@ -1,5 +1,5 @@
 import React from 'react';
-import { Users, Star } from 'lucide-react';
+import { Users, Star, Repeat } from 'lucide-react';
 import { getMatchStatusInfo, formatMessageDate, teamAvatarFallback, userAvatarFallback } from '../utils/chatUtils';
 import { MatchStatusBadge } from './MatchStatusBadge';
 import { stripSystemMessageMarkers } from '../../../../components/UI/SystemMessageRenderer';
@@ -28,12 +28,15 @@ export const ChannelItem: React.FC<ChannelItemProps> = ({
     const rowRef = useLongPress<HTMLDivElement>({ onTap: onClick, onLongPress });
 
     const isJoker = channel.type === 'JOKER_NEGOTIATION';
+    // Abone kanalı (sabit rezervasyon): maç yaşam döngüsü yok — durum rozeti yerine
+    // sabit "Sabit Rezervasyon Aboneliği" etiketi gösterilir.
+    const isSubscription = channel.type === 'SUBSCRIPTION';
     // Joker DM'de listede maç durumu ("Onay Bekliyor" vb.) GÖSTERİLMEZ — davet edilen
     // maçın rezervasyon durumu jokeri yanıltıyor. Yerine sabit "Müzakere Odası" etiketi
     // (başlıktaki Chat.tsx stiliyle aynı); maçın gerçek durumu Sohbet Detayları'nda.
-    const statusInfo = isJoker ? null : getMatchStatusInfo(channel.reservation);
+    const statusInfo = isJoker || isSubscription ? null : getMatchStatusInfo(channel.reservation);
     const isGroup = channel.type === 'MATCH_GROUP';
-    const bgClass = isJoker ? 'bg-yellow-500/5' : (statusInfo?.bgTint ?? '');
+    const bgClass = isJoker ? 'bg-yellow-500/5' : isSubscription ? 'bg-emerald-500/5' : (statusInfo?.bgTint ?? '');
 
     // Son mesaj satırı: gönderen + içerik
     const renderLastMessage = () => {
@@ -70,6 +73,44 @@ export const ChannelItem: React.FC<ChannelItemProps> = ({
 
     const renderAvatar = () => {
         const ad = channel.avatarData;
+
+        // Abone kanalı: rakipli ise VS çift logo, tek takımda tek logo
+        if (isSubscription) {
+            if (ad?.subscription?.awayTeamId) {
+                return (
+                    <div className="relative w-12 h-12 flex-shrink-0">
+                        <div className="w-12 h-12 bg-slate-900 rounded-2xl border border-slate-700/80 overflow-hidden relative">
+                            <img
+                                src={ad.homeTeamLogo || teamAvatarFallback(ad.homeTeamName || '')}
+                                alt="" draggable={false} style={noCalloutStyle}
+                                className="w-[26px] h-[26px] rounded-lg object-cover absolute top-1 left-1"
+                            />
+                            <span className="absolute inset-0 flex items-center justify-center text-[6px] font-black text-emerald-500 leading-none z-10">VS</span>
+                            <img
+                                src={ad.awayTeamLogo || teamAvatarFallback(ad.awayTeamName || '')}
+                                alt="" draggable={false} style={noCalloutStyle}
+                                className="w-[26px] h-[26px] rounded-lg object-cover absolute bottom-1 right-1 border-2 border-slate-900"
+                            />
+                        </div>
+                        <div className="absolute -bottom-0.5 -right-0.5 bg-emerald-600 p-0.5 rounded-md border border-slate-800 z-20">
+                            <Repeat className="w-2.5 h-2.5 text-white" />
+                        </div>
+                    </div>
+                );
+            }
+            return (
+                <div className="relative flex-shrink-0">
+                    <img
+                        src={ad?.homeTeamLogo || teamAvatarFallback(ad?.homeTeamName || channel.name)}
+                        alt="" draggable={false} style={noCalloutStyle}
+                        className="w-12 h-12 rounded-2xl object-cover"
+                    />
+                    <div className="absolute -bottom-0.5 -right-0.5 bg-emerald-600 p-0.5 rounded-md border border-slate-800">
+                        <Repeat className="w-2.5 h-2.5 text-white" />
+                    </div>
+                </div>
+            );
+        }
 
         // VS maçı: iki takım logosu
         if (
@@ -164,13 +205,21 @@ export const ChannelItem: React.FC<ChannelItemProps> = ({
                             Joker
                         </span>
                     )}
+                    {isSubscription && (
+                        <span
+                            className="text-emerald-400 font-black uppercase tracking-wider bg-emerald-500/10 px-1.5 py-0.5 rounded-full border border-emerald-500/20 flex-shrink-0"
+                            style={{ fontSize: 'clamp(9px, 2.4vw, 11px)' }}
+                        >
+                            Abone
+                        </span>
+                    )}
                     <span
                         className="text-white font-bold truncate"
                         style={{ fontSize: 'clamp(14px, 3.8vw, 16px)' }}
                     >
                         {channel.name}
                     </span>
-                    {!isJoker && <MatchStatusBadge reservation={channel.reservation} />}
+                    {!isJoker && !isSubscription && <MatchStatusBadge reservation={channel.reservation} />}
                 </div>
 
                 {/* Satır 2: Gönderen adı + son mesaj içeriği */}
@@ -188,6 +237,13 @@ export const ChannelItem: React.FC<ChannelItemProps> = ({
                         style={{ fontSize: 'clamp(10px, 2.6vw, 12px)' }}
                     >
                         <Star className="w-2.5 h-2.5 fill-yellow-500" /> Müzakere Odası
+                    </span>
+                ) : isSubscription ? (
+                    <span
+                        className="flex items-center gap-1 text-emerald-400 font-semibold"
+                        style={{ fontSize: 'clamp(10px, 2.6vw, 12px)' }}
+                    >
+                        <Repeat className="w-2.5 h-2.5" /> Sabit Rezervasyon Aboneliği
                     </span>
                 ) : statusInfo && (
                     <span

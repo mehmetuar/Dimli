@@ -79,8 +79,20 @@ export interface ChannelReservationInfo {
   requiredPlayerCount?: number | null;
 }
 
+// SUBSCRIPTION kanalları için abonelik bilgisi (avatarData.subscription).
+export interface ChannelSubscriptionInfo {
+  dayOfWeek: string; // 'Monday'..'Sunday'
+  startTime: string;
+  endTime: string;
+  pitchName: string;
+  businessName: string;
+  homeTeamId: string | null;
+  awayTeamId: string | null; // null = tek takım (rakipsiz abonelik)
+}
+
 export interface ChannelAvatarData {
   matchType?: string;
+  subscription?: ChannelSubscriptionInfo;
   homeTeamLogo?: string | null;
   homeTeamName?: string;
   homeTeamColor?: string | null;
@@ -228,6 +240,63 @@ export class ChatService {
     return savedChannel;
   }
 
+  // Abone (SUBSCRIPTION) kanalı: sabit kapatma kuralına gerçek FK ile bağlanır;
+  // relatedMatchId hep null kaldığından maç yaşam döngüsü kilitleri bu tipe
+  // hiç dokunmaz.
+  async createSubscriptionChannel(
+    relatedClosureId: string,
+    name: string,
+    participants: User[],
+  ): Promise<ChatChannel> {
+    const channel = this.chatChannelRepository.create({
+      type: 'SUBSCRIPTION',
+      name,
+      relatedClosureId,
+    });
+    const savedChannel = await this.chatChannelRepository.save(channel);
+
+    for (const user of participants) {
+      const participant = this.chatParticipantRepository.create({
+        channelId: savedChannel.id,
+        userId: user.id,
+      });
+      await this.chatParticipantRepository.save(participant);
+    }
+
+    if (this.gateway?.server) {
+      participants.forEach((u) =>
+        this.gateway.server
+          .to(u.id)
+          .emit('channelCreated', { channelId: savedChannel.id }),
+      );
+    }
+
+    return savedChannel;
+  }
+
+  // Kuralın abone kanalını herkes için kaldırır (satır silme; mesaj+katılımcılar
+  // CASCADE ile gider) ve katılımcılara channelRemoved yayınlar. Kanal yoksa
+  // sessizce döner — atama olmayan kurallarda güvenle çağrılabilir.
+  async deleteSubscriptionChannelByClosure(closureId: string): Promise<void> {
+    const channel = await this.chatChannelRepository.findOne({
+      where: { relatedClosureId: closureId, type: 'SUBSCRIPTION' },
+    });
+    if (!channel) return;
+
+    const participants = await this.chatParticipantRepository.find({
+      where: { channelId: channel.id },
+    });
+    await this.chatChannelRepository.delete(channel.id);
+
+    if (this.gateway?.server) {
+      participants.forEach((p) =>
+        this.gateway.server
+          .to(p.userId)
+          .emit('channelRemoved', { channelId: channel.id }),
+      );
+    }
+  }
+
   async getUserChannels(userId: string): Promise<ChannelListItem[]> {
     const currentUser = await this.userRepository.findOne({
       where: { id: userId },
@@ -319,6 +388,42 @@ export class ChatService {
       ),
     );
 
+    // SUBSCRIPTION kanalları: kural + saha + işletme bilgisi tek sorguda (§26)
+    const closureIds = Array.from(
+      new Set(
+        participations
+          .map((p) => p.channel?.relatedClosureId)
+          .filter((id): id is string => !!id),
+      ),
+    );
+    interface ClosureRow {
+      id: string;
+      dayOfWeek: string;
+      startTime: string;
+      endTime: string;
+      teamId: string | null;
+      opponentTeamId: string | null;
+      pitchName: string;
+      businessName: string;
+    }
+    const closureById = new Map<string, ClosureRow>();
+    if (closureIds.length) {
+      const closureRows: ClosureRow[] =
+        await this.chatChannelRepository.manager.query(
+          `
+            SELECT rc.id, rc."dayOfWeek", rc."startTime", rc."endTime",
+                   rc."teamId", rc."opponentTeamId",
+                   p.name AS "pitchName", b.name AS "businessName"
+            FROM recurring_closures rc
+            JOIN pitches p ON p.id = rc."pitchId"
+            JOIN businesses b ON b.id = p.business_id
+            WHERE rc.id = ANY($1)
+          `,
+          [closureIds],
+        );
+      for (const row of closureRows) closureById.set(row.id, row);
+    }
+
     // 1) matchAnnouncementId ile bağlı rezervasyonlar (primary) — tek sorgu
     const reservationByMatchId = new Map<string, Reservation>();
     if (matchIds.length) {
@@ -386,6 +491,11 @@ export class ChatService {
     }
     for (const m of matchById.values()) {
       if (m.teamId) teamIdSet.add(m.teamId);
+    }
+    // Abone kanallarının takımları da aynı toplu takım sorgusundan beslenir
+    for (const c of closureById.values()) {
+      if (c.teamId) teamIdSet.add(c.teamId);
+      if (c.opponentTeamId) teamIdSet.add(c.opponentTeamId);
     }
     const teamIds = Array.from(teamIdSet);
 
@@ -492,6 +602,33 @@ export class ChatService {
 
           avatarData = {
             matchType: matchForType.matchType,
+            homeTeamLogo: homeTeam?.logoUrl ?? null,
+            homeTeamName: homeTeam?.name ?? '',
+            homeTeamColor: homeTeam?.primaryColor ?? null,
+            homeTeamSecondaryColor: homeTeam?.secondaryColor ?? null,
+            awayTeamLogo: awayTeam?.logoUrl ?? null,
+            awayTeamName: awayTeam?.name ?? '',
+            awayTeamColor: awayTeam?.primaryColor ?? null,
+            awayTeamSecondaryColor: awayTeam?.secondaryColor ?? null,
+          };
+        }
+      } else if (channel.type === 'SUBSCRIPTION' && channel.relatedClosureId) {
+        const closure = closureById.get(channel.relatedClosureId);
+        if (closure) {
+          const homeTeam = closure.teamId ? teamById.get(closure.teamId) : null;
+          const awayTeam = closure.opponentTeamId
+            ? teamById.get(closure.opponentTeamId)
+            : null;
+          avatarData = {
+            subscription: {
+              dayOfWeek: closure.dayOfWeek,
+              startTime: closure.startTime,
+              endTime: closure.endTime,
+              pitchName: closure.pitchName,
+              businessName: closure.businessName,
+              homeTeamId: closure.teamId,
+              awayTeamId: closure.opponentTeamId,
+            },
             homeTeamLogo: homeTeam?.logoUrl ?? null,
             homeTeamName: homeTeam?.name ?? '',
             homeTeamColor: homeTeam?.primaryColor ?? null,
@@ -874,6 +1011,13 @@ export class ChatService {
       throw new ForbiddenException(
         'Bu sohbetin katılımcısı değilsiniz veya zaten silinmiş.',
       );
+    }
+
+    // Abonelik sohbeti kullanıcı tarafından silinemez/gizlenemez — yaşam döngüsü
+    // tamamen işletmenin atamayı kaldırmasına bağlı. (relatedMatchId null olduğu
+    // için aşağıdaki maç-durumu kapısı bu tipi yakalayamazdı — açık engel şart.)
+    if (channel.type === 'SUBSCRIPTION') {
+      throw new ForbiddenException('Abonelik sohbeti silinemez.');
     }
 
     // Check match status — only allow deletion for 'played' or 'unplayed'
@@ -2015,10 +2159,41 @@ export class ChatService {
     return { success: true };
   }
 
+  // Takımın (ev sahibi veya rakip olarak) bağlı olduğu aktif abone kanallarının
+  // id'leri — üyelik senkronu iki yönde de bunun üzerinden döner.
+  private async subscriptionChannelIdsForTeam(
+    teamId: string,
+  ): Promise<string[]> {
+    const rows: { id: string }[] =
+      await this.chatChannelRepository.manager.query(
+        `
+          SELECT c.id FROM chat_channels c
+          JOIN recurring_closures rc ON rc.id = c."relatedClosureId"
+          WHERE c.type = 'SUBSCRIPTION' AND rc."isActive" = true
+            AND (rc."teamId" = $1 OR rc."opponentTeamId" = $1)
+        `,
+        [teamId],
+      );
+    return rows.map((r) => r.id);
+  }
+
   async addUserToTeamActiveMatchChannels(
     userId: string,
     teamId: string,
   ): Promise<void> {
+    // Abone (SUBSCRIPTION) kanalları maç penceresinden bağımsız — takıma katılan
+    // her üye kanala eklenir.
+    for (const channelId of await this.subscriptionChannelIdsForTeam(teamId)) {
+      const existing = await this.chatParticipantRepository.findOne({
+        where: { channelId, userId },
+      });
+      if (existing) continue;
+      await this.chatParticipantRepository.save(
+        this.chatParticipantRepository.create({ channelId, userId }),
+      );
+      this.gateway?.server?.to(userId).emit('channelCreated', { channelId });
+    }
+
     const nowTurkey = new Date(Date.now() + 3 * 60 * 60 * 1000);
     const todayTurkey = nowTurkey.toISOString().split('T')[0];
     const timeTurkey = nowTurkey.toISOString().split('T')[1].slice(0, 5);
@@ -2059,6 +2234,12 @@ export class ChatService {
     userId: string,
     teamId: string,
   ): Promise<void> {
+    // Takımdan ayrılan/atılan üye abone kanallarından da çıkarılır.
+    for (const channelId of await this.subscriptionChannelIdsForTeam(teamId)) {
+      await this.chatParticipantRepository.delete({ channelId, userId });
+      this.gateway?.server?.to(userId).emit('channelRemoved', { channelId });
+    }
+
     const nowTurkey = new Date(Date.now() + 3 * 60 * 60 * 1000);
     const todayTurkey = nowTurkey.toISOString().split('T')[0];
     const timeTurkey = nowTurkey.toISOString().split('T')[1].slice(0, 5);

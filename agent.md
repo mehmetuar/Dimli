@@ -3772,3 +3772,131 @@ tsc (dokunulan dosyalar temiz) ✓; canlı DB'de `notifications.type` varchar do
 **Not:** Aynı batch'te §-siz küçük iş: Maç Pazarı + Joker pull-to-refresh düzeltmesi
 (`handleTouchEnd` `requestLocation()` → `refetch()` force; `useMarketplace.refetch` artık
 promise döndürür — spinner fetch bitene dek döner). Sahalar/Chat zaten force çekiyordu.
+
+### §83. Sahalar: saha geçişinde bayat slot durumu flaşı (2026-07-17)
+
+**Belirti:** İşletme detayında 1↔2 nolu saha hızlı geçişinde önceki sahanın slot
+durumları (DOLU / RAKİP ARANIYOR / ONAY BEKLİYOR) yeni sahada <1sn görünüp düzeliyordu.
+
+**Kök neden (3 katman):** (1) Saha değişiminde `pitchAnnouncements` + `reservations`
+state'leri TEMİZLENMİYORDU — `set...([])` yalnız "saha seçili değil" else-dalındaydı;
+yeni yanıt gelene dek eski sahanın verisi çiziliyordu. (2) İki fetch'te de yarış koruması
+yoktu (hızlı A→B→A'da geç gelen eski yanıt yenisini ezebilir). (3) `PitchSchedule`
+ilan/rezervasyonu yalnız tarih/saate göre eşliyordu — pitchId bakmıyordu.
+
+**Çözüm (`usePitchBooking.ts` + `PitchSchedule.tsx`):**
+- İlanlar effect'i: geçerli-saha dalında (demo dalı sonrası) senkron `setPitchAnnouncements([])`
+  + `cancelled` bayrağı ve cleanup (myChallenges emsali).
+- `refetchReservations`: `lastScheduleKeyRef` (`pitchId|date`) — anahtar değişince senkron
+  `setReservations([])`, AYNI anahtarla refresh'te (teklif sonrası) temizleme YOK (boş-flaş
+  olmasın); `reservationsGenRef` jenerasyon sayacı — effect DIŞINDAN da çağrıldığı için
+  cancelled-bayrağı yerine fetchGenRef emsali; await sonrası gen eşleşmezse yanıt atılır.
+- `PitchSchedule` ilan filtresi: toleranslı pitchId savunması
+  (`!announcement.pitchId || announcement.pitchId === selectedPitch.id`) — sunucu
+  `/match-announcements/pitch/:id` zaten pitchId'li döner; demo ilan DEMO_PITCH_ID taşır
+  (demo saha 2'de yanlış görünme de düzeldi). Rezervasyonlara filtre YOK (nesneler güvenilir
+  pitchId taşımıyor) — koruma anahtar-temizliği + sayaç. `key={pitch.id}` remount BİLİNÇLİ
+  eklenmedi (scroll/animasyon sıfırlama yan etkisi).
+
+**Doğrulama:** tsc + vite build temiz. Cihaz testi bekliyor: hızlı 1↔2 geçişte yanlış durum
+flaşı yok; aynı sahada teklif-sonrası refresh boş-flaş yapmıyor; tanıtım turu bozulmadı.
+
+---
+
+### §84. Tek seferlik canlı DB işlemi — Hasbahçe 18 Temmuz Cumartesi sabit rezervasyon backfill (2026-07-18, kullanıcı onayıyla — §9 istisnası)
+
+**Durum:** Hasbahçe Halısaha (`pitchId=e452c528-ee0f-4ded-8c34-6690cd080399`) sahibi 2026-07-18
+10:32–10:33'te 5 Cumartesi + 4 Cuma `recurring_closures` (sabit/sürekli kapatma) tanımladı. Kuralı
+oluştururken tıklanan ilk slot **25 Temmuz** olduğundan materyalizasyon (bkz. §14, §61:
+`reservation-recurring.service.computeWeeklyOccurrences` yalnız ileriye üretir; kural tablosunda
+`startDate` YOK) 25 Temmuz'dan ileri gitti → **içinde bulunulan haftanın Cumartesi'si (18 Temmuz)
+materyalize edilmedi**, müşteride BOŞ görünüyordu.
+
+**Yapılan (kullanıcı açık talimatı):** 5 Cumartesi kapatma satırının 25 Temmuz haftası
+materyalizasyonu **birebir klonlanıp** `slotTime −7 gün` ile 18 Temmuz haftasına eklendi (`reservation`
+tablosuna 5 INSERT; yeni `id`+`createdAt`, diğer tüm kolonlar aynen: `status=APPROVED`, `type=DIRECT`,
+`teamId=NULL`, ilgili `recurringClosureId`). Kural tablosuna (`recurring_closures`) DOKUNULMADI. Cuma
+kapatmaları ve 25 Temmuz+ dokunulmadı. Klonlanan 5 kural: `40d9ab60`(Cts 00:00), `36c42153`(18:00),
+`c40b5d7a`(19:00), `05602313`(21:00), `b7a8949c`(23:00).
+
+**Emniyet:** transaction + DO-blok assert (kaynak=5, hedef pencere boş=0; değilse rollback),
+`ON_ERROR_STOP=1`. Sonuç `INSERT 0 5` + COMMIT. Doğrulama (salt-okunur): her kural için jul18=1 &
+jul25=1 (birebir parite), Cuma penceresi 0.
+
+**Not:** 18 Temmuz 00:00 (gece yarısı) slotu o an geçmiş → client'ta GEÇTİ; 18:00/19:00/21:00/23:00
+SABİT görünür. Bu **tek seferlik** bir durumdu (kural bugün kuruldu, mevcut hafta Cumartesi'si bugün);
+kök-neden kod düzeltmesi (erken çıpa / okumada kural overlay) tek haftalık boşluk için gereksiz görülüp
+yapılmadı. Bağlantı dizesi hiçbir yere yazılmadı (§9).
+
+---
+
+### §85. Sabit rezervasyon takım ataması + abone chat'i (SUBSCRIPTION kanalı) (2026-07-18)
+
+> **İhtiyaç:** İşletme bir saati "sürekli kapat" ile doluya çevirdiğinde o saate fiilen abone olan
+> takımın uygulamada hiçbir chat'i olmuyordu (kapatma = takımsız APPROVED reservation, §14). Artık
+> işletme sabit kapatmaya **takım kodu (shortId, ABC-123) girerek** takım atayabiliyor (tek takım
+> veya rakipli çift takım → **tek ortak kanal**) ve atanan takım(lar) için **kalıcı abone chat'i**
+> otomatik açılıyor. Onay akışı yok; işletme atamayı kaldırana kadar kanal açık kalır.
+
+**Veri modeli:**
+- `recurring_closures` + `teamId`, `opponentTeamId` (nullable, `ManyToOne(Team, SET NULL)`).
+  Tek takım = yalnız `teamId`; rakipli = ikisi de dolu.
+- `chat_channels` + **yeni tip `SUBSCRIPTION`** (union'a eklendi, varchar — migration yok) +
+  `relatedClosureId` kolonu **gerçek FK** ile: `ManyToOne(RecurringClosure, CASCADE)`.
+  `relatedMatchId`'nin FK'sız varchar olması §45'teki yetim kanal acısının köküydü; burada kural
+  silinince kanal → (mevcut CASCADE'lerle) katılımcı+mesaj zinciri otomatik temizlenir.
+  **`relatedMatchId` SUBSCRIPTION'da hep NULL** → `getChannelMatchStatusType` null döner → oynanmış/
+  oynanmamış mesaj kilidi bu tipe hiç dokunmaz (chat ban yine geçerli).
+
+**Server:**
+- `reservation-recurring.service`: `assignTeamToClosure(closureId, ownerId, teamShortId, opponentTeamShortId?)`
+  (kod regex `^[A-Z]{3}-\d{3}$` + `UPPER(short_id)` birebir sorgu — tüm takımlar asla listelenmez;
+  aynı-kod 400, bulunamayan 404, `scheduledDeletionAt/deletedAt` dolu saha 409; önceki atama varsa
+  kanalı silip değiştirir), `unassignTeamFromClosure`, `removeRecurringClosure` artık atama varsa
+  kanalı **açıkça** siler (`channelRemoved` yayını için — salt FK CASCADE'e bırakılmaz) + üyeleri
+  bilgilendirir. `createRecurringClosure` opsiyonel `teamShortId/opponentTeamShortId` alır (tek adımda
+  oluştur+ata; eski client'lar göndermez). ChatService düz enjeksiyon (ReservationSupportService emsali).
+  Türkçe gün adları sunucuda tek `DAY_LABELS` map'i (kanal adı: `"{İşletme} — Her {Gün} {saat}"`).
+- `chat.service`: `createSubscriptionChannel`, `deleteSubscriptionChannelByClosure`; `deleteChannel`
+  SUBSCRIPTION'ı **açıkça reddeder** (null-status açığı: statusType null'da soft-delete serbestti);
+  `getUserChannels` §26 uyumlu **tek** ek sorgu (`recurring_closures ⋈ pitches ⋈ businesses`) + takım
+  id'leri mevcut takım batch'ine eklenir → `avatarData.subscription = { dayOfWeek, startTime, endTime,
+  pitchName, businessName, homeTeamId, awayTeamId }`, `reservation: null` kalır;
+  `addUserToTeamActiveMatchChannels` / `removeUserFromTeamActiveMatchChannels` abone kanallarını da
+  senkronlar (`subscriptionChannelIdsForTeam` helper'ı).
+- `notifications.service`: `buildChatTitle` + `sendChatPushToParticipants` union'ına `SUBSCRIPTION`;
+  `createSubscriptionNotification(memberIds, title, message)` (type `SYSTEM` — eski client güvenli).
+  Kanal içi kuruluş sistem mesajı `skipPush=true` (çift push kuralı §13/§17).
+- **İkizler güncellendi (§38/§45):** `purgeTeam` + `purgeTeamRaw` — takım silinmeden önce
+  `chat_channels WHERE relatedClosureId IN (SELECT ... teamId=$1 OR opponentTeamId=$1)` DELETE +
+  `recurring_closures` atama kolonları NULL. Takım silinirse atama tümüyle düşer (tek taraflı rakipli
+  chat anlamsız); `deleteTeam` abonelik yüzünden ENGELLENMEZ.
+- **§60 entegrasyonu (kullanıcı kararı):** atanmış sabit kapatma = ileri tarihli kesin maç.
+  `pitch-downgrade.validateDowngrade` saha başına `recurring_closures(isActive, teamId NOT NULL)`
+  kontrolü → 409 `conflicts` `{type:'SUBSCRIPTION', dayOfWeek, startTime, teamName}`. Silme cron'unda
+  savunmacı temizlik (kanal DELETE + kolon NULL + warn log).
+- Endpoint'ler (JwtAuthGuard + `assertPitchOwnedBy`): `PATCH /reservations/recurring-closures/:id/team`,
+  `DELETE /reservations/recurring-closures/:id/team`, `POST /reservations/recurring-closures` gövde
+  genişletmesi, `GET /reservations/recurring-closures/pitch/:pitchId` artık `team/opponentTeam`
+  ilişkileriyle döner.
+
+**Client:**
+- İşletme: `BusinessDashboard/components/AssignSubscriberModal.tsx` (Tek Takım / Rakipli toggle,
+  kod input + `GET /teams/search/{kod}` debounce'lu birebir önizleme, mevcut atamada kaldır/değiştir).
+  `SlotDetailModal` SÜREKLİ DOLU kartı: atanmış takım çipleri + "Abone Takım Ata / Aboneyi Yönet"
+  butonu (`closureAssignments` — slot açılınca sahanın kural listesi lazily çekilir). "Sürekli kapat"
+  başarısı sonrası opsiyonel "Takım Ata" promptu (ConfirmModal). `RecurringClosuresSection` salt-okunur
+  takım çipleri.
+- Müşteri chat: `ChannelItem` + `Chat.tsx` SUBSCRIPTION dalları — yeşil ABONE pili, rakipli VS avatar /
+  tek logo, "Sabit Rezervasyon Aboneliği" etiketi; rakipli modda `teamChatColors` forma çipleri
+  `avatarData.subscription.homeTeamId/awayTeamId`'den; başlığa dokununca `avatarData`'dan beslenen
+  basit bilgi modalı (endpoint yok). `useChat` artık `channelRemoved` dinler (açık kanal silinirse
+  listeye döner). `types.ts` union'a `JOKER_NEGOTIATION` + `SUBSCRIPTION` eklendi.
+
+**Eski client uyumu:** bilinmeyen `SUBSCRIPTION` tipi DM fallback'iyle zararsız render olur (genel
+avatar + kanal adı, durum rozeti yok, silme butonu görünmez; sunucu silmeyi zaten reddediyor).
+Sunucuda tip filtrelemesi YAPILMAZ. Deploy sırası: **server → client (mobil)**.
+
+**Doğrulama:** server `npm run build` ✓ + değişen dosyalarda eslint ✓; client `vite build` ✓
+(`tsc --noEmit` tek hata: önceden var olan LocationStep `window.google`, ilgisiz). Cihaz testi +
+canlı deploy bekliyor.

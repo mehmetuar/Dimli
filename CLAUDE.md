@@ -60,7 +60,7 @@ NestJS feature modules under `server/src/`. Each module follows entity → servi
 ### Chat system
 - WebSocket gateway at `server/src/gateway/app.gateway.ts`; clients authenticate via `socket.handshake.auth.token`
 - Each user joins their own room: `socket.join(userId)`; events emitted via `server.to(userId).emit(...)`
-- 4 channel types: `DM | MATCH_GROUP | TEAM_INTERNAL | JOKER_NEGOTIATION`
+- 5 channel types: `DM | MATCH_GROUP | TEAM_INTERNAL | JOKER_NEGOTIATION | SUBSCRIPTION` — `SUBSCRIPTION` is a permanent subscriber chat bound to a recurring closure via `chat_channels.relatedClosureId` (real FK, CASCADE); it has no `relatedMatchId`, so match-lifecycle message locks never apply to it, and users cannot delete it (see agent.md §85)
 - Chat ban enforced in `ChatService.sendMessage()` — checks `isChatBanned` and `chatBanExpiry`; auto-expires timed bans on the spot
 - System messages (`isSystemMessage: true`) bypass the chat ban check
 
