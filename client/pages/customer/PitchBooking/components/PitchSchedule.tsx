@@ -165,7 +165,11 @@ export const PitchSchedule: React.FC<PitchScheduleProps> = ({
                     const announcements = pitchAnnouncements.filter((announcement: any) => {
                         const announcementTime = announcement.time || '';
                         const announcementDate = announcement.date || '';
-                        return announcementDate === selectedDate && announcementTime.startsWith(slot.startTime) && announcement.matchType !== 'kendi_aramizda';
+                        // Toleranslı pitchId savunması: hızlı saha geçişinde üstteki
+                        // state bir an eski sahanın ilanlarını taşısa bile yanlış
+                        // sahada çizilmez (pitchId'siz eski/demo kayıt gizlenmez).
+                        const belongsToPitch = !announcement.pitchId || announcement.pitchId === selectedPitch.id;
+                        return belongsToPitch && announcementDate === selectedDate && announcementTime.startsWith(slot.startTime) && announcement.matchType !== 'kendi_aramizda';
                     });
                     const hasAnnouncement = announcements.length > 0;
 

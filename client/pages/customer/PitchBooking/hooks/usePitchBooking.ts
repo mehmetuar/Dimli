@@ -48,6 +48,12 @@ export const usePitchBooking = () => {
     // Yarış guard'ı: her reset bir "nesil" başlatır; eski (loadMore) yanıtlar reset'ten
     // sonra uygulanmaz (yanlış sırada ekleme olmaz).
     const fetchGenRef = useRef(0);
+    // Takvim (rezervasyon) guard'ları: saha/tarih anahtarı değişince senkron
+    // temizlik (eski sahanın DOLU'su yeni sahada flaş yapmasın); sayaç sıra dışı
+    // yanıtın state'i ezmesini önler. refetchReservations effect DIŞINDAN da
+    // çağrıldığı için cancelled-bayrağı yerine fetchGenRef emsali kullanılır.
+    const reservationsGenRef = useRef(0);
+    const lastScheduleKeyRef = useRef<string | null>(null);
     const PAGE_SIZE = 20;
     const [expandedBusinessId, setExpandedBusinessId] = useState<string | null>(null);
     const [selectedPitchIdInBusiness, setSelectedPitchIdInBusiness] = useState<Record<string, string>>({});
@@ -207,16 +213,23 @@ export const usePitchBooking = () => {
                 setPitchAnnouncements(getDemoAnnouncements(selectedDate));
                 return;
             }
+            // Saha değişiminde ÖNCE senkron temizle: eski sahanın RAKİP ARANIYOR/
+            // ONAY BEKLİYOR durumları yeni yanıt gelene dek yeni sahada flaş yapıyordu.
+            setPitchAnnouncements([]);
+            // myChallenges emsali cancelled bayrağı: hızlı A→B→A geçişinde geç
+            // gelen eski yanıt state'i ezmesin.
+            let cancelled = false;
             const fetchAnnouncements = async () => {
                 try {
                     const response = await api.get(`/match-announcements/pitch/${pitchId}`);
-                    setPitchAnnouncements(response.data);
+                    if (!cancelled) setPitchAnnouncements(response.data);
                 } catch (error) {
                     console.error('Failed to fetch pitch announcements:', error);
-                    setPitchAnnouncements([]);
+                    if (!cancelled) setPitchAnnouncements([]);
                 }
             };
             fetchAnnouncements();
+            return () => { cancelled = true; };
         } else {
             setPitchAnnouncements([]);
         }
@@ -231,12 +244,22 @@ export const usePitchBooking = () => {
                 setReservations(getDemoReservations(selectedDate));
                 return;
             }
+            // Saha/tarih değişimi: senkron temizle (eski sahanın durumları yeni
+            // sahada flaş yapmasın). AYNI anahtarla çağrıda (ör. teklif sonrası
+            // refresh) temizleme YOK — dolu takvim boş-flaş yapmasın.
+            const key = `${pitchId}|${selectedDate}`;
+            if (key !== lastScheduleKeyRef.current) {
+                lastScheduleKeyRef.current = key;
+                setReservations([]);
+            }
+            // Hızlı A→B→A geçişinde geç gelen eski yanıt yenisini ezmesin.
+            const gen = ++reservationsGenRef.current;
             try {
                 const response = await api.get(`/reservations/pitch/${pitchId}?date=${selectedDate}`);
-                setReservations(response.data);
+                if (gen === reservationsGenRef.current) setReservations(response.data);
             } catch (error) {
                 console.error('Failed to fetch reservations:', error);
-                setReservations([]);
+                if (gen === reservationsGenRef.current) setReservations([]);
             }
         } else {
             setReservations([]);
