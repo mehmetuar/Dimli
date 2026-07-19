@@ -109,7 +109,17 @@ export const useBusinessSubscriptionSettings = () => {
         setPurchaseLoading(true);
         try {
             const previousPitchCount = subscription?.pitchCount ?? 0;
-            const rcCustomerId = await purchasePlan(planType);
+            // Promo/davetli geçmişi olan işletme (grace'te status=complimentary;
+            // süresi dolmuşta promoCodeId audit izi kalır) mağazanın "ilk 3 ay
+            // ücretsiz" intro'sunu YENİDEN almasın: intro'suz no_trial offering'i
+            // tercih edilir (RC'de tanımlı değilse purchasePlan current'a düşer).
+            const needsNoTrial =
+                !!subscription &&
+                (subscription.promoCodeId != null || subscription.status === 'complimentary');
+            const rcCustomerId = await purchasePlan(
+                planType,
+                needsNoTrial ? { preferOffering: 'no_trial' } : undefined,
+            );
             const ownerId = getOwnerId() ?? '';
 
             await api.post('/subscription/confirm-purchase', { ownerId, planType, rcCustomerId });
@@ -167,7 +177,14 @@ export const useBusinessSubscriptionSettings = () => {
             const ownerId = getOwnerId() ?? '';
             let rcCustomerId = downgradePurchaseRef.current;
             if (!rcCustomerId) {
-                rcCustomerId = await purchasePlan(downgradeTarget);
+                // handleSelectPlan ile aynı intro-offer bypass'ı (no_trial tercihli)
+                const needsNoTrial =
+                    !!subscription &&
+                    (subscription.promoCodeId != null || subscription.status === 'complimentary');
+                rcCustomerId = await purchasePlan(
+                    downgradeTarget,
+                    needsNoTrial ? { preferOffering: 'no_trial' } : undefined,
+                );
                 downgradePurchaseRef.current = rcCustomerId;
             }
 

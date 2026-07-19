@@ -1,6 +1,6 @@
 import React, { useRef, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Clock, RefreshCw } from 'lucide-react';
+import { AlertTriangle, Clock, RefreshCw } from 'lucide-react';
 import { BusinessNavbar } from '../../../components/Business/BusinessNavbar';
 import { ConfirmModal } from '../../../components/Modals/ConfirmModal';
 import { SuccessModal } from '../../../components/Modals/SuccessModal';
@@ -119,6 +119,9 @@ export const BusinessDashboard: React.FC = () => {
     }
 
     const hasActiveSubscription = subscription && ['active', 'trial', 'complimentary'].includes(subscription.status);
+    // Ödeme penceresi (grace): davetli süre bitti, 1 haftalık satın alma penceresi
+    // işliyor — işletme tam işlevsel, yalnız uyarı bandı gösterilir.
+    const inGrace = subscription?.status === 'complimentary' && !!subscription?.graceUntil;
     const isPending = businessStatus === 'pending';
     const isSuspended = businessStatus === 'suspended';
     const isRejected = businessStatus === 'rejected';
@@ -242,11 +245,26 @@ export const BusinessDashboard: React.FC = () => {
                         </svg>
                         Plan Seç ve Başla
                     </button>
-                    <p className="text-slate-400 font-semibold text-xs mt-4">90 gün ücretsiz deneme süresi</p>
+                    <p className="text-slate-400 font-semibold text-xs mt-4">Planını seç, işletmeni yeniden yayına al</p>
                 </div>
             ) : (
                 /* Normal dashboard: onay bekliyor banner + PitchGrid */
                 <>
+                    {inGrace && (
+                        <button
+                            onClick={() => navigate('/business/settings/subscription')}
+                            className="mx-4 mt-4 flex items-start gap-3 bg-slate-800/80 backdrop-blur-md border border-amber-500/40 px-4 py-3.5 rounded-2xl shadow-[0_4px_20px_rgba(245,158,11,0.15)] animate-fade-in text-left w-auto active:scale-[0.99] transition-transform"
+                        >
+                            <AlertTriangle className="text-amber-400 shrink-0 mt-0.5 drop-shadow-md" size={20} />
+                            <div className="space-y-1">
+                                <p className="text-amber-300 text-[clamp(12px,3.5vw,14px)] font-black uppercase tracking-wide">Ödeme Pencereniz İşliyor</p>
+                                <p className="text-slate-300 text-[clamp(11px,2.8vw,12px)] leading-relaxed font-medium">
+                                    Davetli üyeliğin sona erdi — {new Date(subscription.graceUntil).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' })} tarihine kadar
+                                    Abonelik & Planlar sayfasından satın almanızı tamamlamanız gerekli. Aksi takdirde işletmen müşterilere kapanacak.
+                                </p>
+                            </div>
+                        </button>
+                    )}
                     {isPending && (
                         <div className="mx-4 mt-4 flex items-start gap-3 bg-slate-800/80 backdrop-blur-md border border-orange-500/30 px-4 py-3.5 rounded-2xl shadow-[0_4px_20px_rgba(249,115,22,0.15)] animate-fade-in">
                             <Clock className="text-orange-400 shrink-0 mt-0.5 drop-shadow-md" size={20} />

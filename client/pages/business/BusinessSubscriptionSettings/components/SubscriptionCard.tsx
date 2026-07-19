@@ -66,7 +66,16 @@ export const SubscriptionCard: React.FC<SubscriptionCardProps> = ({
                     </span>
                 </div>
             )}
-            {status === 'complimentary' && (
+            {status === 'complimentary' && subscription.graceUntil ? (
+                <div className="flex justify-between items-center">
+                    <span className="text-amber-400 text-sm font-medium">Ödeme penceresi</span>
+                    <span className="text-amber-300 text-sm font-bold">
+                        {new Date(subscription.graceUntil).toLocaleDateString('tr-TR', {
+                            day: 'numeric', month: 'long', year: 'numeric',
+                        })}'e kadar
+                    </span>
+                </div>
+            ) : status === 'complimentary' && (
                 <div className="flex justify-between items-center">
                     <span className="text-slate-400 text-sm">Ücretsiz erişim</span>
                     <span className="text-white text-sm font-medium">

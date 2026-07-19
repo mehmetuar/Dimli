@@ -14,7 +14,7 @@ export const NoSubscriptionCTA: React.FC<NoSubscriptionCTAProps> = ({ purchaseLo
         <h2 className="font-bold text-xl text-white mb-2">Henüz Aboneliğiniz Yok</h2>
         <p className="text-slate-400 text-sm leading-relaxed mb-6">
             İşletmenizi sahalar listesinde göstermek ve rezervasyon almak için bir plan seçin.{' '}
-            <span className="text-orange-400 font-semibold">90 gün ücretsiz deneme</span> ile hemen başlayın.
+            <span className="text-orange-400 font-semibold">Planını seçerek işletmeni yeniden yayına al.</span>
         </p>
         <button
             onClick={onOpenPicker}

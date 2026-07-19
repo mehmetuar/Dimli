@@ -45,18 +45,41 @@ export function purchaseErrorToTurkish(err: any): { cancelled: boolean; message:
  * Başarılı olursa: anonim RC app_user_id döner.
  * Başarısız / iptal olursa: hata fırlatır — çağıran taraf kayıt yapmaz.
  *
+ * opts.preferOffering: önce bu RC offering'inden paket aranır (ör. 'no_trial' —
+ * promo/davetli geçmişi olan işletme mağazanın "ilk 3 ay ücretsiz" intro
+ * offer'ını YENİDEN almasın diye intro'suz eş ürünlerin offering'i). Offering
+ * veya paket henüz RC panelinde tanımlı değilse SESSİZCE current'a düşülür —
+ * mağaza/RC kurulumu tamamlanana dek hiçbir akış kırılmaz.
+ *
  * Web/geliştirme ortamında store açılmaz, mock ID döner.
  */
-export async function purchasePlan(planType: string): Promise<string> {
+export async function purchasePlan(
+    planType: string,
+    opts?: { preferOffering?: string },
+): Promise<string> {
     if (!Capacitor.isNativePlatform()) {
         return 'dev_mock_customer_id';
     }
 
     const packageId = PLAN_TO_PACKAGE[planType] ?? 'starter';
     const offerings = await Purchases.getOfferings();
-    const pkg = offerings.current?.availablePackages.find(
-        (p) => p.identifier === packageId,
-    );
+
+    let pkg;
+    if (opts?.preferOffering) {
+        pkg = offerings.all?.[opts.preferOffering]?.availablePackages.find(
+            (p) => p.identifier === packageId,
+        );
+        if (!pkg) {
+            console.log(
+                `[RC] '${opts.preferOffering}' offering'inde ${packageId} yok — current offering'e düşülüyor (intro-offer bypass henüz kurulmamış olabilir)`,
+            );
+        }
+    }
+    if (!pkg) {
+        pkg = offerings.current?.availablePackages.find(
+            (p) => p.identifier === packageId,
+        );
+    }
 
     if (!pkg) {
         throw new Error(`RevenueCat paketi bulunamadı: ${packageId}`);
