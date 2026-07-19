@@ -56,6 +56,16 @@ const STATUS_CONFIG: Record<Status, {
     },
 };
 
+// Abonelik sınıfı rozeti (SubscriptionsPage ile aynı harita) — /admin/applications
+// yanıtındaki EKLEMELİ `subscription` alanından; eski BE'de alan yoksa rozet çıkmaz.
+const SUB_BADGE: Record<string, { label: string; cls: string }> = {
+    active:        { label: 'Abone',         cls: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' },
+    trial:         { label: 'Deneme',        cls: 'bg-orange-500/20 text-orange-300 border-orange-500/40' },
+    complimentary: { label: 'Davetli',       cls: 'bg-sky-500/20 text-sky-300 border-sky-500/40' },
+    expired:       { label: 'Süresi Dolmuş', cls: 'bg-red-500/20 text-red-300 border-red-500/40' },
+    cancelled:     { label: 'İptal',         cls: 'bg-red-500/20 text-red-300 border-red-500/40' },
+};
+
 const parseFacilitiesCount = (raw: string[] | string | null | undefined): number => {
     if (!raw) return 0;
     if (Array.isArray(raw)) return raw.filter(f => f && f.trim().length > 0).length;
@@ -149,6 +159,17 @@ const ApplicationsList: React.FC<ApplicationsListProps> = ({ status }) => {
                                                 ↻ Tekrar ×{resubmitCount}
                                             </span>
                                         )}
+                                        {app.subscription && (() => {
+                                            const grace = app.subscription.status === 'complimentary' && !!app.subscription.graceUntil;
+                                            const badge = grace
+                                                ? { label: 'Ödeme penceresi', cls: 'bg-amber-500/20 text-amber-300 border-amber-500/40' }
+                                                : SUB_BADGE[app.subscription.status] ?? { label: app.subscription.status, cls: 'bg-slate-500/20 text-slate-300 border-slate-500/40' };
+                                            return (
+                                                <span className={`shrink-0 text-xs font-bold px-2 py-0.5 rounded-full border ${badge.cls}`}>
+                                                    {badge.label}
+                                                </span>
+                                            );
+                                        })()}
                                     </div>
                                     <p className="text-[#7b9ab8] text-sm">
                                         {app.city} / {app.district}

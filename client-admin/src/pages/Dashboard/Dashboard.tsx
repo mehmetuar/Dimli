@@ -150,6 +150,57 @@ export default function Dashboard() {
                 )}
             </div>
 
+            {/* Abonelik sınıflandırması — detay Abonelikler sayfasında */}
+            <div>
+                <h2 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-3">Abonelikler</h2>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <StatCard
+                        label="Aktif (direkt abone)"
+                        value={stats?.revenue.activeSubscriptions ?? 0}
+                        icon={<IconTrendingUp size={20} />}
+                        colorClass="text-emerald-300"
+                        bgClass="bg-emerald-500/8"
+                        borderClass="border-emerald-500/20 hover:border-emerald-500/40"
+                        onClick={() => navigate('/subscriptions')}
+                        subtitle="Ödeme alınıyor"
+                    />
+                    <StatCard
+                        label="Deneme (trial)"
+                        value={stats?.revenue.trialSubscriptions ?? 0}
+                        icon={<IconPending size={20} />}
+                        colorClass="text-orange-300"
+                        bgClass="bg-orange-500/8"
+                        borderClass="border-orange-500/20 hover:border-orange-500/40"
+                        onClick={() => navigate('/subscriptions')}
+                        subtitle="İlk 3 ay ücretsiz dönemi"
+                    />
+                    <StatCard
+                        label="Davetli (promo)"
+                        value={stats?.revenue.complimentarySubscriptions ?? 0}
+                        icon={<IconCheck size={20} />}
+                        colorClass="text-sky-300"
+                        bgClass="bg-sky-500/8"
+                        borderClass="border-sky-500/20 hover:border-sky-500/40"
+                        onClick={() => navigate('/subscriptions')}
+                        subtitle={
+                            (stats?.revenue.graceSubscriptions ?? 0) > 0
+                                ? `${stats?.revenue.graceSubscriptions} tanesi ödeme penceresinde`
+                                : 'Promosyon koduyla üye'
+                        }
+                    />
+                    <StatCard
+                        label="Aylık Gelir (MRR)"
+                        value={formatCurrency(stats?.revenue.totalMRR ?? 0)}
+                        icon={<IconBarChart size={20} />}
+                        colorClass="text-emerald-300"
+                        bgClass="bg-slate-500/8"
+                        borderClass="border-slate-500/20 hover:border-slate-500/40"
+                        onClick={() => navigate('/subscriptions')}
+                        subtitle="Yalnız ödeme alınan abonelikler"
+                    />
+                </div>
+            </div>
+
             <div>
                 <h2 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-3">Büyüme & Trendler</h2>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

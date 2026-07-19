@@ -14,6 +14,7 @@ import SupportTicketsPage from './pages/SupportTicketsPage/SupportTicketsPage';
 import BannedUsersPage from './pages/BannedUsersPage/BannedUsersPage';
 import DeletedBusinessesPage from './pages/DeletedBusinessesPage/DeletedBusinessesPage';
 import PromoCodesPage from './pages/PromoCodesPage/PromoCodesPage';
+import SubscriptionsPage from './pages/SubscriptionsPage/SubscriptionsPage';
 import Layout from './components/Layout';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -45,6 +46,7 @@ export default function App() {
             <Route path="/banned-users" element={<WithLayout><BannedUsersPage /></WithLayout>} />
             <Route path="/deleted" element={<WithLayout><DeletedBusinessesPage /></WithLayout>} />
             <Route path="/promo-codes" element={<WithLayout><PromoCodesPage /></WithLayout>} />
+            <Route path="/subscriptions" element={<WithLayout><SubscriptionsPage /></WithLayout>} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
     );

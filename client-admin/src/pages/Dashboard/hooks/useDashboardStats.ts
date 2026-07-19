@@ -6,6 +6,11 @@ interface Stats {
     revenue: {
         activeSubscriptions: number;
         trialSubscriptions: number;
+        complimentarySubscriptions: number;
+        expiredSubscriptions: number;
+        cancelledSubscriptions: number;
+        graceSubscriptions: number;
+        noSubscription: number;
         totalMRR: number;
         byPlan: Array<{ planType: string; label: string; count: number; monthlyRevenue: number }>;
     };
