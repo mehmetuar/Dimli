@@ -3900,3 +3900,56 @@ Sunucuda tip filtrelemesi YAPILMAZ. Deploy sırası: **server → client (mobil)
 **Doğrulama:** server `npm run build` ✓ + değişen dosyalarda eslint ✓; client `vite build` ✓
 (`tsc --noEmit` tek hata: önceden var olan LocationStep `window.google`, ilgisiz). Cihaz testi +
 canlı deploy bekliyor.
+
+### §86. Abonelik profesyonelleştirme: admin sınıflandırma + ödeme penceresi + intro-offer açığı (2026-07-19)
+
+**Dört parça (kullanıcı onaylı kapsam):**
+
+**1) Admin "Abonelikler" sayfası.** RevenueCat davetli (promo) işletmeleri HİÇ görmez —
+tek gerçek kaynak kendi DB'miz. Yeni `GET /admin/subscriptions` (admin-subscription.service
+`listSubscriptions`): subscriptions → owner (`o.id::text = s.ownerId` cast, promo-codes
+emsali) → business + promo kodu; sayfalı + statü filtresi + arama. `/admin/statistics`
+genişletildi: 5 statünün tamamı + `graceSubscriptions` + `noSubscription`; **MRR artık
+yalnız status='active'** (§7 "MRR trial sayıyor" borcu kapandı); byPlan eski anlamıyla
+görünür-3 statüden. `/admin/applications` yanıtına EKLEMELİ `subscription` özeti
+(status/planType/graceUntil) → ApplicationsList satır rozeti. client-admin: yeni
+`SubscriptionsPage` (sayı kartları + filtre çipleri + rozetli liste, PromoCodesPage/
+Dashboard desenleri), Sidebar "Abonelikler" (IconSubscription), Dashboard'a abonelik
+kart satırı (stats.revenue İLK KEZ render edildi).
+
+**2) Ödeme penceresi (grace) — davetli bitişinde sert kesme kaldırıldı.** Tasarım kararı:
+YENİ ENUM DEĞERİ YOK (subscriptions_status_enum native PG enum, canlı ALTER riski) —
+grace boyunca status `complimentary` KALIR + yeni nullable `graceUntil` timestamp
+(synchronize güvenli ekledi). Böylece 8 sunucu görünürlük noktası
+(CUSTOMER_VISIBLE_SUBSCRIPTION_STATUSES kullanıcıları) + 3 client gate dizisi SIFIR
+değişiklikle işlevsel kaldı. Cron `processComplimentaryExpiry` 3 faz: (1a)
+`complimentaryUntil<=now && graceUntil IS NULL` → graceUntil=+7g, stage=4,
+SUBSCRIPTION_REMINDER "Ödeme Pencereniz Başladı"; (1b) bitişe ≤3g, stage=5 "Son Uyarı";
+(1c) `graceUntil<=now` → EXPIRED + SUBSCRIPTION_EXPIRED (graceUntil audit kalır).
+Bildirim tipleri değişmedi → client yönlendirmeleri (BusinessNotificationsPage:90,
+pushNotificationService:135) dokunulmadı. `confirmPurchase` temizliğine `graceUntil=null`
+eklendi. Client: ComplimentaryExpiryBanner'a acil grace varyantı (kullanıcı onaylı metin),
+BusinessDashboard'a engellemeyen amber grace bandı, SubscriptionCard'a "Ödeme penceresi"
+satırı. Grace'te yeni promo kodu reddi SÜRÜYOR (kod zincirleme önlemi). Trial'a grace YOK.
+
+**3) Yanıltıcı metin.** Süresi dolmuş paywall'daki "90 gün ücretsiz deneme" vaatleri
+kaldırıldı (BusinessDashboard + NoSubscriptionCTA → "Planını seç, işletmeni yeniden
+yayına al") — süresi dolan yeniden deneme ALMIYOR (confirmPurchase → doğrudan ACTIVE).
+Kayıt akışı metinleri (WelcomeStep/PitchesAndPlanStep/PaymentStep) DOKUNULMADI.
+
+**4) Mağaza intro-offer açığı (KANITLANDI + kod hazırlığı).** "İlk 3 ay ücretsiz"
+MAĞAZA ürününde tanımlı intro offer (kayıtta gerçek purchasePackage; server TRIAL satırı
+kozmetik ayna, ilk webhook ACTIVE'e ezer; webhook period_type OKUMUYOR; hiçbir eligibility
+kodu yok). Promo'su biten işletme mağazaya İLK KEZ abone → Apple/Google intro'yu YİNE
+verir; repo tek başına engelleyemez. Hazırlık: `purchasePlan(planType, {preferOffering})`
+— `no_trial` RC offering'i varsa ondan satın alır, yoksa SESSİZCE current'a düşer
+(kurulum öncesi hiçbir akış kırılmaz). `needsNoTrial = promoCodeId!=null (expired'da audit
+kalır) || status==='complimentary'` → handleSelectPlan + handleDowngradeConfirm.
+KULLANICININ YAPMASI GEREKEN (panel işi): ASC + Play Console'da intro'suz eş ürünler,
+RC'de aynı 5 paket kimliğiyle `no_trial` offering'i. Gelecek işi: webhook period_type
+yakalama (intro-aktif vs ödeyen-aktif analitiği).
+
+**Deploy sırası:** server → client-admin (FE+BE birlikte; /admin/applications alanı
+eklemeli, eski FE yok sayar) → client (yeni native sürüm). Canlı DB'de elle SQL YOK
+(graceUntil'i synchronize ekler; notifications.type varchar — canlıda salt-okunur
+doğrulandı). Doğrulama: 3 paket build + server boot temiz; cihaz/cron senaryoları bekliyor.
