@@ -2,7 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Not, Repository } from 'typeorm';
 import { Business } from '../../business/entities/business.entity';
-import { Subscription } from '../../subscription/entities/subscription.entity';
+import {
+  Subscription,
+  SubscriptionStatus,
+} from '../../subscription/entities/subscription.entity';
 import { AdminStatsCacheService } from './admin-stats-cache.service';
 import { PLAN_LABELS } from './admin.util';
 
@@ -41,6 +44,9 @@ export class AdminStatisticsService {
 
     // Abonelik: tüm tabloyu çekmek yerine tek GROUP BY (status, planType) + SUM.
     // COUNT/SUM driver'dan string döner → Number() ile sarılır.
+    // Artık 5 statünün TAMAMI sayılır (sınıflandırma sayfası expired/cancelled
+    // dahil ister); byPlan dağılımı eski anlamıyla yalnız müşteri-görünür 3
+    // statüden (active/trial/complimentary) beslenmeye devam eder.
     const subRows: Array<{
       status: string;
       planType: string;
@@ -52,7 +58,6 @@ export class AdminStatisticsService {
       .addSelect('s.planType', 'planType')
       .addSelect('COUNT(*)', 'cnt')
       .addSelect('COALESCE(SUM(s.pricePerMonth), 0)', 'sum')
-      .where("s.status IN ('active', 'trial', 'complimentary')")
       .groupBy('s.status')
       .addGroupBy('s.planType')
       .orderBy('s.planType', 'ASC')
@@ -61,6 +66,8 @@ export class AdminStatisticsService {
     let activeCount = 0;
     let trialCount = 0;
     let complimentaryCount = 0;
+    let expiredCount = 0;
+    let cancelledCount = 0;
     let totalMRR = 0;
     const planMap: Record<string, { count: number; monthlyRevenue: number }> =
       {};
@@ -70,14 +77,44 @@ export class AdminStatisticsService {
       if (r.status === 'active') activeCount += cnt;
       if (r.status === 'trial') trialCount += cnt;
       if (r.status === 'complimentary') complimentaryCount += cnt;
-      // Davetli (complimentary) pricePerMonth=0 → MRR'ı etkilemez, ama byPlan
-      // dağılımında görünür kalması için toplam yine de eklenir (0).
-      totalMRR += sum;
-      if (!planMap[r.planType])
-        planMap[r.planType] = { count: 0, monthlyRevenue: 0 };
-      planMap[r.planType].count += cnt;
-      planMap[r.planType].monthlyRevenue += sum;
+      if (r.status === 'expired') expiredCount += cnt;
+      if (r.status === 'cancelled') cancelledCount += cnt;
+      // MRR = yalnız GERÇEKTEN ödeme alınan (active) abonelikler. Trial'lar
+      // mağaza intro döneminde ücretsiz olduğundan MRR'a katılmaz (agent.md §7
+      // "MRR trial'ları sayıyor" borcu burada kapanır); davetli zaten 0 TL.
+      if (r.status === 'active') totalMRR += sum;
+      const visible =
+        r.status === 'active' ||
+        r.status === 'trial' ||
+        r.status === 'complimentary';
+      if (visible) {
+        if (!planMap[r.planType])
+          planMap[r.planType] = { count: 0, monthlyRevenue: 0 };
+        planMap[r.planType].count += cnt;
+        planMap[r.planType].monthlyRevenue += sum;
+      }
     }
+
+    // Ödeme penceresi (grace): davetli süresi bitmiş, 1 haftalık satın alma
+    // penceresi işleyen işletmeler (complimentary alt kümesi).
+    const graceCount = await this.subscriptionRepository.count({
+      where: {
+        status: SubscriptionStatus.COMPLIMENTARY,
+        graceUntil: Not(IsNull()),
+      },
+    });
+
+    // Abonelik kaydı hiç olmayan (silinmemiş) işletmeler — sınıflandırma
+    // sayfası "Aboneliksiz" kartı. s.ownerId varchar / o.id uuid → ::text cast.
+    const noSubRow: { c: string } | undefined = await this.businessRepository
+      .createQueryBuilder('b')
+      .leftJoin('b.owner', 'o')
+      .leftJoin(Subscription, 's', 's.ownerId = o.id::text')
+      .where('b.deletedAt IS NULL')
+      .andWhere('s.id IS NULL')
+      .select('COUNT(*)', 'c')
+      .getRawOne();
+    const noSubscriptionCount = Number(noSubRow?.c ?? 0);
     const byPlan = Object.entries(planMap).map(([planType, data]) => ({
       planType,
       label: PLAN_LABELS[planType] ?? planType,
@@ -134,6 +171,10 @@ export class AdminStatisticsService {
         activeSubscriptions: activeCount,
         trialSubscriptions: trialCount,
         complimentarySubscriptions: complimentaryCount,
+        expiredSubscriptions: expiredCount,
+        cancelledSubscriptions: cancelledCount,
+        graceSubscriptions: graceCount,
+        noSubscription: noSubscriptionCount,
         totalMRR,
         byPlan,
       },

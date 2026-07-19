@@ -4,9 +4,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, SelectQueryBuilder } from 'typeorm';
+import { In, Repository, SelectQueryBuilder } from 'typeorm';
 import { Business, ReviewEvent } from '../../business/entities/business.entity';
 import { BusinessOwner } from '../../business-owner/entities/business-owner.entity';
+import { Subscription } from '../../subscription/entities/subscription.entity';
 import { Pitch } from '../../pitches/entities/pitch.entity';
 import { TimeSlot } from '../../pitches/entities/time-slot.entity';
 import { NotificationsService } from '../../notifications/notifications.service';
@@ -22,6 +23,13 @@ export type AdminBusinessListItem = Omit<Business, 'owner'> & {
     email: string;
     phone: string;
   } | null;
+  // Satır rozeti için minimal abonelik özeti (EKLEMELİ alan — eski FE yok sayar).
+  subscription: {
+    status: string;
+    planType: string;
+    graceUntil: Date | null;
+    complimentaryUntil: Date | null;
+  } | null;
 };
 
 @Injectable()
@@ -35,6 +43,8 @@ export class AdminBusinessService {
     private pitchRepository: Repository<Pitch>,
     @InjectRepository(TimeSlot)
     private timeSlotRepository: Repository<TimeSlot>,
+    @InjectRepository(Subscription)
+    private subscriptionRepository: Repository<Subscription>,
     private readonly notificationsService: NotificationsService,
     private readonly statsCache: AdminStatsCacheService,
   ) {}
@@ -90,17 +100,40 @@ export class AdminBusinessService {
       .take(limit);
     const businesses = await itemsQb.getMany();
 
-    const items = businesses.map((b) => ({
-      ...b,
-      owner: b.owner
-        ? {
-            id: b.owner.id,
-            fullName: b.owner.fullName,
-            email: b.owner.email,
-            phone: b.owner.phone,
-          }
-        : null,
-    }));
+    // Satır rozeti için abonelik özetleri — sayfadaki owner'lar için tek toplu
+    // sorgu (N+1 yok). ownerId varchar kolonuna string uuid değerleriyle IN.
+    const ownerIds = businesses
+      .map((b) => b.owner?.id)
+      .filter((id): id is string => !!id);
+    const subs = ownerIds.length
+      ? await this.subscriptionRepository.find({
+          where: { ownerId: In(ownerIds) },
+        })
+      : [];
+    const subByOwner = new Map(subs.map((s) => [s.ownerId, s]));
+
+    const items = businesses.map((b) => {
+      const sub = b.owner ? subByOwner.get(b.owner.id) : undefined;
+      return {
+        ...b,
+        owner: b.owner
+          ? {
+              id: b.owner.id,
+              fullName: b.owner.fullName,
+              email: b.owner.email,
+              phone: b.owner.phone,
+            }
+          : null,
+        subscription: sub
+          ? {
+              status: sub.status,
+              planType: sub.planType,
+              graceUntil: sub.graceUntil,
+              complimentaryUntil: sub.complimentaryUntil,
+            }
+          : null,
+      };
+    });
 
     return paginate(items, total, page, limit);
   }

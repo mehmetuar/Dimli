@@ -86,10 +86,18 @@ export class Subscription {
   @Column({ nullable: true, type: 'timestamp' })
   complimentaryReminderSentAt: Date | null;
 
-  // Gönderilen son hatırlatma kademesi: 0=hiç, 1=1 ay, 2=1 hafta, 3=3 gün kala.
+  // Gönderilen son hatırlatma kademesi: 0=hiç, 1=1 ay, 2=1 hafta, 3=3 gün kala,
+  // 4=ödeme penceresi (grace) başladı, 5=grace ortası son-gün uyarısı.
   // Aynı kademe tekrar gönderilmez; kademe yalnız ileri gider.
   @Column({ type: 'smallint', default: 0 })
   complimentaryReminderStage: number;
+
+  // Davetli üyelik bitince başlayan 1 haftalık ödeme penceresi (grace) bitişi.
+  // Dolu + status=complimentary → işletme grace döneminde (tam işlevsel, müşteriye
+  // görünür). Cron graceUntil geçince EXPIRED'a düşürür; confirmPurchase satın
+  // almada temizler. EXPIRED sonrası audit izi olarak korunur.
+  @Column({ nullable: true, type: 'timestamp' })
+  graceUntil: Date | null;
 
   // Hangi promosyon kodundan geldiği (denetim izi).
   @Column({ nullable: true, type: 'varchar' })

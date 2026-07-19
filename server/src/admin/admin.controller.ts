@@ -99,6 +99,24 @@ export class AdminController {
     return this.adminService.getDeletionReport();
   }
 
+  // ─── Subscriptions (sınıflandırma sayfası) ────────────────────────────────
+
+  @UseGuards(AdminJwtAuthGuard)
+  @Get('subscriptions')
+  async listSubscriptions(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('status') status?: string,
+  ) {
+    return this.adminService.listSubscriptions({
+      page: page ? parseInt(page, 10) : undefined,
+      limit: limit ? parseInt(limit, 10) : undefined,
+      search,
+      status,
+    });
+  }
+
   // ─── Businesses ───────────────────────────────────────────────────────────
 
   @UseGuards(AdminJwtAuthGuard)

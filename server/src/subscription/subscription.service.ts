@@ -209,6 +209,7 @@ export class SubscriptionService {
     subscription.complimentaryReminderSentAt = null;
     subscription.complimentaryReminderStage = 0;
     subscription.promoCodeId = null;
+    subscription.graceUntil = null; // ödeme penceresi kapandı — cron tekrar yakalamasın
 
     const saved = await this.subscriptionRepository.save(subscription);
     await this.clearScheduledPitchDeletions(ownerId);
@@ -434,12 +435,84 @@ export class SubscriptionService {
     const now = new Date();
     const DAY = 24 * 60 * 60 * 1000;
 
-    // 1) Süresi dolanlar → EXPIRED (complimentary alanları denetim izi olarak
-    //    KORUNUR; client'taki expired gate satın almaya zorlar).
-    const due = await this.subscriptionRepository.find({
+    // 1a) Süresi dolanlar → ANINDA KESME YOK: 1 haftalık ödeme penceresi (grace)
+    //     başlatılır. İşletme bu pencerede TAM İŞLEVSEL kalır (status hâlâ
+    //     complimentary → müşteri görünürlüğü/rezervasyon sürer); yalnız
+    //     bilgilendirilir. Kademe 4 = pencere-başladı bildirimi.
+    const GRACE_DAYS = 7;
+    const dueForGrace = await this.subscriptionRepository.find({
       where: {
         status: SubscriptionStatus.COMPLIMENTARY,
         complimentaryUntil: LessThanOrEqual(now),
+        graceUntil: IsNull(),
+      },
+    });
+    for (const sub of dueForGrace) {
+      try {
+        sub.graceUntil = new Date(now.getTime() + GRACE_DAYS * DAY);
+        sub.complimentaryReminderStage = 4;
+        sub.complimentaryReminderSentAt = now;
+        const price = this.formatPlanPrice(sub.planType);
+        // Kademe 1-3 deseni: önce bildir, sonra kaydet (bildirim hatasında
+        // bir sonraki saatte temiz yeniden deneme).
+        await this.notifyOwner(
+          sub.ownerId,
+          'SUBSCRIPTION_REMINDER',
+          'Ödeme Pencereniz Başladı',
+          `Davetli üyeliğiniz sona erdi. İşletmenizin yayında kalması için ${this.formatTrDate(
+            sub.graceUntil,
+          )} tarihine kadar (1 hafta) Abonelik & Planlar sayfasından planınızı${
+            price ? ` (${price})` : ''
+          } satın almanız gerekli.`,
+        );
+        await this.subscriptionRepository.save(sub);
+      } catch (err) {
+        this.logger.error(
+          `Davetli üyelik ödeme penceresi başlatılamadı (owner ${sub.ownerId}):`,
+          err,
+        );
+      }
+    }
+
+    // 1b) Pencere ortası son uyarı (bitişe ≤3 gün, kademe 5 — bir kez).
+    const graceWarnWindow = new Date(now.getTime() + 3 * DAY);
+    const graceWarn = await this.subscriptionRepository.find({
+      where: {
+        status: SubscriptionStatus.COMPLIMENTARY,
+        graceUntil: Between(now, graceWarnWindow),
+      },
+    });
+    for (const sub of graceWarn) {
+      try {
+        if (sub.complimentaryReminderStage >= 5 || !sub.graceUntil) continue;
+        const daysLeft = Math.max(
+          1,
+          Math.ceil((sub.graceUntil.getTime() - now.getTime()) / DAY),
+        );
+        sub.complimentaryReminderStage = 5;
+        sub.complimentaryReminderSentAt = now;
+        await this.notifyOwner(
+          sub.ownerId,
+          'SUBSCRIPTION_REMINDER',
+          'Son Uyarı: İşletmeniz Kapanmak Üzere',
+          `Ödeme pencerenizin bitmesine son ${daysLeft} gün. Abonelik & Planlar sayfasından satın almanızı tamamlamazsanız işletmeniz müşterilere kapanacak.`,
+        );
+        await this.subscriptionRepository.save(sub);
+      } catch (err) {
+        this.logger.error(
+          `Grace son-uyarı bildirimi gönderilemedi (owner ${sub.ownerId}):`,
+          err,
+        );
+      }
+    }
+
+    // 1c) Pencere de bittiyse → EXPIRED (sert kesme; complimentary + grace
+    //     alanları denetim izi olarak KORUNUR; client'taki expired gate satın
+    //     almaya zorlar, işletme müşteri tarafında gizlenir).
+    const due = await this.subscriptionRepository.find({
+      where: {
+        status: SubscriptionStatus.COMPLIMENTARY,
+        graceUntil: LessThanOrEqual(now),
       },
     });
     for (const sub of due) {
@@ -451,7 +524,7 @@ export class SubscriptionService {
           sub.ownerId,
           'SUBSCRIPTION_EXPIRED',
           'Davetli Üyeliğiniz Sona Erdi',
-          `Davetli ücretsiz üyeliğinizin süresi doldu. Sahalarınızın yayında kalması için ${
+          `Davetli ücretsiz üyeliğinizin süresi ve ödeme pencereniz doldu. Sahalarınızın yeniden yayına alınması için ${
             price ? `planınızı (${price}) ` : 'planınızı '
           }abonelik ayarlarından satın alabilirsiniz.`,
         );

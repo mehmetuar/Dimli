@@ -175,4 +175,13 @@ export class AdminService {
   seedMissingSubscriptions() {
     return this.subscriptionService.seedMissingSubscriptions();
   }
+
+  listSubscriptions(opts: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    status?: string;
+  }) {
+    return this.subscriptionService.listSubscriptions(opts);
+  }
 }
