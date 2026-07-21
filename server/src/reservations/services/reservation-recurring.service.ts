@@ -31,6 +31,14 @@ import {
   nowInIstanbul,
   toIstanbulParts,
 } from '../../common/turkey-time.util';
+import { assertNoteWithinLimit } from '../../common/text-limit.util';
+
+// Abone takım kartında gösterilen türetilmiş istatistikler (kolon değil) —
+// business-owner.service'teki EnrichedTeam ile aynı sözleşme.
+type EnrichedTeam = Team & {
+  playedMatchCount?: number;
+  playerCount?: number;
+};
 
 // Sürekli (haftalık) kapatma + tek seferlik manuel doldurma + gece materialize cron'u.
 // blockSlot sendSystemMessage için Support'u, removeRecurringClosure revokeConfirmation için
@@ -431,11 +439,98 @@ export class ReservationRecurringService {
   async findRecurringClosuresByPitch(pitchId: string, ownerId: string) {
     // GÜVENLİK: yalnız sahanın işletme sahibi kapatma kurallarını görebilir.
     await this.lifecycle.assertPitchOwnedBy(pitchId, ownerId);
-    return this.recurringClosureRepository.find({
+    const closures = await this.recurringClosureRepository.find({
       where: { pitchId, isActive: true },
-      relations: ['team', 'opponentTeam'],
+      relations: [
+        'team',
+        'team.captain',
+        'opponentTeam',
+        'opponentTeam.captain',
+      ],
       order: { createdAt: 'ASC' },
     });
+
+    // Atanmış takımların istatistikleri (oynanmış maç + kadro) — kural-başına
+    // sorgu yerine kural sayısından BAĞIMSIZ sabit 2 grouped sorgu (§61 deseni).
+    // İşletme, abone takımı rezervasyon isteğindeki kadar tanıyabilsin diye
+    // kaptan ilişkisi de yukarıda yüklenir (telefon zaten dashboard'da açık).
+    const teamIds = Array.from(
+      new Set(
+        closures
+          .flatMap((c) => [c.teamId, c.opponentTeamId])
+          .filter((id): id is string => !!id),
+      ),
+    );
+    if (teamIds.length) {
+      const [matchCounts, playerCounts] = await Promise.all([
+        this.countPlayedMatchesByTeam(teamIds),
+        this.countPlayersByTeam(teamIds),
+      ]);
+      const enrich = (team: EnrichedTeam | null) => {
+        if (!team) return;
+        team.playedMatchCount = matchCounts.get(team.id) ?? 0;
+        team.playerCount = playerCounts.get(team.id) ?? 0;
+      };
+      for (const closure of closures) {
+        enrich(closure.team);
+        enrich(closure.opponentTeam);
+      }
+    }
+
+    return closures;
+  }
+
+  // Verilen takımların oynanmış (APPROVED + geçmiş) maç sayısı — ev sahibi ve
+  // deplasman ayaklarının toplamı. RatingsService'in ikizidir; ReservationsModule
+  // RatingsModule'ü import etmediği için burada mevcut repo ile hesaplanır.
+  private async countPlayedMatchesByTeam(
+    teamIds: string[],
+  ): Promise<Map<string, number>> {
+    const counts = new Map<string, number>();
+    if (!teamIds.length) return counts;
+    const now = new Date();
+    const add = (rows: { teamId: string | null; count: string }[]) => {
+      for (const row of rows) {
+        if (!row.teamId) continue;
+        counts.set(
+          row.teamId,
+          (counts.get(row.teamId) ?? 0) + Number(row.count),
+        );
+      }
+    };
+    for (const column of ['teamId', 'opponentTeamId'] as const) {
+      add(
+        await this.reservationRepository
+          .createQueryBuilder('r')
+          .select(`r.${column}`, 'teamId')
+          .addSelect('COUNT(*)', 'count')
+          .where('r.status = :status', { status: ReservationStatus.APPROVED })
+          .andWhere('r.slotTime < :now', { now })
+          .andWhere(`r.${column} IN (:...ids)`, { ids: teamIds })
+          .groupBy(`r.${column}`)
+          .getRawMany(),
+      );
+    }
+    return counts;
+  }
+
+  private async countPlayersByTeam(
+    teamIds: string[],
+  ): Promise<Map<string, number>> {
+    const counts = new Map<string, number>();
+    if (!teamIds.length) return counts;
+    const rows: { teamId: string | null; count: string }[] =
+      await this.userRepository
+        .createQueryBuilder('u')
+        .select('u.teamId', 'teamId')
+        .addSelect('COUNT(*)', 'count')
+        .where('u.teamId IN (:...ids)', { ids: teamIds })
+        .groupBy('u.teamId')
+        .getRawMany();
+    for (const row of rows) {
+      if (row.teamId) counts.set(row.teamId, Number(row.count));
+    }
+    return counts;
   }
 
   // Takım kodunu (shortId, ABC-123) birebir sorguyla çözer — tüm takımları
@@ -612,6 +707,66 @@ export class ReservationRecurringService {
 
     this.logger.log(`Subscriber unassigned from closure ${closure.id}.`);
     return { success: true, removed: true };
+  }
+
+  // İşletmenin abone (SUBSCRIPTION) sohbetine not düşürmesi — maç sohbetlerindeki
+  // sendBusinessNote'un abonelik ikizi. İşletme sahibi kanalın KATILIMCISI DEĞİL,
+  // bu yüzden not gerçek bir mesaj değil senderId'siz sistem mesajı olarak yazılır.
+  async sendSubscriptionNote(closureId: string, ownerId: string, note: string) {
+    // İşletme notu: en fazla 100 karakter (client atlansa bile korunur)
+    assertNoteWithinLimit(note, 100, 'İşletme notu');
+
+    const closure = await this.recurringClosureRepository.findOne({
+      where: { id: closureId },
+    });
+    if (!closure) {
+      throw new NotFoundException('Sürekli kapatma kuralı bulunamadı');
+    }
+
+    // GÜVENLİK: yalnız sahanın işletme sahibi not gönderebilir.
+    await this.lifecycle.assertPitchOwnedBy(closure.pitchId, ownerId);
+
+    const assignedTeamIds = [closure.teamId, closure.opponentTeamId].filter(
+      (id): id is string => !!id,
+    );
+    if (!assignedTeamIds.length) {
+      throw new BadRequestException('Bu saate atanmış abone takım yok.');
+    }
+
+    const channel =
+      await this.chatService.findSubscriptionChannelByClosure(closureId);
+    if (!channel) {
+      throw new NotFoundException('Abone sohbeti bulunamadı.');
+    }
+
+    const pitch = await this.pitchRepository.findOne({
+      where: { id: closure.pitchId },
+      relations: ['business'],
+    });
+    const businessName = pitch?.business?.name ?? 'İşletme';
+
+    // skipPush: aşağıdaki abonelik bildirimi zaten push atıyor → çift push olmasın
+    // (§13/§17). Metin işaretçileri client'ın SystemMessageRenderer'ıyla uyumlu.
+    await this.chatService.sendMessage(
+      channel.id,
+      null,
+      `{{COMMENT}} ${businessName} Mesajı:\n${note}`,
+      true,
+      { type: 'SUBSCRIPTION_NOTE', closureId },
+      true,
+    );
+
+    const memberIds = await this.getTeamMemberIds(assignedTeamIds);
+    await this.notificationsService.createSubscriptionNotification(
+      memberIds,
+      `İşletmeden Mesaj: ${businessName}`,
+      note,
+    );
+
+    this.logger.log(
+      `Subscription note sent to channel ${channel.id} for closure ${closureId}.`,
+    );
+    return { success: true };
   }
 
   // Sürekli kapatma kuralını tamamen kaldırır: kuralı siler ve bu kurala bağlı,

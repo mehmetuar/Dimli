@@ -9,6 +9,34 @@ import {
   istanbulDisplayParts,
 } from '../../common/turkey-time.util';
 
+// Müsaitlik ızgarasında gösterilen abone takım özeti (kişisel veri içermez).
+export interface SubscriberTeamSummary {
+  id: string;
+  name: string;
+  logoUrl: string | null;
+  primaryColor: string | null;
+  secondaryColor: string | null;
+}
+
+type SubscriberEnrichedReservation = Reservation & {
+  subscriberTeam?: SubscriberTeamSummary;
+  subscriberOpponentTeam?: SubscriberTeamSummary | null;
+};
+
+interface SubscriberClosureRow {
+  id: string;
+  teamId: string | null;
+  teamName: string;
+  teamLogoUrl: string | null;
+  teamPrimaryColor: string | null;
+  teamSecondaryColor: string | null;
+  oppId: string | null;
+  oppName: string;
+  oppLogoUrl: string | null;
+  oppPrimaryColor: string | null;
+  oppSecondaryColor: string | null;
+}
+
 // Saf okuma sorguları (mutasyon/transaction yok).
 // Bağımlılıklar: reservationRepository + timeSlotRepository (upcoming endTime eşlemesi).
 @Injectable()
@@ -145,7 +173,7 @@ export class ReservationQueryService {
     const startOfDay = istanbulDateTimeToUtc(date, '00:00');
     const endOfDay = istanbulDateTimeToUtc(addIstanbulDays(date, 1), '00:00');
 
-    return this.reservationRepository
+    const reservations = await this.reservationRepository
       .createQueryBuilder('reservation')
       .leftJoinAndSelect('reservation.pitch', 'pitch')
       .leftJoinAndSelect('reservation.team', 'team')
@@ -155,6 +183,75 @@ export class ReservationQueryService {
       .andWhere('reservation.slotTime < :end', { end: endOfDay })
       .orderBy('reservation.slotTime', 'ASC')
       .getMany();
+
+    await this.attachSubscriberTeams(reservations);
+    return reservations;
+  }
+
+  // Sabit kapatma bloklarına (teamsiz DIRECT rezervasyon) atanmış abone takımı
+  // EKLEMELİ olarak iliştirir: subscriberTeam / subscriberOpponentTeam.
+  //
+  // Bilinçli olarak reservation.team'e YAZILMAZ — eski client'lar team dolu
+  // görürse bunu normal bir dolu maç sanar ve "İşletme Tarafından Kapalı"
+  // ekranını kaybederdi (§85 eski-client uyumu). Yeni alanları eski client
+  // yok sayar, davranışı birebir korunur.
+  //
+  // Kaptan/telefon gibi kişisel veri BURADA VERİLMEZ — bu uç giriş yapmış
+  // herkese açık (müsaitlik ızgarası); yalnız takım kimliği + görsel kimlik.
+  private async attachSubscriberTeams(
+    reservations: SubscriberEnrichedReservation[],
+  ): Promise<void> {
+    const closureIds = Array.from(
+      new Set(
+        reservations
+          .map((r) => r.recurringClosureId)
+          .filter((id): id is string => !!id),
+      ),
+    );
+    if (!closureIds.length) return;
+
+    const rows: SubscriberClosureRow[] =
+      await this.reservationRepository.manager.query(
+        `
+          SELECT rc.id,
+                 t.id AS "teamId", t.name AS "teamName", t.logo_url AS "teamLogoUrl",
+                 t.primary_color AS "teamPrimaryColor", t.secondary_color AS "teamSecondaryColor",
+                 o.id AS "oppId", o.name AS "oppName", o.logo_url AS "oppLogoUrl",
+                 o.primary_color AS "oppPrimaryColor", o.secondary_color AS "oppSecondaryColor"
+          FROM recurring_closures rc
+          LEFT JOIN team t ON t.id = rc."teamId"
+          LEFT JOIN team o ON o.id = rc."opponentTeamId"
+          WHERE rc.id = ANY($1) AND rc."teamId" IS NOT NULL
+        `,
+        [closureIds],
+      );
+    if (!rows.length) return;
+
+    const byClosure = new Map<string, SubscriberClosureRow>();
+    for (const row of rows) byClosure.set(row.id, row);
+
+    for (const reservation of reservations) {
+      const row = reservation.recurringClosureId
+        ? byClosure.get(reservation.recurringClosureId)
+        : undefined;
+      if (!row?.teamId) continue;
+      reservation.subscriberTeam = {
+        id: row.teamId,
+        name: row.teamName,
+        logoUrl: row.teamLogoUrl,
+        primaryColor: row.teamPrimaryColor,
+        secondaryColor: row.teamSecondaryColor,
+      };
+      reservation.subscriberOpponentTeam = row.oppId
+        ? {
+            id: row.oppId,
+            name: row.oppName,
+            logoUrl: row.oppLogoUrl,
+            primaryColor: row.oppPrimaryColor,
+            secondaryColor: row.oppSecondaryColor,
+          }
+        : null;
+    }
   }
 
   // Bir takımın belirtilen ilan başlangıç saatiyle çakışan onaylanmış (APPROVED) maçı var mı?

@@ -66,6 +66,10 @@ export class ReservationsService {
     return this.recurring.unassignTeamFromClosure(closureId, ownerId);
   }
 
+  sendSubscriptionNote(closureId: string, ownerId: string, note: string) {
+    return this.recurring.sendSubscriptionNote(closureId, ownerId, note);
+  }
+
   findRecurringClosuresByPitch(pitchId: string, ownerId: string) {
     return this.recurring.findRecurringClosuresByPitch(pitchId, ownerId);
   }

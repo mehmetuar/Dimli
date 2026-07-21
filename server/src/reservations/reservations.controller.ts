@@ -91,6 +91,21 @@ export class ReservationsController {
     return this.reservationsService.unassignTeamFromClosure(id, req.user.id);
   }
 
+  // İşletmeden abone sohbetine not — maç sohbetlerindeki :id/business-note ikizi.
+  @UseGuards(JwtAuthGuard)
+  @Post('recurring-closures/:id/note')
+  sendSubscriptionNote(
+    @Param('id') id: string,
+    @Request() req: { user: Express.User },
+    @Body() body: { note: string },
+  ) {
+    return this.reservationsService.sendSubscriptionNote(
+      id,
+      req.user.id,
+      body.note,
+    );
+  }
+
   @UseGuards(JwtAuthGuard)
   @Get('recurring-closures/pitch/:pitchId')
   findRecurringClosuresByPitch(

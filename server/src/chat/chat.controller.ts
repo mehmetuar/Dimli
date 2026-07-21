@@ -56,6 +56,15 @@ export class ChatController {
     return this.chatService.getChannelMatchDetails(id);
   }
 
+  // Abone (SUBSCRIPTION) kanalı detay modalı — katılımcı kontrolü serviste.
+  @Get('channels/:id/subscription-details')
+  getSubscriptionDetails(
+    @Param('id') id: string,
+    @Request() req: { user: Express.User },
+  ) {
+    return this.chatService.getSubscriptionDetails(id, req.user.id);
+  }
+
   @Get('unread-count')
   getUnreadCount(@Request() req: { user: Express.User }) {
     return this.chatService.getUnreadCount(req.user.id);

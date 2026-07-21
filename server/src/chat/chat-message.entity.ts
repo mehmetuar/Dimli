@@ -50,6 +50,9 @@ export type ChatMessageMetadata =
       matchAnnouncementId: string;
       channelId: string;
     }
+  // İşletmenin abone (SUBSCRIPTION) sohbetine düşürdüğü not. BUSINESS_NOTE'un
+  // ikizi ama abonelikte rezervasyon yok → bağ rezervasyona değil kurala kurulur.
+  | { type: 'SUBSCRIPTION_NOTE'; closureId: string }
   | { type: 'MATCH_CONFIRMED'; matchAnnouncementId: string }
   | { type: 'JOKER_NEGOTIATION_STARTED'; matchId: string; jokerId: string }
   | { type: 'JOKER_JOINED'; jokerId: string; invitingTeamId: string | null }

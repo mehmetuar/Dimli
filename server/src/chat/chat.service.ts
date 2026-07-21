@@ -10,13 +10,16 @@ import {
   forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, IsNull, In, LessThan } from 'typeorm';
+import { Repository, IsNull, In, LessThan, MoreThanOrEqual } from 'typeorm';
 import { ChatChannel } from './chat-channel.entity';
 import { ChatMessage } from './chat-message.entity';
 import type { ChatMessageMetadata } from './chat-message.entity';
 import { ChatParticipant } from './chat-participant.entity';
 import { User } from '../users/user.entity';
-import { Reservation } from '../reservations/entities/reservation.entity';
+import {
+  Reservation,
+  ReservationStatus,
+} from '../reservations/entities/reservation.entity';
 import { MatchAnnouncement } from '../match-announcements/match-announcement.entity';
 import { Team } from '../teams/team.entity';
 import { Pitch } from '../pitches/entities/pitch.entity';
@@ -168,6 +171,42 @@ export interface ChannelMatchDetails {
   } | null;
 }
 
+// getSubscriptionDetails yanıt tipi — abone kanalının zengin detay modalı.
+// Takım blokları ChannelMatchTeamData ile AYNI şekli kullanır (client maç
+// modalının bileşenlerini yeniden kullanabilsin diye).
+export interface ChannelSubscriptionDetails {
+  error?: 'NOT_SUBSCRIPTION' | 'CLOSURE_NOT_FOUND';
+  message?: string;
+  // 'single' = kendi aramızda abonelik (tek takım), 'rival' = rakipli abonelik
+  mode?: 'single' | 'rival';
+  homeTeam?: ChannelMatchTeamData | null;
+  awayTeam?: ChannelMatchTeamData | null;
+  subscription?: {
+    closureId: string;
+    dayOfWeek: string; // 'Monday'..'Sunday'
+    startTime: string;
+    endTime: string;
+    nextOccurrence: Date | null;
+  };
+  pitch?: {
+    id: string;
+    name: string;
+    type: string | null;
+    pricePerHour: number | null;
+    business: {
+      id: string;
+      name: string;
+      phone: string | null;
+      ownerPhone: string | null;
+      address: string | null;
+      district: string | null;
+      latitude: number | null;
+      longitude: number | null;
+      isDeleted: boolean;
+    };
+  };
+}
+
 // Maç grubundaki joker kartı (getJokersInChannel).
 export interface JokerInChannel {
   id: string;
@@ -277,6 +316,16 @@ export class ChatService {
   // Kuralın abone kanalını herkes için kaldırır (satır silme; mesaj+katılımcılar
   // CASCADE ile gider) ve katılımcılara channelRemoved yayınlar. Kanal yoksa
   // sessizce döner — atama olmayan kurallarda güvenle çağrılabilir.
+  // Kurala bağlı abone kanalını okur (yoksa null) — işletme notu gibi kanala
+  // yazan akışlar için. deleteSubscriptionChannelByClosure'ın okuma eşdeğeri.
+  async findSubscriptionChannelByClosure(
+    closureId: string,
+  ): Promise<ChatChannel | null> {
+    return this.chatChannelRepository.findOne({
+      where: { relatedClosureId: closureId, type: 'SUBSCRIPTION' },
+    });
+  }
+
   async deleteSubscriptionChannelByClosure(closureId: string): Promise<void> {
     const channel = await this.chatChannelRepository.findOne({
       where: { relatedClosureId: closureId, type: 'SUBSCRIPTION' },
@@ -1217,6 +1266,162 @@ export class ChatService {
               : null,
           }
         : null,
+    };
+  }
+
+  // Abone (SUBSCRIPTION) kanalının detay modalı verisi — getChannelMatchDetails'in
+  // abonelik ikizi. Takım blokları BİREBİR aynı şekli (ChannelMatchTeamData) döner,
+  // böylece client maç modalının bileşenlerini yeniden kullanabilir. Maç yok →
+  // maç/rezervasyon yerine kural (gün+saat) + sıradaki oluşum döner.
+  async getSubscriptionDetails(
+    channelId: string,
+    userId: string,
+  ): Promise<ChannelSubscriptionDetails> {
+    const channel = await this.chatChannelRepository.findOne({
+      where: { id: channelId },
+    });
+    if (!channel) throw new NotFoundException('Sohbet bulunamadı.');
+    if (channel.type !== 'SUBSCRIPTION' || !channel.relatedClosureId) {
+      return {
+        error: 'NOT_SUBSCRIPTION',
+        message: 'Bu sohbet bir abonelikle ilişkili değil.',
+      };
+    }
+
+    // GÜVENLİK: yalnız kanalın katılımcısı detayları görebilir (kaptan telefonu
+    // dahil). match-details ucunda bu kontrol yok; yeni uçta baştan doğru yapılır.
+    const participant = await this.chatParticipantRepository.findOne({
+      where: { channelId, userId, deletedAt: IsNull() },
+    });
+    if (!participant) {
+      throw new ForbiddenException('Bu sohbetin katılımcısı değilsiniz.');
+    }
+
+    interface SubscriptionClosureRow {
+      id: string;
+      dayOfWeek: string;
+      startTime: string;
+      endTime: string;
+      teamId: string | null;
+      opponentTeamId: string | null;
+      pitchId: string;
+      pitchName: string;
+      pitchType: string | null;
+      pricePerHour: number | null;
+      businessId: string;
+      businessName: string;
+      businessPhone: string | null;
+      ownerPhone: string | null;
+      address: string | null;
+      district: string | null;
+      latitude: number | null;
+      longitude: number | null;
+      businessDeletedAt: Date | null;
+    }
+    const rows: SubscriptionClosureRow[] =
+      await this.chatChannelRepository.manager.query(
+        `
+          SELECT rc.id, rc."dayOfWeek", rc."startTime", rc."endTime",
+                 rc."teamId", rc."opponentTeamId",
+                 p.id AS "pitchId", p.name AS "pitchName", p.type AS "pitchType",
+                 p."pricePerHour",
+                 b.id AS "businessId", b.name AS "businessName",
+                 b.phone AS "businessPhone", bo.phone AS "ownerPhone",
+                 b.address, b.district, b.latitude, b.longitude,
+                 b."deletedAt" AS "businessDeletedAt"
+          FROM recurring_closures rc
+          JOIN pitches p ON p.id = rc."pitchId"
+          JOIN businesses b ON b.id = p.business_id
+          LEFT JOIN business_owner bo ON bo."businessId" = b.id
+          WHERE rc.id = $1
+        `,
+        [channel.relatedClosureId],
+      );
+    const closure = rows[0];
+    if (!closure) {
+      return { error: 'CLOSURE_NOT_FOUND', message: 'Abonelik bulunamadı.' };
+    }
+
+    const [homeTeam, awayTeam] = await Promise.all([
+      closure.teamId
+        ? this.teamRepository.findOne({
+            where: { id: closure.teamId },
+            relations: ['captain', 'players'],
+          })
+        : null,
+      closure.opponentTeamId
+        ? this.teamRepository.findOne({
+            where: { id: closure.opponentTeamId },
+            relations: ['captain', 'players'],
+          })
+        : null,
+    ]);
+
+    const matchCounts = await this.ratingsService.getTeamMatchCounts(
+      [homeTeam?.id, awayTeam?.id].filter((id): id is string => !!id),
+    );
+
+    const buildTeamData = (team: Team | null): ChannelMatchTeamData | null => {
+      if (!team) return null;
+      return {
+        id: team.id,
+        name: team.name,
+        logoUrl: team.logoUrl,
+        primaryColor: team.primaryColor,
+        secondaryColor: team.secondaryColor,
+        level: team.level,
+        fairPlayScore: team.fairPlayScore,
+        fairPlayRatingCount: team.fairPlayRatingCount ?? 0,
+        playerCount: team.players?.length || 0,
+        playedMatchCount: matchCounts.get(team.id) ?? 0,
+        captain: team.captain
+          ? {
+              id: team.captain.id,
+              name: team.captain.full_name || team.captain.username,
+              phone: team.captain.phone,
+            }
+          : null,
+      };
+    };
+
+    // Sıradaki oluşum: kurala bağlı, henüz geçmemiş ilk blok rezervasyonu.
+    const nextReservation = await this.reservationRepository.findOne({
+      where: {
+        recurringClosureId: closure.id,
+        status: ReservationStatus.APPROVED,
+        slotTime: MoreThanOrEqual(new Date()),
+      },
+      order: { slotTime: 'ASC' },
+    });
+
+    return {
+      mode: closure.opponentTeamId ? 'rival' : 'single',
+      homeTeam: buildTeamData(homeTeam),
+      awayTeam: buildTeamData(awayTeam),
+      subscription: {
+        closureId: closure.id,
+        dayOfWeek: closure.dayOfWeek,
+        startTime: closure.startTime,
+        endTime: closure.endTime,
+        nextOccurrence: nextReservation?.slotTime ?? null,
+      },
+      pitch: {
+        id: closure.pitchId,
+        name: closure.pitchName,
+        type: closure.pitchType,
+        pricePerHour: closure.pricePerHour,
+        business: {
+          id: closure.businessId,
+          name: closure.businessName,
+          phone: closure.businessPhone,
+          ownerPhone: closure.ownerPhone,
+          address: closure.address,
+          district: closure.district,
+          latitude: closure.latitude,
+          longitude: closure.longitude,
+          isDeleted: !!closure.businessDeletedAt,
+        },
+      },
     };
   }
 
