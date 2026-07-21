@@ -3953,3 +3953,87 @@ yakalama (intro-aktif vs ödeyen-aktif analitiği).
 eklemeli, eski FE yok sayar) → client (yeni native sürüm). Canlı DB'de elle SQL YOK
 (graceUntil'i synchronize ekler; notifications.type varchar — canlıda salt-okunur
 doğrulandı). Doğrulama: 3 paket build + server boot temiz; cihaz/cron senaryoları bekliyor.
+
+### §87. Abone takım deneyiminin zenginleştirilmesi (detay + not + Sahalar) (2026-07-21)
+
+> **İhtiyaç:** §85 abone takım atamasını ve SUBSCRIPTION kanalını getirdi ama deneyim üç noktada
+> yarımdı: işletme atadığı takımı tanımıyordu (yalnız logo+isim çipi), abone sohbetine not
+> gönderemiyordu (not akışı rezervasyona bağlıydı, abonelikte rezervasyon yok), müşteri tarafındaki
+> detay modalı endpoint'siz gün/saat kutusuydu ve Sahalar'da abone saati "İşletme Tarafından
+> Kapalı" görünüyordu.
+
+**Kullanıcı kararları:** Sahalar ızgarasında etiket `SABİT` → `ABONE` (küçük hücreye logo
+konmaz, logo detay modalında); not butonu SÜREKLİ DOLU kartında ayrı buton; müşteri detay
+modalında kaptan telefonu **maç modalıyla aynı** (yeni gizlilik kararı doğurmasın); not
+`BUSINESS_NOTE` gibi push da gönderir.
+
+**Sunucu (4 değişiklik, hepsi EKLEMELİ):**
+- `reservation-recurring.findRecurringClosuresByPitch`: relations'a `team.captain` +
+  `opponentTeam.captain`; atanmış takım id'leri toplanıp **kural sayısından bağımsız sabit 2
+  grouped sorgu** ile `playedMatchCount` + `playerCount` doldurulur (`countPlayedMatchesByTeam` /
+  `countPlayersByTeam` — RatingsService'in ikizi; `ReservationsModule` `RatingsModule`'ü import
+  ETMİYOR, yeni modül bağı yerine mevcut repo kullanıldı). İşletme artık abone takımı rezervasyon
+  isteğindeki kadar tanıyor. Ek endpoint YOK (`closureAssignments` zaten bu ucu çekiyor).
+- `reservation-recurring.sendSubscriptionNote(closureId, ownerId, note)` +
+  `POST /reservations/recurring-closures/:id/note`: `assertNoteWithinLimit(note, 100)` →
+  `assertPitchOwnedBy` → `chatService.findSubscriptionChannelByClosure` (yeni okuma helper'ı) →
+  `sendMessage(channel, null, "{{COMMENT}} {İşletme} Mesajı:\n{not}", isSystem, metadata, skipPush)`
+  → `createSubscriptionNotification` push'u atar (§13/§17 çift push kuralı). **İşletme sahibi
+  SUBSCRIPTION kanalının katılımcısı DEĞİL** → not gerçek mesaj değil `senderId: null` sistem
+  mesajıdır (sendBusinessNote emsali). Yeni metadata varyantı `{ type:'SUBSCRIPTION_NOTE',
+  closureId }` — mevcut `BUSINESS_NOTE` varyantı zorunlu `reservationId` istiyor, abonelikte yok.
+  Client sistem mesajlarını metadata'dan DEĞİL içerik işaretçilerinden render ettiği için eski
+  client'ta zararsız. Atamasız kural → 400, kanal yoksa → 404.
+- `chat.getSubscriptionDetails(channelId, userId)` + `GET /chat/channels/:id/subscription-details`:
+  `getChannelMatchDetails`'in abonelik ikizi. Takım blokları **birebir `ChannelMatchTeamData`**
+  döner (client maç modalının bölümlerini yeniden kullanabilsin). Tek raw sorgu ile kural + saha +
+  işletme (+ `business_owner.phone`); `mode: 'single' | 'rival'`; `nextOccurrence` = kurala bağlı
+  ilk gelecek blok. **Katılımcı kontrolü var** (`ForbiddenException`) — mevcut `match-details`
+  ucunda bu kontrol YOK, yeni uçta baştan doğru yapıldı.
+- `reservation-query.findByPitchAndDateRange` → `attachSubscriberTeams`: `recurringClosureId` dolu
+  satırlara `subscriberTeam` / `subscriberOpponentTeam` iliştirilir (gün başına 1 ek sorgu).
+  **`reservation.team`'e ASLA yazılmaz** — eski client `team` dolu görürse bunu normal dolu maç
+  sanar ve "İşletme Tarafından Kapalı" ekranını kaybederdi (§85 eski-client uyumu). Bu uç giriş
+  yapmış herkese açık olduğu için kaptan/telefon VERİLMEZ; yalnız id+isim+logo+renkler.
+
+**Client — işletme:**
+- `BusinessDashboard/SlotDetailModal`: rezervasyon isteği takım künyesi yerel **`TeamInfoCard`**
+  bileşenine çıkarıldı (logo + isim + kaptan ad/telefon + `telHref` "Kaptanı Ara" + fair play +
+  maç sayısı) ve SÜREKLİ DOLU kartındaki abone çipleri bu künyeyle değiştirildi (`label` prop'u:
+  "Abone Takım" / "Abone Takım (Kendi Aramızda)" / "Rakip Abone Takım"). ~110 satır JSX tekrarı
+  düştü. Buton sırası: Abone Takım Ata/Yönet → **Not Gönder** (yalnız atama varsa) → Sadece Bu
+  Haftayı Boşa Çıkar → Sürekli Kapatmayı Kaldır.
+- Yeni `SubscriptionNoteModal` — **`KeyboardAwareModal`** ile (portalToBody, sabit header/footer):
+  klavye açılınca panel klavyenin üstüne hizalanır, gövde `overflow-y-auto` olduğu için global
+  `useKeyboardScroll` textarea'yı ortalar → **input klavyenin arkasında kalmaz** (kullanıcının açık
+  şartı). İçerik `DashboardActionModals`'ın SEND_NOTE dalıyla aynı: preset seçici +
+  `CharCountTextarea` + `NOTE_CHAR_LIMITS.business` + "Bu notu kaydet"/"Notları Yönet".
+  `useBusinessDashboard`: `subscriptionNoteModal` state + `openSubscriptionNote` (preset'leri
+  `presetNotesLoadedRef` deseniyle lazily yükler) + `handleSendSubscriptionNote`.
+
+**Client — müşteri:**
+- Yeni `Chat/components/SubscriptionDetailModal`: `MatchDetailModal`'ın abonelik ikizi (bottom
+  sheet, portal, z-[80], yeşil üst şerit). Rakipli → iki takım + VS + Takım Karşılaştırması +
+  iki kaptan kartı; tek takım → tek rozet + 3'lü istatistik + tek kaptan kartı. Tür rozeti
+  "Rakipli Abonelik" / "Kendi Aramızda (Tek Takım)". Abonelik Bilgileri: her {Gün}, saat aralığı,
+  sıradaki maç, saha+işletme+tip, mesafe (`useLocationContext`+`calculateDistance`), ilçe+adres,
+  ücret. **Sahayı Ara + Yol Tarifi** (`DirectionsConfirmModal` yeniden kullanıldı).
+  Sunucu detayı gelmezse `avatarData.subscription` **yedeği** ile render olur (eski sunucu/ağ
+  hatasında boş ekran yok). `Chat.tsx`'teki gömülü basit modal kaldırıldı; `handleHeaderTap`
+  artık düz `handleOpenMatchDetail` — ayrım `useChat` içinde (SUBSCRIPTION dalı `relatedMatchId`
+  şartını atlar).
+- `PitchSchedule`: `subscriberTeam` varsa ızgara etiketi `SABİT` yerine **`ABONE`** (hücre yapısı
+  değişmez). `PitchBooking/SlotDetailModal`: abone atanmışsa kart emerald'a döner, başlık "ABONE
+  TAKIM", dolu saatlerdeki takım gösteriminin AYNISI (tek logo / iki logo + VS) + iki rozet:
+  "Abone Takım (Kendi Aramızda)" ve "Sabit Rezervasyon". Abone yoksa eski ekran birebir kalır.
+
+**Doğrulama:** server `npm run build` + eslint ✓; client `tsc --noEmit` (tek bilinen LocationStep
+`window.google` hatası, ilgisiz) + `vite build` ✓. **Yerel DB'de kurulan test grafiğiyle 40 uç
+testi (40/40 geçti):** atama → zenginleşmiş kural listesi (kaptan/telefon/fairplay/maç/kadro),
+yabancı kullanıcı 403, müsaitlik ucunda `subscriberTeam` dolu + `team` hâlâ null + telefon
+sızmıyor, abone detayı single/rival, katılımcı olmayan 403, not sohbete `SUBSCRIPTION_NOTE`
+metadata'sıyla düşüyor, 101 karakter 400, atamasız kurala not 400, atama kaldırılınca alanlar
+kayboluyor. **Canlı DB'de yalnız salt-okunur SELECT** çalıştırıldı (şema+SQL doğrulaması).
+
+**Deploy sırası:** server → client (yeni native sürüm). Canlı DB'de elle SQL YOK — yeni
+kolon/enum eklenmiyor. Gerçek cihaz testi (klavye davranışı, tel:/harita açılışı) bekliyor.
