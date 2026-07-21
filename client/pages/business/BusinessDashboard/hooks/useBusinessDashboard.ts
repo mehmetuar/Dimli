@@ -176,6 +176,57 @@ export const useBusinessDashboard = () => {
 
     const closeAssignSubscriber = () => setAssignModal(prev => ({ ...prev, isOpen: false }));
 
+    // ── Abone sohbetine işletme notu ──
+    const [subscriptionNoteModal, setSubscriptionNoteModal] = useState<{
+        isOpen: boolean;
+        closureId: string | null;
+        dayLabel: string;
+        timeLabel: string;
+        teamNames: string[];
+    }>({ isOpen: false, closureId: null, dayLabel: '', timeLabel: '', teamNames: [] });
+    const [subscriptionNote, setSubscriptionNote] = useState('');
+    const [sendingSubscriptionNote, setSendingSubscriptionNote] = useState(false);
+
+    const openSubscriptionNote = (closureId: string) => {
+        if (!selectedSlot) return;
+        // Hazır notlar yalnız ilk not modalı açılışında çekilir (openActionModal deseni).
+        if (!presetNotesLoadedRef.current) {
+            presetNotesLoadedRef.current = true;
+            void loadPresetNotes();
+        }
+        const closure = closureAssignments[closureId];
+        setSubscriptionNote('');
+        setSubscriptionNoteModal({
+            isOpen: true,
+            closureId,
+            dayLabel: new Date(selectedDate).toLocaleDateString('tr-TR', { weekday: 'long' }),
+            timeLabel: `${selectedSlot.startTime} - ${selectedSlot.endTime}`,
+            teamNames: [closure?.team?.name, closure?.opponentTeam?.name].filter(Boolean) as string[],
+        });
+    };
+
+    const closeSubscriptionNote = () => setSubscriptionNoteModal(prev => ({ ...prev, isOpen: false }));
+
+    const handleSendSubscriptionNote = async () => {
+        const closureId = subscriptionNoteModal.closureId;
+        if (!closureId || !subscriptionNote.trim() || sendingSubscriptionNote) return;
+        setSendingSubscriptionNote(true);
+        try {
+            await api.post(`/reservations/recurring-closures/${closureId}/note`, { note: subscriptionNote });
+            setSubscriptionNoteModal(prev => ({ ...prev, isOpen: false }));
+            setSubscriptionNote('');
+            setSuccessModal({
+                isOpen: true,
+                message: 'Mesajınız abone takıma iletildi.',
+                type: 'MESSAGE_SENT',
+            });
+        } catch (error: any) {
+            alert(`HATA: ${error.response?.data?.message || 'Not gönderilemedi.'}`);
+        } finally {
+            setSendingSubscriptionNote(false);
+        }
+    };
+
     // Atama/kaldırma sonrası: dashboard + kart çipleri tazelenir.
     const handleSubscriberChanged = () => {
         setClosureAssignments({});
@@ -625,6 +676,13 @@ export const useBusinessDashboard = () => {
         closeAssignSubscriber,
         handleSubscriberChanged,
         closureAssignments,
+        subscriptionNoteModal,
+        openSubscriptionNote,
+        closeSubscriptionNote,
+        subscriptionNote,
+        setSubscriptionNote,
+        handleSendSubscriptionNote,
+        sendingSubscriptionNote,
         processing,
         silentRefetch,
         presetNotes,

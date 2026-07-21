@@ -16,6 +16,7 @@ import { DashboardHeader } from './components/DashboardHeader';
 import { PitchGrid } from './components/PitchGrid';
 import { SlotDetailModal } from './components/SlotDetailModal';
 import { AssignSubscriberModal } from './components/AssignSubscriberModal';
+import { SubscriptionNoteModal } from './components/SubscriptionNoteModal';
 import { DashboardActionModals } from './components/DashboardActionModals';
 
 export const BusinessDashboard: React.FC = () => {
@@ -65,6 +66,13 @@ export const BusinessDashboard: React.FC = () => {
         closeAssignSubscriber,
         handleSubscriberChanged,
         closureAssignments,
+        subscriptionNoteModal,
+        openSubscriptionNote,
+        closeSubscriptionNote,
+        subscriptionNote,
+        setSubscriptionNote,
+        handleSendSubscriptionNote,
+        sendingSubscriptionNote,
         processing,
         silentRefetch,
         presetNotes,
@@ -304,6 +312,7 @@ export const BusinessDashboard: React.FC = () => {
                 handleRemoveRecurringClosure={handleRemoveRecurringClosure}
                 closureAssignments={closureAssignments}
                 openAssignSubscriber={openAssignSubscriber}
+                openSubscriptionNote={openSubscriptionNote}
             />
 
             {/* Abone takım atama/yönetme (sabit kapatma → abone chat'i) */}
@@ -315,6 +324,21 @@ export const BusinessDashboard: React.FC = () => {
                 timeLabel={assignModal.timeLabel}
                 onClose={closeAssignSubscriber}
                 onChanged={handleSubscriberChanged}
+            />
+
+            {/* Abone sohbetine işletme notu */}
+            <SubscriptionNoteModal
+                isOpen={subscriptionNoteModal.isOpen}
+                dayLabel={subscriptionNoteModal.dayLabel}
+                timeLabel={subscriptionNoteModal.timeLabel}
+                teamNames={subscriptionNoteModal.teamNames}
+                note={subscriptionNote}
+                setNote={setSubscriptionNote}
+                onClose={closeSubscriptionNote}
+                onSubmit={handleSendSubscriptionNote}
+                processing={sendingSubscriptionNote}
+                presetNotes={presetNotes}
+                savePresetFromNote={savePresetFromNote}
             />
 
             {/* General Action Modal (Approve or Note) */}

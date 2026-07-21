@@ -196,8 +196,11 @@ export const PitchSchedule: React.FC<PitchScheduleProps> = ({
                     else if (approvedReservation) {
                         const isBusinessClosed = approvedReservation.type === 'DIRECT' && !approvedReservation.team;
                         const isRecurringClosed = isBusinessClosed && !!approvedReservation.recurringClosureId;
+                        // Sabit kapatmaya abone takım atanmışsa saat "kapalı" değil,
+                        // bir takıma ait: etiket ABONE olur, detay modalı takımı gösterir.
+                        const hasSubscriber = isRecurringClosed && !!approvedReservation.subscriberTeam;
                         slotClass = 'bg-red-900/20 border-red-900/50 text-red-700 cursor-pointer hover:opacity-80';
-                        label = isRecurringClosed ? 'SABİT' : isBusinessClosed ? 'KAPALI' : 'DOLU';
+                        label = hasSubscriber ? 'ABONE' : isRecurringClosed ? 'SABİT' : isBusinessClosed ? 'KAPALI' : 'DOLU';
                         action = () => openSlotDetail(slot.startTime, slot.endTime || '', [], [], approvedReservation);
                     } else if (hasPending) {
                         slotClass = 'bg-orange-900/20 border-orange-500/50 text-orange-400 cursor-pointer hover:border-turf-500';

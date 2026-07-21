@@ -35,6 +35,10 @@ export const useChat = () => {
     const [isMatchDetailOpen, setIsMatchDetailOpen] = useState(false);
     const [isJokerDMInfoOpen, setIsJokerDMInfoOpen] = useState(false);
     const [isMatchDetailLoading, setIsMatchDetailLoading] = useState(false);
+    // Abone (sabit rezervasyon) kanalı detay modalı
+    const [subscriptionDetailData, setSubscriptionDetailData] = useState<any>(null);
+    const [isSubscriptionDetailOpen, setIsSubscriptionDetailOpen] = useState(false);
+    const [isSubscriptionDetailLoading, setIsSubscriptionDetailLoading] = useState(false);
 
     // currentUserStore'dan senkron oku — localStorage önbelleği varsa ilk render'da dolu gelir,
     // böylece kanallar açılırken "Mehmet Uçar" → "Sen" flash'ı olmaz.
@@ -306,8 +310,30 @@ export const useChat = () => {
         fetchMatchDetailData(selectedChannelId);
     }, [selectedChannelId, activeChannel?.relatedMatchId, fetchMatchDetailData]);
 
+    // Abone (SUBSCRIPTION) kanalının detayı — maç detayının ikizi. Kanalın
+    // relatedMatchId'si olmadığı için ayrı uçtan çekilir; hata/eski sunucu
+    // durumunda modal avatarData.subscription yedeğiyle render olur.
+    const fetchSubscriptionDetailData = useCallback(async (channelId: string) => {
+        try {
+            const response = await api.get(`/chat/channels/${channelId}/subscription-details`);
+            setSubscriptionDetailData(response.data?.error ? null : response.data);
+        } catch (error) {
+            console.error('Failed to fetch subscription details:', error);
+            setSubscriptionDetailData(null);
+        }
+    }, []);
+
     const handleOpenMatchDetail = async () => {
-        if (!selectedChannelId || !activeChannel?.relatedMatchId) return;
+        if (!selectedChannelId) return;
+        // Abone kanalı: maç yok, abonelik detay modalı açılır.
+        if (activeChannel?.type === 'SUBSCRIPTION') {
+            setIsSubscriptionDetailOpen(true);
+            setIsSubscriptionDetailLoading(true);
+            await fetchSubscriptionDetailData(selectedChannelId);
+            setIsSubscriptionDetailLoading(false);
+            return;
+        }
+        if (!activeChannel?.relatedMatchId) return;
         if (activeChannel.type === 'JOKER_NEGOTIATION') {
             setIsJokerDMInfoOpen(true);
         } else {
@@ -484,6 +510,9 @@ export const useChat = () => {
         isMatchDetailOpen, setIsMatchDetailOpen,
         isJokerDMInfoOpen, setIsJokerDMInfoOpen,
         isMatchDetailLoading, setIsMatchDetailLoading,
+        subscriptionDetailData,
+        isSubscriptionDetailOpen, setIsSubscriptionDetailOpen,
+        isSubscriptionDetailLoading,
         optionsModalChannel, setOptionsModalChannel,
         isDeleting, setIsDeleting,
         isChatMenuOpen, setIsChatMenuOpen,

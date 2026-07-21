@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useMemo } from 'react';
-import { Send, ChevronLeft, Users, Shield, Star, Phone, ArrowDown, Swords, MoreVertical, X, ChevronRight, Trash2, XCircle, AlertTriangle, Undo2, UserMinus, UserPlus, RefreshCw, CheckCircle, MessageCircle, Repeat, MapPin } from 'lucide-react';
+import { Send, ChevronLeft, Users, Shield, Star, Phone, ArrowDown, Swords, MoreVertical, X, ChevronRight, Trash2, XCircle, AlertTriangle, Undo2, UserMinus, UserPlus, RefreshCw, CheckCircle, MessageCircle, Repeat } from 'lucide-react';
 import { useChat } from './hooks/useChat';
 import { useMessageActions } from './hooks/useMessageActions';
 import { OfflineEmptyState } from '../../../components/OfflineEmptyState';
@@ -17,6 +17,7 @@ import api from '../../../services/api';
 import { KendiAramizdaMatchModal } from './components/KendiAramizdaMatchModal';
 import { InviteJokerModal } from '../../../components/Modals/InviteJokerModal';
 import { MatchDetailModal } from './components/MatchDetailModal';
+import { SubscriptionDetailModal } from './components/SubscriptionDetailModal';
 import { RematchProposalModal } from './components/RematchProposalModal';
 import { ConfirmModal } from '../../../components/Modals/ConfirmModal';
 import { SuccessModal } from '../../../components/Modals/SuccessModal';
@@ -48,6 +49,7 @@ export const Chat: React.FC = () => {
     setConfirmAction, setConfirmTitle, setConfirmMessage, setConfirmIsDangerous, setConfirmButtonText,
     successModalOpen, setSuccessModalOpen, successModalMessage, successModalType,
     banModalExpiry, setBanModalExpiry,
+    subscriptionDetailData, isSubscriptionDetailOpen, setIsSubscriptionDetailOpen, isSubscriptionDetailLoading,
     handleSend, handleDeleteChannel, handleOpenMatchDetail,
     handleCancelMatch, handleCancelRequest, handleUndoCancelRequest,
     handleAcceptProposal, handleAcceptRematch, handleInviteJokerToMatch, handleCancelJokerNegotiation,
@@ -145,19 +147,10 @@ export const Chat: React.FC = () => {
     };
   }, [activeChannel]);
 
-  // Abone kanalı başlığına dokununca açılan basit bilgi modalı — veri tamamen
-  // avatarData.subscription'dan gelir, ek endpoint yok.
-  const [isSubscriptionInfoOpen, setIsSubscriptionInfoOpen] = React.useState(false);
-  const SUB_DAY_LABELS: Record<string, string> = {
-    Monday: 'Pazartesi', Tuesday: 'Salı', Wednesday: 'Çarşamba', Thursday: 'Perşembe',
-    Friday: 'Cuma', Saturday: 'Cumartesi', Sunday: 'Pazar',
-  };
+  // Başlığa/logoya dokunma: abone kanalında abonelik detayı, diğerlerinde maç
+  // detayı açılır — ayrım handleOpenMatchDetail içinde (useChat).
   const handleHeaderTap = () => {
-    if (activeChannel?.type === 'SUBSCRIPTION') {
-      setIsSubscriptionInfoOpen(true);
-    } else {
-      handleOpenMatchDetail();
-    }
+    handleOpenMatchDetail();
   };
 
   const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
@@ -448,46 +441,14 @@ export const Chat: React.FC = () => {
         currentUser={currentUser}
       />
 
-      {/* Abone kanalı bilgi modalı — veri avatarData.subscription'dan (endpoint yok) */}
-      {isSubscriptionInfoOpen && activeChannel?.type === 'SUBSCRIPTION' && (() => {
-        const sub = (activeChannel?.avatarData as any)?.subscription;
-        if (!sub) return null;
-        return (
-          <div className="fixed inset-0 bg-black/80 z-[80] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setIsSubscriptionInfoOpen(false)}>
-            <div className="bg-slate-800 w-[min(calc(100vw-2rem),380px)] rounded-2xl border border-emerald-500/20 p-5 animate-scale-in shadow-2xl" onClick={(e) => e.stopPropagation()}>
-              <div className="flex justify-between items-start mb-4">
-                <h3 className="text-white font-black text-base flex items-center gap-2">
-                  <Repeat className="w-5 h-5 text-emerald-400 shrink-0" />
-                  Sabit Rezervasyon Aboneliği
-                </h3>
-                <button onClick={() => setIsSubscriptionInfoOpen(false)} className="p-1.5 bg-slate-700/50 rounded-full text-slate-300">
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-              <div className="space-y-3">
-                <div className="bg-slate-900/60 rounded-xl p-3 border border-slate-700/50">
-                  <div className="text-[10px] text-slate-500 font-bold uppercase mb-1 flex items-center gap-1">
-                    <MapPin className="w-3 h-3" /> Saha
-                  </div>
-                  <div className="text-white font-bold text-sm">{sub.businessName}</div>
-                  {sub.pitchName && sub.pitchName !== sub.businessName && (
-                    <div className="text-slate-400 text-xs mt-0.5">{sub.pitchName}</div>
-                  )}
-                </div>
-                <div className="bg-emerald-500/10 rounded-xl p-3 border border-emerald-500/25">
-                  <div className="text-[10px] text-emerald-400 font-bold uppercase mb-1">Abonelik Saati</div>
-                  <div className="text-white font-black text-sm">
-                    Her {SUB_DAY_LABELS[sub.dayOfWeek] || sub.dayOfWeek} {sub.startTime} – {sub.endTime}
-                  </div>
-                </div>
-                <p className="text-slate-400 text-[11px] leading-relaxed">
-                  Bu sohbet, işletme tarafından takımınıza atanan sabit rezervasyon aboneliğine bağlıdır ve işletme aboneliği sonlandırana kadar açık kalır.
-                </p>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
+      {/* Abone kanalı detay modalı — sunucu verisi + avatarData.subscription yedeği */}
+      <SubscriptionDetailModal
+        isOpen={isSubscriptionDetailOpen}
+        onClose={() => setIsSubscriptionDetailOpen(false)}
+        data={subscriptionDetailData}
+        fallback={(activeChannel?.avatarData as any)?.subscription ?? null}
+        loading={isSubscriptionDetailLoading}
+      />
 
       {/* Spacer */}
       <div className="bg-slate-900 w-full flex-shrink-0 pt-safe-top" />

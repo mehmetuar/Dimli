@@ -41,6 +41,11 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
     const isFull = !!approvedReservation;
     const isClosed = approvedReservation?.type === 'DIRECT' && !approvedReservation?.team;
     const isRecurringClosed = isClosed && !!approvedReservation?.recurringClosureId;
+    // Sabit kapatmaya atanmış abone takım(lar) — sunucu subscriberTeam/
+    // subscriberOpponentTeam alanlarını EKLEMELİ döndürür (reservation.team
+    // boş kalır, eski client'lar etkilenmez).
+    const subscriberTeam = isRecurringClosed ? approvedReservation?.subscriberTeam : null;
+    const subscriberOpponentTeam = subscriberTeam ? approvedReservation?.subscriberOpponentTeam : null;
 
     return (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in" onClick={onClose}>
@@ -69,8 +74,12 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                     {isFull ? (
                         /* FULL STATE */
                         <div className="text-center py-4">
-                            <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-6 mb-4">
-                                {isClosed ? (
+                            <div className={`border rounded-2xl p-6 mb-4 ${subscriberTeam
+                                ? 'bg-emerald-500/10 border-emerald-500/30'
+                                : 'bg-red-500/10 border-red-500/30'}`}>
+                                {subscriberTeam ? (
+                                    <h3 className="text-emerald-400 font-black text-xl italic uppercase mb-2">ABONE TAKIM</h3>
+                                ) : isClosed ? (
                                     <h3 className="text-red-400 font-black text-xl italic uppercase mb-2">KAPALI</h3>
                                 ) : (
                                     <>
@@ -80,7 +89,35 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                                 )}
 
                                 <div className="flex items-center justify-center gap-4">
-                                    {approvedReservation.type === 'DIRECT' && !approvedReservation.team ? (
+                                    {/* Abone takım: dolu saatlerdeki takım gösteriminin aynısı */}
+                                    {subscriberTeam ? (
+                                        subscriberOpponentTeam ? (
+                                            <>
+                                                <div className="text-center flex-1">
+                                                    <div className="w-16 h-16 bg-slate-800 rounded-full mx-auto mb-2 border-2 border-emerald-500/40 overflow-hidden relative flex items-center justify-center">
+                                                        <img src={teamLogoSrc(subscriberTeam)} alt={subscriberTeam.name} className="w-full h-full object-cover" onError={(e) => { const el = e.currentTarget; el.onerror = null; el.src = teamInitialsAvatar(subscriberTeam.name); }} />
+                                                    </div>
+                                                    <div className="font-bold text-white text-sm">{subscriberTeam.name}</div>
+                                                </div>
+
+                                                <div className="text-2xl font-black text-slate-500 italic px-2">VS</div>
+
+                                                <div className="text-center flex-1">
+                                                    <div className="w-16 h-16 bg-slate-800 rounded-full mx-auto mb-2 border-2 border-emerald-500/40 overflow-hidden relative flex items-center justify-center">
+                                                        <img src={teamLogoSrc(subscriberOpponentTeam)} alt={subscriberOpponentTeam.name} className="w-full h-full object-cover" onError={(e) => { const el = e.currentTarget; el.onerror = null; el.src = teamInitialsAvatar(subscriberOpponentTeam.name); }} />
+                                                    </div>
+                                                    <div className="font-bold text-white text-sm">{subscriberOpponentTeam.name}</div>
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <div className="flex flex-col items-center justify-center gap-2">
+                                                <div className="w-20 h-20 bg-slate-800 rounded-full mx-auto mb-2 border-2 border-emerald-500/50 flex items-center justify-center shadow-[0_0_15px_rgba(16,185,129,0.15)] relative overflow-hidden">
+                                                    <img src={teamLogoSrc(subscriberTeam)} alt={subscriberTeam.name} className="w-full h-full object-cover" onError={(e) => { const el = e.currentTarget; el.onerror = null; el.src = teamInitialsAvatar(subscriberTeam.name); }} />
+                                                </div>
+                                                <div className="font-bold text-white text-lg uppercase tracking-wider text-center">{subscriberTeam.name}</div>
+                                            </div>
+                                        )
+                                    ) : approvedReservation.type === 'DIRECT' && !approvedReservation.team ? (
                                         <div className="flex flex-col items-center justify-center gap-2 w-full pt-4 pb-2">
                                             <div className="w-20 h-20 bg-slate-800/80 rounded-full mx-auto mb-3 border-2 border-slate-600/50 flex items-center justify-center shadow-[0_0_15px_rgba(255,255,255,0.05)] relative overflow-hidden">
                                                 {isRecurringClosed ? (
@@ -135,6 +172,19 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                                         </>
                                     )}
                                 </div>
+
+                                {/* Abone takım rozetleri: hem abonelik hem sabit rezervasyon olduğu belirtilir */}
+                                {subscriberTeam && (
+                                    <div className="flex items-center justify-center gap-2 flex-wrap mt-4">
+                                        <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/30 flex items-center gap-1">
+                                            <Repeat className="w-3 h-3 shrink-0" />
+                                            {subscriberOpponentTeam ? 'Abone Takım' : 'Abone Takım (Kendi Aramızda)'}
+                                        </span>
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-700/50 px-3 py-1 rounded-full border border-slate-600/50">
+                                            Sabit Rezervasyon
+                                        </span>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     ) : (

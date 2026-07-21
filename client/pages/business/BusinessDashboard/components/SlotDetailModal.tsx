@@ -12,6 +12,69 @@ const formatRequestTime = (createdAt?: string): string => {
     return `${d.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })} ${d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}`;
 };
 
+// Takım künyesi: logo + isim + kaptan (ad, telefon, "Kaptanı Ara") + fair play
+// ve oynanan maç sayısı. Rezervasyon isteklerinde ve abone takım kartında AYNI
+// bileşen kullanılır — işletme her iki durumda da aynı bilgiye ulaşır.
+const TeamInfoCard: React.FC<{ team: any; label?: string }> = ({ team, label }) => (
+    <div className="flex items-start gap-4 mb-4">
+        <div className="w-14 h-14 bg-slate-900 rounded-full border-2 border-slate-600 flex items-center justify-center overflow-hidden shrink-0">
+            {team ? (
+                <img src={teamLogoSrc(team)} alt={team?.name} className="w-full h-full object-cover" onError={(e) => { const el = e.currentTarget; el.onerror = null; el.src = teamInitialsAvatar(team?.name); }} />
+            ) : (
+                <Users className="w-6 h-6 text-slate-500" />
+            )}
+        </div>
+        <div className="flex-1 min-w-0">
+            {label && (
+                <div className="text-[10px] text-emerald-400 font-black uppercase tracking-wider mb-0.5">{label}</div>
+            )}
+            <div className="font-sport font-black text-[clamp(0.95rem,4.5vw,1.125rem)] text-white italic truncate">{team?.name || 'Bilinmeyen Takım'}</div>
+            <div className="bg-slate-900/50 rounded-lg p-[clamp(0.5rem,2vw,0.625rem)] mt-1 border border-slate-700/50">
+                <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                        <div className="text-[10px] text-slate-500 font-bold uppercase mb-0.5">Kaptan</div>
+                        <div className="text-sm font-bold text-slate-200 truncate">{team?.captain?.full_name || 'Bilinmiyor'}</div>
+                        <div className="text-xs text-slate-400 font-mono mt-0.5 flex items-center gap-1">
+                            <Phone className="w-3 h-3" />
+                            {team?.captain?.phone || 'Tel Yok'}
+                        </div>
+                    </div>
+                    {team?.captain?.phone && (
+                        <a
+                            href={telHref(team.captain.phone)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="w-10 h-10 rounded-full bg-orange-500/15 border border-orange-500/30 text-orange-400 flex items-center justify-center shrink-0 active:scale-95 transition-all"
+                            title="Kaptanı Ara"
+                        >
+                            <PhoneCall className="w-4 h-4" />
+                        </a>
+                    )}
+                </div>
+                <div className="flex gap-3 mt-2 pt-2 border-t border-slate-700/50">
+                    <div className="flex items-center gap-1" title="Fair Play Skoru">
+                        <Star className="w-3 h-3 text-green-500 fill-green-500/20" />
+                        <span className="text-[10px] font-bold text-slate-300">{team?.fairPlayScore ?? '0.0'}</span>
+                    </div>
+                    <div className="flex items-center gap-1" title="Oynadığı Maç Sayısı">
+                        <Trophy className="w-3 h-3 text-blue-400" />
+                        <span className="text-[10px] font-bold text-slate-300">{team?.playedMatchCount || 0} Maç</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+);
+
+// İki takım kartı arasındaki ayırıcı.
+const VsDivider: React.FC = () => (
+    <div className="relative flex items-center justify-center py-2 mb-4">
+        <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-slate-700/50"></div>
+        </div>
+        <div className="relative bg-slate-800 px-3 text-slate-500 font-black italic">VS</div>
+    </div>
+);
+
 interface SlotDetailModalProps {
     selectedDate: string;
     selectedSlot: any;
@@ -27,6 +90,7 @@ interface SlotDetailModalProps {
     // Abone takım ataması: kural id → kural (team/opponentTeam ilişkileriyle)
     closureAssignments: Record<string, any>;
     openAssignSubscriber: (closureId: string) => void;
+    openSubscriptionNote: (closureId: string) => void;
 }
 
 export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
@@ -42,7 +106,8 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
     handleRecurringCloseSlot,
     handleRemoveRecurringClosure,
     closureAssignments,
-    openAssignSubscriber
+    openAssignSubscriber,
+    openSubscriptionNote
 }) => {
     const [playerWarning, setPlayerWarning] = React.useState<{
         isOpen: boolean; message: string; reservationId: string;
@@ -119,31 +184,32 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                                                 ? 'Bu saat sürekli kapatma kuralı nedeniyle her hafta otomatik olarak kapatılıyor.'
                                                 : 'Bu saat işletme tarafından manuel olarak kapatılmıştır.'}
                                         </p>
-                                        {/* Abone takım ataması — atanmış takım çipleri (varsa) */}
+                                        {/* Abone takım ataması — rezervasyon isteğindeki künyenin aynısı
+                                            (kaptan + telefon + arama + fair play + maç sayısı) */}
                                         {res.recurringClosureId && closureAssignments[res.recurringClosureId]?.team && (
-                                            <div className="w-full px-4 mb-4">
+                                            <div className="w-full px-4 mb-4 text-left">
                                                 <div className="bg-emerald-500/10 border border-emerald-500/25 rounded-xl p-3">
-                                                    <div className="text-[10px] text-emerald-400 font-black uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                                                        <Users className="w-3.5 h-3.5 shrink-0" />
-                                                        Abone Takım
-                                                    </div>
-                                                    <div className="flex items-center gap-2 flex-wrap">
-                                                        {[closureAssignments[res.recurringClosureId].team, closureAssignments[res.recurringClosureId].opponentTeam]
-                                                            .filter(Boolean)
-                                                            .map((t: any, i: number) => (
-                                                                <React.Fragment key={t.id}>
-                                                                    {i > 0 && <span className="text-slate-500 font-black italic text-[11px]">VS</span>}
-                                                                    <span className="inline-flex items-center gap-1.5 bg-slate-900/60 border border-slate-600/60 rounded-full pl-1 pr-3 py-1">
-                                                                        <img
-                                                                            src={teamLogoSrc(t)}
-                                                                            alt={t.name}
-                                                                            className="w-5 h-5 rounded-full object-cover"
-                                                                            onError={(e) => { const el = e.currentTarget; el.onerror = null; el.src = teamInitialsAvatar(t.name); }}
-                                                                        />
-                                                                        <span className="text-white text-[11px] font-bold truncate max-w-[110px]">{t.name}</span>
-                                                                    </span>
-                                                                </React.Fragment>
-                                                            ))}
+                                                    <TeamInfoCard
+                                                        team={closureAssignments[res.recurringClosureId].team}
+                                                        label={closureAssignments[res.recurringClosureId].opponentTeam ? 'Abone Takım' : 'Abone Takım (Kendi Aramızda)'}
+                                                    />
+                                                    {closureAssignments[res.recurringClosureId].opponentTeam && (
+                                                        <>
+                                                            <div className="relative flex items-center justify-center py-2 mb-4">
+                                                                <div className="absolute inset-0 flex items-center">
+                                                                    <div className="w-full border-t border-slate-700/50"></div>
+                                                                </div>
+                                                                <div className="relative bg-slate-800 px-3 text-slate-500 font-black italic">VS</div>
+                                                            </div>
+                                                            <TeamInfoCard
+                                                                team={closureAssignments[res.recurringClosureId].opponentTeam}
+                                                                label="Rakip Abone Takım"
+                                                            />
+                                                        </>
+                                                    )}
+                                                    <div className="-mt-2 text-[10px] text-emerald-400/80 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                                                        <Repeat className="w-3 h-3 shrink-0" />
+                                                        Her hafta bu saate abone
                                                     </div>
                                                 </div>
                                             </div>
@@ -158,6 +224,16 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                                                     <Users className="w-[clamp(0.9rem,3.5vw,1.1rem)] h-[clamp(0.9rem,3.5vw,1.1rem)] shrink-0" />
                                                     <span>{closureAssignments[res.recurringClosureId]?.team ? 'Aboneyi Yönet' : 'Abone Takım Ata'}</span>
                                                 </button>
+                                                {/* Abone sohbetine not — yalnız atama varsa (kanal o zaman var) */}
+                                                {closureAssignments[res.recurringClosureId]?.team && (
+                                                    <button
+                                                        onClick={() => openSubscriptionNote(res.recurringClosureId)}
+                                                        className="w-full bg-slate-700 hover:bg-slate-600 text-white py-[clamp(0.6rem,2.5vw,0.75rem)] rounded-xl font-bold text-[clamp(0.7rem,3.5vw,0.875rem)] transition-all flex items-center justify-center gap-2"
+                                                    >
+                                                        <MessageSquare className="w-[clamp(0.9rem,3.5vw,1.1rem)] h-[clamp(0.9rem,3.5vw,1.1rem)] text-orange-400 shrink-0" />
+                                                        <span>Not Gönder</span>
+                                                    </button>
+                                                )}
                                                 <button
                                                     onClick={() => handleCancelClick(res.id)}
                                                     className="w-full bg-slate-700/50 hover:bg-slate-600 text-white py-[clamp(0.6rem,2.5vw,0.75rem)] rounded-xl font-bold text-[clamp(0.7rem,3.5vw,0.875rem)] transition-all flex items-center justify-center gap-2 border border-slate-600/50"
@@ -188,60 +264,10 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                                 ) : (
                                     <>
                                         {/* TEAM 1 (Requester) */}
-                                        <div className="flex items-start gap-4 mb-4">
-                                            <div className="w-14 h-14 bg-slate-900 rounded-full border-2 border-slate-600 flex items-center justify-center overflow-hidden shrink-0">
-                                                {res.team ? (
-                                                    <img src={teamLogoSrc(res.team)} alt={res.team?.name} className="w-full h-full object-cover" onError={(e) => { const el = e.currentTarget; el.onerror = null; el.src = teamInitialsAvatar(res.team?.name); }} />
-                                                ) : (
-                                                    <Users className="w-6 h-6 text-slate-500" />
-                                                )}
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="font-sport font-black text-[clamp(0.95rem,4.5vw,1.125rem)] text-white italic truncate">{res.team?.name || 'Bilinmeyen Takım'}</div>
-                                                <div className="bg-slate-900/50 rounded-lg p-[clamp(0.5rem,2vw,0.625rem)] mt-1 border border-slate-700/50">
-                                                    <div className="flex items-start justify-between gap-2">
-                                                        <div className="min-w-0 flex-1">
-                                                            <div className="text-[10px] text-slate-500 font-bold uppercase mb-0.5">Kaptan</div>
-                                                            <div className="text-sm font-bold text-slate-200 truncate">{res.team?.captain?.full_name || 'Bilinmiyor'}</div>
-                                                            <div className="text-xs text-slate-400 font-mono mt-0.5 flex items-center gap-1">
-                                                                <Phone className="w-3 h-3" />
-                                                                {res.team?.captain?.phone || 'Tel Yok'}
-                                                            </div>
-                                                        </div>
-                                                        {res.team?.captain?.phone && (
-                                                            <a
-                                                                href={telHref(res.team.captain.phone)}
-                                                                onClick={(e) => e.stopPropagation()}
-                                                                className="w-10 h-10 rounded-full bg-orange-500/15 border border-orange-500/30 text-orange-400 flex items-center justify-center shrink-0 active:scale-95 transition-all"
-                                                                title="Kaptanı Ara"
-                                                            >
-                                                                <PhoneCall className="w-4 h-4" />
-                                                            </a>
-                                                        )}
-                                                    </div>
-                                                    <div className="flex gap-3 mt-2 pt-2 border-t border-slate-700/50">
-                                                        <div className="flex items-center gap-1" title="Fair Play Skoru">
-                                                            <Star className="w-3 h-3 text-green-500 fill-green-500/20" />
-                                                            <span className="text-[10px] font-bold text-slate-300">{res.team?.fairPlayScore || '0.0'}</span>
-                                                        </div>
-                                                        <div className="flex items-center gap-1" title="Oynadığı Maç Sayısı">
-                                                            <Trophy className="w-3 h-3 text-blue-400" />
-                                                            <span className="text-[10px] font-bold text-slate-300">{res.team?.playedMatchCount || 0} Maç</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
+                                        <TeamInfoCard team={res.team} />
 
                                         {/* VS Badge if Opponent Exists or if Kendi Aramızda indicated */}
-                                        {res.opponentTeam && (
-                                            <div className="relative flex items-center justify-center py-2 mb-4">
-                                                <div className="absolute inset-0 flex items-center">
-                                                    <div className="w-full border-t border-slate-700/50"></div>
-                                                </div>
-                                                <div className="relative bg-slate-800 px-3 text-slate-500 font-black italic">VS</div>
-                                            </div>
-                                        )}
+                                        {res.opponentTeam && <VsDivider />}
                                         {!res.opponentTeam && res.matchAnnouncement?.matchType === 'kendi_aramizda' && (
                                             <div className="relative flex items-center justify-center py-2 mb-4">
                                                 <div className="absolute inset-0 flex items-center">
@@ -254,52 +280,7 @@ export const SlotDetailModal: React.FC<SlotDetailModalProps> = ({
                                         )}
 
                                         {/* TEAM 2 (Opponent) - If exists */}
-                                        {res.opponentTeam && (
-                                            <div className="flex items-start gap-4 mb-4">
-                                                <div className="w-14 h-14 bg-slate-900 rounded-full border-2 border-slate-600 flex items-center justify-center overflow-hidden shrink-0">
-                                                    {res.opponentTeam ? (
-                                                        <img src={teamLogoSrc(res.opponentTeam)} alt={res.opponentTeam?.name} className="w-full h-full object-cover" onError={(e) => { const el = e.currentTarget; el.onerror = null; el.src = teamInitialsAvatar(res.opponentTeam?.name); }} />
-                                                    ) : (
-                                                        <Users className="w-6 h-6 text-slate-500" />
-                                                    )}
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="font-sport font-black text-[clamp(0.95rem,4.5vw,1.125rem)] text-white italic truncate">{res.opponentTeam?.name}</div>
-                                                    <div className="bg-slate-900/50 rounded-lg p-[clamp(0.5rem,2vw,0.625rem)] mt-1 border border-slate-700/50">
-                                                        <div className="flex items-start justify-between gap-2">
-                                                            <div className="min-w-0 flex-1">
-                                                                <div className="text-[10px] text-slate-500 font-bold uppercase mb-0.5">Kaptan</div>
-                                                                <div className="text-sm font-bold text-slate-200 truncate">{res.opponentTeam?.captain?.full_name || 'Bilinmiyor'}</div>
-                                                                <div className="text-xs text-slate-400 font-mono mt-0.5 flex items-center gap-1">
-                                                                    <Phone className="w-3 h-3" />
-                                                                    {res.opponentTeam?.captain?.phone || 'Tel Yok'}
-                                                                </div>
-                                                            </div>
-                                                            {res.opponentTeam?.captain?.phone && (
-                                                                <a
-                                                                    href={telHref(res.opponentTeam.captain.phone)}
-                                                                    onClick={(e) => e.stopPropagation()}
-                                                                    className="w-10 h-10 rounded-full bg-orange-500/15 border border-orange-500/30 text-orange-400 flex items-center justify-center shrink-0 active:scale-95 transition-all"
-                                                                    title="Kaptanı Ara"
-                                                                >
-                                                                    <PhoneCall className="w-4 h-4" />
-                                                                </a>
-                                                            )}
-                                                        </div>
-                                                        <div className="flex gap-3 mt-2 pt-2 border-t border-slate-700/50">
-                                                            <div className="flex items-center gap-1" title="Fair Play Skoru">
-                                                                <Star className="w-3 h-3 text-green-500 fill-green-500/20" />
-                                                                <span className="text-[10px] font-bold text-slate-300">{res.opponentTeam?.fairPlayScore || '0.0'}</span>
-                                                            </div>
-                                                            <div className="flex items-center gap-1" title="Oynadığı Maç Sayısı">
-                                                                <Trophy className="w-3 h-3 text-blue-400" />
-                                                                <span className="text-[10px] font-bold text-slate-300">{res.opponentTeam?.playedMatchCount || 0} Maç</span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
+                                        {res.opponentTeam && <TeamInfoCard team={res.opponentTeam} />}
 
                                         {/* STATUS & ACTIONS */}
                                         <div className="mt-4 pt-4 border-t border-slate-700/50">
