@@ -44,6 +44,7 @@ export interface AnnouncementPitchSummary {
   name: string;
   pricePerHour: number | null;
   imageUrl: string | null;
+  type: string | null;
   endTime: string | null;
   business: {
     id: string;
@@ -63,6 +64,7 @@ export interface MarketplaceRawRow {
   pitch_name: string;
   price_per_hour: number | null;
   pitch_image_url: string | null;
+  pitch_type: string | null;
   end_time: string | null;
   business_id: string;
   business_name: string;
@@ -459,6 +461,7 @@ export class MatchAnnouncementsService {
                     p.name             AS pitch_name,
                     p."pricePerHour"   AS price_per_hour,
                     p."imageUrl"       AS pitch_image_url,
+                    p."type"           AS pitch_type,
                     (SELECT ts."endTime" FROM time_slots ts
                       WHERE ts."pitchId" = p.id AND ts."startTime" = ma.time
                       LIMIT 1)         AS end_time,
@@ -582,6 +585,7 @@ export class MatchAnnouncementsService {
               pricePerHour:
                 row.price_per_hour != null ? Number(row.price_per_hour) : null,
               imageUrl: row.pitch_image_url ?? null,
+              type: row.pitch_type ?? null,
               endTime: row.end_time ?? null,
               business: {
                 id: row.business_id,
