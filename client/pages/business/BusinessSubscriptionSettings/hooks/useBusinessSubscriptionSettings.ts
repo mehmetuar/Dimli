@@ -4,7 +4,7 @@ import { Capacitor } from '@capacitor/core';
 import { useAuth } from '../../../../contexts/AuthContext';
 import api from '../../../../services/api';
 import { getOwnerId } from '../../../../services/authStorage';
-import { purchasePlan, linkRevenueCatUser, restoreRevenueCatPurchases, purchaseErrorToTurkish } from '../../../../services/revenuecatService';
+import { purchasePlan, linkRevenueCatUser, restoreRevenueCatPurchases, purchaseErrorToTurkish, getActiveEntitlementInfo } from '../../../../services/revenuecatService';
 import { getErrorMessage } from '../../../../utils/apiError';
 import { SUBSCRIPTION_PLANS } from '../../BusinessRegister/hooks/useBusinessRegister';
 import { PLAN_ENTRIES } from '../utils';
@@ -43,18 +43,31 @@ export const useBusinessSubscriptionSettings = () => {
     // işlem satın alma tamamlanınca schedule-downgrade'de sunucuda yapılır.
     const selectedPitchIdsRef = useRef<string[]>([]);
     const downgradePurchaseRef = useRef<string | null>(null);
+    // Satın alma tahsil edildi ama confirm-purchase kaçarsa: aynı oturumda tekrar MAĞAZA
+    // satın alma yapmadan yalnız confirm-purchase yeniden denensin diye tutulur.
+    const pendingConfirmRef = useRef<{ planType: string; rcCustomerId: string } | null>(null);
+    // Uzlaştırma bir kez denensin (çift POST / StrictMode koruması).
+    const reconciledRef = useRef(false);
 
-    useEffect(() => { fetchSubscription(); fetchPitches(); }, []);
+    useEffect(() => {
+        (async () => {
+            const sub = await fetchSubscription();
+            await reconcilePaidSubscription(sub);
+        })();
+        fetchPitches();
+    }, []);
 
     const fetchSubscription = async () => {
         setLoading(true);
         try {
             const ownerId = getOwnerId();
-            if (!ownerId) return;
+            if (!ownerId) return null;
             const res = await api.get(`/subscription/owner/${ownerId}`);
             setSubscription(res.data ?? null);
+            return res.data ?? null;
         } catch {
             setSubscription(null);
+            return null;
         } finally {
             setLoading(false);
         }
@@ -74,6 +87,51 @@ export const useBusinessSubscriptionSettings = () => {
         }
     };
 
+    // Ödeme başarılı olup confirm-purchase kaçarsa işletme "davetli"/"expired"de takılır.
+    // Mağazada GERÇEK aktif abonelik varken sunucu geri kalmışsa confirm-purchase'i sessizce
+    // yeniden çalıştırıp statüyü active'e çeker. YALNIZ RC entitlement aktifken çalışır →
+    // hiç ödememiş davetli işletmeye ASLA dokunmaz.
+    const reconcilePaidSubscription = async (sub: any) => {
+        if (reconciledRef.current) return;
+        if (!sub || (sub.status !== 'complimentary' && sub.status !== 'expired')) return;
+        const ownerId = getOwnerId();
+        if (!ownerId || !sub.planType) return;
+        reconciledRef.current = true; // erken kilitle (çift-tetik / StrictMode)
+        try {
+            const info = await getActiveEntitlementInfo();
+            if (!info) { reconciledRef.current = false; return; } // mağazada aktif abonelik yok
+            await linkRevenueCatUser(ownerId);
+            await api.post('/subscription/confirm-purchase', {
+                ownerId, planType: sub.planType, rcCustomerId: info.appUserId,
+            });
+            await fetchSubscription();
+        } catch {
+            reconciledRef.current = false; // sonraki tetikte tekrar denensin
+        }
+    };
+
+    // Bekleyen (tahsil edilmiş ama sunucuya işlenememiş) satın almayı — MAĞAZADA yeniden
+    // satın alma YAPMADAN — yalnız confirm-purchase'i yeniden deneyerek tamamlar.
+    const retryPendingConfirm = async () => {
+        const pending = pendingConfirmRef.current;
+        if (!pending) return;
+        setShowPlanPicker(false);
+        setPurchaseLoading(true);
+        try {
+            const ownerId = getOwnerId() ?? '';
+            await api.post('/subscription/confirm-purchase', {
+                ownerId, planType: pending.planType, rcCustomerId: pending.rcCustomerId,
+            });
+            pendingConfirmRef.current = null;
+            showToast('Aboneliğiniz başarıyla güncellendi.', 'success');
+            await fetchSubscription();
+        } catch {
+            showToast('Abonelik güncellenemedi. Lütfen tekrar deneyin.', 'error');
+        } finally {
+            setPurchaseLoading(false);
+        }
+    };
+
     const showToast = (text: string, type: 'success' | 'error') => {
         setToast({ text, type });
         setTimeout(() => setToast(null), 3500);
@@ -87,6 +145,13 @@ export const useBusinessSubscriptionSettings = () => {
     };
 
     const handleSelectPlan = async (planType: string) => {
+        // Önceki satın alma tahsil edildi ama confirm-purchase kaçtıysa: MAĞAZADA tekrar
+        // satın alma YAPMA — yalnız bekleyen confirm-purchase'i yeniden dene.
+        if (pendingConfirmRef.current) {
+            await retryPendingConfirm();
+            return;
+        }
+
         const newPlanEntry = PLAN_ENTRIES.find(([, pl]) => pl.planType === planType);
         const newPitchCount = newPlanEntry ? Number(newPlanEntry[0]) : 0;
         const currentPitchCount = subscription?.pitchCount ?? 0;
@@ -107,6 +172,7 @@ export const useBusinessSubscriptionSettings = () => {
         }
 
         setPurchaseLoading(true);
+        const ownerId = getOwnerId() ?? '';
         try {
             const previousPitchCount = subscription?.pitchCount ?? 0;
             // Promo/davetli geçmişi olan işletme (grace'te status=complimentary;
@@ -116,14 +182,20 @@ export const useBusinessSubscriptionSettings = () => {
             const needsNoTrial =
                 !!subscription &&
                 (subscription.promoCodeId != null || subscription.status === 'complimentary');
+            // linkRevenueCatUser'ı satın almadan ÖNCE: mağaza olayları app_user_id=ownerId ile
+            // gelsin, sunucu webhook'u ownerId ile eşleştirebilsin (backstop/uzlaştırma zemini).
+            if (ownerId) await linkRevenueCatUser(ownerId);
             const rcCustomerId = await purchasePlan(
                 planType,
                 needsNoTrial ? { preferOffering: 'no_trial' } : undefined,
             );
-            const ownerId = getOwnerId() ?? '';
 
+            // Mağaza tahsilatı BAŞARILI. Buradan sonra confirm-purchase kaçarsa işletme ödemiş
+            // ama statüsü geride kalır → detayı sakla (aynı oturumda retry, yeniden açılışta
+            // uzlaştırma tamamlar).
+            pendingConfirmRef.current = { planType, rcCustomerId };
             await api.post('/subscription/confirm-purchase', { ownerId, planType, rcCustomerId });
-            await linkRevenueCatUser(ownerId);
+            pendingConfirmRef.current = null;
 
             showToast('Aboneliğiniz başarıyla güncellendi.', 'success');
             await fetchSubscription();
@@ -132,9 +204,15 @@ export const useBusinessSubscriptionSettings = () => {
                 setShowNewPitchPrompt(true);
             }
         } catch (err: any) {
-            // Ham İngilizce RevenueCat mesajı yerine Türkçe; iptalde sessiz geç
-            const { cancelled, message } = purchaseErrorToTurkish(err);
-            if (!cancelled) showToast(message, 'error');
+            if (pendingConfirmRef.current) {
+                // Mağaza tahsil etti ama sunucu güncellenemedi (ağ/çökme). Tekrar denemede veya
+                // uygulama yeniden açılışında (uzlaştırma) otomatik tamamlanır — çift tahsilat yok.
+                showToast('Satın alma tamamlandı ancak abonelik güncellenemedi. Tekrar deneyin; uygulamayı yeniden açtığınızda da otomatik tamamlanır.', 'error');
+            } else {
+                // Ham İngilizce RevenueCat mesajı yerine Türkçe; iptalde sessiz geç
+                const { cancelled, message } = purchaseErrorToTurkish(err);
+                if (!cancelled) showToast(message, 'error');
+            }
         } finally {
             setPurchaseLoading(false);
         }
@@ -262,7 +340,11 @@ export const useBusinessSubscriptionSettings = () => {
         setRestoreLoading(true);
         try {
             await restoreRevenueCatPurchases();
-            await fetchSubscription();
+            const sub = await fetchSubscription();
+            // Restore kullanıcı-tetikli: mağazada aktif abonelik varken sunucu davetli/expired
+            // kalmışsa active'e çek (uzlaştırmayı bir kez daha dene).
+            reconciledRef.current = false;
+            await reconcilePaidSubscription(sub);
             showToast('Satın alımlar başarıyla geri yüklendi.', 'success');
         } catch {
             showToast('Geri yükleme başarısız. Lütfen tekrar deneyin.', 'error');

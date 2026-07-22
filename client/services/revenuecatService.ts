@@ -114,3 +114,21 @@ export async function restoreRevenueCatPurchases(): Promise<void> {
     if (!Capacitor.isNativePlatform()) return;
     await Purchases.restorePurchases();
 }
+
+/**
+ * Mağazadaki GERÇEK abonelik durumunu okur (satın alma tetiklemeden).
+ * 'active_subscription' entitlement aktifse RC app_user_id'yi döndürür; yoksa null.
+ * Native değilse null. Uzlaştırma (reconcile) için kullanılır: sunucu geride kaldıysa
+ * (davetli/expired ama mağazada aktif) confirm-purchase yeniden tetiklenir.
+ */
+export async function getActiveEntitlementInfo(): Promise<{ appUserId: string } | null> {
+    if (!Capacitor.isNativePlatform()) return null;
+    try {
+        const { customerInfo } = await Purchases.getCustomerInfo();
+        const entitlement = customerInfo.entitlements.active['active_subscription'];
+        if (!entitlement) return null;
+        return { appUserId: customerInfo.originalAppUserId };
+    } catch {
+        return null;
+    }
+}
