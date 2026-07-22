@@ -109,7 +109,7 @@ export class AdminStatisticsService {
     const noSubRow: { c: string } | undefined = await this.businessRepository
       .createQueryBuilder('b')
       .leftJoin('b.owner', 'o')
-      .leftJoin(Subscription, 's', 's.ownerId = o.id::text')
+      .leftJoin(Subscription, 's', 's.ownerId = o.id')
       .where('b.deletedAt IS NULL')
       .andWhere('s.id IS NULL')
       .select('COUNT(*)', 'c')

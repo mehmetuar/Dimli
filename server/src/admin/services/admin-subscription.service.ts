@@ -71,7 +71,7 @@ export class AdminSubscriptionService {
     const buildQb = () => {
       const qb = this.subscriptionRepository
         .createQueryBuilder('s')
-        .leftJoin(BusinessOwner, 'o', 'o.id::text = s.ownerId')
+        .leftJoin(BusinessOwner, 'o', 'o.id = s.ownerId')
         .leftJoin('o.business', 'b')
         .leftJoin(PromoCode, 'pc', 'pc.id::text = s.promoCodeId');
       const status = (opts.status ?? '').trim();
