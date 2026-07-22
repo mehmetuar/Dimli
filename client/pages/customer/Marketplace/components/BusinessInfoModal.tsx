@@ -8,7 +8,7 @@ import { telHref } from '../../../../utils/phone';
 import { useModalBodyClass } from '../../../../utils/useModalBodyClass';
 import { DirectionsConfirmModal } from '../../PitchBooking/components/DirectionsConfirmModal';
 import { DEMO_BUSINESS, isDemoId } from '../../PitchBooking/demo/demoTourData';
-import { pitchTypeShortLabel } from '../../../../utils/pitchType';
+import { pitchTypeLabel } from '../../../../utils/pitchType';
 
 interface BusinessInfoModalProps {
     isOpen: boolean;
@@ -159,7 +159,7 @@ export const BusinessInfoModal: React.FC<BusinessInfoModalProps> = ({
                                         <p className="text-sm text-slate-200 font-semibold truncate">{selectedPitch.name}</p>
                                         {selectedPitch.type && (
                                             <span className="shrink-0 text-[10px] font-bold text-turf-300 bg-turf-600/20 border border-turf-500/40 px-1.5 py-px rounded">
-                                                {pitchTypeShortLabel(selectedPitch.type)}
+                                                {pitchTypeLabel(selectedPitch.type)}
                                             </span>
                                         )}
                                     </div>

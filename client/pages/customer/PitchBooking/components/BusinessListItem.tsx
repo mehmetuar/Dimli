@@ -4,7 +4,7 @@ import { Business } from '../../../../types';
 import { PitchSchedule } from './PitchSchedule';
 import { ActiveMatchesList } from './ActiveMatchesList';
 import { isPitchClosedOnDate, closedDayMessage } from '../../../../utils/pitchClosed';
-import { pitchTypeShortLabel, pitchTypeLabel } from '../../../../utils/pitchType';
+import { pitchTypeLabel } from '../../../../utils/pitchType';
 
 interface BusinessListItemProps {
     business: Business;
@@ -142,10 +142,12 @@ export const BusinessListItem = React.memo<BusinessListItemProps>(({
                                 {business.address && <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">{business.address}</p>}
                             </div>
                         </div>
-                        {business.pitches.length <= 1 && displayPitch?.type && (
-                            <span className="inline-block mt-2 text-[11px] font-bold text-turf-300 bg-turf-600/15 border border-turf-500/30 px-2 py-1 rounded-lg">
-                                {pitchTypeLabel(displayPitch.type)}
-                            </span>
+                        {displayPitch?.type && (
+                            <div className="flex items-start gap-1.5 mt-2">
+                                <span className="inline-block text-[11px] font-bold text-turf-300 bg-turf-600/15 border border-turf-500/30 px-2 py-1 rounded-lg">
+                                    {pitchTypeLabel(displayPitch.type)}
+                                </span>
+                            </div>
                         )}
                     </div>
 
@@ -160,7 +162,7 @@ export const BusinessListItem = React.memo<BusinessListItemProps>(({
                                         ? 'bg-turf-600 text-white border-b-2 border-turf-400'
                                         : 'bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700'}`}
                                 >
-                                    {pitch.name}{pitch.type ? ` • ${pitchTypeShortLabel(pitch.type)}` : ''}
+                                    {pitch.name}
                                 </button>
                             ))}
                         </div>

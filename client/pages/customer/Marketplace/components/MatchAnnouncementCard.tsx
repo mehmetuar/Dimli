@@ -5,7 +5,7 @@ import { FairPlayScore } from '../../../../components/UI/FairPlayScore';
 import { toHex, teamLogoSrc, teamInitialsAvatar } from '../../../../utils/teamColors';
 import { addOneHour, timeAgo } from '../../../../utils/time';
 import { todayStr, addDaysStr } from '../../../../utils/today';
-import { pitchTypeShortLabel } from '../../../../utils/pitchType';
+import { pitchTypeLabel } from '../../../../utils/pitchType';
 
 // pitch/business, sunucunun ilana gömdüğü pitchSummary'den türetilen hafif şekildir
 // (useMarketplace.getPitchDetails) — tam Pitch/Business entity'leri değildir.
@@ -233,7 +233,7 @@ export const MatchAnnouncementCard: React.FC<MatchAnnouncementCardProps> = ({
                                         <span className="text-xs font-semibold text-slate-300">{pitch.name}</span>
                                         {pitch.type && (
                                             <span className="text-[10px] font-bold text-turf-300 bg-turf-600/15 border border-turf-500/30 px-1.5 py-px rounded">
-                                                {pitchTypeShortLabel(pitch.type)}
+                                                {pitchTypeLabel(pitch.type)}
                                             </span>
                                         )}
                                     </div>
