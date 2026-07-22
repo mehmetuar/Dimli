@@ -5,6 +5,7 @@ import { FairPlayScore } from '../../../../components/UI/FairPlayScore';
 import { toHex, teamLogoSrc, teamInitialsAvatar } from '../../../../utils/teamColors';
 import { addOneHour, timeAgo } from '../../../../utils/time';
 import { todayStr, addDaysStr } from '../../../../utils/today';
+import { pitchTypeShortLabel } from '../../../../utils/pitchType';
 
 // pitch/business, sunucunun ilana gömdüğü pitchSummary'den türetilen hafif şekildir
 // (useMarketplace.getPitchDetails) — tam Pitch/Business entity'leri değildir.
@@ -19,7 +20,7 @@ interface MatchAnnouncementCardProps {
      *  Kaptan" kilidi yanlış iddia olurdu) */
     permissionsReady: boolean;
     getPitchDetails: (announcement: any) => {
-        pitch: { id: string; name: string; pricePerHour?: number; imageUrl?: string; endTime?: string } | null;
+        pitch: { id: string; name: string; type?: string; pricePerHour?: number; imageUrl?: string; endTime?: string } | null;
         business: { id?: string; name?: string; district?: string | null; city?: string | null } | null;
     };
     setSelectedTeamId: (teamId: string) => void;
@@ -230,6 +231,11 @@ export const MatchAnnouncementCard: React.FC<MatchAnnouncementCardProps> = ({
                                         <span className="text-sm font-black text-white">{business?.name}</span>
                                         <span className="w-1 h-1 rounded-full bg-slate-600 flex-shrink-0" />
                                         <span className="text-xs font-semibold text-slate-300">{pitch.name}</span>
+                                        {pitch.type && (
+                                            <span className="text-[10px] font-bold text-turf-300 bg-turf-600/15 border border-turf-500/30 px-1.5 py-px rounded">
+                                                {pitchTypeShortLabel(pitch.type)}
+                                            </span>
+                                        )}
                                     </div>
                                     <div className="flex items-center gap-1">
                                         <MapPin className="w-3 h-3 text-turf-500 flex-shrink-0" />

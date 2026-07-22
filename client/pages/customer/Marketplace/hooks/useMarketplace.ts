@@ -172,6 +172,7 @@ export const useMarketplace = () => {
       pitch: {
         id: s.id,
         name: s.name,
+        type: s.type ?? undefined,
         pricePerHour: s.pricePerHour ?? undefined,
         imageUrl: s.imageUrl ?? undefined,
         endTime: s.endTime ?? undefined,
