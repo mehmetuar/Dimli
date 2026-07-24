@@ -4037,3 +4037,86 @@ kayboluyor. **Canlı DB'de yalnız salt-okunur SELECT** çalıştırıldı (şem
 
 **Deploy sırası:** server → client (yeni native sürüm). Canlı DB'de elle SQL YOK — yeni
 kolon/enum eklenmiyor. Gerçek cihaz testi (klavye davranışı, tel:/harita açılışı) bekliyor.
+
+### §88. Takıma katılan oyuncunun aktif maç sohbetine dahil edilmesi + chat profil fotoğrafları (2026-07-25)
+
+**Hata (kök neden):** `ChatService.addUserToTeamActiveMatchChannels` üç takıma-katılım yolundan
+yalnız katılım-isteği onayında (`JoinRequestsController.accept`) çağrılıyordu; kaptanın doğrudan
+eklemesi ve davet linki yollarında yeni üye mevcut MATCH_GROUP kanallarına eklenmiyordu (Wolf FC
+vakası canlı DB'de salt-okunur doğrulandı: kanal 20:21'de oluştu, 3 oyuncu 20:33-20:38'de katıldı,
+`join_requests` kaydı yok → davet linkiyle girmişler). Ayrıca add/remove metodları maçı yalnız
+`match_announcements.teamId` ile bulduğundan challenge maçlarında RAKİP takıma katılan/ayrılan
+oyuncu hiç senkronlanmıyordu (kanalın `relatedMatchId`'si ev sahibi ilan id'si).
+
+**Çözüm:**
+- Çağrı `TeamsService.addPlayer` içine taşındı (**tüm** katılım yolları buradan geçer; best-effort:
+  `void ...catch(log)` — chat senkronu üye eklemeyi asla düşürmez). `JoinRequestsController.accept`
+  içindeki korumasız çağrı kaldırıldı (chat hatası, oyuncu kaydedildikten sonra accept'i 500'letiyordu).
+- Yeni `upcomingMatchChannelIdsForTeam(teamId)` helper'ı (chat.service): tek raw SQL —
+  `chat_channels(type=MATCH_GROUP) JOIN match_announcements(ma.id::text = c."relatedMatchId")`,
+  `ma.status IN (PENDING,CONFIRMED)` + TR-yerel tarih/saat string karşılaştırmasıyla gelecek maçlar,
+  takım bağı `ma.team_id = $1 OR EXISTS(reservation r: r."matchAnnouncementId"=ma.id AND
+  r."opponentTeamId"=$1 AND r.status IN (PENDING,APPROVED))`. Eski per-maç `findOne` N+1 döngüsünün
+  yerini aldı; `type` filtresi, aynı `relatedMatchId`'yi paylaşan JOKER_NEGOTIATION kanalının yanlış
+  yakalanması riskini de kapattı. `removeUserFromTeamActiveMatchChannels` de aynı helper'ı kullanır →
+  rakip takımdan ayrılan da simetrik çıkarılır. SQL canlı DB'de salt-okunur test edildi.
+- **DI dikkat:** teams.service ↔ chat.service dosya döngüsü oluştu (notifications → teams → chat →
+  notifications). Üç enjeksiyon forwardRef'e çevrildi: `TeamsService.chatService`,
+  `ChatService.teamsService`, `ChatService.notificationsService` (sonuncusu olmadan boot
+  `ChatService index [9] undefined` ile düşüyor — boot testiyle yakalandı). Bu dosyalara yeni servis
+  enjekte ederken düz (forwardRef'siz) injection'ın boot'u kırabileceğini unutma; doğrulama:
+  `npm run build && node dist/main.js` boot logunda "successfully started".
+
+**Chat profil fotoğrafları (ölçeklenebilir, sıfır ek sorgu):**
+- Mesaj gönderen avatarı: `getChannelMessages` yanıtı `sender.avatarUrl`'i ZATEN taşıyordu
+  (`sanitizeUser` strip etmiyor) — yalnız istemci değişikliği: `useChat.mapMsg` →
+  `senderAvatarUrl`, `MessageBubble` avatar önceliği **profil fotoğrafı → takım logosu → baş harf**
+  (forma halkası/degrade aynen korunur; kırık URL'de logo→baş harf zinciriyle düşer). Socket
+  `newMessage` REST refetch tetiklediğinden gateway'e dokunulmadı.
+- Kaptan fotoğrafı: `ChannelMatchTeamData.captain`'a `avatarUrl` eklendi (match-details +
+  subscription-details projeksiyonları; captain relation zaten yüklüydü). İstemcide ortak
+  `Chat/components/CaptainAvatar.tsx` (fotoğraf yoksa sarı "C" rozeti, kırıksa `userAvatarFallback`)
+  üç modalda kullanılır: `MatchDetailModal`, `KendiAramizdaMatchModal`, `SubscriptionDetailModal`.
+  DİKKAT: kendi_aramizda maç detayı AYRI modal (`KendiAramizdaMatchModal`) — kaptan bloğu
+  değişikliklerinde üçünü birden güncelle.
+- Sayfalama: `getChannelMessages` sıralamasına ikincil `id: 'DESC'` eklendi (aynı `createdAt`'te
+  deterministik sıra). Teknik borç (tam refetch + scroll-anchor eksikliği) **§89'da ÇÖZÜLDÜ**
+  (merge-by-id + prepend anchor).
+
+**Deploy sırası:** server → client (kaptan fotoğrafı server alanına bağlı; mesaj avatarı client-only).
+Canlı DB'de elle SQL YOK — yeni kolon yok. Cihaz testi: davet linkiyle katılan oyuncunun aktif sohbeti
+görmesi + avatarlar.
+
+### §89. Chat mesaj yenileme mimarisi — merge-by-id + prepend scroll-anchor + sendMessage sanitize (2026-07-25)
+
+**Sorun (§88'de rapor edilen borç):** sohbet açıkken her socket `newMessage` ve her gönderim son 50
+mesajı komple çekip `messages`'ı replace ediyordu → yukarı kaydırmayla yüklenen sayfalar siliniyor
+(derin geçmişte sıçrama), mesaj başına ~50 satırlık gereksiz istek. Ayrıca `loadMoreMessages`
+prepend'inde scroll-anchor yoktu.
+
+**Çözüm:**
+- **Server (`chat.service.ts`):** `reduceMessageSender(m)` ortak helper'ı (sanitizeUser + team'i
+  {id,name,logoUrl,primaryColor,secondaryColor}'a indirgeme) — `getChannelMessages` VE `sendMessage`
+  kullanır. **GÜVENLİK DÜZELTMESİ:** `sendMessage` REST dönüşü ham User (parola hash'i dahil)
+  sızdırıyordu → artık sanitize + `sender.team` yüklü. Socket `newMessage` payload'ı zenginleştirildi:
+  `message`'a `isSystemMessage`, `metadata`, `sender` (sanitize+indirgenmiş) eklendi — eski istemciler
+  yalnız `channelId` okuyup refetch yapar, geriye uyumlu.
+- **`chatUtils.mergeMessages(prev, incoming)`:** id'ye göre tekilleştirir, rawCreatedAt (eşitse id)
+  artan sıralar; yeni id yoksa **prev'in kimliğini korur** → efektler tetiklenmez (kendi mesajının
+  socket yankısı no-op). Merge asla mesaj silmez (silme/düzenleme özelliği yok).
+- **`useChat.ts`:** `fetchLatest(initial)` — kanal açılışı/refreshTrigger replace, interval/fallback/
+  reconnect merge. Socket handler: zengin payload (sender var / sistem mesajı / kendi mesajım) →
+  doğrudan merge; ince payload + yabancı gönderen (eski sunucu) → merge-fetch fallback ("Unknown"
+  balonu asla görünmez). `handleSend` POST yanıtını merge eder (refetch kalktı). `loadMoreMessages`
+  prepend'i merge'e döndü. `resyncMessagesRef` + `useOnReconnect` → ağ dönüşünde mesajlar merge ile
+  senkronlanır. Kanal listesi/rozet akışları (debounced fetchChannels, markRead, Navbar unread-count)
+  BİLİNÇLİ dokunulmadı.
+- **`Chat.tsx`:** auto-scroll artık **append-farkındalıklı** — son mesaj id'si değişmediyse (prepend/
+  no-op) kaydırmaz; kendi mesajı her zaman dibe iner; ilk yükleme instant. `triggerLoadMore` prepend
+  öncesi {scrollHeight, scrollTop, firstId} yakalar; `useLayoutEffect` paint'ten önce
+  `scrollTop += fark` telafisi yapar (iOS WebKit `overflow-anchor` desteklemez), `firstId` guard'ı
+  saf append'e uygulanmayı önler. Kanal değişiminde ref'ler sıfırlanır.
+
+**Deploy sırası:** server → client (istemci fallback'i sayesinde eski sunucuyla da çalışır ama zengin
+payload için server önce). İki cihazlı test senaryoları plan dosyasında (derin geçmiş + eşzamanlı
+mesaj, prepend anchor gerçek iOS cihazda, joker sistem mesajı metadata'sı, ban/uçak modu yolları).
