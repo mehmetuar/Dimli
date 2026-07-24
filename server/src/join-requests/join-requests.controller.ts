@@ -14,7 +14,6 @@ import {
 import { JoinRequestsService } from './join-requests.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { TeamsService } from '../teams/teams.service';
-import { ChatService } from '../chat/chat.service';
 import { NotificationsService } from '../notifications/notifications.service';
 
 @Controller('join-requests')
@@ -22,7 +21,6 @@ export class JoinRequestsController {
   constructor(
     private readonly joinRequestsService: JoinRequestsService,
     private readonly teamsService: TeamsService,
-    private readonly chatService: ChatService,
     private readonly notificationsService: NotificationsService,
   ) {}
 
@@ -87,11 +85,9 @@ export class JoinRequestsController {
       );
     }
 
+    // Chat kanal senkronu artık TeamsService.addPlayer içinde (tüm katılım
+    // yolları için tek nokta) — burada ayrıca çağrılmaz.
     await this.teamsService.addPlayer(joinRequest.teamId, joinRequest.userId);
-    await this.chatService.addUserToTeamActiveMatchChannels(
-      joinRequest.userId,
-      joinRequest.teamId,
-    );
     await this.joinRequestsService.cancelAllPendingExcept(
       joinRequest.userId,
       id,

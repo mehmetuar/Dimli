@@ -24,6 +24,7 @@ import {
 import { JoinRequestsService } from '../join-requests/join-requests.service';
 import { TeamBansService } from '../team-bans/team-bans.service';
 import { CloudinaryService } from '../files/cloudinary.service';
+import { ChatService } from '../chat/chat.service';
 
 // findOne/searchByTerm dönüşü: takım + oynanan maç sayısı zenginleştirmesi.
 export interface TeamWithMatchCount extends Team {
@@ -46,6 +47,8 @@ export class TeamsService implements OnModuleInit {
     private joinRequestsService: JoinRequestsService,
     private teamBansService: TeamBansService,
     private cloudinaryService: CloudinaryService,
+    @Inject(forwardRef(() => ChatService))
+    private chatService: ChatService,
   ) {}
 
   async onModuleInit() {
@@ -286,6 +289,14 @@ export class TeamsService implements OnModuleInit {
     // Kaptan bu kullanıcıyı (tekrar) eklediği için, bu takımdan
     // önceden atılmış olsa bile ban kaydını kaldır
     await this.teamBansService.unbanPlayer(teamId, userId);
+
+    // Yeni üyeyi takımın aktif (oynanmamış PENDING/CONFIRMED) maç sohbetlerine
+    // ve abone kanallarına ekle. Tüm katılım yolları (istek onayı, doğrudan
+    // ekleme, davet linki) buradan geçer. Best-effort: chat senkronu üye
+    // eklemeyi asla düşürmez, hata yalnız loglanır.
+    void this.chatService
+      .addUserToTeamActiveMatchChannels(userId, teamId)
+      .catch((e) => console.error('Chat kanal senkronu başarısız:', e));
 
     // Reload the team to get the updated players list
     const updatedTeam = await this.findOne(teamId);

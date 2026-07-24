@@ -129,7 +129,12 @@ export interface ChannelMatchTeamData {
   fairPlayRatingCount: number;
   playerCount: number;
   playedMatchCount: number;
-  captain: { id: string; name: string; phone: string } | null;
+  captain: {
+    id: string;
+    name: string;
+    phone: string;
+    avatarUrl: string | null;
+  } | null;
 }
 
 // Hata ve başarı varyantları tek interface'te (tüm alanlar opsiyonel) — çağıranlar
@@ -237,9 +242,14 @@ export class ChatService {
     private challengeRepository: Repository<Challenge>,
     @InjectRepository(User)
     private userRepository: Repository<User>,
+    // teams.service ↔ chat.service dosya döngüsü nedeniyle (notifications →
+    // teams → chat → notifications) bu sınıf dekoratör anında undefined
+    // olabilir — forwardRef ile tembel çözülür.
+    @Inject(forwardRef(() => NotificationsService))
     private notificationsService: NotificationsService,
     @Inject(forwardRef(() => ReservationsService))
     private reservationsService: ReservationsService,
+    @Inject(forwardRef(() => TeamsService))
     private teamsService: TeamsService,
     private ratingsService: RatingsService,
     @Optional() private gateway: AppGateway,
@@ -881,10 +891,14 @@ export class ChatService {
 
     const savedMessage = await this.chatMessageRepository.findOne({
       where: { id: message.id },
-      relations: ['sender'],
+      relations: ['sender', 'sender.team'],
     });
 
     if (!savedMessage) throw new Error('Failed to create message');
+
+    // GÜVENLİK: dönüş ve socket payload'ı ham User (parola hash'i dahil)
+    // sızdırmasın — getChannelMessages ile aynı indirgeme/sanitize uygulanır.
+    this.reduceMessageSender(savedMessage);
 
     const participants = await this.chatParticipantRepository.find({
       where: { channelId, deletedAt: IsNull() },
@@ -892,6 +906,9 @@ export class ChatService {
     });
 
     if (this.gateway?.server) {
+      // Zengin payload: istemci mesajı refetch'siz merge edebilsin diye
+      // sanitize edilmiş sender + metadata + isSystemMessage taşınır.
+      // Eski istemciler yalnız channelId okuyup refetch yapar — geriye uyumlu.
       const payload = {
         channelId,
         message: {
@@ -899,6 +916,9 @@ export class ChatService {
           senderId: savedMessage.senderId,
           content: savedMessage.content,
           createdAt: savedMessage.createdAt,
+          isSystemMessage: savedMessage.isSystemMessage,
+          metadata: savedMessage.metadata ?? null,
+          sender: savedMessage.sender ?? null,
         },
       };
       participants.forEach((p) =>
@@ -972,14 +992,14 @@ export class ChatService {
       messages = await this.chatMessageRepository.find({
         where: { channelId, createdAt: LessThan(new Date(before)) },
         relations: ['sender', 'sender.team'],
-        order: { createdAt: 'DESC' },
+        order: { createdAt: 'DESC', id: 'DESC' },
         take: PAGE,
       });
     } else {
       messages = await this.chatMessageRepository.find({
         where: { channelId },
         relations: ['sender', 'sender.team'],
-        order: { createdAt: 'DESC' },
+        order: { createdAt: 'DESC', id: 'DESC' },
         take: PAGE,
       });
     }
@@ -998,22 +1018,27 @@ export class ChatService {
     // Team'i gerekli alanlara indirgiyoruz (description, fairPlayScore vb. taşınmaz).
     // GÜVENLİK: sender TAM User (parola hash'i + email/telefon/GPS) sızdırıyordu →
     // sanitizeUser ile hassas alanlar ayıklanır (indirgenmiş team korunur).
-    for (const m of filtered) {
-      if (!m.sender) continue;
-      const reducedTeam = m.sender.team
-        ? ({
-            id: m.sender.team.id,
-            name: m.sender.team.name,
-            logoUrl: m.sender.team.logoUrl,
-            primaryColor: m.sender.team.primaryColor,
-            secondaryColor: m.sender.team.secondaryColor,
-          } as Team)
-        : m.sender.team;
-      m.sender = sanitizeUser(m.sender);
-      m.sender.team = reducedTeam;
-    }
+    for (const m of filtered) this.reduceMessageSender(m);
 
     return filtered.reverse();
+  }
+
+  // İstemciye giden her mesaj yolunda (getChannelMessages, sendMessage dönüşü,
+  // socket newMessage) sender'ı aynı biçime indirger: sanitizeUser + Team'in
+  // yalnız {id,name,logoUrl,primaryColor,secondaryColor} alanları.
+  private reduceMessageSender(m: ChatMessage): void {
+    if (!m.sender) return;
+    const reducedTeam = m.sender.team
+      ? ({
+          id: m.sender.team.id,
+          name: m.sender.team.name,
+          logoUrl: m.sender.team.logoUrl,
+          primaryColor: m.sender.team.primaryColor,
+          secondaryColor: m.sender.team.secondaryColor,
+        } as Team)
+      : m.sender.team;
+    m.sender = sanitizeUser(m.sender);
+    m.sender.team = reducedTeam;
   }
 
   async markAsRead(channelId: string, userId: string): Promise<void> {
@@ -1221,6 +1246,7 @@ export class ChatService {
               id: team.captain.id,
               name: team.captain.full_name || team.captain.username,
               phone: team.captain.phone,
+              avatarUrl: team.captain.avatarUrl ?? null,
             }
           : null,
       };
@@ -1379,6 +1405,7 @@ export class ChatService {
               id: team.captain.id,
               name: team.captain.full_name || team.captain.username,
               phone: team.captain.phone,
+              avatarUrl: team.captain.avatarUrl ?? null,
             }
           : null,
       };
@@ -2382,13 +2409,51 @@ export class ChatService {
     return rows.map((r) => r.id);
   }
 
+  // Takımın (ev sahibi VEYA rakip olarak) bağlı olduğu, oynanmamış
+  // PENDING/CONFIRMED maçların MATCH_GROUP kanal id'leri. Rakip bağı challenge
+  // kabulünde oluşan reservation (opponentTeamId + matchAnnouncementId)
+  // üzerinden kurulur — ilan yalnız ev sahibi takıma ait olduğundan rakip
+  // takım ilan sorgusuyla bulunamaz.
+  private async upcomingMatchChannelIdsForTeam(
+    teamId: string,
+  ): Promise<string[]> {
+    const nowTurkey = new Date(Date.now() + 3 * 60 * 60 * 1000);
+    const todayTurkey = nowTurkey.toISOString().split('T')[0];
+    const timeTurkey = nowTurkey.toISOString().split('T')[1].slice(0, 5);
+    const rows: { id: string }[] =
+      await this.chatChannelRepository.manager.query(
+        `
+          SELECT c.id FROM chat_channels c
+          JOIN match_announcements ma ON ma.id::text = c."relatedMatchId"
+          WHERE c.type = 'MATCH_GROUP'
+            AND ma.status IN ('PENDING', 'CONFIRMED')
+            AND (ma.date > $2 OR (ma.date = $2 AND ma.time > $3))
+            AND (
+              ma.team_id = $1
+              OR EXISTS (
+                SELECT 1 FROM reservation r
+                WHERE r."matchAnnouncementId" = ma.id
+                  AND r."opponentTeamId" = $1
+                  AND r.status IN ('PENDING', 'APPROVED')
+              )
+            )
+        `,
+        [teamId, todayTurkey, timeTurkey],
+      );
+    return rows.map((r) => r.id);
+  }
+
   async addUserToTeamActiveMatchChannels(
     userId: string,
     teamId: string,
   ): Promise<void> {
     // Abone (SUBSCRIPTION) kanalları maç penceresinden bağımsız — takıma katılan
     // her üye kanala eklenir.
-    for (const channelId of await this.subscriptionChannelIdsForTeam(teamId)) {
+    const channelIds = [
+      ...(await this.subscriptionChannelIdsForTeam(teamId)),
+      ...(await this.upcomingMatchChannelIdsForTeam(teamId)),
+    ];
+    for (const channelId of channelIds) {
       const existing = await this.chatParticipantRepository.findOne({
         where: { channelId, userId },
       });
@@ -2398,41 +2463,6 @@ export class ChatService {
       );
       this.gateway?.server?.to(userId).emit('channelCreated', { channelId });
     }
-
-    const nowTurkey = new Date(Date.now() + 3 * 60 * 60 * 1000);
-    const todayTurkey = nowTurkey.toISOString().split('T')[0];
-    const timeTurkey = nowTurkey.toISOString().split('T')[1].slice(0, 5);
-    const activeMatches = await this.matchAnnouncementRepository.find({
-      where: { teamId, status: In(['PENDING', 'CONFIRMED']) },
-    });
-    const upcomingMatches = activeMatches.filter((m) => {
-      if (m.date > todayTurkey) return true;
-      if (m.date === todayTurkey) return m.time > timeTurkey;
-      return false;
-    });
-    if (upcomingMatches.length === 0) return;
-
-    for (const match of upcomingMatches) {
-      const channel = await this.chatChannelRepository.findOne({
-        where: { relatedMatchId: match.id },
-      });
-      if (!channel) continue;
-
-      const existing = await this.chatParticipantRepository.findOne({
-        where: { channelId: channel.id, userId },
-      });
-      if (existing) continue;
-
-      const participant = this.chatParticipantRepository.create({
-        channelId: channel.id,
-        userId,
-      });
-      await this.chatParticipantRepository.save(participant);
-
-      this.gateway?.server
-        ?.to(userId)
-        .emit('channelCreated', { channelId: channel.id });
-    }
   }
 
   async removeUserFromTeamActiveMatchChannels(
@@ -2440,38 +2470,13 @@ export class ChatService {
     teamId: string,
   ): Promise<void> {
     // Takımdan ayrılan/atılan üye abone kanallarından da çıkarılır.
-    for (const channelId of await this.subscriptionChannelIdsForTeam(teamId)) {
+    const channelIds = [
+      ...(await this.subscriptionChannelIdsForTeam(teamId)),
+      ...(await this.upcomingMatchChannelIdsForTeam(teamId)),
+    ];
+    for (const channelId of channelIds) {
       await this.chatParticipantRepository.delete({ channelId, userId });
       this.gateway?.server?.to(userId).emit('channelRemoved', { channelId });
-    }
-
-    const nowTurkey = new Date(Date.now() + 3 * 60 * 60 * 1000);
-    const todayTurkey = nowTurkey.toISOString().split('T')[0];
-    const timeTurkey = nowTurkey.toISOString().split('T')[1].slice(0, 5);
-    const activeMatches = await this.matchAnnouncementRepository.find({
-      where: { teamId, status: In(['PENDING', 'CONFIRMED']) },
-    });
-    const upcomingMatches = activeMatches.filter((m) => {
-      if (m.date > todayTurkey) return true;
-      if (m.date === todayTurkey) return m.time > timeTurkey;
-      return false;
-    });
-    if (upcomingMatches.length === 0) return;
-
-    for (const match of upcomingMatches) {
-      const channel = await this.chatChannelRepository.findOne({
-        where: { relatedMatchId: match.id },
-      });
-      if (!channel) continue;
-
-      await this.chatParticipantRepository.delete({
-        channelId: channel.id,
-        userId,
-      });
-
-      this.gateway?.server
-        ?.to(userId)
-        .emit('channelRemoved', { channelId: channel.id });
     }
   }
 }
