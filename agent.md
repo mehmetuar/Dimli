@@ -4120,3 +4120,48 @@ prepend'inde scroll-anchor yoktu.
 **Deploy sırası:** server → client (istemci fallback'i sayesinde eski sunucuyla da çalışır ama zengin
 payload için server önce). İki cihazlı test senaryoları plan dosyasında (derin geçmiş + eşzamanlı
 mesaj, prepend anchor gerçek iOS cihazda, joker sistem mesajı metadata'sı, ban/uçak modu yolları).
+
+### §90. Chat okundu bilgisi — WhatsApp benzeri tikler + okuyanlar modalı (2026-07-25)
+
+**Model — yalnız watermark:** mesajı P okudu ⇔ `chat_participants_v2.lastReadAt ≥ mesaj.createdAt`
+ve `deletedAt IS NULL`. Mesaj-başına okuma tablosu YOK, cihaz-teslim ack'i YOK (kullanıcı onayıyla
+sadeleştirildi), kanal listesinde tik YOK (yalnız sohbet içi). Tikler yalnız KENDİ mesajlarında:
+tek gri `Check` = optimistic gönderim uçuşta, çift gri `CheckCheck` = sunucu kaydetti, mavi =
+gönderen hariç tüm aktif katılımcılar okudu.
+
+**Sunucu (`chat.service.ts` + `chat.controller.ts`):**
+- `GET /chat/channels/:id/read-states` — aktif katılımcıların `{userId, name, avatarUrl, teamId,
+  lastReadAt}` listesi; elle 5 alanlık whitelist projeksiyonu (sanitizeUser değil — User'a kolon
+  eklense bile sızamaz); istek sahibi katılımcı değilse 403. Kanal listesine BİLİNÇLİ eklenmedi
+  (bilinen darboğaz şişirilmez).
+- `markAsRead` sertleştirildi: aktif-katılımcı kontrolü (403) — güvenlik turu maddesi kapandı.
+  Update sonrası diğer katılımcılara `messagesRead {channelId, userId, lastReadAt}` yayını.
+  **KURAL: yayınlanan lastReadAt DB'den GERİ OKUNUR, asla `new Date()` değil** — "timestamp
+  without time zone" + JS Date saat kayması tehlikesi (sendMessage'daki tz notu); DB geri-okuması
+  createdAt ile aynı serileştirme hattından geçer, istemci karşılaştırması tutarlı kalır.
+- `sendMessage` gönderen auto-read'ine yayın YOK: istemciler bunu aldıkları `newMessage`'dan
+  çıkarsar (gönderenin watermark'ı = mesajın createdAt'ı) — sıfır ek trafik.
+
+**İstemci:**
+- `useChat`: `readStates` (userId→entry; null = eski sunucu → feature-detect, tik+Bilgi gizli),
+  kanal açılışında fetch, `messagesRead` tek-girdi güncelleme, `newMessage`'dan gönderen auto-read
+  çıkarsaması. **Min-watermark hilesi:** diğerlerinin en küçük lastReadAt'ı memo'lanır → balon
+  başına tek Date karşılaştırması (O(n+m), 50bin kullanıcıda da ucuz).
+- **Optimistic gönderim:** handleSend POST öncesi `{id:'tmp-…', pending:true}` balonu ekler; temp
+  id ≠ gerçek id olduğundan `mergeMessages` TEKİLLEŞTİREMEZ — başarı VE hatada AÇIKÇA filtrelenir
+  (merge asla silmez, unutulursa hayalet balon kalır). Socket yankı yarışı: kendi mesajımın
+  yankısında `pending && text === content` temp'leri düşürülür.
+- `MessageBubble`: tik zaman damgası satırında (grup sonunda); kendi mesajında uzun basma AÇILDI
+  (menü: Kopyala+Bilgi; başkasında Kopyala+Bildir değişmedi). **Sola kaydırma jesti** (yalnız isMe,
+  sistem/pending hariç): yatay-baskın kilit (12px) → translateX (max 64px) → 40px eşikte onInfo;
+  bunun için `touchmove` `passive:false` yapıldı (preventDefault yalnız kilit sonrası → dikey
+  scroll etkilenmez); kendi balonunda `touchstart` preventDefault YAPILMAZ (iOS scroll'u ölür).
+- Yeni `ReadInfoModal` (bottom-sheet, MatchDetailModal iskeleti): DM/JOKER_NEGOTIATION →
+  "Okundu + yaklaşık saat / İletildi" (watermark mesaj-başına saat veremez — DÜRÜST UI:
+  gruplarda kişi-başına saat GÖSTERİLMEZ); grup tipleri → "Okuyanlar (n) / Henüz okumayanlar (m)";
+  rakipli (teamColors varsa) her bölüm takım alt-başlıklarına ayrılır (renk noktalı lejant deseni,
+  takımsızlar "Jokerler"). Takım gruplaması GÜNCEL user.teamId ile (§70 sınırlamasıyla aynı).
+
+**Geriye uyum / deploy:** eski istemci `messagesRead`'i yok sayar, markAsRead 403'ü zaten yutar;
+yeni istemci + eski sunucu → read-states 404 → readStates null → tik ve "Bilgi" tamamen gizli.
+Deploy sırası: server → client (yeni native sürüm). Şema değişikliği yok.
