@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { Swords } from 'lucide-react';
+import { Swords, Check, CheckCheck } from 'lucide-react';
 import { SystemMessageRenderer } from '../../../../components/UI/SystemMessageRenderer';
 import { teamInitialsAvatar } from '../../../../utils/teamColors';
 import type { TeamAccent } from '../../../../utils/colorUtils';
@@ -12,6 +12,8 @@ interface MsgLike extends ActionMessage {
     metadata?: any;
     senderTeamId?: string | null;
     senderAvatarUrl?: string | null;
+    pending?: boolean;
+    rawCreatedAt?: string;
 }
 
 // Renk alanları colorUtils'teki TeamAccent'ten gelir — palet mantığı tek kaynakta kalır.
@@ -36,6 +38,11 @@ interface Props {
     // Rakipli MATCH_GROUP chatlerinde takım bazlı renklendirme için — diğer kanal
     // tiplerinde (kendi aramızda, DM, TEAM_INTERNAL) null gelir, görünüm değişmez.
     teamColors?: TeamChatColors | null;
+    // Okundu bilgisi (yalnız kendi mesajlarında): 'sending' tek gri, 'delivered'
+    // çift gri, 'read' çift mavi; null/undefined = tik çizilmez (eski sunucu).
+    tickState?: 'sending' | 'delivered' | 'read' | null;
+    // Kendi mesajını sola kaydırma → okundu bilgisi modalı
+    onInfo?: (msg: MsgLike) => void;
 }
 
 const LONG_PRESS_MS = 450;
@@ -44,7 +51,7 @@ const MOVE_THRESHOLD = 8;
 export const MessageBubble: React.FC<Props> = ({
     msg, prevMsg, nextMsg, currentUser,
     onLongPress, onAvatarClick, onAcceptProposal, onAcceptRematch,
-    teamColors,
+    teamColors, tickState, onInfo,
 }) => {
     const isPrevSameSender = !!prevMsg && !prevMsg.isSystem && !msg.isSystem && prevMsg.senderId === msg.senderId;
     const isNextSameSender = !!nextMsg && !nextMsg.isSystem && !msg.isSystem && nextMsg.senderId === msg.senderId;
@@ -75,19 +82,33 @@ export const MessageBubble: React.FC<Props> = ({
     // Callback ref — stale closure olmadan her zaman güncel değer
     const onLongPressRef = useRef(onLongPress);
     onLongPressRef.current = onLongPress;
+    const onInfoRef = useRef(onInfo);
+    onInfoRef.current = onInfo;
 
     // Native (non-passive) touch listener — React synthetic onTouchStart ile
     // e.preventDefault() iOS WebKit'te çalışmaz (React 17+ passive listener kullanır).
+    // Kendi mesajında: long-press (Bilgi menüsü) + sola kaydırma (okundu modalı).
     useEffect(() => {
         const el = containerRef.current;
-        if (!el || msg.isMe || msg.isSystem) return;
+        if (!el || msg.isSystem) return;
 
+        const isMine = !!msg.isMe;
         const cancel = () => clearTimeout(timerRef.current);
 
+        // Sola kaydırma durumu (yalnız kendi balonunda)
+        let swiping = false;
+        const SWIPE_LOCK = 12;    // yatay kilit eşiği (px)
+        const SWIPE_TRIGGER = 40; // modal tetikleme eşiği (px)
+        const SWIPE_MAX = 64;     // maksimum görsel kaydırma (px)
+
         const onStart = (e: TouchEvent) => {
-            // Avatar butonuna dokunuluyorsa long-press'i başlatma ve click'e izin ver
-            if ((e.target as HTMLElement).closest('[data-avatar]')) return;
-            e.preventDefault(); // iOS metin seçimi + callout menüsünü engeller
+            if (!isMine) {
+                // Avatar butonuna dokunuluyorsa long-press'i başlatma ve click'e izin ver
+                if ((e.target as HTMLElement).closest('[data-avatar]')) return;
+                e.preventDefault(); // iOS metin seçimi + callout menüsünü engeller
+            }
+            // KENDİ balonunda preventDefault YOK — touchstart iptali iOS'ta scroll'u
+            // da öldürür; seçim/callout zaten noSelect CSS'iyle bastırılıyor.
             const t = e.touches[0];
             startPos.current = { x: t.clientX, y: t.clientY };
             timerRef.current = setTimeout(() => {
@@ -106,22 +127,50 @@ export const MessageBubble: React.FC<Props> = ({
 
         const onMove = (e: TouchEvent) => {
             const t = e.touches[0];
-            if (
-                Math.abs(t.clientX - startPos.current.x) > MOVE_THRESHOLD ||
-                Math.abs(t.clientY - startPos.current.y) > MOVE_THRESHOLD
-            ) cancel();
+            const dx = t.clientX - startPos.current.x;
+            const dy = t.clientY - startPos.current.y;
+            if (Math.abs(dx) > MOVE_THRESHOLD || Math.abs(dy) > MOVE_THRESHOLD) cancel();
+            if (!isMine) return;
+            // Yatay-baskın sola hareket → kaydırma kilidi; dikey hareket kilidi
+            // hiç açmaz, scroll normal akar.
+            if (!swiping && dx < -SWIPE_LOCK && Math.abs(dx) > Math.abs(dy)) swiping = true;
+            if (swiping) {
+                e.preventDefault(); // kilit sonrası dikey scroll bastırılır (passive:false gerekli)
+                const x = Math.max(Math.min(dx, 0), -SWIPE_MAX);
+                const w = bubbleWrapperRef.current;
+                if (w) {
+                    w.style.transition = 'none';
+                    w.style.transform = `translateX(${x}px)`;
+                }
+            }
+        };
+
+        const onEnd = (e: TouchEvent) => {
+            cancel();
+            if (!swiping) return;
+            swiping = false;
+            const dx = (e.changedTouches[0]?.clientX ?? startPos.current.x) - startPos.current.x;
+            const w = bubbleWrapperRef.current;
+            if (w) {
+                w.style.transition = 'transform 180ms ease-out';
+                w.style.transform = 'translateX(0)';
+            }
+            // Pending (henüz gönderilmemiş) balonda modal açılmaz
+            if (dx <= -SWIPE_TRIGGER && !msg.pending) onInfoRef.current?.(msg);
         };
 
         el.addEventListener('touchstart', onStart, { passive: false });
-        el.addEventListener('touchmove', onMove, { passive: true });
-        el.addEventListener('touchend', cancel, { passive: true });
-        el.addEventListener('touchcancel', cancel, { passive: true });
+        // passive:false — yalnız yatay kilit aktifken preventDefault çağrılır,
+        // dikey scroll etkilenmez.
+        el.addEventListener('touchmove', onMove, { passive: false });
+        el.addEventListener('touchend', onEnd, { passive: true });
+        el.addEventListener('touchcancel', onEnd, { passive: true });
 
         return () => {
             el.removeEventListener('touchstart', onStart);
             el.removeEventListener('touchmove', onMove);
-            el.removeEventListener('touchend', cancel);
-            el.removeEventListener('touchcancel', cancel);
+            el.removeEventListener('touchend', onEnd);
+            el.removeEventListener('touchcancel', onEnd);
         };
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []); // Keyed component — msg ve isMe değişmez
@@ -194,7 +243,7 @@ export const MessageBubble: React.FC<Props> = ({
         <div
             ref={containerRef}
             className={`flex items-end gap-2 ${msg.isMe ? 'justify-end' : 'justify-start'} ${isPrevSameSender ? '!mt-0.5' : ''}`}
-            onMouseDown={msg.isMe || msg.isSystem ? undefined : onMouseDown}
+            onMouseDown={msg.isSystem ? undefined : onMouseDown}
             onMouseUp={onMouseUp}
             onMouseLeave={onMouseLeave}
             style={noSelect}
@@ -266,8 +315,13 @@ export const MessageBubble: React.FC<Props> = ({
                     {msg.text}
                 </div>
                 {!isNextSameTime && !isNextSameSender && (
-                    <span className={`text-[10px] block mt-1 ${msg.isMe ? 'text-right text-slate-500' : 'text-left text-slate-500'}`}>
+                    <span className={`text-[10px] mt-1 flex items-center gap-1 text-slate-500 ${msg.isMe ? 'justify-end' : 'justify-start'}`}>
                         {msg.timestamp}
+                        {msg.isMe && tickState && (
+                            tickState === 'sending'
+                                ? <Check className="w-3.5 h-3.5 text-slate-500" />
+                                : <CheckCheck className={`w-3.5 h-3.5 ${tickState === 'read' ? 'text-blue-400' : 'text-slate-500'}`} />
+                        )}
                     </span>
                 )}
             </div>

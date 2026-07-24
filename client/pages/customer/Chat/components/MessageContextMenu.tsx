@@ -1,5 +1,5 @@
 import React from 'react';
-import { Copy, Flag } from 'lucide-react';
+import { Copy, Flag, Info } from 'lucide-react';
 import type { ActionMessage, MenuPosition } from '../hooks/useMessageActions';
 
 const MENU_WIDTH = 192;
@@ -11,11 +11,14 @@ interface Props {
     position: MenuPosition;
     onCopy: () => void;
     onReport: () => void;
+    // Kendi mesajında Bildir yerine gösterilen okundu detayı aksiyonu.
+    // undefined ise (eski sunucu — read-states yok) satır hiç çizilmez.
+    onInfo?: () => void;
     onClose: () => void;
 }
 
 export const MessageContextMenu: React.FC<Props> = ({
-    visible, msg, position, onCopy, onReport, onClose,
+    visible, msg, position, onCopy, onReport, onInfo, onClose,
 }) => {
     if (!visible || !msg) return null;
 
@@ -77,15 +80,31 @@ export const MessageContextMenu: React.FC<Props> = ({
                     <span className="text-sm font-medium text-white">Kopyala</span>
                 </button>
 
-                <div className="h-px bg-slate-700 mx-3" />
-
-                <button
-                    className="flex flex-row items-center gap-3 px-4 py-3 w-full active:bg-slate-700 transition-colors"
-                    onClick={e => { e.stopPropagation(); onReport(); }}
-                >
-                    <Flag className="w-5 h-5 text-orange-400 flex-shrink-0" />
-                    <span className="text-sm font-medium text-orange-400">Bildir</span>
-                </button>
+                {msg.isMe ? (
+                    onInfo && (
+                        <>
+                            <div className="h-px bg-slate-700 mx-3" />
+                            <button
+                                className="flex flex-row items-center gap-3 px-4 py-3 w-full active:bg-slate-700 transition-colors"
+                                onClick={e => { e.stopPropagation(); onInfo(); }}
+                            >
+                                <Info className="w-5 h-5 text-blue-400 flex-shrink-0" />
+                                <span className="text-sm font-medium text-blue-400">Bilgi</span>
+                            </button>
+                        </>
+                    )
+                ) : (
+                    <>
+                        <div className="h-px bg-slate-700 mx-3" />
+                        <button
+                            className="flex flex-row items-center gap-3 px-4 py-3 w-full active:bg-slate-700 transition-colors"
+                            onClick={e => { e.stopPropagation(); onReport(); }}
+                        >
+                            <Flag className="w-5 h-5 text-orange-400 flex-shrink-0" />
+                            <span className="text-sm font-medium text-orange-400">Bildir</span>
+                        </button>
+                    </>
+                )}
             </div>
 
             <style>{`

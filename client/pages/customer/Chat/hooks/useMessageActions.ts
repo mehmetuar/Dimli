@@ -7,6 +7,8 @@ export interface ActionMessage {
     senderId: string;
     senderName: string;
     text: string;
+    // Kendi mesajı — context menüde Bildir yerine Bilgi (okundu detayı) gösterilir
+    isMe?: boolean;
 }
 
 export interface MenuPosition {

@@ -7,6 +7,7 @@ import { ChannelItem } from './components/ChannelItem';
 import { MatchStatusBadge } from './components/MatchStatusBadge';
 import { MessageBubble } from './components/MessageBubble';
 import { MessageContextMenu } from './components/MessageContextMenu';
+import { ReadInfoModal } from './components/ReadInfoModal';
 import { MessageActionModal } from './components/MessageActionModal';
 import { ReportNoteModal } from './components/ReportNoteModal';
 import { getMatchStatusInfo, formatMessageDate, teamAvatarFallback, userAvatarFallback } from './utils/chatUtils';
@@ -32,6 +33,7 @@ export const Chat: React.FC = () => {
     selectedChannelId, setSelectedChannelId,
     channels, activeChannel,
     messages, currentUser,
+    readStates, othersMinLastReadAt, fetchReadStates,
     input, setInput, isSending,
     isInviteModalOpen, setIsInviteModalOpen,
     matchDetailData,
@@ -104,6 +106,8 @@ export const Chat: React.FC = () => {
     setListPullDistance(0);
   }, [listPullDistance, fetchChannels]);
   const [showScrollButton, setShowScrollButton] = React.useState(false);
+  // Okundu bilgisi modalı — uzun basma "Bilgi" veya kendi mesajını sola kaydırma açar
+  const [readInfoMsg, setReadInfoMsg] = React.useState<any | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const isUserAtBottomRef = useRef(true);
   const endRef = useRef<HTMLDivElement>(null);
@@ -760,6 +764,20 @@ export const Chat: React.FC = () => {
             onAcceptProposal={handleAcceptProposal}
             onAcceptRematch={handleAcceptRematch}
             teamColors={teamChatColors}
+            // Okundu tiki: pending → tek gri; herkes okuduysa (min-watermark) mavi;
+            // aksi çift gri. readStates null (eski sunucu) → tik hiç çizilmez.
+            tickState={
+              msg.isMe && !msg.isSystem
+                ? msg.pending
+                  ? 'sending'
+                  : othersMinLastReadAt == null
+                    ? (readStates ? 'delivered' : null)
+                    : new Date(msg.rawCreatedAt).getTime() <= othersMinLastReadAt
+                      ? 'read'
+                      : 'delivered'
+                : null
+            }
+            onInfo={readStates ? (m) => setReadInfoMsg(m) : undefined}
           />
         ))}
 
@@ -1131,7 +1149,24 @@ export const Chat: React.FC = () => {
         position={contextMenuPosition}
         onCopy={handleCopy}
         onReport={handleContextMenuReport}
+        onInfo={readStates ? () => {
+          const m = contextMenuMsg;
+          closeContextMenu();
+          if (m) setReadInfoMsg(m);
+        } : undefined}
         onClose={closeContextMenu}
+      />
+
+      <ReadInfoModal
+        isOpen={!!readInfoMsg}
+        onClose={() => setReadInfoMsg(null)}
+        message={readInfoMsg}
+        channelType={activeChannel?.type}
+        channelId={selectedChannelId}
+        currentUserId={currentUser?.id}
+        readStates={readStates}
+        refreshReadStates={fetchReadStates}
+        teamColors={teamChatColors}
       />
 
       <MessageActionModal
