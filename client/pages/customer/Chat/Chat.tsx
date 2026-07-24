@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useMemo } from 'react';
+import React, { useRef, useEffect, useLayoutEffect, useMemo } from 'react';
 import { Send, ChevronLeft, Users, Shield, Star, Phone, ArrowDown, Swords, MoreVertical, X, ChevronRight, Trash2, XCircle, AlertTriangle, Undo2, UserMinus, UserPlus, RefreshCw, CheckCircle, MessageCircle, Repeat } from 'lucide-react';
 import { useChat } from './hooks/useChat';
 import { useMessageActions } from './hooks/useMessageActions';
@@ -110,6 +110,12 @@ export const Chat: React.FC = () => {
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRafRef = useRef<number | null>(null);
   const lastScrollStateRef = useRef(false);
+  // Append/prepend ayrımı: son mesaj id'si değiştiyse append (dibe kaydırma
+  // adayı), yalnız baştaki değiştiyse prepend (kaydırma yok, anchor düzeltir).
+  const lastMsgIdRef = useRef<string | null>(null);
+  // Prepend öncesi scroll durumu — eski sayfa eklenince görsel konumu korumak için
+  // (iOS WebKit overflow-anchor desteklemez, elle telafi edilir).
+  const prependAnchorRef = useRef<{ scrollHeight: number; scrollTop: number; firstId: string | null } | null>(null);
 
   const opponentTeam = null; // Simplification as in original
   const opponentJoker = null; // Simplification as in original
@@ -170,14 +176,51 @@ export const Chat: React.FC = () => {
         setShowScrollButton(!isAtBottom);
       }
       if (scrollTop < 80 && hasMore && !loadingMore) {
-        loadMoreMessages();
+        triggerLoadMore();
       }
     });
   };
 
+  // loadMore'u anchor yakalayarak sarar: prepend sonrası useLayoutEffect
+  // scroll farkını telafi eder, bakılan mesaj yerinde kalır.
+  const triggerLoadMore = () => {
+    const el = scrollContainerRef.current;
+    if (el) {
+      prependAnchorRef.current = {
+        scrollHeight: el.scrollHeight,
+        scrollTop: el.scrollTop,
+        firstId: messages[0]?.id ?? null,
+      };
+    }
+    loadMoreMessages();
+  };
+
+  // Prepend anchor telafisi — paint'ten ÖNCE (titreme olmasın). firstId guard'ı
+  // anchor'ın saf append'e (yeni mesaj) yanlışlıkla uygulanmasını önler.
+  useLayoutEffect(() => {
+    const anchor = prependAnchorRef.current;
+    const el = scrollContainerRef.current;
+    if (!anchor || !el) return;
+    if (messages[0]?.id !== anchor.firstId) {
+      el.scrollTop = anchor.scrollTop + (el.scrollHeight - anchor.scrollHeight);
+      prependAnchorRef.current = null;
+    }
+  }, [messages]);
+
+  // Append-farkındalıklı auto-scroll: yalnız SONA yeni mesaj eklenince kaydırma
+  // adayı olur. Prepend (eski sayfa) ve merge no-op'ları dibe kaydırmaz — derin
+  // geçmiş okuyan kullanıcının konumu bozulmaz.
   useEffect(() => {
-    if (isUserAtBottomRef.current) {
-      scrollToBottom();
+    const last = messages[messages.length - 1] ?? null;
+    const lastId = last?.id ?? null;
+    if (lastId === lastMsgIdRef.current) return;
+    const isInitialLoad = lastMsgIdRef.current === null && lastId !== null;
+    lastMsgIdRef.current = lastId;
+    if (!last) return;
+    // Kendi mesajım → nerede olursam olayım dibe in (beklenen davranış).
+    if (last.isMe) isUserAtBottomRef.current = true;
+    if (isInitialLoad || last.isMe || isUserAtBottomRef.current) {
+      scrollToBottom(isInitialLoad ? 'instant' : 'smooth');
     }
   }, [messages]);
 
@@ -185,6 +228,8 @@ export const Chat: React.FC = () => {
     setIsChatMenuOpen(false);
     isUserAtBottomRef.current = true;
     setShowScrollButton(false);
+    lastMsgIdRef.current = null;
+    prependAnchorRef.current = null;
     setTimeout(() => scrollToBottom('instant'), 100);
   }, [selectedChannelId]);
 
@@ -693,7 +738,7 @@ export const Chat: React.FC = () => {
             {!loadingMore && hasMore && (
               <div className="flex justify-center py-2">
                 <button
-                  onClick={loadMoreMessages}
+                  onClick={triggerLoadMore}
                   className="text-xs text-slate-400 hover:text-slate-200 transition-colors"
                 >
                   Daha eski mesajları göster

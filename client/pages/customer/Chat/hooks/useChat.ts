@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useSyncExternalStore } from '
 import { useLocation, useNavigate } from 'react-router-dom';
 import api from '../../../../services/api';
 import { subscribe, getCurrentUserSnapshot, fetchCurrentUser } from '../../../../services/currentUserStore';
-import { formatMessageDate } from '../utils/chatUtils';
+import { formatMessageDate, mergeMessages } from '../utils/chatUtils';
 import { useSocket } from '../../../../contexts/SocketContext';
 import { isNetworkError } from '../../../../utils/apiError';
 import { readListCache, writeListCache, CHANNELS_CACHE_KEY } from '../../../../utils/listCache';
@@ -13,6 +13,7 @@ const mapMsg = (msg: any, currentUserId?: string) => ({
     senderId: msg.senderId,
     senderName: msg.sender?.full_name || msg.sender?.username || 'Unknown',
     senderTeamId: msg.sender?.team?.id ?? null,
+    senderAvatarUrl: msg.sender?.avatarUrl ?? null,
     text: msg.content,
     timestamp: formatMessageDate(msg.createdAt),
     rawCreatedAt: msg.createdAt,
@@ -102,8 +103,14 @@ export const useChat = () => {
         }
     }, []);
 
-    // Ağ geri gelince kanal listesini tazele (60sn fallback interval'ini beklemeden).
-    useOnReconnect(fetchChannels);
+    // Ağ geri gelince kanal listesini + açık kanalın mesajlarını tazele
+    // (60sn fallback interval'ini beklemeden). Mesaj tarafı merge ile senkronlanır
+    // — yüklenmiş eski sayfalar korunur (ref, mesaj efektinde set edilir).
+    const resyncMessagesRef = useRef<(() => void) | null>(null);
+    useOnReconnect(useCallback(() => {
+        fetchChannels();
+        resyncMessagesRef.current?.();
+    }, [fetchChannels]));
 
     useEffect(() => {
         fetchChannels();
@@ -165,22 +172,26 @@ export const useChat = () => {
 
         const PAGE_SIZE = 50;
 
-        const fetchMessages = async () => {
+        // initial=true: kanal açılışı/refreshTrigger → tam yenileme (replace).
+        // initial=false: interval/socket-fallback/reconnect → merge — yukarı
+        // kaydırmayla yüklenmiş eski sayfalar KORUNUR, tam replace yapılmaz.
+        const fetchLatest = async (initial: boolean) => {
             try {
                 const response = await api.get(`/chat/channels/${selectedChannelId}/messages`, {
                     params: { limit: PAGE_SIZE },
                 });
                 const mapped = response.data.map((msg: any) => mapMsg(msg, currentUser?.id));
-                setMessages(mapped);
-                setHasMore(response.data.length === PAGE_SIZE);
+                setMessages(prev => (initial ? mapped : mergeMessages(prev, mapped)));
+                if (initial) setHasMore(response.data.length === PAGE_SIZE);
             } catch (error) {
                 console.error('Failed to fetch messages:', error);
             } finally {
-                setIsLoadingMessages(false);
+                if (initial) setIsLoadingMessages(false);
             }
         };
 
-        fetchMessages();
+        fetchLatest(true);
+        resyncMessagesRef.current = () => fetchLatest(false);
 
         const channelIdAtMount = selectedChannelId;
 
@@ -198,17 +209,27 @@ export const useChat = () => {
         // Kanala girildiğinde oku
         markRead(channelIdAtMount);
 
-        // 60s fallback — socket koptuğunda mesajlar güncel kalır
-        const interval = setInterval(fetchMessages, 60000);
+        // 60s fallback — socket koptuğunda mesajlar güncel kalır (merge: sayfalar korunur)
+        const interval = setInterval(() => fetchLatest(false), 60000);
 
         const onNewMessage = (data: any) => {
-            if (data?.channelId === channelIdAtMount) fetchMessages();
+            if (data?.channelId !== channelIdAtMount) return;
+            const raw = data.message;
+            // Zengin payload (sender var / sistem mesajı / kendi mesajım) → doğrudan
+            // merge, refetch yok. İnce payload (eski sunucu) + gönderen başkası →
+            // merge-fetch fallback ("Unknown" balonu görünmesin).
+            if (raw?.id && (raw.sender || raw.isSystemMessage || (raw.senderId && raw.senderId === currentUser?.id))) {
+                setMessages(prev => mergeMessages(prev, [mapMsg(raw, currentUser?.id)]));
+            } else {
+                fetchLatest(false);
+            }
         };
         if (socket) socket.on('newMessage', onNewMessage);
 
         // Kanaldan çıkılırken de oku — kanalda görülen sistem mesajları okunmuş sayılsın
         return () => {
             clearInterval(interval);
+            resyncMessagesRef.current = null;
             if (socket) socket.off('newMessage', onNewMessage);
             markRead(channelIdAtMount);
         };
@@ -230,7 +251,8 @@ export const useChat = () => {
                 return;
             }
             const older = response.data.map((msg: any) => mapMsg(msg, currentUser?.id));
-            setMessages(prev => [...older, ...prev]);
+            // merge: socket ile yarışta sınır mesajları tekilleşir, sıra bozulmaz
+            setMessages(prev => mergeMessages(prev, older));
             setHasMore(response.data.length === 50);
         } catch (error) {
             console.error('Failed to load more messages:', error);
@@ -249,10 +271,10 @@ export const useChat = () => {
         // Input'u await'ten ÖNCE temizle → ikinci dokunuş boş input'la erken döner.
         setInput('');
         try {
-            await api.post(`/chat/channels/${selectedChannelId}/messages`, { content: text });
-            const response = await api.get(`/chat/channels/${selectedChannelId}/messages`);
-            const mappedMessages = response.data.map((msg: any) => mapMsg(msg, currentUser?.id));
-            setMessages(mappedMessages);
+            // POST yanıtı sanitize edilmiş sender+team taşır → refetch'siz merge.
+            // Yüklenmiş eski sayfalar korunur; socket yankısı merge'de no-op olur.
+            const response = await api.post(`/chat/channels/${selectedChannelId}/messages`, { content: text });
+            setMessages(prev => mergeMessages(prev, [mapMsg(response.data, currentUser?.id)]));
             await api.post(`/chat/channels/${selectedChannelId}/read`);
         } catch (error: any) {
             setInput(text); // hata → metni geri yükle ki kullanıcı tekrar gönderebilsin

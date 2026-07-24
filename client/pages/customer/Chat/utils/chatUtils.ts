@@ -4,6 +4,26 @@ export const teamAvatarFallback = (name: string) =>
 export const userAvatarFallback = (name: string) =>
     `https://ui-avatars.com/api/?name=${encodeURIComponent(name || '?')}&background=111827&color=4ade80&size=64&bold=true`;
 
+// Mesaj listesini id'ye göre tekilleştirip rawCreatedAt (eşitse id) artan sıralar.
+// Yeni id yoksa prev'in KİMLİĞİNİ korur → gereksiz render/auto-scroll tetiklenmez
+// (ör. kendi mesajının socket yankısı handleSend merge'inden sonra no-op olur).
+// NOT: merge asla mesaj SİLMEZ — silme/düzenleme özelliği yok; kanal yeniden
+// açılışı ve refreshTrigger tam yenileme yapar.
+export const mergeMessages = (prev: any[], incoming: any[]) => {
+    if (incoming.length === 0) return prev;
+    const byId = new Map(prev.map(m => [m.id, m]));
+    let changed = false;
+    for (const m of incoming) {
+        if (!byId.has(m.id)) changed = true;
+        byId.set(m.id, m);
+    }
+    if (!changed) return prev;
+    return [...byId.values()].sort((a, b) => {
+        const d = new Date(a.rawCreatedAt).getTime() - new Date(b.rawCreatedAt).getTime();
+        return d !== 0 ? d : a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+    });
+};
+
 export const formatMessageDate = (dateString: string | Date) => {
     if (!dateString) return '';
     const date = new Date(dateString);
