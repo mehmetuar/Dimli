@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useSyncExternalStore } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, useSyncExternalStore } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import api from '../../../../services/api';
 import { subscribe, getCurrentUserSnapshot, fetchCurrentUser } from '../../../../services/currentUserStore';
@@ -167,6 +167,68 @@ export const useChat = () => {
         setMatchDetailData(null);
     }, [selectedChannelId]);
 
+    // ── Okundu bilgisi (watermark modeli) ────────────────────────────────────
+    // userId → {name, avatarUrl, teamId, lastReadAt}. null = bilinmiyor/eski
+    // sunucu (404) → tikler ve "Bilgi" aksiyonu hiç çizilmez (feature-detect).
+    const [readStates, setReadStates] = useState<Record<string, any> | null>(null);
+
+    const fetchReadStates = useCallback(async (channelId: string) => {
+        try {
+            const res = await api.get(`/chat/channels/${channelId}/read-states`);
+            setReadStates(Object.fromEntries(res.data.map((p: any) => [p.userId, p])));
+        } catch {
+            // 404 = eski sunucu → readStates null kalır, tik gizli
+        }
+    }, []);
+
+    useEffect(() => {
+        setReadStates(null);
+        if (!selectedChannelId) return;
+        fetchReadStates(selectedChannelId);
+
+        // Karşı taraf sohbeti açıp okuyunca canlı tik güncellemesi — tek girdi
+        // güncellenir, refetch yok (§89 merge disiplini).
+        const onMessagesRead = (data: any) => {
+            if (data?.channelId !== selectedChannelId || !data?.userId) return;
+            setReadStates(prev => prev
+                ? { ...prev, [data.userId]: { ...(prev[data.userId] ?? {}), userId: data.userId, lastReadAt: data.lastReadAt } }
+                : prev);
+        };
+        // Gönderen otomatik okumuş sayılır (sunucu sendMessage auto-read) — ayrı
+        // messagesRead yayını yok; newMessage'dan çıkarsanır.
+        const onNewMessageBumpRead = (data: any) => {
+            if (data?.channelId !== selectedChannelId) return;
+            const m = data.message;
+            if (m?.senderId && !m.isSystemMessage && m.createdAt) {
+                setReadStates(prev => (prev && prev[m.senderId])
+                    ? { ...prev, [m.senderId]: { ...prev[m.senderId], lastReadAt: m.createdAt } }
+                    : prev);
+            }
+        };
+        if (socket) {
+            socket.on('messagesRead', onMessagesRead);
+            socket.on('newMessage', onNewMessageBumpRead);
+        }
+        return () => {
+            if (socket) {
+                socket.off('messagesRead', onMessagesRead);
+                socket.off('newMessage', onNewMessageBumpRead);
+            }
+        };
+    }, [selectedChannelId, socket, fetchReadStates]);
+
+    // Diğer aktif katılımcıların en KÜÇÜK watermark'ı — bir mesaj bundan eskiyse
+    // HERKES okumuştur (balon başına tek Date karşılaştırması, O(n+m)).
+    const othersMinLastReadAt = useMemo(() => {
+        if (!readStates || !currentUser?.id) return null;
+        const others = Object.values(readStates).filter((p: any) => p.userId !== currentUser.id);
+        if (others.length === 0) return null; // tek kalınan kanal → hep gri
+        return others.reduce(
+            (min: number, p: any) => Math.min(min, p.lastReadAt ? new Date(p.lastReadAt).getTime() : 0),
+            Infinity,
+        );
+    }, [readStates, currentUser?.id]);
+
     useEffect(() => {
         if (!selectedChannelId) return;
 
@@ -219,7 +281,15 @@ export const useChat = () => {
             // merge, refetch yok. İnce payload (eski sunucu) + gönderen başkası →
             // merge-fetch fallback ("Unknown" balonu görünmesin).
             if (raw?.id && (raw.sender || raw.isSystemMessage || (raw.senderId && raw.senderId === currentUser?.id))) {
-                setMessages(prev => mergeMessages(prev, [mapMsg(raw, currentUser?.id)]));
+                // Kendi mesajımın socket yankısı POST yanıtından önce gelirse
+                // uçuştaki pending temp balonu düşür (id'ler farklı — merge
+                // tekilleştiremez, açıkça filtrelenir).
+                setMessages(prev => mergeMessages(
+                    raw.senderId === currentUser?.id
+                        ? prev.filter(m => !(m.pending && m.text === raw.content))
+                        : prev,
+                    [mapMsg(raw, currentUser?.id)],
+                ));
             } else {
                 fetchLatest(false);
             }
@@ -270,13 +340,35 @@ export const useChat = () => {
         setIsSending(true);
         // Input'u await'ten ÖNCE temizle → ikinci dokunuş boş input'la erken döner.
         setInput('');
+        // Optimistic balon: tek gri tik ('sending') POST uçuştayken görünür.
+        // Temp id ≠ gerçek id — merge tekilleştiremez, başarı VE hatada AÇIKÇA
+        // filtrelenmeli (yoksa hayalet balon kalır; merge asla silmez).
+        const tempId = `tmp-${Date.now()}`;
+        const nowIso = new Date().toISOString();
+        setMessages(prev => [...prev, {
+            id: tempId,
+            senderId: currentUser?.id,
+            senderName: currentUser?.full_name || currentUser?.username || '',
+            senderTeamId: currentUser?.team?.id ?? null,
+            senderAvatarUrl: currentUser?.avatarUrl ?? null,
+            text,
+            timestamp: formatMessageDate(nowIso),
+            rawCreatedAt: nowIso,
+            isMe: true,
+            isSystem: false,
+            pending: true,
+        }]);
         try {
             // POST yanıtı sanitize edilmiş sender+team taşır → refetch'siz merge.
             // Yüklenmiş eski sayfalar korunur; socket yankısı merge'de no-op olur.
             const response = await api.post(`/chat/channels/${selectedChannelId}/messages`, { content: text });
-            setMessages(prev => mergeMessages(prev, [mapMsg(response.data, currentUser?.id)]));
+            setMessages(prev => mergeMessages(
+                prev.filter(m => m.id !== tempId),
+                [mapMsg(response.data, currentUser?.id)],
+            ));
             await api.post(`/chat/channels/${selectedChannelId}/read`);
         } catch (error: any) {
+            setMessages(prev => prev.filter(m => m.id !== tempId)); // başarısız → balonu kaldır
             setInput(text); // hata → metni geri yükle ki kullanıcı tekrar gönderebilsin
             const data = error.response?.data;
             if (data?.statusCode === 403 && 'chatBanExpiry' in data) {
@@ -525,6 +617,7 @@ export const useChat = () => {
         selectedChannelId, setSelectedChannelId,
         channels, activeChannel,
         messages, currentUser,
+        readStates, othersMinLastReadAt, fetchReadStates,
         input, setInput,
         isSending,
         isInviteModalOpen, setIsInviteModalOpen,
