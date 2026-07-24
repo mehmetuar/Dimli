@@ -5,6 +5,7 @@ import { useModalBodyClass } from '../../../../utils/useModalBodyClass';
 import { useLocationContext } from '../../../../contexts/LocationContext';
 import { calculateDistance } from '../../../../utils/location';
 import { DirectionsConfirmModal } from '../../PitchBooking/components/DirectionsConfirmModal';
+import { CaptainAvatar } from './CaptainAvatar';
 import { teamInitialsAvatar } from '../../../../utils/teamColors';
 import { pitchTypeShortLabel } from '../../../../utils/pitchType';
 
@@ -28,6 +29,7 @@ interface SubTeamData {
         id: string;
         name: string;
         phone?: string;
+        avatarUrl?: string | null;
     } | null;
 }
 
@@ -137,9 +139,7 @@ const CaptainCard: React.FC<{ team?: SubTeamData | null; title: string }> = ({ t
         <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">{title}</div>
         {team?.captain ? (
             <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-yellow-500 flex items-center justify-center shrink-0">
-                    <span className="font-black text-[10px] text-yellow-900">C</span>
-                </div>
+                <CaptainAvatar avatarUrl={team.captain.avatarUrl} name={team.captain.name} />
                 <div className="flex-1 min-w-0">
                     <div className="text-xs font-bold text-white truncate">{team.captain.name}</div>
                     {team.captain.phone && (

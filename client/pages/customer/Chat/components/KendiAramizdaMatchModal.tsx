@@ -6,6 +6,7 @@ import { useLocationContext } from '../../../../contexts/LocationContext';
 import { calculateDistance } from '../../../../utils/location';
 import { addOneHour } from '../../../../utils/time';
 import { DirectionsConfirmModal } from '../../PitchBooking/components/DirectionsConfirmModal';
+import { CaptainAvatar } from './CaptainAvatar';
 import { pitchTypeShortLabel } from '../../../../utils/pitchType';
 
 interface TeamData {
@@ -21,6 +22,7 @@ interface TeamData {
         id: string;
         name: string;
         phone?: string;
+        avatarUrl?: string | null;
     };
 }
 
@@ -248,9 +250,7 @@ export const KendiAramizdaMatchModal: React.FC<MatchDetailModalProps> = ({ isOpe
                                     Takım Kaptanı
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <div className="w-8 h-8 rounded-full bg-yellow-500 flex items-center justify-center">
-                                        <span className="font-black text-[10px] text-yellow-900">C</span>
-                                    </div>
+                                    <CaptainAvatar avatarUrl={data.homeTeam.captain.avatarUrl} name={data.homeTeam.captain.name} />
                                     <div className="flex-1 min-w-0">
                                         <div className="text-xs font-bold text-white truncate">{data.homeTeam.captain.name}</div>
                                         {data.homeTeam.captain.phone && (

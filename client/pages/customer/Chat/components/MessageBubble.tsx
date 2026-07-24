@@ -11,6 +11,7 @@ interface MsgLike extends ActionMessage {
     isMe?: boolean;
     metadata?: any;
     senderTeamId?: string | null;
+    senderAvatarUrl?: string | null;
 }
 
 // Renk alanları colorUtils'teki TeamAccent'ten gelir — palet mantığı tek kaynakta kalır.
@@ -60,6 +61,10 @@ export const MessageBubble: React.FC<Props> = ({
                 ? { colors: teamColors.awayAccent, logo: teamColors.awayLogo }
                 : null
         : null;
+
+    // Avatar içeriği önceliği: gönderenin profil fotoğrafı → takım logosu → baş harf.
+    // Takım kimliği fotoğraf gösterilirken de forma halkası + isim rengiyle korunur.
+    const avatarSrc = msg.senderAvatarUrl || accent?.logo || null;
 
     const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     const startPos = useRef({ x: 0, y: 0 });
@@ -205,13 +210,26 @@ export const MessageBubble: React.FC<Props> = ({
                             // Logosuz fallback'te zemin okunur (açık) takım rengi olduğundan baş harf koyu yazılır.
                             style={accent ? {
                                 boxShadow: `0 0 0 1.5px #0f172a, 0 0 0 3px ${accent.colors.base}`,
-                                ...(accent.logo ? {} : { backgroundColor: accent.colors.base, color: '#0f172a' }),
+                                ...(avatarSrc ? {} : { backgroundColor: accent.colors.base, color: '#0f172a' }),
                             } : undefined}
                             onClick={() => onAvatarClick(msg)}
                             onMouseDown={e => e.stopPropagation()}
                         >
-                            {accent?.logo ? (
-                                <img src={accent.logo} className="w-full h-full object-cover" onError={(e) => { const el = e.currentTarget; el.onerror = null; el.src = teamInitialsAvatar(msg.senderName); }} />
+                            {avatarSrc ? (
+                                <img
+                                    src={avatarSrc}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                        const el = e.currentTarget;
+                                        // Kırık profil fotoğrafı → takım logosu → baş harf görseli
+                                        if (msg.senderAvatarUrl && el.src === msg.senderAvatarUrl && accent?.logo) {
+                                            el.src = accent.logo;
+                                            return;
+                                        }
+                                        el.onerror = null;
+                                        el.src = teamInitialsAvatar(msg.senderName);
+                                    }}
+                                />
                             ) : (
                                 msg.senderName.charAt(0).toUpperCase()
                             )}
