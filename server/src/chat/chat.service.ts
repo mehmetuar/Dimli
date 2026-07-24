@@ -1042,10 +1042,75 @@ export class ChatService {
   }
 
   async markAsRead(channelId: string, userId: string): Promise<void> {
+    // GÜVENLİK (agent.md güvenlik turu maddesi): yalnız kanalın aktif katılımcısı
+    // kendi watermark'ını güncelleyebilir. Eski istemciler hatayı sessizce yutar.
+    const me = await this.chatParticipantRepository.findOne({
+      where: { channelId, userId, deletedAt: IsNull() },
+    });
+    if (!me) {
+      throw new ForbiddenException('Bu sohbetin katılımcısı değilsiniz.');
+    }
+
     await this.chatParticipantRepository.update(
       { channelId, userId },
+      // DB saati — sendMessage'daki tz notuyla tutarlı (JS Date yazımı
+      // "timestamp without time zone" kolonunda kaymaya yol açar).
       { lastReadAt: () => 'CURRENT_TIMESTAMP' },
     );
+
+    // Okundu bilgisi: diğer aktif katılımcılara canlı tik güncellemesi. Yayınlanan
+    // lastReadAt DB'den GERİ OKUNUR (asla new Date() değil) — createdAt ile aynı
+    // serileştirme hattından geçsin ki istemci karşılaştırması tutarlı kalsın.
+    if (this.gateway?.server) {
+      const participants = await this.chatParticipantRepository.find({
+        where: { channelId, deletedAt: IsNull() },
+        select: ['userId', 'lastReadAt'],
+      });
+      const lastReadAt = participants.find(
+        (p) => p.userId === userId,
+      )?.lastReadAt;
+      if (!lastReadAt) return;
+      participants
+        .filter((p) => p.userId !== userId)
+        .forEach((p) =>
+          this.gateway.server
+            .to(p.userId)
+            .emit('messagesRead', { channelId, userId, lastReadAt }),
+        );
+    }
+  }
+
+  // Okundu bilgisi: kanalın aktif katılımcılarının watermark'ları (lastReadAt).
+  // İstemci hem balon tiklerini hem "Bilgi" modalını bu küçük payload'dan hesaplar.
+  // Elle 5 alanlık whitelist projeksiyonu — User'a ileride kolon eklense bile
+  // sızıntı olamaz. Takım adı/rengi istemcideki teamChatColors'tan çözülür,
+  // burada yalnız teamId taşınır.
+  async getChannelReadStates(
+    channelId: string,
+    requestingUserId: string,
+  ): Promise<
+    {
+      userId: string;
+      name: string;
+      avatarUrl: string | null;
+      teamId: string | null;
+      lastReadAt: Date;
+    }[]
+  > {
+    const participants = await this.chatParticipantRepository.find({
+      where: { channelId, deletedAt: IsNull() },
+      relations: ['user'],
+    });
+    if (!participants.some((p) => p.userId === requestingUserId)) {
+      throw new ForbiddenException('Bu sohbetin katılımcısı değilsiniz.');
+    }
+    return participants.map((p) => ({
+      userId: p.userId,
+      name: p.user?.full_name || p.user?.username || '',
+      avatarUrl: p.user?.avatarUrl ?? null,
+      teamId: p.user?.teamId ?? null,
+      lastReadAt: p.lastReadAt,
+    }));
   }
 
   async getUnreadCount(userId: string): Promise<number> {

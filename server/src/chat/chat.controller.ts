@@ -51,6 +51,16 @@ export class ChatController {
     return this.chatService.markAsRead(id, req.user.id);
   }
 
+  // Okundu bilgisi: aktif katılımcıların lastReadAt watermark'ları.
+  // Katılımcı kontrolü serviste.
+  @Get('channels/:id/read-states')
+  getChannelReadStates(
+    @Param('id') id: string,
+    @Request() req: { user: Express.User },
+  ) {
+    return this.chatService.getChannelReadStates(id, req.user.id);
+  }
+
   @Get('channels/:id/match-details')
   getChannelMatchDetails(@Param('id') id: string) {
     return this.chatService.getChannelMatchDetails(id);
