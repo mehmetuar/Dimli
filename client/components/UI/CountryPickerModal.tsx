@@ -28,7 +28,10 @@ export const CountryPickerModal: React.FC<Props> = ({ isOpen, onClose, value, on
         const q = search.trim().toLocaleLowerCase('tr');
         if (!q) return COUNTRIES;
         return COUNTRIES.filter(
-            c => c.name.toLocaleLowerCase('tr').includes(q) || c.code.toLowerCase().includes(q),
+            c => c.name.toLocaleLowerCase('tr').includes(q)
+                || c.code.toLowerCase().includes(q)
+                // Takma adlar: "İngiltere" → Birleşik Krallık, "ABD" → Amerika vb.
+                || c.aliases?.some(a => a.toLocaleLowerCase('tr').includes(q)),
         );
     }, [search]);
 

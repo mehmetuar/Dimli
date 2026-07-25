@@ -6,6 +6,9 @@
 export interface Country {
   code: string; // ISO alpha-2, uppercase (örn. 'TR')
   name: string; // Türkçe ad
+  // Arama takma adları — görünen ad değişmez ama picker araması bunları da
+  // eşleştirir (örn. "İngiltere" → Birleşik Krallık). CountryPickerModal kullanır.
+  aliases?: string[];
 }
 
 export const DEFAULT_NATIONALITY = 'TR';
@@ -15,7 +18,7 @@ export const COUNTRIES: Country[] = [
   { code: 'TR', name: 'Türkiye' },
   { code: 'AF', name: 'Afganistan' },
   { code: 'DE', name: 'Almanya' },
-  { code: 'US', name: 'Amerika Birleşik Devletleri' },
+  { code: 'US', name: 'Amerika Birleşik Devletleri', aliases: ['ABD'] },
   { code: 'AD', name: 'Andorra' },
   { code: 'AO', name: 'Angola' },
   { code: 'AG', name: 'Antigua ve Barbuda' },
@@ -33,8 +36,8 @@ export const COUNTRIES: Country[] = [
   { code: 'BJ', name: 'Benin' },
   { code: 'BY', name: 'Belarus' },
   { code: 'BT', name: 'Butan' },
-  { code: 'AE', name: 'Birleşik Arap Emirlikleri' },
-  { code: 'GB', name: 'Birleşik Krallık' },
+  { code: 'AE', name: 'Birleşik Arap Emirlikleri', aliases: ['BAE'] },
+  { code: 'GB', name: 'Birleşik Krallık', aliases: ['İngiltere', 'Büyük Britanya', 'England', 'UK'] },
   { code: 'BO', name: 'Bolivya' },
   { code: 'BA', name: 'Bosna-Hersek' },
   { code: 'BW', name: 'Botsvana' },
@@ -48,8 +51,9 @@ export const COUNTRIES: Country[] = [
   { code: 'DJ', name: 'Cibuti' },
   { code: 'CN', name: 'Çin' },
   { code: 'TD', name: 'Çad' },
-  { code: 'CZ', name: 'Çekya' },
+  { code: 'CZ', name: 'Çekya', aliases: ['Çek Cumhuriyeti'] },
   { code: 'DK', name: 'Danimarka' },
+  { code: 'TL', name: 'Doğu Timor', aliases: ['Timor'] },
   { code: 'DO', name: 'Dominik Cumhuriyeti' },
   { code: 'DM', name: 'Dominika' },
   { code: 'EC', name: 'Ekvador' },
@@ -60,6 +64,7 @@ export const COUNTRIES: Country[] = [
   { code: 'AM', name: 'Ermenistan' },
   { code: 'EE', name: 'Estonya' },
   { code: 'ET', name: 'Etiyopya' },
+  { code: 'MA', name: 'Fas', aliases: ['Morocco'] },
   { code: 'FJ', name: 'Fiji' },
   { code: 'CI', name: 'Fildişi Sahili' },
   { code: 'PH', name: 'Filipinler' },
@@ -82,7 +87,7 @@ export const COUNTRIES: Country[] = [
   { code: 'HT', name: 'Haiti' },
   { code: 'IN', name: 'Hindistan' },
   { code: 'HR', name: 'Hırvatistan' },
-  { code: 'NL', name: 'Hollanda' },
+  { code: 'NL', name: 'Hollanda', aliases: ['Felemenk'] },
   { code: 'HN', name: 'Honduras' },
   { code: 'IQ', name: 'Irak' },
   { code: 'IR', name: 'İran' },
@@ -113,7 +118,7 @@ export const COUNTRIES: Country[] = [
   { code: 'XK', name: 'Kosova' },
   { code: 'KW', name: 'Kuveyt' },
   { code: 'KP', name: 'Kuzey Kore' },
-  { code: 'MK', name: 'Kuzey Makedonya' },
+  { code: 'MK', name: 'Kuzey Makedonya', aliases: ['Makedonya'] },
   { code: 'CU', name: 'Küba' },
   { code: 'LA', name: 'Laos' },
   { code: 'LS', name: 'Lesotho' },
@@ -141,7 +146,7 @@ export const COUNTRIES: Country[] = [
   { code: 'MR', name: 'Moritanya' },
   { code: 'MU', name: 'Mauritius' },
   { code: 'MZ', name: 'Mozambik' },
-  { code: 'MM', name: 'Myanmar' },
+  { code: 'MM', name: 'Myanmar', aliases: ['Burma'] },
   { code: 'NA', name: 'Namibya' },
   { code: 'NR', name: 'Nauru' },
   { code: 'NP', name: 'Nepal' },
@@ -162,6 +167,9 @@ export const COUNTRIES: Country[] = [
   { code: 'RO', name: 'Romanya' },
   { code: 'RW', name: 'Ruanda' },
   { code: 'RU', name: 'Rusya' },
+  { code: 'KN', name: 'Saint Kitts ve Nevis' },
+  { code: 'LC', name: 'Saint Lucia' },
+  { code: 'VC', name: 'Saint Vincent ve Grenadinler' },
   { code: 'WS', name: 'Samoa' },
   { code: 'SM', name: 'San Marino' },
   { code: 'ST', name: 'São Tomé ve Príncipe' },
