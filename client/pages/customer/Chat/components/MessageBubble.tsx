@@ -1,7 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import { Swords, Check, CheckCheck } from 'lucide-react';
 import { SystemMessageRenderer } from '../../../../components/UI/SystemMessageRenderer';
-import { teamInitialsAvatar } from '../../../../utils/teamColors';
+import { UserAvatar } from './UserAvatar';
 import type { TeamAccent } from '../../../../utils/colorUtils';
 import type { ActionMessage, MenuPosition } from '../hooks/useMessageActions';
 
@@ -77,11 +77,6 @@ export const MessageBubble: React.FC<Props> = ({
                 ? { colors: teamColors.awayAccent, logo: teamColors.awayLogo }
                 : null
         : null;
-
-    // Avatar içeriği: gönderenin profil fotoğrafı, yoksa HER ZAMAN baş harf.
-    // Takım logosu kişisel avatar olarak KULLANILMAZ (fotoğrafmış gibi görünüyordu);
-    // takım kimliği forma halkası + isim rengiyle verilir.
-    const avatarSrc = msg.senderAvatarUrl || null;
 
     const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     const startPos = useRef({ x: 0, y: 0 });
@@ -264,29 +259,23 @@ export const MessageBubble: React.FC<Props> = ({
                     {!isNextSameSender ? (
                         <button
                             data-avatar="true"
-                            className="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-bold text-white overflow-hidden active:opacity-70 transition-opacity"
+                            className="w-7 h-7 rounded-full overflow-hidden active:opacity-70 transition-opacity"
                             // Forma halkası: koyu ince boşluk + takım renginde dış halka.
-                            // Logosuz fallback'te zemin okunur (açık) takım rengi olduğundan baş harf koyu yazılır.
+                            // Avatar içeriği (fotoğraf/baş harf) tek kaynaklı UserAvatar'dan —
+                            // Mesaj Bilgisi modalıyla birebir aynı görünüm.
                             style={accent ? {
                                 boxShadow: `0 0 0 1.5px #0f172a, 0 0 0 3px ${accent.colors.base}`,
-                                ...(avatarSrc ? {} : { backgroundColor: accent.colors.base, color: '#0f172a' }),
                             } : undefined}
                             onClick={() => onAvatarClick(msg)}
                             onMouseDown={e => e.stopPropagation()}
                         >
-                            {avatarSrc ? (
-                                <img
-                                    src={avatarSrc}
-                                    className="w-full h-full object-cover"
-                                    onError={(e) => {
-                                        const el = e.currentTarget;
-                                        el.onerror = null;
-                                        el.src = teamInitialsAvatar(msg.senderName);
-                                    }}
-                                />
-                            ) : (
-                                msg.senderName.charAt(0).toUpperCase()
-                            )}
+                            <UserAvatar
+                                url={msg.senderAvatarUrl}
+                                name={msg.senderName}
+                                size={28}
+                                accentHex={accent?.colors.base ?? null}
+                                className="w-full h-full"
+                            />
                         </button>
                     ) : (
                         <div style={{ width: 28 }} />

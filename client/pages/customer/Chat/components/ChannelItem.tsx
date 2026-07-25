@@ -1,6 +1,7 @@
 import React from 'react';
 import { Users, Star, Repeat } from 'lucide-react';
 import { getMatchStatusInfo, formatMessageDate, teamAvatarFallback, userAvatarFallback } from '../utils/chatUtils';
+import { realAvatarUrl } from './UserAvatar';
 import { MatchStatusBadge } from './MatchStatusBadge';
 import { stripSystemMessageMarkers } from '../../../../components/UI/SystemMessageRenderer';
 import { useLongPress } from '../hooks/useLongPress';
@@ -161,7 +162,7 @@ export const ChannelItem: React.FC<ChannelItemProps> = ({
             return (
                 <div className="relative flex-shrink-0">
                     <img
-                        src={ad?.otherUserAvatar || userAvatarFallback(ad?.otherUserName || channel.name)}
+                        src={realAvatarUrl(ad?.otherUserAvatar) || userAvatarFallback(ad?.otherUserName || channel.name)}
                         alt="" draggable={false} style={noCalloutStyle}
                         className="w-12 h-12 rounded-full object-cover"
                     />

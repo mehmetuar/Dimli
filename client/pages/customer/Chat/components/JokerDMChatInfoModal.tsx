@@ -2,7 +2,8 @@ import React from 'react';
 import { X, Calendar, MapPin, Map, Phone, Users, User, Shield, Handshake, ChevronRight, Banknote, Navigation } from 'lucide-react';
 import { calculateAge } from '../../../../utils/calculateAge';
 import { useModalBodyClass } from '../../../../utils/useModalBodyClass';
-import { getMatchStatusInfo } from '../utils/chatUtils';
+import { getMatchStatusInfo, userAvatarFallback } from '../utils/chatUtils';
+import { realAvatarUrl } from './UserAvatar';
 import { useLocationContext } from '../../../../contexts/LocationContext';
 import { calculateDistance } from '../../../../utils/location';
 
@@ -40,7 +41,7 @@ export const JokerDMChatInfoModal: React.FC<Props> = ({ isOpen, onClose, channel
     };
 
     const opponent = checkOpponent();
-    const opponentAvatar = opponent?.avatarUrl || `https://ui-avatars.com/api/?name=${opponent?.full_name || opponent?.username || 'G'}&background=1e293b&color=fff`;
+    const opponentAvatar = realAvatarUrl(opponent?.avatarUrl) || userAvatarFallback(opponent?.full_name || opponent?.username || 'G');
 
     // Provide fallback info if not all details are available in participant object
     const jokerName = opponent?.full_name || opponent?.username || 'Joker Oyuncu';

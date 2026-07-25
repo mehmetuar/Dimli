@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Shield, X, UserMinus, AlertTriangle } from 'lucide-react';
 import api from '../../../../services/api';
 import { useModalBodyClass } from '../../../../utils/useModalBodyClass';
+import { userAvatarFallback } from '../utils/chatUtils';
+import { realAvatarUrl } from './UserAvatar';
 
 interface ManageJokersModalProps {
     isOpen: boolean;
@@ -86,7 +88,7 @@ export const ManageJokersModal: React.FC<ManageJokersModalProps> = ({ isOpen, on
 
                             {jokers.map(joker => {
                                 const displayName = joker.full_name || joker.username || joker.name || 'Joker';
-                                const avatarSrc = joker.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=1a2e35&color=4ade80&size=40`;
+                                const avatarSrc = realAvatarUrl(joker.avatarUrl) || userAvatarFallback(displayName);
                                 return (
                                     <div key={joker.id} className="bg-slate-900 border border-slate-700 p-3 rounded-2xl flex items-center justify-between">
                                         <div className="flex items-center gap-3">

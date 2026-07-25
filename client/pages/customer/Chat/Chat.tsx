@@ -8,6 +8,7 @@ import { MatchStatusBadge } from './components/MatchStatusBadge';
 import { MessageBubble } from './components/MessageBubble';
 import { MessageContextMenu } from './components/MessageContextMenu';
 import { ReadInfoModal } from './components/ReadInfoModal';
+import { realAvatarUrl } from './components/UserAvatar';
 import { MessageActionModal } from './components/MessageActionModal';
 import { ReportNoteModal } from './components/ReportNoteModal';
 import { getMatchStatusInfo, formatMessageDate, teamAvatarFallback, userAvatarFallback } from './utils/chatUtils';
@@ -578,7 +579,7 @@ export const Chat: React.FC = () => {
             if (activeChannel?.type === 'JOKER_NEGOTIATION') {
               return (
                 <img
-                  src={ad?.otherUserAvatar || userAvatarFallback(ad?.otherUserName || activeChannel?.name || '')}
+                  src={realAvatarUrl(ad?.otherUserAvatar) || userAvatarFallback(ad?.otherUserName || activeChannel?.name || '')}
                   className="w-10 h-10 rounded-full bg-slate-800 object-cover cursor-pointer active:scale-90 transition-transform"
                   onClick={handleOpenMatchDetail}
                 />

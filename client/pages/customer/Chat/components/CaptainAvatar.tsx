@@ -1,10 +1,13 @@
 import React from 'react';
 import { userAvatarFallback } from '../utils/chatUtils';
+import { realAvatarUrl } from './UserAvatar';
 
 // Kaptan dairesi: profil fotoğrafı varsa fotoğraf, yoksa sarı "C" rozeti.
 // Kırık fotoğraf URL'inde baş harf görseline düşer (ChannelItem ile aynı desen).
-export const CaptainAvatar: React.FC<{ avatarUrl?: string | null; name: string }> = ({ avatarUrl, name }) =>
-    avatarUrl ? (
+// realAvatarUrl: DB'de kalmış eski ui-avatars URL'leri fotoğraf sayılmaz.
+export const CaptainAvatar: React.FC<{ avatarUrl?: string | null; name: string }> = ({ avatarUrl: rawUrl, name }) => {
+    const avatarUrl = realAvatarUrl(rawUrl);
+    return avatarUrl ? (
         <img
             src={avatarUrl}
             alt={name}
@@ -16,3 +19,4 @@ export const CaptainAvatar: React.FC<{ avatarUrl?: string | null; name: string }
             <span className="font-black text-[10px] text-yellow-900">C</span>
         </div>
     );
+};

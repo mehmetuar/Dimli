@@ -2,7 +2,8 @@ import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, CheckCheck } from 'lucide-react';
 import { useModalBodyClass } from '../../../../utils/useModalBodyClass';
-import { userAvatarFallback, formatMessageDate } from '../utils/chatUtils';
+import { formatMessageDate } from '../utils/chatUtils';
+import { UserAvatar } from './UserAvatar';
 import type { TeamAccent } from '../../../../utils/colorUtils';
 
 // Okundu bilgisi modalı — watermark modeliyle çalışır:
@@ -51,14 +52,11 @@ const effectiveTeamId = (p: ReadStateEntry, teamColors: TeamColorsLike): string 
 const isJokerEntry = (p: ReadStateEntry, teamColors?: TeamColorsLike | null): boolean =>
     !!p.jokerTeamId && (!teamColors || (p.teamId !== teamColors.homeTeamId && p.teamId !== teamColors.awayTeamId));
 
-const ReaderRow: React.FC<{ p: ReadStateEntry; showJokerBadge?: boolean }> = ({ p, showJokerBadge }) => (
+// accentHex: satırın efektif takımının rengi — balondaki avatarla BİREBİR aynı
+// görünüm (tek kaynak: UserAvatar).
+const ReaderRow: React.FC<{ p: ReadStateEntry; showJokerBadge?: boolean; accentHex?: string | null }> = ({ p, showJokerBadge, accentHex }) => (
     <div className="flex items-center gap-2.5 py-1.5">
-        <img
-            src={p.avatarUrl || userAvatarFallback(p.name || '?')}
-            alt={p.name}
-            className="w-8 h-8 rounded-full object-cover bg-slate-700 shrink-0"
-            onError={(e) => { const el = e.currentTarget; el.onerror = null; el.src = userAvatarFallback(p.name || '?'); }}
-        />
+        <UserAvatar url={p.avatarUrl} name={p.name || '?'} size={32} accentHex={accentHex ?? null} />
         <span className="text-sm text-slate-200 truncate">{p.name || 'Kullanıcı'}</span>
         {showJokerBadge && (
             <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-yellow-500 text-yellow-950 text-[9px] font-black shrink-0">
@@ -90,7 +88,14 @@ const TeamGroupedList: React.FC<{ people: ReadStateEntry[]; teamColors: TeamColo
                         )}
                         <span className="text-[11px] text-slate-400 font-semibold truncate">{g.title}</span>
                     </div>
-                    {g.members.map(p => <ReaderRow key={p.userId} p={p} showJokerBadge={isJokerEntry(p, teamColors)} />)}
+                    {g.members.map(p => (
+                        <ReaderRow
+                            key={p.userId}
+                            p={p}
+                            showJokerBadge={isJokerEntry(p, teamColors)}
+                            accentHex={g.dot?.base ?? null}
+                        />
+                    ))}
                 </div>
             ))}
         </>
