@@ -4208,3 +4208,27 @@ sanılıp rastgele gri görünüyordu.
 UPDATE ile temizlenir (§9); kayıt akışı artık yazmıyor. (2) `TeamsService.findOne`
 (teams.service.ts:243-245) yanıt anında fotoğrafsız oyunculara `background=random` ui-avatars
 enjekte ediyor → MyTeam ekranlarında aynı tutarsızlık; ayrı tur işi.
+
+### §91. Chat scroll hassasiyeti düzeltmesi + rakipli balon "takım çizgisi" tasarımı (2026-07-25)
+
+**Scroll hatası (kök neden):** MessageBubble dokunma efektinde İKİ scroll engelleyici vardı:
+(a) başkasının balonlarında uzun-basma için `touchstart`'ta `e.preventDefault()` — iOS'ta o
+dokunuştan scroll hiç başlamıyordu ("ekranın bazı kısımları kaymıyor" şikayetinin kökü; §90
+öncesinden gelen miras), (b) sola-kaydırma kilidi `|dx|>|dy|` ilk karşılaştırmasıyla hafif çapraz
+yukarı kaydırmayı yatay sanıp `preventDefault` ile scroll'u çalıyordu.
+
+**Çözüm:** `touchstart` preventDefault'u TAMAMEN kalktı (listener passive:true; metin seçimi/callout
+görevi noSelect inline CSS'te — userSelect/WebkitTouchCallout none). Dokunuş başına TEK SEFERLİK
+eksen kararı: ilk MOVE_THRESHOLD aşımında dikey/kararsız → 'v' (bu dokunuşta swipe asla, scroll
+serbest); belirgin yatay-sol (`dx < -12 && |dx| > |dy|*1.5`, yalnız isMine) → 'h' (swipe).
+`preventDefault` yalnız 'h'+isMine'da. KURAL: balon dokunma efektine preventDefault eklerken scroll
+başlatmayı öldürdüğünü unutma; eksen kararı deseni korunmalı. Cihaz doğrulaması: iOS uzun basmada
+metin seçimi/büyüteç çıkmamalı (noSelect CSS'in yeterliliği), çıkarsa geri-adım planı §91 planında.
+
+**Rakipli balon tasarımı:** dolgu degradesi (soft→secondarySoft) kaldırıldı — zemin standart
+`bg-slate-800`, takım kimliği yalnız **takım renginde dış çizgi** (`borderColor: accent.base`) +
+takım renginde isim + mevcut avatar halkası/J rozeti. `ColorPickerModal` "Sohbette Böyle Görünür"
+önizlemesi birebir eşitlendi (aynı tasarım — ikisi HEP birlikte güncellenmeli). Abone rakipli
+kanallar aynı render yolundan geçer, otomatik kapsandı. `TeamAccent` sadeleşti: yalnız
+`base` + `secondaryBase` kaldı (soft/secondarySoft/border/glow alanları ve rgba helper'ı silindi —
+tek tüketicileri düzenlenen iki dosyaydı, glow zaten hiç okunmuyordu).
