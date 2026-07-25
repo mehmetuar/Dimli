@@ -4165,3 +4165,22 @@ gönderen hariç tüm aktif katılımcılar okudu.
 **Geriye uyum / deploy:** eski istemci `messagesRead`'i yok sayar, markAsRead 403'ü zaten yutar;
 yeni istemci + eski sunucu → read-states 404 → readStates null → tik ve "Bilgi" tamamen gizli.
 Deploy sırası: server → client (yeni native sürüm). Şema değişikliği yok.
+
+### §90-ek. Joker takım rengi + J rozeti, avatar fallback düzeltmesi (2026-07-25)
+
+Cihaz testi geri bildirimleri (§88/§90 rötuşları):
+- **Joker mesaj rengi:** jokerin katıldığı takım `JOKER_JOINED` sistem mesajı metadata'sında
+  (`jokerId` + `invitingTeamId`, inviteJokerToMatchGroup yazar) — read-states ucuna
+  `jokerTeamId` alanı eklendi (tek raw SQL: `metadata->>'type'='JOKER_JOINED'`, canlı DB'de
+  doğrulandı). İstemcide mesaj listesinden TÜRETME (sayfalama penceresi dışında kalabilir).
+  MessageBubble accent'i `effectiveTeamId` (üye ise kendi takımı, değilse jokerTeamId) üzerinden
+  çözer → joker katıldığı takımın forma rengiyle yazar; isim yanında sarı **J** rozeti
+  (yellow-500 konvansiyonu). ReadInfoModal'da joker katıldığı takımın başlığı altında J rozetiyle
+  listelenir; takımı bilinmeyen eski-veri jokerleri "Jokerler" bölümünde kalır.
+- **Avatar fallback düzeltmesi (§88 regresyonu):** mesaj avatarında takım logosu kişisel
+  fotoğrafmış gibi görünüyordu → içerik önceliği artık yalnız `profil fotoğrafı → baş harf`;
+  takım kimliği forma halkası + isim rengiyle verilir. KURAL: takım logosunu kişisel avatar
+  yerine KOYMA.
+- **ReadInfoModal uyum notu:** MainActivity `setDecorFitsSystemWindows(true)` → Android'de nav
+  bar webview üstüne binmez; sheet alt dolgusu `max(16px, env(safe-area-inset-bottom))` iki
+  platformda da doğru. Önizleme `line-clamp-3`, bölümler arası ince ayraç eklendi.
