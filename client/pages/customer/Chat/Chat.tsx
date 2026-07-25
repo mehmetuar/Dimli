@@ -108,6 +108,17 @@ export const Chat: React.FC = () => {
   const [showScrollButton, setShowScrollButton] = React.useState(false);
   // Okundu bilgisi modalı — uzun basma "Bilgi" veya kendi mesajını sola kaydırma açar
   const [readInfoMsg, setReadInfoMsg] = React.useState<any | null>(null);
+
+  // Joker gönderenler: userId → maç için katıldığı takım (JOKER_JOINED metadata'sı,
+  // read-states üzerinden). Balon rengi + J rozeti + modal gruplaması buradan.
+  const jokerTeamByUser = useMemo(() => {
+    if (!readStates) return {} as Record<string, string>;
+    const map: Record<string, string> = {};
+    for (const p of Object.values(readStates) as any[]) {
+      if (p.jokerTeamId) map[p.userId] = p.jokerTeamId;
+    }
+    return map;
+  }, [readStates]);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const isUserAtBottomRef = useRef(true);
   const endRef = useRef<HTMLDivElement>(null);
@@ -778,6 +789,7 @@ export const Chat: React.FC = () => {
                 : null
             }
             onInfo={readStates ? (m) => setReadInfoMsg(m) : undefined}
+            jokerTeamId={jokerTeamByUser[msg.senderId] ?? null}
           />
         ))}
 

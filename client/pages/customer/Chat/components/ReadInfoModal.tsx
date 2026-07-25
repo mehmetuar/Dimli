@@ -15,6 +15,8 @@ interface ReadStateEntry {
     name?: string;
     avatarUrl?: string | null;
     teamId?: string | null;
+    // Joker: maç için katıldığı takım (JOKER_JOINED metadata'sı) — gruplama + J rozeti
+    jokerTeamId?: string | null;
     lastReadAt?: string | null;
 }
 
@@ -39,7 +41,17 @@ interface Props {
     teamColors?: TeamColorsLike | null;
 }
 
-const ReaderRow: React.FC<{ p: ReadStateEntry }> = ({ p }) => (
+// Jokerin efektif takımı: kendi takımı maçtaki iki takımdan biri değilse (veya
+// takımsızsa) JOKER_JOINED'dan gelen katıldığı takım kullanılır.
+const effectiveTeamId = (p: ReadStateEntry, teamColors: TeamColorsLike): string | null => {
+    if (p.teamId === teamColors.homeTeamId || p.teamId === teamColors.awayTeamId) return p.teamId!;
+    return p.jokerTeamId ?? null;
+};
+
+const isJokerEntry = (p: ReadStateEntry, teamColors?: TeamColorsLike | null): boolean =>
+    !!p.jokerTeamId && (!teamColors || (p.teamId !== teamColors.homeTeamId && p.teamId !== teamColors.awayTeamId));
+
+const ReaderRow: React.FC<{ p: ReadStateEntry; showJokerBadge?: boolean }> = ({ p, showJokerBadge }) => (
     <div className="flex items-center gap-2.5 py-1.5">
         <img
             src={p.avatarUrl || userAvatarFallback(p.name || '?')}
@@ -48,15 +60,22 @@ const ReaderRow: React.FC<{ p: ReadStateEntry }> = ({ p }) => (
             onError={(e) => { const el = e.currentTarget; el.onerror = null; el.src = userAvatarFallback(p.name || '?'); }}
         />
         <span className="text-sm text-slate-200 truncate">{p.name || 'Kullanıcı'}</span>
+        {showJokerBadge && (
+            <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-yellow-500 text-yellow-950 text-[9px] font-black shrink-0">
+                J
+            </span>
+        )}
     </div>
 );
 
-// Rakipli sohbetlerde bölüm içi takım alt-başlıkları (renk noktalı lejant deseni)
+// Rakipli sohbetlerde bölüm içi takım alt-başlıkları (renk noktalı lejant deseni).
+// Jokerler katıldıkları takımın altında J rozetiyle; takımı bilinmeyenler (eski
+// veri) "Jokerler" bölümünde kalır.
 const TeamGroupedList: React.FC<{ people: ReadStateEntry[]; teamColors: TeamColorsLike }> = ({ people, teamColors }) => {
     const groups: { key: string; title: string; dot?: TeamAccent; members: ReadStateEntry[] }[] = [
-        { key: 'home', title: teamColors.homeName || 'Ev Sahibi', dot: teamColors.homeAccent, members: people.filter(p => p.teamId === teamColors.homeTeamId) },
-        { key: 'away', title: teamColors.awayName || 'Deplasman', dot: teamColors.awayAccent, members: people.filter(p => p.teamId === teamColors.awayTeamId) },
-        { key: 'joker', title: 'Jokerler', members: people.filter(p => p.teamId !== teamColors.homeTeamId && p.teamId !== teamColors.awayTeamId) },
+        { key: 'home', title: teamColors.homeName || 'Ev Sahibi', dot: teamColors.homeAccent, members: people.filter(p => effectiveTeamId(p, teamColors) === teamColors.homeTeamId) },
+        { key: 'away', title: teamColors.awayName || 'Deplasman', dot: teamColors.awayAccent, members: people.filter(p => effectiveTeamId(p, teamColors) === teamColors.awayTeamId) },
+        { key: 'joker', title: 'Jokerler', members: people.filter(p => effectiveTeamId(p, teamColors) === null) },
     ];
     return (
         <>
@@ -71,7 +90,7 @@ const TeamGroupedList: React.FC<{ people: ReadStateEntry[]; teamColors: TeamColo
                         )}
                         <span className="text-[11px] text-slate-400 font-semibold truncate">{g.title}</span>
                     </div>
-                    {g.members.map(p => <ReaderRow key={p.userId} p={p} />)}
+                    {g.members.map(p => <ReaderRow key={p.userId} p={p} showJokerBadge={isJokerEntry(p, teamColors)} />)}
                 </div>
             ))}
         </>
@@ -125,7 +144,7 @@ export const ReadInfoModal: React.FC<Props> = ({
                     {/* Kendi balon stilinde mesaj önizleme */}
                     <div className="flex justify-end mb-4">
                         <div className="max-w-[85%]">
-                            <div className="bg-turf-600 text-white px-3 py-2 rounded-2xl rounded-br-sm text-sm leading-relaxed whitespace-pre-wrap break-words">
+                            <div className="bg-turf-600 text-white px-3 py-2 rounded-2xl rounded-br-sm text-sm leading-relaxed whitespace-pre-wrap break-words line-clamp-3">
                                 {message.text}
                             </div>
                             <span className="text-[10px] text-slate-500 block mt-1 text-right">{message.timestamp}</span>
@@ -167,9 +186,10 @@ export const ReadInfoModal: React.FC<Props> = ({
                                 ) : teamColors ? (
                                     <TeamGroupedList people={readers} teamColors={teamColors} />
                                 ) : (
-                                    readers.map(p => <ReaderRow key={p.userId} p={p} />)
+                                    readers.map(p => <ReaderRow key={p.userId} p={p} showJokerBadge={isJokerEntry(p)} />)
                                 )}
                             </div>
+                            <div className="h-px bg-slate-700/50" />
                             <div>
                                 <div className="flex items-center gap-2 mb-2">
                                     <CheckCheck className="w-4 h-4 text-slate-500" />
@@ -180,7 +200,7 @@ export const ReadInfoModal: React.FC<Props> = ({
                                 ) : teamColors ? (
                                     <TeamGroupedList people={unreaders} teamColors={teamColors} />
                                 ) : (
-                                    unreaders.map(p => <ReaderRow key={p.userId} p={p} />)
+                                    unreaders.map(p => <ReaderRow key={p.userId} p={p} showJokerBadge={isJokerEntry(p)} />)
                                 )}
                             </div>
                         </div>

@@ -43,6 +43,9 @@ interface Props {
     tickState?: 'sending' | 'delivered' | 'read' | null;
     // Kendi mesajını sola kaydırma → okundu bilgisi modalı
     onInfo?: (msg: MsgLike) => void;
+    // Joker gönderen: maç için katıldığı takımın id'si (JOKER_JOINED metadata'sından,
+    // read-states üzerinden gelir). Doluysa balon o takımın rengini alır + J rozeti.
+    jokerTeamId?: string | null;
 }
 
 const LONG_PRESS_MS = 450;
@@ -51,27 +54,34 @@ const MOVE_THRESHOLD = 8;
 export const MessageBubble: React.FC<Props> = ({
     msg, prevMsg, nextMsg, currentUser,
     onLongPress, onAvatarClick, onAcceptProposal, onAcceptRematch,
-    teamColors, tickState, onInfo,
+    teamColors, tickState, onInfo, jokerTeamId,
 }) => {
     const isPrevSameSender = !!prevMsg && !prevMsg.isSystem && !msg.isSystem && prevMsg.senderId === msg.senderId;
     const isNextSameSender = !!nextMsg && !nextMsg.isSystem && !msg.isSystem && nextMsg.senderId === msg.senderId;
     const isNextSameTime = nextMsg?.timestamp === msg.timestamp;
 
-    // Gönderenin maçtaki iki takımdan hangisine ait olduğuna göre vurgu rengi/logosu —
-    // takımsız (joker) ya da maçtaki iki takımdan biri olmayan göndericiler için null
-    // (nötr stile düşer). Gönderenin GÜNCEL takımı kullanılır, maç anındaki tarihsel
-    // takımı değil — bu kabul edilen bir sınırlamadır.
-    const accent = !msg.isMe && teamColors && msg.senderTeamId
-        ? msg.senderTeamId === teamColors.homeTeamId
+    // Gönderenin maçtaki iki takımdan hangisine ait olduğuna göre vurgu rengi/logosu.
+    // Joker: kendi teamId'si iki takımdan biri değildir (veya yok) — bu durumda
+    // JOKER_JOINED metadata'sından gelen jokerTeamId ile katıldığı takımın rengini
+    // alır. Gönderenin GÜNCEL takımı kullanılır, maç anındaki tarihsel takımı değil —
+    // bu kabul edilen bir sınırlamadır.
+    const effectiveTeamId = teamColors
+        ? (msg.senderTeamId === teamColors.homeTeamId || msg.senderTeamId === teamColors.awayTeamId)
+            ? msg.senderTeamId
+            : jokerTeamId ?? null
+        : null;
+    const accent = !msg.isMe && teamColors && effectiveTeamId
+        ? effectiveTeamId === teamColors.homeTeamId
             ? { colors: teamColors.homeAccent, logo: teamColors.homeLogo }
-            : msg.senderTeamId === teamColors.awayTeamId
+            : effectiveTeamId === teamColors.awayTeamId
                 ? { colors: teamColors.awayAccent, logo: teamColors.awayLogo }
                 : null
         : null;
 
-    // Avatar içeriği önceliği: gönderenin profil fotoğrafı → takım logosu → baş harf.
-    // Takım kimliği fotoğraf gösterilirken de forma halkası + isim rengiyle korunur.
-    const avatarSrc = msg.senderAvatarUrl || accent?.logo || null;
+    // Avatar içeriği: gönderenin profil fotoğrafı, yoksa HER ZAMAN baş harf.
+    // Takım logosu kişisel avatar olarak KULLANILMAZ (fotoğrafmış gibi görünüyordu);
+    // takım kimliği forma halkası + isim rengiyle verilir.
+    const avatarSrc = msg.senderAvatarUrl || null;
 
     const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     const startPos = useRef({ x: 0, y: 0 });
@@ -270,11 +280,6 @@ export const MessageBubble: React.FC<Props> = ({
                                     className="w-full h-full object-cover"
                                     onError={(e) => {
                                         const el = e.currentTarget;
-                                        // Kırık profil fotoğrafı → takım logosu → baş harf görseli
-                                        if (msg.senderAvatarUrl && el.src === msg.senderAvatarUrl && accent?.logo) {
-                                            el.src = accent.logo;
-                                            return;
-                                        }
                                         el.onerror = null;
                                         el.src = teamInitialsAvatar(msg.senderName);
                                     }}
@@ -306,10 +311,16 @@ export const MessageBubble: React.FC<Props> = ({
                 >
                     {!msg.isMe && !isPrevSameSender && (
                         <span
-                            className="text-[11px] font-semibold text-turf-400 block mb-0.5 whitespace-nowrap"
+                            className="text-[11px] font-semibold text-turf-400 mb-0.5 whitespace-nowrap flex items-center gap-1"
                             style={accent ? { color: accent.colors.base } : undefined}
                         >
                             {msg.senderName}
+                            {jokerTeamId && (
+                                // Joker rozeti — sarı joker konvansiyonu (ChannelItem yellow-500)
+                                <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full bg-yellow-500 text-yellow-950 text-[9px] font-black shrink-0">
+                                    J
+                                </span>
+                            )}
                         </span>
                     )}
                     {msg.text}
