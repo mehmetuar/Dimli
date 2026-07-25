@@ -2,6 +2,7 @@ import React, { useRef, useEffect } from 'react';
 import { Swords, Check, CheckCheck } from 'lucide-react';
 import { SystemMessageRenderer } from '../../../../components/UI/SystemMessageRenderer';
 import { UserAvatar } from './UserAvatar';
+import { JokerBadge } from './JokerBadge';
 import type { TeamAccent } from '../../../../utils/colorUtils';
 import type { ActionMessage, MenuPosition } from '../hooks/useMessageActions';
 
@@ -100,22 +101,26 @@ export const MessageBubble: React.FC<Props> = ({
         const isMine = !!msg.isMe;
         const cancel = () => clearTimeout(timerRef.current);
 
-        // Sola kaydırma durumu (yalnız kendi balonunda)
+        // Dokunuş başına TEK SEFERLİK eksen kararı: ilk eşik aşımında hangi eksen
+        // baskınsa o kazanır. Dikey karar → bu dokunuşta sola-kaydırma ASLA devreye
+        // girmez, scroll hiçbir koşulda engellenmez. (Eski davranışta hafif çapraz
+        // yukarı kaydırma yatay sanılıp scroll'u çalıyordu.)
+        let decidedAxis: 'h' | 'v' | null = null;
         let swiping = false;
         const SWIPE_LOCK = 12;    // yatay kilit eşiği (px)
         const SWIPE_TRIGGER = 40; // modal tetikleme eşiği (px)
         const SWIPE_MAX = 64;     // maksimum görsel kaydırma (px)
 
         const onStart = (e: TouchEvent) => {
-            if (!isMine) {
-                // Avatar butonuna dokunuluyorsa long-press'i başlatma ve click'e izin ver
-                if ((e.target as HTMLElement).closest('[data-avatar]')) return;
-                e.preventDefault(); // iOS metin seçimi + callout menüsünü engeller
-            }
-            // KENDİ balonunda preventDefault YOK — touchstart iptali iOS'ta scroll'u
-            // da öldürür; seçim/callout zaten noSelect CSS'iyle bastırılıyor.
+            // Avatar butonuna dokunuluyorsa long-press'i başlatma ve click'e izin ver
+            if (!isMine && (e.target as HTMLElement).closest('[data-avatar]')) return;
+            // preventDefault YOK (eskiden başkasının balonunda vardı): touchstart
+            // iptali iOS'ta o dokunuştan scroll başlamasını da engelliyordu →
+            // "ekranın bazı kısımları kaymıyor" hatasının kökü. Metin seçimi/callout
+            // görevi noSelect CSS'inde (userSelect/touchCallout none).
             const t = e.touches[0];
             startPos.current = { x: t.clientX, y: t.clientY };
+            decidedAxis = null;
             timerRef.current = setTimeout(() => {
                 const rect = bubbleWrapperRef.current?.getBoundingClientRect();
                 if (rect) {
@@ -134,24 +139,28 @@ export const MessageBubble: React.FC<Props> = ({
             const t = e.touches[0];
             const dx = t.clientX - startPos.current.x;
             const dy = t.clientY - startPos.current.y;
-            if (Math.abs(dx) > MOVE_THRESHOLD || Math.abs(dy) > MOVE_THRESHOLD) cancel();
-            if (!isMine) return;
-            // Yatay-baskın sola hareket → kaydırma kilidi; dikey hareket kilidi
-            // hiç açmaz, scroll normal akar.
-            if (!swiping && dx < -SWIPE_LOCK && Math.abs(dx) > Math.abs(dy)) swiping = true;
-            if (swiping) {
-                e.preventDefault(); // kilit sonrası dikey scroll bastırılır (passive:false gerekli)
-                const x = Math.max(Math.min(dx, 0), -SWIPE_MAX);
-                const w = bubbleWrapperRef.current;
-                if (w) {
-                    w.style.transition = 'none';
-                    w.style.transform = `translateX(${x}px)`;
-                }
+            const absDx = Math.abs(dx);
+            const absDy = Math.abs(dy);
+            if (absDx > MOVE_THRESHOLD || absDy > MOVE_THRESHOLD) cancel();
+            // Eksen kararı bir kez verilir: dikey/kararsız baskınlık → 'v' (scroll),
+            // belirgin yatay-sol (1.5× baskın) → 'h' (yalnız kendi balonunda swipe).
+            if (decidedAxis === null && (absDx > MOVE_THRESHOLD || absDy > MOVE_THRESHOLD)) {
+                decidedAxis = isMine && dx < -SWIPE_LOCK && absDx > absDy * 1.5 ? 'h' : 'v';
+            }
+            if (decidedAxis !== 'h' || !isMine) return;
+            swiping = true;
+            e.preventDefault(); // yatay kilit sonrası dikey scroll bastırılır (passive:false gerekli)
+            const x = Math.max(Math.min(dx, 0), -SWIPE_MAX);
+            const w = bubbleWrapperRef.current;
+            if (w) {
+                w.style.transition = 'none';
+                w.style.transform = `translateX(${x}px)`;
             }
         };
 
         const onEnd = (e: TouchEvent) => {
             cancel();
+            decidedAxis = null;
             if (!swiping) return;
             swiping = false;
             const dx = (e.changedTouches[0]?.clientX ?? startPos.current.x) - startPos.current.x;
@@ -164,9 +173,10 @@ export const MessageBubble: React.FC<Props> = ({
             if (dx <= -SWIPE_TRIGGER && !msg.pending) onInfoRef.current?.(msg);
         };
 
-        el.addEventListener('touchstart', onStart, { passive: false });
-        // passive:false — yalnız yatay kilit aktifken preventDefault çağrılır,
-        // dikey scroll etkilenmez.
+        // touchstart passive — artık preventDefault çağrılmıyor, scroll serbest.
+        el.addEventListener('touchstart', onStart, { passive: true });
+        // touchmove passive:false — yalnız yatay eksen kararı + kendi balonunda
+        // preventDefault çağrılır, dikey scroll hiçbir koşulda etkilenmez.
         el.addEventListener('touchmove', onMove, { passive: false });
         el.addEventListener('touchend', onEnd, { passive: true });
         el.addEventListener('touchcancel', onEnd, { passive: true });
@@ -291,12 +301,10 @@ export const MessageBubble: React.FC<Props> = ({
                             ? `bg-turf-600 text-white ${!isNextSameSender ? 'rounded-br-sm' : ''}`
                             : `bg-slate-800 text-slate-200 border border-slate-700 ${!isNextSameSender ? 'rounded-bl-sm' : ''}`
                     }`}
-                    // Forma degradesi: birincil→ikincil takım renginden düşük alfa çapraz degrade,
-                    // bg-slate-800 zeminin üzerine biner; kenarlık rengi de takım renginin yumuşak tonu.
-                    style={accent ? {
-                        backgroundImage: `linear-gradient(135deg, ${accent.colors.soft}, ${accent.colors.secondarySoft})`,
-                        borderColor: accent.colors.border,
-                    } : undefined}
+                    // Takım çizgisi: zemin standart lacivert (bg-slate-800) kalır, takım
+                    // kimliği yalnız dış çizgi + isim rengiyle verilir (dolgu degradesi
+                    // premium durmuyordu — kaldırıldı).
+                    style={accent ? { borderColor: accent.colors.base } : undefined}
                 >
                     {!msg.isMe && !isPrevSameSender && (
                         <span
@@ -304,12 +312,7 @@ export const MessageBubble: React.FC<Props> = ({
                             style={accent ? { color: accent.colors.base } : undefined}
                         >
                             {msg.senderName}
-                            {jokerTeamId && (
-                                // Joker rozeti — sarı joker konvansiyonu (ChannelItem yellow-500)
-                                <span className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full bg-yellow-500 text-yellow-950 text-[9px] font-black shrink-0">
-                                    J
-                                </span>
-                            )}
+                            {jokerTeamId && <JokerBadge size={14} />}
                         </span>
                     )}
                     {msg.text}

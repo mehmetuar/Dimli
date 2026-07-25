@@ -127,15 +127,12 @@ function nudgeAwayFrom(hex: string, awayFromHex: string, teamId: string): string
 }
 
 // Bir takımın chat'teki tüm render noktalarının tükettiği türetilmiş renk paleti.
-// Alfa değerleri rgba() string olarak üretilir — #RRGGBBAA eski WebView'larda
-// desteksizdir (dvh/svh yasağıyla aynı gerekçe, bkz. agent.md §70).
+// Takım kimliği "takım çizgisi" tasarımıyla verilir: balon dış çizgisi + gönderen
+// adı + avatar halkası/zemin + lejant noktaları hep `base`'i kullanır (dolgu
+// degradesi kaldırıldı — soft/secondarySoft/border/glow alanları öldü ve silindi).
 export interface TeamAccent {
-    base: string;          // okunur hex — gönderen adı, avatar halkası, çip noktası
+    base: string;          // okunur hex — balon çizgisi, gönderen adı, avatar halkası, çip noktası
     secondaryBase: string; // okunur hex — ikincil renk tam opak (çip noktası deseni; yoksa base)
-    soft: string;          // rgba 0.14 — forma degradesinin başlangıcı (birincil renk)
-    secondarySoft: string; // rgba 0.10 — degradenin bitişi (ikincil renk; yoksa base'den)
-    border: string;        // rgba 0.35 — bubble kenarlığı
-    glow: string;          // rgba 0.35 — parıltı/box-shadow ihtiyaçları için
 }
 
 export interface TeamChatAccents {
@@ -143,26 +140,15 @@ export interface TeamChatAccents {
     away: TeamAccent;
 }
 
-function rgba(hex: string, alpha: number): string {
-    const { r, g, b } = hexToRgb(hex);
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
-
 // baseHex'in zaten okunur (ensureReadableOnDark'tan geçmiş) olması beklenir.
 // ColorPickerModal'daki chat önizlemesi de aynı paleti buradan üretir.
 export function buildTeamAccent(baseHex: string, secondaryHex: string | null | undefined): TeamAccent {
-    // İkincil renk de okunur tona kaldırılır: siyah bir ikincil, %10 alfada koyu
-    // zemine karışıp degradeyi yok ederdi. Çakışma kontrolüne girmez (sadece zemin tonu).
     const secondary = secondaryHex && isValidHex(secondaryHex)
         ? ensureReadableOnDark(secondaryHex)
         : baseHex;
     return {
         base: baseHex,
         secondaryBase: secondary,
-        soft: rgba(baseHex, 0.14),
-        secondarySoft: rgba(secondary, 0.10),
-        border: rgba(baseHex, 0.35),
-        glow: rgba(baseHex, 0.35),
     };
 }
 

@@ -156,10 +156,9 @@ export const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
                         <div className="rounded-xl px-3 py-2.5" style={{ backgroundColor: '#0f172a' }}>
                             <div
                                 className="inline-block max-w-full rounded-2xl rounded-bl-sm border border-slate-700 bg-slate-800 px-3 py-2"
-                                style={{
-                                    backgroundImage: `linear-gradient(135deg, ${chatAccent.soft}, ${chatAccent.secondarySoft})`,
-                                    borderColor: chatAccent.border,
-                                }}
+                                // MessageBubble ile birebir aynı tasarım: lacivert zemin +
+                                // takım renginde dış çizgi + takım renginde isim.
+                                style={{ borderColor: chatAccent.base }}
                             >
                                 <span className="block text-[11px] font-semibold mb-0.5" style={{ color: chatAccent.base }}>
                                     Takım Oyuncusu
