@@ -4184,3 +4184,27 @@ Cihaz testi geri bildirimleri (§88/§90 rötuşları):
 - **ReadInfoModal uyum notu:** MainActivity `setDecorFitsSystemWindows(true)` → Android'de nav
   bar webview üstüne binmez; sheet alt dolgusu `max(16px, env(safe-area-inset-bottom))` iki
   platformda da doğru. Önizleme `line-clamp-3`, bölümler arası ince ayraç eklendi.
+
+### §90-ek2. Chat avatar tutarlılığı — tek kaynaklı UserAvatar (2026-07-25)
+
+Cihaz testi: varsayılan baş harf avatarları yüzeyler arası farklıydı (balonda düz harf, modalda
+koyu+yeşil ui-avatars, joker modallarında 2 ayrı varyant, balon onError'unda `background=random`).
+Ayrıca 1 kullanıcının DB'deki `avatar_url`'i eski akıştan kalma ui-avatars URL'siydi → "fotoğraflı"
+sanılıp rastgele gri görünüyordu.
+
+**Çözüm — `Chat/components/UserAvatar.tsx` (tek kaynak, CSS tabanlı, ağ bağımsız):**
+- `realAvatarUrl(url)`: ui-avatars.com URL'leri gerçek fotoğraf SAYILMAZ (normalize).
+- Baş harfler (≤2) yerelde çizilir: `accentHex` (takım rengi) verilirse renkli zemin + koyu yazı;
+  yoksa nötr `#111827` + yeşil (eski userAvatarFallback görünümü). Kırık URL → state ile baş harfe düşer.
+- MessageBubble ve ReadInfoModal `ReaderRow` AYNI bileşeni AYNI renk kaynağıyla (effectiveTeamId
+  accent'i; joker → jokerTeamId) kullanır → balon ≡ modal birebir. Takımsız bağlamlar (DM,
+  JOKER_NEGOTIATION, kendi aramızda, TEAM_INTERNAL, tek takım abone) nötr yeşil stil.
+- Normalize edilen diğer yüzeyler: CaptainAvatar, ChannelItem DM satırı, Chat başlık DM avatarı,
+  ManageJokersModal, JokerDMChatInfoModal (kendi ui-avatars varyantları kaldırıldı →
+  `realAvatarUrl(...) || userAvatarFallback(...)`).
+- KURAL: sohbet içi kullanıcı avatarı eklerken UserAvatar kullan; elle ui-avatars URL'si üretme.
+
+**Rapor edilen, YAPILMAYAN işler:** (1) canlıda 1 kirli `avatar_url` kaydı — istenirse onaylı tek
+UPDATE ile temizlenir (§9); kayıt akışı artık yazmıyor. (2) `TeamsService.findOne`
+(teams.service.ts:243-245) yanıt anında fotoğrafsız oyunculara `background=random` ui-avatars
+enjekte ediyor → MyTeam ekranlarında aynı tutarsızlık; ayrı tur işi.
