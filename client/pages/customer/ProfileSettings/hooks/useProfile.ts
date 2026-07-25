@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api, { getProfile, updateProfile, changePassword } from '../../../../services/api';
+import { seedCurrentUser } from '../../../../services/currentUserStore';
 import { useAuth } from '../../../../contexts/AuthContext';
 import { normalizeUsername, isValidUsername, USERNAME_INVALID_MESSAGE } from '../../../../utils/username';
 
@@ -92,6 +93,8 @@ export const useProfile = () => {
         const timer = setTimeout(() => controller.abort(), 12000);
         try {
             const user = await getProfile();
+            // Ortak depo da tohumlanır — iki kaynağın (yerel form / store) ayrışması önlenir
+            if (user) seedCurrentUser(user);
             const username = user.username || '';
             setProfileData({
                 id: user.id || '',
@@ -148,7 +151,9 @@ export const useProfile = () => {
             });
             const fullUrl: string = res.data.url;
             setProfileData(prev => ({ ...prev, avatarUrl: fullUrl }));
-            await api.patch('/users/me', { avatarUrl: fullUrl });
+            const patchRes = await api.patch('/users/me', { avatarUrl: fullUrl });
+            // Ortak depo ANINDA güncellenir → Profilim/Chat yeni fotoğrafı hemen gösterir
+            seedCurrentUser(patchRes.data ?? { avatarUrl: fullUrl });
             if (oldUrl && oldUrl.includes('cloudinary.com')) {
                 await deleteCloudImage(oldUrl);
             }
@@ -164,7 +169,8 @@ export const useProfile = () => {
         const oldUrl = profileData.avatarUrl;
         setProfileData(prev => ({ ...prev, avatarUrl: null }));
         try {
-            await api.patch('/users/me', { avatarUrl: null });
+            const patchRes = await api.patch('/users/me', { avatarUrl: null });
+            seedCurrentUser(patchRes.data ?? { avatarUrl: null });
             if (oldUrl && oldUrl.includes('cloudinary.com')) {
                 await deleteCloudImage(oldUrl);
             }
@@ -206,7 +212,10 @@ export const useProfile = () => {
         }
 
         try {
-            await updateProfile(payload);
+            const updated = await updateProfile(payload);
+            // Ortak depo ANINDA tohumlanır (LocationContext deseni) → Profilim'e
+            // dönüşte yeni ad/uyruk 30sn TTL beklemeden görünür.
+            seedCurrentUser(updated ?? payload);
             setProfileData(prev => ({ ...prev, username: normalizedUsername }));
             setOriginalUsername(normalizedUsername);
             setUsernameStatus(null);

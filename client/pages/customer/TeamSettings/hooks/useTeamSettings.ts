@@ -2,6 +2,22 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../../../services/api';
 import { seedCurrentUser } from '../../../../services/currentUserStore';
+import { readObjectCache, writeObjectCache, TEAM_CACHE_KEY } from '../../../../utils/listCache';
+
+// Takım mutasyonu sonrası üçlü senkron (agent.md §92):
+// 1) ortak kullanıcı deposu (seedCurrentUser) — abone sayfalar anında,
+// 2) MyTeam'in ilk render'da okuduğu TEAM_CACHE_KEY — dönüşte bayat flaş olmasın
+//    (zarf homeBusiness'ı, takım nesnesi players kadrosunu taşır → merge şart),
+// 3) team:changed olayı — MyTeam o an açıksa fetchUser ile tazelenir.
+const syncTeamCaches = (patchedTeam: any) => {
+    seedCurrentUser({ team: patchedTeam });
+    const prev = readObjectCache<Record<string, any>>(TEAM_CACHE_KEY) ?? {};
+    writeObjectCache(TEAM_CACHE_KEY, {
+        ...prev,
+        team: { ...(prev.team ?? {}), ...patchedTeam },
+    });
+    window.dispatchEvent(new CustomEvent('team:changed'));
+};
 
 export const useTeamSettings = () => {
     const navigate = useNavigate();
@@ -95,7 +111,7 @@ export const useTeamSettings = () => {
             setLogoUrl(fullUrl);
             // Auto-save to DB immediately — no need to press Kaydet for logo changes
             const patchRes = await api.patch(`/teams/${teamId}`, { logoUrl: fullUrl });
-            seedCurrentUser({ team: patchRes.data }); // ortak store'daki takım (logo) bayat kalmasın
+            syncTeamCaches(patchRes.data); // depo + MyTeam önbelleği + team:changed
             // Delete old cloud image after successful upload
             if (oldLogoUrl && oldLogoUrl.includes('cloudinary.com')) {
                 await deleteCloudImage(oldLogoUrl);
@@ -116,7 +132,7 @@ export const useTeamSettings = () => {
         setLogoUrl(null);
         try {
             const patchRes = await api.patch(`/teams/${teamId}`, { logoUrl: null });
-            seedCurrentUser({ team: patchRes.data }); // ortak store'daki takım (logo) bayat kalmasın
+            syncTeamCaches(patchRes.data); // depo + MyTeam önbelleği + team:changed
             if (oldLogoUrl && oldLogoUrl.includes('cloudinary.com')) {
                 await deleteCloudImage(oldLogoUrl);
             }
@@ -138,9 +154,9 @@ export const useTeamSettings = () => {
                 primaryColor,
                 secondaryColor,
             });
-            // Ortak store'daki takım (ad/seviye/renkler) bayat kalmasın —
-            // Maç Pazarı kartları, chat forma degradesi vb. buradan okur.
-            seedCurrentUser({ team: patchRes.data });
+            // Ad/seviye/renkler: depo + MyTeam önbelleği + team:changed olayı —
+            // Takımım'a dönüşte ilk kareden yeni değerler görünür.
+            syncTeamCaches(patchRes.data);
             showSuccess('Takım ayarları güncellendi!');
             initialRef.current = { name: name.trim(), level, primaryColor, secondaryColor };
         } catch (err: any) {
