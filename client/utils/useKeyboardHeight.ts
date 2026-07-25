@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 import { Keyboard } from '@capacitor/keyboard';
 import { Capacitor } from '@capacitor/core';
 
@@ -7,72 +7,63 @@ import { Capacitor } from '@capacitor/core';
 // yönetilir — "yapışık" hissini önler. Az/çok istenirse yalnız bu sayı değişir.
 const KEYBOARD_GAP_PX = 8;
 
+// ── Modül-düzeyi TEK dinleyici (singleton) ────────────────────────────────────
+// Eski tasarımda her bileşen kendi listener'ını useEffect ile SONRADAN takıyordu:
+// autoFocus'lu bir modal ilk açılışta klavyeyi listener takılmadan tetikleyince
+// keyboardWillShow kaçıyor, yükseklik 0 kalıyor ve modal klavyenin arkasında
+// kalıyordu (Oyuncu Ekle ilk açılış hatası). Dinleyiciler artık modül yüklenirken
+// BİR KEZ takılır; geç mount olan her tüketici mevcut değeri anında okur.
+let currentHeight = 0;
+const subscribers = new Set<() => void>();
+
+const setHeight = (px: number) => {
+  if (px === currentHeight) return;
+  currentHeight = px;
+  subscribers.forEach((fn) => fn());
+};
+
+const subscribe = (fn: () => void) => {
+  subscribers.add(fn);
+  return () => subscribers.delete(fn);
+};
+
+const getSnapshot = () => currentHeight;
+
+if (Capacitor.isNativePlatform()) {
+  if (Capacitor.getPlatform() === 'android') {
+    // ── ANDROID: native'in (MainActivity) yazdığı --android-keyboard-inset izlenir —
+    // info.keyboardHeight cihaz/sürüme göre nav-bar'ı dahil edip etmediği değişen
+    // GÜVENİLMEZ bir değer (edge-to-edge Samsung ≠ Redmi); native WindowInsets ile
+    // WebView'in fiilen örtülen kısmını hesaplayıp CSS değişkenine yazar.
+    const readInset = () => {
+      const raw = getComputedStyle(document.documentElement).getPropertyValue(
+        '--android-keyboard-inset',
+      );
+      const px = parseFloat(raw);
+      setHeight(Number.isFinite(px) && px > 0 ? px + KEYBOARD_GAP_PX : 0);
+    };
+    readInset();
+    new MutationObserver(readInset).observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['style'],
+    });
+  } else {
+    // ── iOS: Capacitor klavye olayları (info.keyboardHeight güvenilir) ──
+    Keyboard.addListener('keyboardWillShow', (info) => {
+      setHeight(info.keyboardHeight + KEYBOARD_GAP_PX);
+    }).catch(() => {});
+    Keyboard.addListener('keyboardWillHide', () => {
+      setHeight(0);
+    }).catch(() => {});
+  }
+}
+
 /**
  * Klavye yüksekliğini px olarak döner. Değer, fixed inset-0 layout'larda paddingBottom/bottom
  * offset'i olarak kullanılıp içerik klavyenin hemen üstüne (KEYBOARD_GAP_PX kadar) taşınır.
  * Her iki platformda da klavye WebView'in üstüne biner (capacitor.config: resize 'none').
- *
- * iOS: Capacitor `keyboardWillShow.info.keyboardHeight` güvenilir → doğrudan kullanılır.
- *
- * Android: `info.keyboardHeight` GÜVENİLMEZ — nav-bar'ı dahil edip etmediği cihaz/sürüme göre değişir
- * (edge-to-edge Samsung S26 ≠ non-edge-to-edge Redmi 10S). Sabit bir formül iki cihazda birden doğru
- * olamaz (flip-flop). Bu yüzden native (MainActivity) WindowInsets geometrisiyle WebView'in klavyeyle
- * FİİLEN örtülen kısmını hesaplayıp `--android-keyboard-inset` CSS değişkenine yazar (cihaz-bağımsız).
- * Burada o değişkeni MutationObserver ile izleriz. Not: native + JS `cap sync` ile birlikte paketlenir →
- * değişken her zaman mevcuttur. Odaklanan input'u kaydırma işi useKeyboardScroll'da (yalnız iOS) yapılır.
+ * Dinleyiciler modül-düzeyi singleton — bileşen ne zaman mount olursa olsun güncel değeri okur.
  */
 export function useKeyboardHeight(): number {
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
-
-  useEffect(() => {
-    if (!Capacitor.isNativePlatform()) return;
-
-    // ── ANDROID: native'in yazdığı --android-keyboard-inset (gerçek örtüşme) izlenir ──
-    if (Capacitor.getPlatform() === 'android') {
-      const readInset = () => {
-        const raw = getComputedStyle(document.documentElement).getPropertyValue(
-          '--android-keyboard-inset',
-        );
-        const px = parseFloat(raw);
-        setKeyboardHeight(
-          Number.isFinite(px) && px > 0 ? px + KEYBOARD_GAP_PX : 0,
-        );
-      };
-      readInset(); // mount'ta mevcut değeri al
-      // Native her inset değişiminde documentElement.style'a yazar (klavye aç/kapa/animasyon sonu dahil).
-      const observer = new MutationObserver(readInset);
-      observer.observe(document.documentElement, {
-        attributes: true,
-        attributeFilter: ['style'],
-      });
-      return () => observer.disconnect();
-    }
-
-    // ── iOS: Capacitor klavye olayları (info.keyboardHeight güvenilir) ──
-    let showHandle: { remove: () => void } | null = null;
-    let hideHandle: { remove: () => void } | null = null;
-
-    Keyboard.addListener('keyboardWillShow', (info) => {
-      setKeyboardHeight(info.keyboardHeight + KEYBOARD_GAP_PX);
-    })
-      .then((h) => {
-        showHandle = h;
-      })
-      .catch(() => {});
-
-    Keyboard.addListener('keyboardWillHide', () => {
-      setKeyboardHeight(0);
-    })
-      .then((h) => {
-        hideHandle = h;
-      })
-      .catch(() => {});
-
-    return () => {
-      showHandle?.remove();
-      hideHandle?.remove();
-    };
-  }, []);
-
-  return keyboardHeight;
+  return useSyncExternalStore(subscribe, getSnapshot, () => 0);
 }
