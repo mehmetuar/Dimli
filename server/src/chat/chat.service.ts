@@ -1094,6 +1094,7 @@ export class ChatService {
       name: string;
       avatarUrl: string | null;
       teamId: string | null;
+      jokerTeamId: string | null;
       lastReadAt: Date;
     }[]
   > {
@@ -1104,11 +1105,34 @@ export class ChatService {
     if (!participants.some((p) => p.userId === requestingUserId)) {
       throw new ForbiddenException('Bu sohbetin katılımcısı değilsiniz.');
     }
+
+    // Jokerin katıldığı takım — JOKER_JOINED sistem mesajı metadata'sında kalıcı
+    // (inviteJokerToMatchGroup yazar). İstemci mesaj balonu rengini ve modal
+    // gruplamasını buradan çözer; aynı joker tekrar eklenirse son kayıt kazanır.
+    const jokerRows: { metadata: unknown }[] =
+      await this.chatMessageRepository.manager.query(
+        `
+          SELECT metadata FROM chat_messages
+          WHERE "channelId" = $1 AND "isSystemMessage" = true
+            AND metadata->>'type' = 'JOKER_JOINED'
+          ORDER BY "createdAt" ASC
+        `,
+        [channelId],
+      );
+    const jokerTeamMap = new Map<string, string | null>();
+    for (const r of jokerRows) {
+      const md = (
+        typeof r.metadata === 'string' ? JSON.parse(r.metadata) : r.metadata
+      ) as { jokerId?: string; invitingTeamId?: string | null } | null;
+      if (md?.jokerId) jokerTeamMap.set(md.jokerId, md.invitingTeamId ?? null);
+    }
+
     return participants.map((p) => ({
       userId: p.userId,
       name: p.user?.full_name || p.user?.username || '',
       avatarUrl: p.user?.avatarUrl ?? null,
       teamId: p.user?.teamId ?? null,
+      jokerTeamId: jokerTeamMap.get(p.userId) ?? null,
       lastReadAt: p.lastReadAt,
     }));
   }
