@@ -43,7 +43,9 @@ export const UserAvatar: React.FC<Props> = ({ url, name, size, accentHex, classN
                 width: size,
                 height: size,
                 fontSize: Math.round(size * 0.36),
-                backgroundColor: accentHex || '#111827',
+                // Nötr zemin sohbet arka planından (#0f172a) bir tık açık lacivert —
+                // #111827 arka planla karışıp daire yokmuş gibi görünüyordu.
+                backgroundColor: accentHex || '#263850',
                 color: accentHex ? '#0f172a' : '#4ade80',
             }}
         >

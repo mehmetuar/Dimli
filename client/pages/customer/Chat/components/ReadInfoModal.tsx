@@ -4,6 +4,7 @@ import { X, CheckCheck } from 'lucide-react';
 import { useModalBodyClass } from '../../../../utils/useModalBodyClass';
 import { formatMessageDate } from '../utils/chatUtils';
 import { UserAvatar } from './UserAvatar';
+import { JokerBadge } from './JokerBadge';
 import type { TeamAccent } from '../../../../utils/colorUtils';
 
 // Okundu bilgisi modalı — watermark modeliyle çalışır:
@@ -58,11 +59,7 @@ const ReaderRow: React.FC<{ p: ReadStateEntry; showJokerBadge?: boolean; accentH
     <div className="flex items-center gap-2.5 py-1.5">
         <UserAvatar url={p.avatarUrl} name={p.name || '?'} size={32} accentHex={accentHex ?? null} />
         <span className="text-sm text-slate-200 truncate">{p.name || 'Kullanıcı'}</span>
-        {showJokerBadge && (
-            <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-yellow-500 text-yellow-950 text-[9px] font-black shrink-0">
-                J
-            </span>
-        )}
+        {showJokerBadge && <JokerBadge size={16} />}
     </div>
 );
 
