@@ -4232,3 +4232,37 @@ takım renginde isim + mevcut avatar halkası/J rozeti. `ColorPickerModal` "Sohb
 kanallar aynı render yolundan geçer, otomatik kapsandı. `TeamAccent` sadeleşti: yalnız
 `base` + `secondaryBase` kaldı (soft/secondarySoft/border/glow alanları ve rgba helper'ı silindi —
 tek tüketicileri düzenlenen iki dosyaydı, glow zaten hiç okunmuyordu).
+
+### §92. Profil/Takım ayarları anlık senkron + uyruk listesi eksikleri (2026-07-25)
+
+**Profil senkron hatası (kök):** `ProfileSettings/hooks/useProfile.ts` sunucuya yazıyor ama ortak
+`currentUserStore`'u (30sn TTL) tohumlamıyordu → Profilim TTL dolana dek bayat ad/fotoğraf
+gösteriyordu. Düzeltme: kaydet (`updateProfile` yanıtı), fotoğraf yükle/kaldır (PATCH yanıtı) ve
+`loadProfile` (GET yanıtı) yollarının HEPSİNDE `seedCurrentUser(...)` — LocationContext emsali.
+
+**Takım senkronu:** `useTeamSettings` depoyu zaten besliyordu; eksikler MyTeam'in ilk render
+önbelleği + canlı yenileme olayıydı. Yeni `syncTeamCaches(patchedTeam)` helper'ı ÜÇLÜ senkron yapar:
+(1) `seedCurrentUser({team})`, (2) `TEAM_CACHE_KEY`'e MERGE yazım — zarf `homeBusiness`'ı VE takım
+nesnesindeki `players` kadrosu korunur (`{...prev, team: {...prev.team, ...patch}}` — PATCH yanıtı
+kadroyu taşımayabilir, düz yazım kadroyu silerdi), (3) `team:changed` CustomEvent (MyTeam
+`useOnTeamChanged` ile dinliyor). **KURAL: kullanıcı/takım mutasyonu ekleyen HER yeni akış bu
+senkronları çağırmalı** (kullanıcı → seedCurrentUser; takım → syncTeamCaches deseni).
+Not: Chat'teki takım renkleri sunucu kanal payload'ından gelir — renk değişikliği sohbete kanal
+listesi yenilenince yansır (60sn/debounced), istemci önbellek kapsamı dışında.
+
+**Uyruk listesi (`data/countries.ts` — TEK kaynak; profil ayarları + kayıt akışı aynı
+`CountryPickerModal`'ı kullanır):** BM üyesi eksik 5 ülke eklendi: Fas (MA), Doğu Timor (TL),
+Saint Kitts ve Nevis (KN), Saint Lucia (LC), Saint Vincent ve Grenadinler (VC) — bayrak SVG'leri
+flag-icons'ta mevcut. `Country.aliases?` alanı + picker filtresine takma ad eşleşmesi eklendi:
+"İngiltere"→Birleşik Krallık (GB), ABD, Makedonya, BAE, Çek Cumhuriyeti, Burma, Felemenk, Timor.
+Görünen adlar değişmedi — yalnız arama bulunurluğu.
+
+### §92-ek. useKeyboardHeight singleton — autoFocus'lu modalın ilk açılış çakışması (2026-07-25)
+
+Oyuncu Ekle modalı İLK açılışta klavyenin arkasında kalıyordu; klavye kapatılıp açılınca düzeliyordu.
+Kök: `useKeyboardHeight` iOS dinleyicilerini HER bileşende useEffect ile sonradan+asenkron takıyordu —
+`autoFocus`'lu input klavyeyi listener takılmadan tetikleyince `keyboardWillShow` kaçıyor, yükseklik 0
+kalıyordu. Çözüm: dinleyiciler modül-düzeyi SINGLETON'a taşındı (modül yüklenirken bir kez; Android
+MutationObserver + iOS Keyboard olayları), hook `useSyncExternalStore` ile mevcut değeri okur → geç
+mount olan her tüketici (tüm KeyboardAwareModal'lar) anında doğru yüksekliği alır. KURAL: klavye
+yüksekliği için per-bileşen Keyboard.addListener EKLEME — singleton hook'u kullan.
