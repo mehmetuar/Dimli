@@ -21,7 +21,7 @@ const envInt = (name: string, def: number): number => {
 };
 
 const RESEND_COOLDOWN_SEC = envInt('OTP_RESEND_COOLDOWN_SEC', 60);
-const MAX_PER_HOUR = envInt('OTP_MAX_PER_HOUR', 3);
+const MAX_PER_HOUR = envInt('OTP_MAX_PER_HOUR', 4);
 const MAX_PER_DAY_PHONE = envInt('OTP_MAX_PER_DAY_PHONE', 10);
 const LOCK_DURATION_MIN = envInt('OTP_LOCK_DURATION_MIN', 60);
 const SMS_DAILY_LIMIT = envInt('SMS_DAILY_LIMIT', 2000); // 0 = tam kapatma

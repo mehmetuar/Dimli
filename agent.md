@@ -4289,4 +4289,6 @@ için TÜM eski satırları siler (verified dahil) — canlıdaki bayat satırla
 kendiliğinden temizlenir, manuel DB müdahalesi yok (§9); (3) verified aramaları expiresAt DESC
 sıralı; (4) registerBusinessFull süre-doldu durumunda ayrı mesaj döner ("Telefon doğrulamasının
 süresi doldu…"). KURAL: verified OTP kaydının gönderim-anı ömrüne güvenen kontrol EKLEME —
-doğrulama sonrası pencerenin tek kaynağı completeOtpVerification'dır.
+doğrulama sonrası pencerenin tek kaynağı completeOtpVerification'dır. Ek (aynı gün): saatlik
+gönderim limiti varsayılanı 3→4 (OTP_MAX_PER_HOUR, otp-security.service.ts) — Render env'de
+OTP_MAX_PER_HOUR tanımlıysa env değeri geçerli olur.
