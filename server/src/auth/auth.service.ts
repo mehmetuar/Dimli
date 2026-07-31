@@ -27,6 +27,11 @@ import { OtpSecurityService } from './otp-security.service';
 
 @Injectable()
 export class AuthService {
+  // Doğrulama sonrası tamamlama penceresi: verify anında expiresAt bu kadar ileri
+  // taşınır ki akışın kalanı (işletme formu + ödeme / yeni şifre girişi) gönderim
+  // anındaki 10 dk'lık kod ömrüne sıkışmasın (§94).
+  private static readonly OTP_VERIFIED_WINDOW_MS = 60 * 60 * 1000; // 60 dk
+
   constructor(
     private usersService: UsersService,
     private businessOwnerService: BusinessOwnerService,
@@ -113,6 +118,7 @@ export class AuthService {
     }
 
     otp.verified = true;
+    otp.expiresAt = new Date(Date.now() + AuthService.OTP_VERIFIED_WINDOW_MS);
     await this.otpRepository.save(otp);
   }
 
@@ -131,10 +137,10 @@ export class AuthService {
     // Kilit + cooldown + saatlik/günlük limitler + global bütçe (OtpSecurityService)
     await this.otpSecurity.assertSendAllowed(phone, 'registration');
 
-    // Önceki bekleyen kayıt kodlarını sil
+    // Önceki kayıtların tamamını sil (doğrulanmış dahil) — yeni gönderim yeni
+    // doğrulama döngüsü başlatır, bayat verified satır birikmesin
     await this.otpRepository.delete({
       phone,
-      verified: false,
       purpose: 'registration',
     });
 
@@ -180,6 +186,7 @@ export class AuthService {
     phone = this.normalizePhone(phone);
     const otp = await this.otpRepository.findOne({
       where: { phone, verified: true, purpose: 'registration' },
+      order: { expiresAt: 'DESC' },
     });
     return !!otp && new Date() < otp.expiresAt;
   }
@@ -206,10 +213,10 @@ export class AuthService {
     // Kilit + cooldown + saatlik/günlük limitler + global bütçe (OtpSecurityService)
     await this.otpSecurity.assertSendAllowed(phone, 'business_registration');
 
-    // Önceki bekleyen kodları sil
+    // Önceki kayıtların tamamını sil (doğrulanmış dahil) — yeni gönderim yeni
+    // doğrulama döngüsü başlatır, bayat verified satır birikmesin
     await this.otpRepository.delete({
       phone,
-      verified: false,
       purpose: 'business_registration',
     });
 
@@ -254,6 +261,7 @@ export class AuthService {
     phone = this.normalizePhone(phone);
     const otp = await this.otpRepository.findOne({
       where: { phone, verified: true, purpose: 'business_registration' },
+      order: { expiresAt: 'DESC' },
     });
     return !!otp && new Date() < otp.expiresAt;
   }
@@ -296,10 +304,9 @@ export class AuthService {
     // Kilit + cooldown + saatlik/günlük limitler + global bütçe (OtpSecurityService)
     await this.otpSecurity.assertSendAllowed(phone, 'password_reset');
 
-    // Önceki bekleyen şifre sıfırlama kodlarını sil
+    // Önceki kayıtların tamamını sil (doğrulanmış dahil)
     await this.otpRepository.delete({
       phone,
-      verified: false,
       purpose: 'password_reset',
     });
 
@@ -345,6 +352,7 @@ export class AuthService {
 
     const otp = await this.otpRepository.findOne({
       where: { phone, verified: true, purpose: 'password_reset' },
+      order: { expiresAt: 'DESC' },
     });
 
     if (!otp || new Date() > otp.expiresAt) {
@@ -396,10 +404,9 @@ export class AuthService {
     // Kilit + cooldown + saatlik/günlük limitler + global bütçe (OtpSecurityService)
     await this.otpSecurity.assertSendAllowed(phone, 'business_password_reset');
 
-    // Önceki bekleyen şifre sıfırlama kodlarını sil
+    // Önceki kayıtların tamamını sil (doğrulanmış dahil)
     await this.otpRepository.delete({
       phone,
-      verified: false,
       purpose: 'business_password_reset',
     });
 
@@ -465,6 +472,7 @@ export class AuthService {
 
     const otp = await this.otpRepository.findOne({
       where: { phone, verified: true, purpose: 'business_password_reset' },
+      order: { expiresAt: 'DESC' },
     });
 
     if (!otp || new Date() > otp.expiresAt) {
@@ -573,7 +581,21 @@ export class AuthService {
         const isVerified =
           await this.isBusinessOwnerPhoneVerified(normalizedPhone);
         if (!isVerified) {
-          throw new BadRequestException('Telefon numarası doğrulanmamış.');
+          // Süresi dolmuş doğrulama ile hiç doğrulanmamışı ayırt et — kullanıcıya
+          // (ve sahada ayıklamaya) doğru yönlendirme
+          const expiredOtp = await this.otpRepository.findOne({
+            where: {
+              phone: normalizedPhone,
+              verified: true,
+              purpose: 'business_registration',
+            },
+            order: { expiresAt: 'DESC' },
+          });
+          throw new BadRequestException(
+            expiredOtp
+              ? 'Telefon doğrulamasının süresi doldu. Lütfen telefon adımına dönüp yeni bir kod isteyin.'
+              : 'Telefon numarası doğrulanmamış.',
+          );
         }
       }
 

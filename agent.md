@@ -4266,3 +4266,27 @@ kalıyordu. Çözüm: dinleyiciler modül-düzeyi SINGLETON'a taşındı (modül
 MutationObserver + iOS Keyboard olayları), hook `useSyncExternalStore` ile mevcut değeri okur → geç
 mount olan her tüketici (tüm KeyboardAwareModal'lar) anında doğru yüksekliği alır. KURAL: klavye
 yüksekliği için per-bileşen Keyboard.addListener EKLEME — singleton hook'u kullan.
+
+### §93. Tek seferlik canlı DB işlemi — Wolf FC eksik chat katılımcısı (2026-07-25, kullanıcı onayıyla — §9 istisnası)
+
+Berk alabuğa (berkalabugaa) 25 Tem 08:21'de (TR) Wolf FC'ye katıldı — §88 düzeltmesinin Render
+deploy'undan ÖNCE olduğu için aktif maç kanalına (8fb3f7e6, ilan 514b1b22) otomatik eklenmedi
+(sonraki iki katılım otomatik eklendi → düzeltme çalışıyor). Kullanıcı onayıyla tek korumalı
+INSERT (chat_participants_v2, NOT EXISTS guard'lı) çalıştırıldı; doğrulama: kanal 7/7 kadro tam.
+Deploy-öncesi katılan başka üye görülürse aynı desen uygulanabilir.
+
+### §94. OTP doğrulama sonrası 60 dk tamamlama penceresi — işletme kaydı "doğrulanmamış" hatası (2026-07-31)
+
+Canlı bug: işletme kaydında SMS kodu doğru girilmesine rağmen "Kaydı Tamamla"da "Telefon numarası
+doğrulanmamış." Kök neden (auth.service.ts): expiresAt gönderim anında +10 dk yazılıyor, verify
+anında UZATILMIYORDU; registerBusinessFull aynı süreyi tekrar kontrol ettiğinden uzun form + IAP
+ödeme 10 dk'yı aşınca doğrulanmış kayıt expired sayılıyordu. Ağırlaştırıcı: send yalnız
+verified:false satırları sildiği için başarısız denemelerin bayat verified:true satırları birikiyor,
+sırasız findOne bunları döndürüp hatayı hızlı denemede de tekrarlatıyordu. Düzeltme (server-only,
+4 OTP akışı ortak — müşteri/işletme kayıt + iki şifre sıfırlama): (1) completeOtpVerification verify
+anında expiresAt'ı OTP_VERIFIED_WINDOW_MS (60 dk) ileri taşır; (2) 4 send metodu (phone, purpose)
+için TÜM eski satırları siler (verified dahil) — canlıdaki bayat satırlar da yeni kod isteminde
+kendiliğinden temizlenir, manuel DB müdahalesi yok (§9); (3) verified aramaları expiresAt DESC
+sıralı; (4) registerBusinessFull süre-doldu durumunda ayrı mesaj döner ("Telefon doğrulamasının
+süresi doldu…"). KURAL: verified OTP kaydının gönderim-anı ömrüne güvenen kontrol EKLEME —
+doğrulama sonrası pencerenin tek kaynağı completeOtpVerification'dır.
