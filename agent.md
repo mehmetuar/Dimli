@@ -4292,3 +4292,48 @@ süresi doldu…"). KURAL: verified OTP kaydının gönderim-anı ömrüne güve
 doğrulama sonrası pencerenin tek kaynağı completeOtpVerification'dır. Ek (aynı gün): saatlik
 gönderim limiti varsayılanı 3→4 (OTP_MAX_PER_HOUR, otp-security.service.ts) — Render env'de
 OTP_MAX_PER_HOUR tanımlıysa env değeri geçerli olur.
+
+### §95. Chat mesaj cevaplama — WhatsApp tarzı Cevapla + sağa kaydırma + alıntı bloğu (2026-08-02)
+
+Tüm 5 kanal tipinde (DM/MATCH_GROUP/TEAM_INTERNAL/JOKER_NEGOTIATION/SUBSCRIPTION) mesaj cevaplama;
+gönderme/render kodu kanal tipine dallanmadığından tek implementasyon. Sunucu: chat_messages'a
+nullable replyToId (uuid) + self-ref ManyToOne (SET NULL; mesajlar tek tek silinmediği için pratikte
+dangling olmaz). sendMessage'a SON pozisyonel opsiyonel param replyToId — mevcut çağrı yerleri
+değişmedi; doğrulama findOne({id, channelId}) + isSystemMessage reddi (400). reduceReplyTo()
+(reduceMessageSender'ın ikizi) üç serileştirme yolunda da (getChannelMessages, POST dönüşü, socket
+newMessage payload'ı) replyTo'yu kompakt {id, senderId, senderName, content(≤240)} nesnesine
+indirger — ham replyTo.sender User entity'si ASLA taşınmaz. KURAL: mesaj serileştiren yeni bir yol
+eklersen reduceMessageSender + reduceReplyTo İKİSİNİ de uygula. Client: replyingTo state'i
+useChat'te (handleSend ile aynı yaşam döngüsü: gönderimde temizlenir, hatada geri yüklenir, kanal
+değişiminde sıfırlanır); optimistik temp balon alıntıyı anında taşır. MessageBubble'daki tek-seferlik
+eksen kararı swipe handler'ı (§91) iki yönlü oldu: sağa = cevapla (tüm mesajlar, pending hariç),
+sola = okundu bilgisi (yalnız kendi mesajı, §90) — yön eksen kararıyla birlikte kilitlenir
+(swipeDir), dikey scroll garantisi korunur. KURAL: bu handler'a yeni jest eklerken decidedAxis/
+swipeDir modelini genişlet, ayrı listener EKLEME. Cevaplama kapalıysa (biten maç, joker maça dahil)
+onReply=undefined → sağa kaydırma hiç devreye girmez, menüde Cevapla çizilmez (MessageContextMenu
+yüksekliği satır sayısından dinamik). Alıntıya dokunma data-msgid + scrollIntoView + .reply-flash
+(index.css) — yüklenmemiş eski sayfada sessiz no-op (sayfa kovalama v1'de yok). Engellenen gönderen
+alıntısı client'ta "Engellenen kullanıcı / Mesaj" placeholder'ı. Geriye uyum: eski client yeni alanı
+yok sayar; yeni client eski sunucuda düz mesaj gönderir. Deploy sırası server→client.
+
+### §96. Kendi aramızda maç sohbetlerine WhatsApp tarzı anket (2026-08-02)
+
+Kaptan/yardımcı Seçenekler → "Anket Oluştur" ile başlık + 2-10 özel seçenek + "birden fazla
+yanıta izin ver" anahtarlı anket açar; oyuncular oy verir/değiştirir/geri çeker; isimler görünür
+("Oyları Görüntüle" bottom-sheet'i); kaptan/yardımcı "Anketi Sonlandır" ile kapatır. Kapsam
+YALNIZ kendi aramızda maç sohbeti — yapısal tespit: matchAnnouncement.matchType==='kendi_aramizda'
+(client'ta avatarData.matchType veya rakipsiz rezervasyon); isim-tabanlı '(Kendi Aramızda)'
+kontrolü KULLANILMAZ. Sunucu: ayrı PollsModule (polls/poll_options/poll_votes tabloları,
+synchronize ile otomatik; kanal FK CASCADE, oy @Unique(optionId,userId)); bağımlılık tek yönlü
+polls→chat, forwardRef yok; getChannelMatchStatusType bu iş için public yapıldı (biten maç =
+anket donar, input kilidiyle aynı koşul). Duyuru {type:'POLL', pollId} metadata'lı sistem mesajı —
+anket VERİSİ metadata'da DEĞİL polls tablosunda (metadata bir kez yazılır, oylar değişir); push
+normal sendMessage yolundan otomatik. KURAL: oy endpoint'i DEKLARATİFTİR — client istenen TAM
+seçimi gönderir ([] = geri çekme), sunucu diff uygular; toggle endpoint'i EKLEME. Serileştirme
+tek kaynak serializePoll: oy verenler yalnız {id,name,avatarUrl} (ham User asla). Socket:
+pollUpdated (kullanıcı-odası döngüsü, payload'da channelId). Client: useChat'te polls haritası
+(kanal açılışında GET — 404 = eski sunucu feature-detect; pollUpdated tek girdi merge §89;
+newMessage'da haritada olmayan pollId → refetch fallback); kart PollCard, Chat.tsx mesaj map'inde
+metadata.type==='POLL' araya girmesiyle çizilir — poll haritada yoksa MessageBubble düz metni
+basar (eski sunucu uyumu), MessageBubble'a DOKUNULMADI (§95 cevaplama ile çakışmaz). Deploy
+sırası server→client; §95 ile aynı tren.
