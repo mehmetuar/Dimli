@@ -57,7 +57,10 @@ export type ChatMessageMetadata =
   | { type: 'JOKER_NEGOTIATION_STARTED'; matchId: string; jokerId: string }
   | { type: 'JOKER_JOINED'; jokerId: string; invitingTeamId: string | null }
   | { type: 'JOKER_ADDED_TO_MATCH' }
-  | { type: 'JOKER_LEFT'; jokerId: string };
+  | { type: 'JOKER_LEFT'; jokerId: string }
+  // Anket duyurusu — anket verisi polls tablosunda yaşar (oylar sürekli değişir,
+  // metadata bir kez yazılır); client pollId ile kendi poll haritasından join'ler.
+  | { type: 'POLL'; pollId: string };
 
 @Index(['channelId', 'createdAt'])
 @Index(['channelId'])
@@ -90,6 +93,15 @@ export class ChatMessage {
 
   @Column('json', { nullable: true })
   metadata: ChatMessageMetadata | null; // aksiyon/sistem mesajı sözleşmesi (üstteki union)
+
+  // Cevaplanan mesaj (WhatsApp tarzı alıntı). Mesajlar tek tek silinmediği için
+  // FK pratikte dangling olmaz; SET NULL kanal CASCADE teardown penceresi için emniyet.
+  @Column({ nullable: true, type: 'uuid' })
+  replyToId: string | null;
+
+  @ManyToOne(() => ChatMessage, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'replyToId' })
+  replyTo: ChatMessage | null;
 
   @CreateDateColumn()
   createdAt: Date;

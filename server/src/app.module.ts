@@ -12,6 +12,7 @@ import { JoinRequestsModule } from './join-requests/join-requests.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { MatchAnnouncementsModule } from './match-announcements/match-announcements.module';
 import { ChatModule } from './chat/chat.module';
+import { PollsModule } from './polls/polls.module';
 import { BusinessModule } from './business/business.module';
 import { PitchesModule } from './pitches/pitches.module';
 import { BusinessOwnerModule } from './business-owner/business-owner.module';
@@ -84,6 +85,7 @@ import { PromoCodesModule } from './promo-codes/promo-codes.module';
     NotificationsModule,
     MatchAnnouncementsModule,
     ChatModule,
+    PollsModule,
     BusinessModule,
     PitchesModule,
     BusinessOwnerModule,

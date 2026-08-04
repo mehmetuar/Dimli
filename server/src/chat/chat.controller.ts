@@ -42,8 +42,17 @@ export class ChatController {
     @Param('id') id: string,
     @Body('content') content: string,
     @Request() req: { user: Express.User },
+    @Body('replyToId') replyToId?: string,
   ) {
-    return this.chatService.sendMessage(id, req.user.id, content);
+    return this.chatService.sendMessage(
+      id,
+      req.user.id,
+      content,
+      false,
+      undefined,
+      false,
+      replyToId,
+    );
   }
 
   @Post('channels/:id/read')

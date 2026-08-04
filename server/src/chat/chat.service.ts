@@ -749,8 +749,9 @@ export class ChatService {
   /**
    * Helper: Determine match status type for a channel.
    * Returns 'pending' | 'confirmed' | 'played' | 'unplayed' | null
+   * Public: PollsService da biten maç kilidi için kullanır (anket oy/kapatma reddi).
    */
-  private async getChannelMatchStatusType(
+  async getChannelMatchStatusType(
     channelId: string,
   ): Promise<'pending' | 'confirmed' | 'played' | 'unplayed' | null> {
     const channel = await this.chatChannelRepository.findOne({
@@ -826,6 +827,9 @@ export class ChatService {
     // gönderdiğinde çift push'u önlemek için kullanılır. Varsayılan false → diğer
     // tüm çağıranlar aynı davranışta kalır.
     skipPush = false,
+    // WhatsApp tarzı cevap: cevaplanan mesajın id'si. Sona eklendi ki mevcut
+    // pozisyonel çağrı yerleri (sistem mesajı servisleri dahil) değişmesin.
+    replyToId?: string | null,
   ): Promise<ChatMessage> {
     // System messages can always be sent
     if (!isSystemMessage && senderId) {
@@ -860,12 +864,24 @@ export class ChatService {
       }
     }
 
+    // Cevaplanan mesaj aynı kanala ait ve sistem mesajı olmayan gerçek bir
+    // mesaj olmalı — where'deki channelId kanal-dışı id'leri de eler (IDOR).
+    if (replyToId) {
+      const replied = await this.chatMessageRepository.findOne({
+        where: { id: replyToId, channelId },
+      });
+      if (!replied || replied.isSystemMessage) {
+        throw new BadRequestException('Yanıtlanan mesaj bulunamadı.');
+      }
+    }
+
     const message = this.chatMessageRepository.create({
       channelId,
       senderId,
       content,
       isSystemMessage,
       metadata,
+      replyToId: replyToId ?? null,
     });
 
     await this.chatMessageRepository.save(message);
@@ -891,7 +907,7 @@ export class ChatService {
 
     const savedMessage = await this.chatMessageRepository.findOne({
       where: { id: message.id },
-      relations: ['sender', 'sender.team'],
+      relations: ['sender', 'sender.team', 'replyTo', 'replyTo.sender'],
     });
 
     if (!savedMessage) throw new Error('Failed to create message');
@@ -899,6 +915,7 @@ export class ChatService {
     // GÜVENLİK: dönüş ve socket payload'ı ham User (parola hash'i dahil)
     // sızdırmasın — getChannelMessages ile aynı indirgeme/sanitize uygulanır.
     this.reduceMessageSender(savedMessage);
+    this.reduceReplyTo(savedMessage);
 
     const participants = await this.chatParticipantRepository.find({
       where: { channelId, deletedAt: IsNull() },
@@ -919,6 +936,7 @@ export class ChatService {
           isSystemMessage: savedMessage.isSystemMessage,
           metadata: savedMessage.metadata ?? null,
           sender: savedMessage.sender ?? null,
+          replyTo: savedMessage.replyTo ?? null,
         },
       };
       participants.forEach((p) =>
@@ -991,14 +1009,14 @@ export class ChatService {
     if (before) {
       messages = await this.chatMessageRepository.find({
         where: { channelId, createdAt: LessThan(new Date(before)) },
-        relations: ['sender', 'sender.team'],
+        relations: ['sender', 'sender.team', 'replyTo', 'replyTo.sender'],
         order: { createdAt: 'DESC', id: 'DESC' },
         take: PAGE,
       });
     } else {
       messages = await this.chatMessageRepository.find({
         where: { channelId },
-        relations: ['sender', 'sender.team'],
+        relations: ['sender', 'sender.team', 'replyTo', 'replyTo.sender'],
         order: { createdAt: 'DESC', id: 'DESC' },
         take: PAGE,
       });
@@ -1018,7 +1036,10 @@ export class ChatService {
     // Team'i gerekli alanlara indirgiyoruz (description, fairPlayScore vb. taşınmaz).
     // GÜVENLİK: sender TAM User (parola hash'i + email/telefon/GPS) sızdırıyordu →
     // sanitizeUser ile hassas alanlar ayıklanır (indirgenmiş team korunur).
-    for (const m of filtered) this.reduceMessageSender(m);
+    for (const m of filtered) {
+      this.reduceMessageSender(m);
+      this.reduceReplyTo(m);
+    }
 
     return filtered.reverse();
   }
@@ -1026,6 +1047,23 @@ export class ChatService {
   // İstemciye giden her mesaj yolunda (getChannelMessages, sendMessage dönüşü,
   // socket newMessage) sender'ı aynı biçime indirger: sanitizeUser + Team'in
   // yalnız {id,name,logoUrl,primaryColor,secondaryColor} alanları.
+  // replyTo ilişkisini istemciye giden her yolda (getChannelMessages,
+  // sendMessage dönüşü, socket newMessage) kompakt önizlemeye indirger —
+  // ham replyTo.sender User entity'si (parola hash'i vb.) asla taşınmaz.
+  private reduceReplyTo(m: ChatMessage): void {
+    if (!m.replyTo) {
+      m.replyTo = null;
+      return;
+    }
+    const r = m.replyTo;
+    m.replyTo = {
+      id: r.id,
+      senderId: r.senderId,
+      senderName: r.sender?.full_name ?? r.sender?.username ?? null,
+      content: (r.content ?? '').slice(0, 240),
+    } as unknown as ChatMessage;
+  }
+
   private reduceMessageSender(m: ChatMessage): void {
     if (!m.sender) return;
     const reducedTeam = m.sender.team
