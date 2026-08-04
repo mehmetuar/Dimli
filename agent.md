@@ -4337,3 +4337,30 @@ newMessage'da haritada olmayan pollId → refetch fallback); kart PollCard, Chat
 metadata.type==='POLL' araya girmesiyle çizilir — poll haritada yoksa MessageBubble düz metni
 basar (eski sunucu uyumu), MessageBubble'a DOKUNULMADI (§95 cevaplama ile çakışmaz). Deploy
 sırası server→client; §95 ile aynı tren.
+
+### §97. Anket yükleme sertleştirme + mesaj sabitleme (2026-08-04)
+
+**Anket yükleme:** (1) getPollsForChannel'daki anket-başına-2-sorgu N+1'i toplu serializePolls ile
+kaldırıldı (2N+2 → 4 sabit sorgu; PollView çıktısı bayt-bayt aynı — tekil serializePoll artık ince
+sarmalayıcı). (2) Client'ta pollsLoaded bayrağı: POLL duyurusu üç yönlü çizilir — haritada varsa
+kart, istek sonuçlanmadıysa İSKELET kart (düz "📊 Anket" metni ASLA flaşlamaz), sonuçlandı ama yoksa
+düz metin (gerçek eski sunucu). fetchPolls/fetchPins'te selectedChannelIdRef bayat-yanıt guard'ı:
+önceki kanalın geç yanıtı yeni kanala yazamaz. KURAL: kanal-bazlı yeni bir yan veri (anket/pin gibi)
+eklerken aynı üçlüyü kur — loaded bayrağı + iskelet/gizli durum + bayat-kanal guard'ı.
+
+**Mesaj sabitleme:** chat_pinned_messages tablosu (kanal FK CASCADE, mesaj FK CASCADE,
+@Unique(channelId, teamId) — TAKIM BAŞINA TEK SLOT: rakiplide iki takımın kaptanları birbirinin
+sabitine yapısal olarak dokunamaz, çakışma imkansız). Ayrı ChatPinsModule (polls emsali, tek yönlü
+bağımlılık). KRİTİK YETKİ KURALI: sabitleme yetkisi "kendi takımının kaptanı" DEĞİL "kanalın BAĞLAM
+takımlarından birinin kaptanı/yardımcısı"dır (resolveContextTeamIds: MATCH_GROUP/JOKER_NEGOTIATION →
+reservation.teamId/opponentTeamId, SUBSCRIPTION → recurring_closure.teamId/opponentTeamId) — aksi
+halde ilgisiz bir takımın kaptanı olan joker, Joker DM'de yetki alırdı. Kanal tipleri: MATCH_GROUP +
+JOKER_NEGOTIATION + SUBSCRIPTION (DM/TEAM_INTERNAL 400). Sistem mesajı sabitlenemez; sabitlemede
+skipPush'lu "📌 {isim} bir mesajı sabitledi" sistem mesajı düşer; biten maçta pin/unpin 403 (SUBSCRIPTION
+hiç kilitlenmez — status null). Socket: pinUpdated { channelId, pins } TAM liste; mutasyonlar da tam
+listeyi döner (client socket beklemeden replace). Client: PinnedMessageBar header ile scroll container
+ARASINDA flex kardeş — scroll-anchor matematiğinin DIŞINDA (KURAL: sohbet tepesine eklenen kalıcı UI
+asla scroll container'ın içine sticky konmaz); takım renkli sol şerit (teamChatColors eşleşmesi, tek
+takımda turf yeşili); bar dokunuşu scrollToMessage (§95) + flash; X yalnız kendi takımının satırında.
+Uzun basma menüsünde "Sabitle"/"Sabitlemeyi Kaldır" (dinamik yükseklik satır sayısından). Deploy
+server→client; §95/§96 ile aynı tren.
