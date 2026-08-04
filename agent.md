@@ -4364,3 +4364,21 @@ asla scroll container'ın içine sticky konmaz); takım renkli sol şerit (teamC
 takımda turf yeşili); bar dokunuşu scrollToMessage (§95) + flash; X yalnız kendi takımının satırında.
 Uzun basma menüsünde "Sabitle"/"Sabitlemeyi Kaldır" (dinamik yükseklik satır sayısından). Deploy
 server→client; §95/§96 ile aynı tren.
+
+### §97-ek. Emoji → uygulama ikonu + anket sabitleme (2026-08-04)
+
+Anket/sabitleme sistem mesajlarındaki emojiler ({{TOKEN}} sistemine geçirildi): "📊 Anket:" →
+"{{POLL}} Anket:", "📌 ... sabitledi" → "{{PINNED}} ... sabitledi". SystemMessageRenderer icons
+haritasına iki yeni el yazımı SVG eklendi: POLL (yatay oy çubukları, #4ade80) ve PINNED (raptiye,
+#fbbf24 — harita iğnesi PIN'den bilinçli farklı). KURAL: kullanıcıya görünen sistem mesajı
+metnine ASLA emoji koyma — {{TOKEN}} kullan, gerekiyorsa SystemMessageRenderer'a yeni SVG ekle.
+Kanal listesi önizlemesi artık sistem mesajlarında stripSystemMessageMarkers yerine
+SystemMessageRenderer basar → token ikonları listede de görünür (truncate <p> içinde inline
+çalışır). Push gövdesi stripChatMarkers ile token'ı siler → "Anket: {başlık}" (emojisiz, doğru).
+Anket sabitlenebilir: chat-pins pin() sistem mesajı reddinin TEK istisnası metadata.type==='POLL';
+PinView.message'a metadata eklendi; PollCard başlığına raptiye toggle butonu (yalnız canPin'de,
+duyuru mesaj id'si Chat.tsx interception'ında bilinir — isPinned/onTogglePin prop'ları); bar'da
+anket sabiti BarChart3 ikonu + gönderen adı yerine strip edilmiş "Anket: {başlık}" metniyle çizilir;
+PollCard/iskelet sarmalayıcılarına data-msgid eklendi → bar dokunuşu scrollToMessage ile karta
+kaydırır. Uzun basma menüsündeki Sabitle sistem mesajlarında (anket dahil) kapalı kalır — anket
+sabitleme girişi karttaki raptiyedir.
