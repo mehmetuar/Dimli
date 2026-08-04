@@ -1,9 +1,9 @@
 import React from 'react';
-import { Copy, Flag, Info } from 'lucide-react';
+import { Copy, Flag, Info, Reply } from 'lucide-react';
 import type { ActionMessage, MenuPosition } from '../hooks/useMessageActions';
 
 const MENU_WIDTH = 192;
-const MENU_HEIGHT = 96; // 2 buton yaklaşık yükseklik
+const MENU_ROW_HEIGHT = 48; // buton başına yaklaşık yükseklik
 
 interface Props {
     visible: boolean;
@@ -14,11 +14,13 @@ interface Props {
     // Kendi mesajında Bildir yerine gösterilen okundu detayı aksiyonu.
     // undefined ise (eski sunucu — read-states yok) satır hiç çizilmez.
     onInfo?: () => void;
+    // Cevapla — undefined ise (kapalı sohbet) satır hiç çizilmez.
+    onReply?: () => void;
     onClose: () => void;
 }
 
 export const MessageContextMenu: React.FC<Props> = ({
-    visible, msg, position, onCopy, onReport, onInfo, onClose,
+    visible, msg, position, onCopy, onReport, onInfo, onReply, onClose,
 }) => {
     if (!visible || !msg) return null;
 
@@ -26,11 +28,14 @@ export const MessageContextMenu: React.FC<Props> = ({
     const vw = window.innerWidth;
     const GAP = 10;
 
+    // Yerleşim hesabı görünen satır sayısına göre — Cevapla satırı opsiyonel
+    const menuHeight = (onReply ? 3 : 2) * MENU_ROW_HEIGHT;
+
     // Menüyü bubble'ın altında göster; yeterli alan yoksa üstte
-    const showBelow = position.bottom + GAP + MENU_HEIGHT < vh - 24;
+    const showBelow = position.bottom + GAP + menuHeight < vh - 24;
     const menuTop = showBelow
         ? position.bottom + GAP
-        : position.top - MENU_HEIGHT - GAP;
+        : position.top - menuHeight - GAP;
 
     // Sol kenar bubble ile hizalı, ekran dışına taşmasın
     const menuLeft = Math.min(Math.max(position.left, 8), vw - MENU_WIDTH - 8);
@@ -72,6 +77,18 @@ export const MessageContextMenu: React.FC<Props> = ({
                 onClick={e => e.stopPropagation()}
                 onTouchStart={e => e.stopPropagation()}
             >
+                {onReply && (
+                    <>
+                        <button
+                            className="flex flex-row items-center gap-3 px-4 py-3 w-full active:bg-slate-700 transition-colors"
+                            onClick={e => { e.stopPropagation(); onReply(); }}
+                        >
+                            <Reply className="w-5 h-5 text-slate-200 flex-shrink-0" />
+                            <span className="text-sm font-medium text-white">Cevapla</span>
+                        </button>
+                        <div className="h-px bg-slate-700 mx-3" />
+                    </>
+                )}
                 <button
                     className="flex flex-row items-center gap-3 px-4 py-3 w-full active:bg-slate-700 transition-colors"
                     onClick={e => { e.stopPropagation(); onCopy(); }}

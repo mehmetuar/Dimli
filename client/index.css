@@ -177,6 +177,18 @@
   animation: pulseGlow 4s ease-in-out infinite;
 }
 
+/* ── Chat: alıntıya dokununca orijinal mesaj satırının kısa vurgusu ────── */
+
+@keyframes replyFlash {
+  0%, 100% { background-color: transparent; }
+  30%      { background-color: rgba(34, 197, 94, 0.18); }
+}
+
+.reply-flash {
+  animation: replyFlash 1.2s ease-in-out both;
+  border-radius: 12px;
+}
+
 /* ── Login "gece halısahası": kendini çizen saha çizgileri (floodlit tebeşir) ── */
 
 /* Orta saha çemberi: stroke-dashoffset ile TAM kapanan daire.

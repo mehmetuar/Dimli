@@ -20,6 +20,16 @@ const mapMsg = (msg: any, currentUserId?: string) => ({
     isMe: msg.senderId === currentUserId,
     isSystem: msg.isSystemMessage,
     metadata: msg.metadata,
+    // Sunucunun kompakt replyTo önizlemesi (id, senderId, senderName, content).
+    // Eski sunucuda alan yok → null, alıntı bloğu çizilmez.
+    replyTo: msg.replyTo
+        ? {
+            id: msg.replyTo.id,
+            senderId: msg.replyTo.senderId ?? null,
+            senderName: msg.replyTo.senderName ?? 'Bilinmeyen',
+            text: msg.replyTo.content ?? '',
+        }
+        : null,
 });
 
 export const useChat = () => {
@@ -29,6 +39,16 @@ export const useChat = () => {
     const [channels, setChannels] = useState<any[]>(() => readListCache(CHANNELS_CACHE_KEY));
     const [messages, setMessages] = useState<any[]>([]);
     const [input, setInput] = useState('');
+    // Cevaplanmakta olan mesaj (WhatsApp tarzı) — input üstündeki banner'ı besler,
+    // handleSend POST body'sine replyToId olarak gider.
+    const [replyingTo, setReplyingTo] = useState<any | null>(null);
+    // Anketler: pollId → PollView haritası. Duyuru mesajındaki metadata.pollId
+    // render'da buradan join'lenir; pollUpdated socket olayı tek girdi merge eder.
+    const [polls, setPolls] = useState<Record<string, any>>({});
+    const pollsRef = useRef<Record<string, any>>({});
+    pollsRef.current = polls;
+    const pollVoteBusyRef = useRef<Set<string>>(new Set()); // poll-başına çift dokunuş guard'ı
+    const [isPollCreateOpen, setIsPollCreateOpen] = useState(false);
     const [isSending, setIsSending] = useState(false);
     const sendingRef = useRef(false); // çift gönderim guard'ı (hızlı 2 dokunuş)
     const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
@@ -107,9 +127,11 @@ export const useChat = () => {
     // (60sn fallback interval'ini beklemeden). Mesaj tarafı merge ile senkronlanır
     // — yüklenmiş eski sayfalar korunur (ref, mesaj efektinde set edilir).
     const resyncMessagesRef = useRef<(() => void) | null>(null);
+    const resyncPollsRef = useRef<(() => void) | null>(null);
     useOnReconnect(useCallback(() => {
         fetchChannels();
         resyncMessagesRef.current?.();
+        resyncPollsRef.current?.(); // kopuklukta kaçan pollUpdated'ler telafi edilir
     }, [fetchChannels]));
 
     useEffect(() => {
@@ -165,6 +187,8 @@ export const useChat = () => {
         setMessages([]);
         setIsLoadingMessages(true);
         setMatchDetailData(null);
+        setReplyingTo(null); // kanal değişti — önceki kanalın cevap hedefi taşınmasın
+        setPolls({}); // önceki kanalın anketleri taşınmasın
     }, [selectedChannelId]);
 
     // ── Okundu bilgisi (watermark modeli) ────────────────────────────────────
@@ -216,6 +240,89 @@ export const useChat = () => {
             }
         };
     }, [selectedChannelId, socket, fetchReadStates]);
+
+    // ── Anketler (kendi aramızda maç sohbetleri, §96) ────────────────────────
+    const fetchPolls = useCallback(async (channelId: string) => {
+        try {
+            const res = await api.get(`/chat/channels/${channelId}/polls`);
+            setPolls(Object.fromEntries(res.data.map((p: any) => [p.id, p])));
+        } catch {
+            // 404 = eski sunucu → harita boş kalır, duyurular düz metin görünür (feature-detect)
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!selectedChannelId) return;
+        fetchPolls(selectedChannelId);
+        resyncPollsRef.current = () => fetchPolls(selectedChannelId);
+
+        // Canlı oy/kapatma güncellemesi — tek girdi merge, refetch yok (§89 disiplini)
+        const onPollUpdated = (data: any) => {
+            if (data?.channelId !== selectedChannelId || !data?.poll?.id) return;
+            setPolls(prev => ({ ...prev, [data.poll.id]: data.poll }));
+        };
+        // pollUpdated/newMessage sıralama yarışı + reconnect boşluğu: anket
+        // duyurusu gelir de anket haritada yoksa listeyi çek.
+        const onNewPollMessage = (data: any) => {
+            if (data?.channelId !== selectedChannelId) return;
+            const meta = data?.message?.metadata;
+            if (meta?.type === 'POLL' && meta.pollId && !pollsRef.current[meta.pollId]) {
+                fetchPolls(selectedChannelId);
+            }
+        };
+        if (socket) {
+            socket.on('pollUpdated', onPollUpdated);
+            socket.on('newMessage', onNewPollMessage);
+        }
+        return () => {
+            resyncPollsRef.current = null;
+            if (socket) {
+                socket.off('pollUpdated', onPollUpdated);
+                socket.off('newMessage', onNewPollMessage);
+            }
+        };
+    }, [selectedChannelId, socket, fetchPolls]);
+
+    // Deklaratif oy: istenen TAM seçim gönderilir ([] = geri çekme). Sunucu
+    // diff'i uygular; yanıt otoriter PollView'dur, haritaya merge edilir.
+    const handleVote = async (pollId: string, optionIds: string[]) => {
+        if (pollVoteBusyRef.current.has(pollId)) return;
+        pollVoteBusyRef.current.add(pollId);
+        try {
+            const res = await api.post(`/chat/polls/${pollId}/votes`, { optionIds });
+            setPolls(prev => ({ ...prev, [res.data.id]: res.data }));
+        } catch (error: any) {
+            if (error.response?.status === 400 && selectedChannelId) {
+                // Anket altımızdan kapanmış/değişmiş olabilir — güncel hali çek
+                fetchPolls(selectedChannelId);
+            } else {
+                alert(error.response?.data?.message || 'Oy verilemedi.');
+            }
+        } finally {
+            pollVoteBusyRef.current.delete(pollId);
+        }
+    };
+
+    const handleClosePoll = (pollId: string) => {
+        setConfirmTitle('Anketi Sonlandır');
+        setConfirmMessage('Anketi sonlandırmak istediğinize emin misiniz? Oylama kapanacak ve sonuçlar sabitlenecek.');
+        setConfirmIsDangerous(true);
+        setConfirmButtonText('Sonlandır');
+        setConfirmAction(() => async () => {
+            try {
+                const res = await api.post(`/chat/polls/${pollId}/close`);
+                setPolls(prev => ({ ...prev, [res.data.id]: res.data }));
+            } catch (error: any) {
+                alert(error.response?.data?.message || 'Anket sonlandırılamadı.');
+            }
+        });
+        setConfirmModalOpen(true);
+    };
+
+    // Oluşturma POST'u PollCreateModal'ın içinde — modal onCreated ile haritaya merge eder
+    const handlePollCreated = (poll: any) => {
+        if (poll?.id) setPolls(prev => ({ ...prev, [poll.id]: poll }));
+    };
 
     // Diğer aktif katılımcıların en KÜÇÜK watermark'ı — bir mesaj bundan eskiyse
     // HERKES okumuştur (balon başına tek Date karşılaştırması, O(n+m)).
@@ -340,6 +447,9 @@ export const useChat = () => {
         setIsSending(true);
         // Input'u await'ten ÖNCE temizle → ikinci dokunuş boş input'la erken döner.
         setInput('');
+        // Cevap hedefini yakala ve banner'ı hemen kapat (input ile aynı yaşam döngüsü).
+        const reply = replyingTo;
+        setReplyingTo(null);
         // Optimistic balon: tek gri tik ('sending') POST uçuştayken görünür.
         // Temp id ≠ gerçek id — merge tekilleştiremez, başarı VE hatada AÇIKÇA
         // filtrelenmeli (yoksa hayalet balon kalır; merge asla silmez).
@@ -357,11 +467,20 @@ export const useChat = () => {
             isMe: true,
             isSystem: false,
             pending: true,
+            // Optimistik alıntı önizlemesi — sunucu yankısı otoriter halini getirir.
+            replyTo: reply
+                ? { id: reply.id, senderId: reply.senderId, senderName: reply.senderName, text: reply.text }
+                : null,
         }]);
         try {
             // POST yanıtı sanitize edilmiş sender+team taşır → refetch'siz merge.
             // Yüklenmiş eski sayfalar korunur; socket yankısı merge'de no-op olur.
-            const response = await api.post(`/chat/channels/${selectedChannelId}/messages`, { content: text });
+            // replyToId undefined ise axios key'i düşürür — eski sunucu yalnız
+            // content okuduğundan cevap düz mesaj olarak gider (graceful degradation).
+            const response = await api.post(`/chat/channels/${selectedChannelId}/messages`, {
+                content: text,
+                replyToId: reply?.id,
+            });
             setMessages(prev => mergeMessages(
                 prev.filter(m => m.id !== tempId),
                 [mapMsg(response.data, currentUser?.id)],
@@ -370,6 +489,7 @@ export const useChat = () => {
         } catch (error: any) {
             setMessages(prev => prev.filter(m => m.id !== tempId)); // başarısız → balonu kaldır
             setInput(text); // hata → metni geri yükle ki kullanıcı tekrar gönderebilsin
+            setReplyingTo(reply); // cevap hedefi de geri gelsin
             const data = error.response?.data;
             if (data?.statusCode === 403 && 'chatBanExpiry' in data) {
                 setBanModalExpiry(data.chatBanExpiry ?? null);
@@ -619,6 +739,9 @@ export const useChat = () => {
         messages, currentUser,
         readStates, othersMinLastReadAt, fetchReadStates,
         input, setInput,
+        replyingTo, setReplyingTo,
+        polls, handleVote, handleClosePoll, handlePollCreated,
+        isPollCreateOpen, setIsPollCreateOpen,
         isSending,
         isInviteModalOpen, setIsInviteModalOpen,
         matchDetailData, setMatchDetailData,

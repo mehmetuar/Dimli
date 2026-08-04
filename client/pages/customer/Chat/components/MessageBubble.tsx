@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { Swords, Check, CheckCheck } from 'lucide-react';
+import { Swords, Check, CheckCheck, Reply } from 'lucide-react';
 import { SystemMessageRenderer } from '../../../../components/UI/SystemMessageRenderer';
 import { UserAvatar } from './UserAvatar';
 import { JokerBadge } from './JokerBadge';
@@ -15,6 +15,8 @@ interface MsgLike extends ActionMessage {
     senderAvatarUrl?: string | null;
     pending?: boolean;
     rawCreatedAt?: string;
+    // Cevaplanan mesajın kompakt önizlemesi (sunucudan) — balon içi alıntı bloğu
+    replyTo?: { id: string; senderId: string | null; senderName: string | null; text: string } | null;
 }
 
 // Renk alanları colorUtils'teki TeamAccent'ten gelir — palet mantığı tek kaynakta kalır.
@@ -44,6 +46,13 @@ interface Props {
     tickState?: 'sending' | 'delivered' | 'read' | null;
     // Kendi mesajını sola kaydırma → okundu bilgisi modalı
     onInfo?: (msg: MsgLike) => void;
+    // Sağa kaydırma / uzun basma "Cevapla" — undefined = cevaplama kapalı
+    // (biten maç, kapanmış joker pazarlığı), sağa kaydırma hiç devreye girmez.
+    onReply?: (msg: MsgLike) => void;
+    // Alıntı bloğuna dokunma → orijinal mesaja kaydır
+    onQuoteClick?: (messageId: string) => void;
+    // Alıntılanan gönderen engelliyse içerik yerine placeholder çizilir
+    blockedUserIds?: string[];
     // Joker gönderen: maç için katıldığı takımın id'si (JOKER_JOINED metadata'sından,
     // read-states üzerinden gelir). Doluysa balon o takımın rengini alır + J rozeti.
     jokerTeamId?: string | null;
@@ -55,7 +64,8 @@ const MOVE_THRESHOLD = 8;
 export const MessageBubble: React.FC<Props> = ({
     msg, prevMsg, nextMsg, currentUser,
     onLongPress, onAvatarClick, onAcceptProposal, onAcceptRematch,
-    teamColors, tickState, onInfo, jokerTeamId,
+    teamColors, tickState, onInfo, onReply, onQuoteClick, blockedUserIds,
+    jokerTeamId,
 }) => {
     const isPrevSameSender = !!prevMsg && !prevMsg.isSystem && !msg.isSystem && prevMsg.senderId === msg.senderId;
     const isNextSameSender = !!nextMsg && !nextMsg.isSystem && !msg.isSystem && nextMsg.senderId === msg.senderId;
@@ -90,6 +100,10 @@ export const MessageBubble: React.FC<Props> = ({
     onLongPressRef.current = onLongPress;
     const onInfoRef = useRef(onInfo);
     onInfoRef.current = onInfo;
+    const onReplyRef = useRef(onReply);
+    onReplyRef.current = onReply;
+    // Sağa kaydırmada beliren cevap oku ikonu (balonla birlikte kayar)
+    const replyIconRef = useRef<HTMLDivElement>(null);
 
     // Native (non-passive) touch listener — React synthetic onTouchStart ile
     // e.preventDefault() iOS WebKit'te çalışmaz (React 17+ passive listener kullanır).
@@ -102,10 +116,13 @@ export const MessageBubble: React.FC<Props> = ({
         const cancel = () => clearTimeout(timerRef.current);
 
         // Dokunuş başına TEK SEFERLİK eksen kararı: ilk eşik aşımında hangi eksen
-        // baskınsa o kazanır. Dikey karar → bu dokunuşta sola-kaydırma ASLA devreye
+        // baskınsa o kazanır. Dikey karar → bu dokunuşta yatay kaydırma ASLA devreye
         // girmez, scroll hiçbir koşulda engellenmez. (Eski davranışta hafif çapraz
         // yukarı kaydırma yatay sanılıp scroll'u çalıyordu.)
+        // Yatay iki yön: sağa = cevapla (tüm mesajlar), sola = okundu bilgisi
+        // (yalnız kendi mesajı). Yön de eksen kararıyla birlikte kilitlenir.
         let decidedAxis: 'h' | 'v' | null = null;
+        let swipeDir: 'reply' | 'info' | null = null;
         let swiping = false;
         const SWIPE_LOCK = 12;    // yatay kilit eşiği (px)
         const SWIPE_TRIGGER = 40; // modal tetikleme eşiği (px)
@@ -121,6 +138,7 @@ export const MessageBubble: React.FC<Props> = ({
             const t = e.touches[0];
             startPos.current = { x: t.clientX, y: t.clientY };
             decidedAxis = null;
+            swipeDir = null;
             timerRef.current = setTimeout(() => {
                 const rect = bubbleWrapperRef.current?.getBoundingClientRect();
                 if (rect) {
@@ -143,24 +161,36 @@ export const MessageBubble: React.FC<Props> = ({
             const absDy = Math.abs(dy);
             if (absDx > MOVE_THRESHOLD || absDy > MOVE_THRESHOLD) cancel();
             // Eksen kararı bir kez verilir: dikey/kararsız baskınlık → 'v' (scroll),
-            // belirgin yatay-sol (1.5× baskın) → 'h' (yalnız kendi balonunda swipe).
+            // belirgin yatay baskınlık (1.5×) → 'h' + yön kilidi (reply/info).
             if (decidedAxis === null && (absDx > MOVE_THRESHOLD || absDy > MOVE_THRESHOLD)) {
-                decidedAxis = isMine && dx < -SWIPE_LOCK && absDx > absDy * 1.5 ? 'h' : 'v';
+                const wantReply = dx > SWIPE_LOCK && !!onReplyRef.current && !msg.pending;
+                const wantInfo = isMine && dx < -SWIPE_LOCK;
+                decidedAxis = (wantReply || wantInfo) && absDx > absDy * 1.5 ? 'h' : 'v';
+                swipeDir = decidedAxis === 'h' ? (wantReply ? 'reply' : 'info') : null;
             }
-            if (decidedAxis !== 'h' || !isMine) return;
+            if (decidedAxis !== 'h' || swipeDir === null) return;
             swiping = true;
             e.preventDefault(); // yatay kilit sonrası dikey scroll bastırılır (passive:false gerekli)
-            const x = Math.max(Math.min(dx, 0), -SWIPE_MAX);
+            const x = swipeDir === 'reply'
+                ? Math.min(Math.max(dx, 0), SWIPE_MAX)
+                : Math.max(Math.min(dx, 0), -SWIPE_MAX);
             const w = bubbleWrapperRef.current;
             if (w) {
                 w.style.transition = 'none';
                 w.style.transform = `translateX(${x}px)`;
+            }
+            const icon = replyIconRef.current;
+            if (icon) {
+                icon.style.transition = 'none';
+                icon.style.opacity = swipeDir === 'reply' ? String(Math.min(dx / SWIPE_TRIGGER, 1)) : '0';
             }
         };
 
         const onEnd = (e: TouchEvent) => {
             cancel();
             decidedAxis = null;
+            const dir = swipeDir;
+            swipeDir = null;
             if (!swiping) return;
             swiping = false;
             const dx = (e.changedTouches[0]?.clientX ?? startPos.current.x) - startPos.current.x;
@@ -169,8 +199,19 @@ export const MessageBubble: React.FC<Props> = ({
                 w.style.transition = 'transform 180ms ease-out';
                 w.style.transform = 'translateX(0)';
             }
-            // Pending (henüz gönderilmemiş) balonda modal açılmaz
-            if (dx <= -SWIPE_TRIGGER && !msg.pending) onInfoRef.current?.(msg);
+            const icon = replyIconRef.current;
+            if (icon) {
+                icon.style.transition = 'opacity 180ms ease-out';
+                icon.style.opacity = '0';
+            }
+            // Pending (henüz gönderilmemiş) balonda aksiyon tetiklenmez
+            if (msg.pending) return;
+            if (dir === 'info' && dx <= -SWIPE_TRIGGER) onInfoRef.current?.(msg);
+            if (dir === 'reply' && dx >= SWIPE_TRIGGER) {
+                // Haptik: Android'de kısa titreşim, iOS WebView'da sessiz no-op
+                navigator.vibrate?.(10);
+                onReplyRef.current?.(msg);
+            }
         };
 
         // touchstart passive — artık preventDefault çağrılmıyor, scroll serbest.
@@ -257,6 +298,7 @@ export const MessageBubble: React.FC<Props> = ({
     return (
         <div
             ref={containerRef}
+            data-msgid={msg.id}
             className={`flex items-end gap-2 ${msg.isMe ? 'justify-end' : 'justify-start'} ${isPrevSameSender ? '!mt-0.5' : ''}`}
             onMouseDown={msg.isSystem ? undefined : onMouseDown}
             onMouseUp={onMouseUp}
@@ -294,7 +336,16 @@ export const MessageBubble: React.FC<Props> = ({
             )}
 
             {/* Bubble */}
-            <div ref={bubbleWrapperRef} className="max-w-[75%]">
+            <div ref={bubbleWrapperRef} className="max-w-[75%] relative">
+                {/* Sağa kaydırmada balonla birlikte kayarak beliren cevap oku */}
+                {onReply && !msg.pending && (
+                    <div
+                        ref={replyIconRef}
+                        className="absolute -left-9 top-1/2 -translate-y-1/2 opacity-0 bg-slate-700 rounded-full p-1.5 pointer-events-none"
+                    >
+                        <Reply className="w-4 h-4 text-slate-300" />
+                    </div>
+                )}
                 <div
                     className={`px-3 py-2 rounded-2xl text-sm leading-relaxed shadow-sm ${
                         msg.isMe
@@ -315,6 +366,33 @@ export const MessageBubble: React.FC<Props> = ({
                             {jokerTeamId && <JokerBadge size={14} />}
                         </span>
                     )}
+                    {msg.replyTo && (() => {
+                        // Alıntılanan gönderen engelliyse içerik gösterilmez
+                        const isReplyToBlocked = !!msg.replyTo.senderId
+                            && !!blockedUserIds?.includes(msg.replyTo.senderId);
+                        return (
+                            <button
+                                onClick={() => onQuoteClick?.(msg.replyTo!.id)}
+                                onMouseDown={e => e.stopPropagation()}
+                                className={`block w-full text-left mb-1 px-2 py-1 rounded-lg border-l-[3px] ${
+                                    msg.isMe
+                                        ? 'bg-black/20 border-white/60'
+                                        : 'bg-slate-900/60 border-turf-400'
+                                }`}
+                                style={!msg.isMe && accent ? { borderLeftColor: accent.colors.base } : undefined}
+                            >
+                                <span
+                                    className={`block text-[11px] font-semibold truncate ${msg.isMe ? 'text-white/90' : 'text-turf-300'}`}
+                                    style={!msg.isMe && accent ? { color: accent.colors.base } : undefined}
+                                >
+                                    {isReplyToBlocked ? 'Engellenen kullanıcı' : (msg.replyTo.senderName ?? 'Bilinmeyen')}
+                                </span>
+                                <span className="block text-xs opacity-80 line-clamp-2 break-words">
+                                    {isReplyToBlocked ? 'Mesaj' : msg.replyTo.text}
+                                </span>
+                            </button>
+                        );
+                    })()}
                     {msg.text}
                 </div>
                 {!isNextSameTime && !isNextSameSender && (

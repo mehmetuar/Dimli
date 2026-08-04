@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useLayoutEffect, useMemo } from 'react';
-import { Send, ChevronLeft, Users, Shield, Star, Phone, ArrowDown, Swords, MoreVertical, X, ChevronRight, Trash2, XCircle, AlertTriangle, Undo2, UserMinus, UserPlus, RefreshCw, CheckCircle, MessageCircle, Repeat } from 'lucide-react';
+import { Send, ChevronLeft, Users, Shield, Star, Phone, ArrowDown, Swords, MoreVertical, X, ChevronRight, Trash2, XCircle, AlertTriangle, Undo2, UserMinus, UserPlus, RefreshCw, CheckCircle, MessageCircle, Repeat, BarChart3 } from 'lucide-react';
 import { useChat } from './hooks/useChat';
 import { useMessageActions } from './hooks/useMessageActions';
 import { OfflineEmptyState } from '../../../components/OfflineEmptyState';
@@ -17,6 +17,9 @@ import { SystemMessageRenderer } from '../../../components/UI/SystemMessageRende
 import api from '../../../services/api';
 
 import { KendiAramizdaMatchModal } from './components/KendiAramizdaMatchModal';
+import { PollCard } from './components/PollCard';
+import { PollCreateModal } from './components/PollCreateModal';
+import { PollVotersModal } from './components/PollVotersModal';
 import { InviteJokerModal } from '../../../components/Modals/InviteJokerModal';
 import { MatchDetailModal } from './components/MatchDetailModal';
 import { SubscriptionDetailModal } from './components/SubscriptionDetailModal';
@@ -36,6 +39,9 @@ export const Chat: React.FC = () => {
     messages, currentUser,
     readStates, othersMinLastReadAt, fetchReadStates,
     input, setInput, isSending,
+    replyingTo, setReplyingTo,
+    polls, handleVote, handleClosePoll, handlePollCreated,
+    isPollCreateOpen, setIsPollCreateOpen,
     isInviteModalOpen, setIsInviteModalOpen,
     matchDetailData,
     isMatchDetailOpen, setIsMatchDetailOpen,
@@ -124,6 +130,48 @@ export const Chat: React.FC = () => {
   const isUserAtBottomRef = useRef(true);
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // ── Cevaplama (WhatsApp tarzı) ────────────────────────────────────────────
+  // Kilitli sohbetlerde (biten maç, joker maça dahil edildi) cevaplama kapalı —
+  // input alanının kilit dallanmasıyla aynı koşullar (input IIFE'si de bunları kullanır).
+  const activeStatusInfo = getMatchStatusInfo(activeChannel?.reservation);
+  const isMatchFinished = activeStatusInfo?.type === 'played' || activeStatusInfo?.type === 'unplayed';
+  const isJokerNegotiation = activeChannel?.type === 'JOKER_NEGOTIATION';
+  const isJokerAddedToMatch = messages.some(m => m.metadata?.type === 'JOKER_ADDED_TO_MATCH');
+  const canReply = !isMatchFinished && !(isJokerNegotiation && isJokerAddedToMatch);
+
+  // ── Anket (kendi aramızda, §96) ───────────────────────────────────────────
+  // Yapısal kendi aramızda tespiti: matchType (avatarData'dan) veya rakipsiz
+  // rezervasyon — isim-tabanlı '(Kendi Aramızda)' kontrolü kullanılmaz.
+  const isKendiAramizdaChat = activeChannel?.type === 'MATCH_GROUP' && (
+    activeChannel?.avatarData?.matchType === 'kendi_aramizda' ||
+    (!!activeChannel?.reservation && !activeChannel.reservation.opponentTeamId)
+  );
+  const isCaptainOrVice = currentUser?.team?.captainId === currentUser?.id
+    || currentUser?.team?.viceCaptainIds?.includes(currentUser?.id);
+  // "Oyları Görüntüle" bottom-sheet'inin hedef anketi (canlı polls haritasından okunur)
+  const [votersPollId, setVotersPollId] = React.useState<string | null>(null);
+
+  const startReply = (m: any) => {
+    if (m.isSystem || m.pending) return;
+    setReplyingTo({
+      id: m.id,
+      senderId: m.senderId,
+      senderName: m.isMe ? 'Sen' : m.senderName,
+      text: m.text,
+    });
+    inputRef.current?.focus(); // klavye kaydırmasını global useKeyboardScroll halleder
+  };
+
+  // Alıntıya dokunma → orijinal mesaja kaydır + kısa vurgu. Mesaj henüz
+  // yüklenmemiş eski bir sayfadaysa sessiz no-op (v1'de sayfa kovalama yok).
+  const scrollToMessage = (id: string) => {
+    const el = document.querySelector(`[data-msgid="${CSS.escape(id)}"]`) as HTMLElement | null;
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.add('reply-flash');
+    setTimeout(() => el.classList.remove('reply-flash'), 1200);
+  };
   const scrollRafRef = useRef<number | null>(null);
   const lastScrollStateRef = useRef(false);
   // Append/prepend ayrımı: son mesaj id'si değiştiyse append (dibe kaydırma
@@ -764,7 +812,26 @@ export const Chat: React.FC = () => {
           </>
         )}
 
-        {!isLoadingMessages && messages.filter(filterMessage).map((msg, index, arr) => (
+        {!isLoadingMessages && messages.filter(filterMessage).map((msg, index, arr) => {
+          // Anket duyurusu: anket haritada varsa etkileşimli kart çizilir; yoksa
+          // (eski sunucu / fetch başarısız) MessageBubble düz sistem metnini basar.
+          if (msg.isSystem && msg.metadata?.type === 'POLL' && polls[msg.metadata.pollId]) {
+            const poll = polls[msg.metadata.pollId];
+            return (
+              <div key={msg.id} className="flex justify-center my-4 animate-fade-in px-4 w-full">
+                <PollCard
+                  poll={poll}
+                  currentUserId={currentUser?.id}
+                  canVote={!poll.isClosed && !isMatchFinished}
+                  canClose={!!isCaptainOrVice && !poll.isClosed && !isMatchFinished}
+                  onVote={handleVote}
+                  onClose={handleClosePoll}
+                  onShowVoters={setVotersPollId}
+                />
+              </div>
+            );
+          }
+          return (
           <MessageBubble
             key={msg.id}
             msg={msg as any}
@@ -790,9 +857,13 @@ export const Chat: React.FC = () => {
                 : null
             }
             onInfo={readStates ? (m) => setReadInfoMsg(m) : undefined}
+            onReply={canReply ? startReply : undefined}
+            onQuoteClick={scrollToMessage}
+            blockedUserIds={blockedUserIds}
             jokerTeamId={jokerTeamByUser[msg.senderId] ?? null}
           />
-        ))}
+          );
+        })}
 
         <div ref={endRef} />
 
@@ -809,14 +880,11 @@ export const Chat: React.FC = () => {
         )}
       </div>
 
-      {/* INPUT */}
+      {/* INPUT — activeStatusInfo/isMatchFinished/isJokerNegotiation/isJokerAddedToMatch
+          component gövdesinde hesaplanır (canReply ile paylaşılır) */}
       {(() => {
-        const activeStatusInfo = getMatchStatusInfo(activeChannel?.reservation);
-        const isMatchFinished = activeStatusInfo?.type === 'played' || activeStatusInfo?.type === 'unplayed';
-        const isJokerNegotiation = activeChannel?.type === 'JOKER_NEGOTIATION';
         const startMsg = messages.find(m => m.metadata?.type === 'JOKER_NEGOTIATION_STARTED');
         const isInviter = startMsg?.metadata?.jokerId && startMsg?.metadata?.jokerId !== currentUser?.id;
-        const isJokerAddedToMatch = messages.some(m => m.metadata?.type === 'JOKER_ADDED_TO_MATCH');
 
         return (
           <div className={`flex flex-col bg-slate-900 border-t border-slate-800 ${keyboardHeight > 0 ? '' : 'pb-safe-bottom'}`}>
@@ -878,6 +946,21 @@ export const Chat: React.FC = () => {
                   <Shield className="w-4 h-4" /> Joker maça dahil edildi. Sohbet kapatıldı.
                 </div>
               ) : (
+                <>
+                  {replyingTo && (
+                    <div className="mb-2 flex items-center gap-2 bg-slate-800 border-l-[3px] border-turf-500 rounded-lg px-3 py-2">
+                      <div className="flex-1 min-w-0">
+                        <span className="block text-xs font-semibold text-turf-400 truncate">{replyingTo.senderName}</span>
+                        <span className="block text-xs text-slate-400 truncate">{replyingTo.text}</span>
+                      </div>
+                      <button
+                        onClick={() => setReplyingTo(null)}
+                        className="p-1 text-slate-500 hover:text-white shrink-0"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
                 <div className="flex gap-2 items-end">
                   <div className="flex-1 bg-slate-800 rounded-xl flex items-center border border-slate-700 focus-within:border-turf-500 transition-colors">
                     <input
@@ -907,6 +990,7 @@ export const Chat: React.FC = () => {
                     <Send className="w-5 h-5" />
                   </button>
                 </div>
+                </>
               )}
             </div>
           </div>
@@ -1027,6 +1111,28 @@ export const Chat: React.FC = () => {
                           <div className="flex flex-col">
                             <span>Jokerleri Yönet</span>
                             <span className="text-xs font-normal text-purple-400/70 mt-0.5">Maç kadrosunu düzenle</span>
+                          </div>
+                        </div>
+                        <ChevronRight className="w-5 h-5 opacity-50" />
+                      </button>
+                    )}
+
+                    {/* ANKET OLUŞTUR — yalnız kendi aramızda maç sohbeti, kaptan/yardımcı (§96) */}
+                    {(isCaptain || isViceCaptain) && isKendiAramizdaChat && !isMatchFinished && (
+                      <button
+                        onClick={() => {
+                          setIsChatMenuOpen(false);
+                          setIsPollCreateOpen(true);
+                        }}
+                        className="w-full text-left p-4 rounded-2xl text-md font-bold text-white hover:bg-slate-700 flex items-center justify-between transition-colors shadow-sm"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-400 border border-blue-500/20">
+                            <BarChart3 className="w-6 h-6" />
+                          </div>
+                          <div className="flex flex-col">
+                            <span>Anket Oluştur</span>
+                            <span className="text-xs font-normal text-blue-400/70 mt-0.5">Takımına soru sor</span>
                           </div>
                         </div>
                         <ChevronRight className="w-5 h-5 opacity-50" />
@@ -1156,6 +1262,19 @@ export const Chat: React.FC = () => {
         channelId={activeChannel?.id}
       />
 
+      <PollCreateModal
+        isOpen={isPollCreateOpen}
+        onClose={() => setIsPollCreateOpen(false)}
+        channelId={selectedChannelId}
+        onCreated={handlePollCreated}
+      />
+
+      <PollVotersModal
+        isOpen={!!votersPollId}
+        onClose={() => setVotersPollId(null)}
+        poll={votersPollId ? polls[votersPollId] ?? null : null}
+      />
+
       <MessageContextMenu
         visible={isContextMenuOpen}
         msg={contextMenuMsg}
@@ -1166,6 +1285,11 @@ export const Chat: React.FC = () => {
           const m = contextMenuMsg;
           closeContextMenu();
           if (m) setReadInfoMsg(m);
+        } : undefined}
+        onReply={canReply && contextMenuMsg && !(contextMenuMsg as any).isSystem ? () => {
+          const m = contextMenuMsg;
+          closeContextMenu();
+          if (m) startReply(m);
         } : undefined}
         onClose={closeContextMenu}
       />
