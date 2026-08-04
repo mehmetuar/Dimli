@@ -45,10 +45,18 @@ export const useChat = () => {
     // Anketler: pollId → PollView haritası. Duyuru mesajındaki metadata.pollId
     // render'da buradan join'lenir; pollUpdated socket olayı tek girdi merge eder.
     const [polls, setPolls] = useState<Record<string, any>>({});
+    // Anket isteği sonuçlandı mı (başarı VEYA 404/hata)? false iken POLL
+    // duyuruları iskelet kart olarak çizilir — düz metin flaşı asla görünmez.
+    const [pollsLoaded, setPollsLoaded] = useState(false);
     const pollsRef = useRef<Record<string, any>>({});
     pollsRef.current = polls;
+    // Bayat yanıt guard'ı: önceki kanalın geç gelen yanıtı yeni kanala yazmasın
+    const selectedChannelIdRef = useRef<string | null>(null);
     const pollVoteBusyRef = useRef<Set<string>>(new Set()); // poll-başına çift dokunuş guard'ı
     const [isPollCreateOpen, setIsPollCreateOpen] = useState(false);
+    // Sabitlenmiş mesajlar (§97): kanal başına maks 2 (rakiplide takım başına 1)
+    const [pins, setPins] = useState<any[]>([]);
+    const [pinsLoaded, setPinsLoaded] = useState(false);
     const [isSending, setIsSending] = useState(false);
     const sendingRef = useRef(false); // çift gönderim guard'ı (hızlı 2 dokunuş)
     const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
@@ -128,10 +136,12 @@ export const useChat = () => {
     // — yüklenmiş eski sayfalar korunur (ref, mesaj efektinde set edilir).
     const resyncMessagesRef = useRef<(() => void) | null>(null);
     const resyncPollsRef = useRef<(() => void) | null>(null);
+    const resyncPinsRef = useRef<(() => void) | null>(null);
     useOnReconnect(useCallback(() => {
         fetchChannels();
         resyncMessagesRef.current?.();
         resyncPollsRef.current?.(); // kopuklukta kaçan pollUpdated'ler telafi edilir
+        resyncPinsRef.current?.(); // kopuklukta kaçan pinUpdated'ler telafi edilir
     }, [fetchChannels]));
 
     useEffect(() => {
@@ -189,6 +199,9 @@ export const useChat = () => {
         setMatchDetailData(null);
         setReplyingTo(null); // kanal değişti — önceki kanalın cevap hedefi taşınmasın
         setPolls({}); // önceki kanalın anketleri taşınmasın
+        setPollsLoaded(false);
+        setPins([]); // önceki kanalın sabitleri taşınmasın
+        setPinsLoaded(false);
     }, [selectedChannelId]);
 
     // ── Okundu bilgisi (watermark modeli) ────────────────────────────────────
@@ -245,14 +258,19 @@ export const useChat = () => {
     const fetchPolls = useCallback(async (channelId: string) => {
         try {
             const res = await api.get(`/chat/channels/${channelId}/polls`);
+            if (selectedChannelIdRef.current !== channelId) return; // bayat yanıt
             setPolls(Object.fromEntries(res.data.map((p: any) => [p.id, p])));
         } catch {
             // 404 = eski sunucu → harita boş kalır, duyurular düz metin görünür (feature-detect)
+        } finally {
+            // Başarı da hata da "yüklendi" sayılır — iskelet asılı kalmaz
+            if (selectedChannelIdRef.current === channelId) setPollsLoaded(true);
         }
     }, []);
 
     useEffect(() => {
         if (!selectedChannelId) return;
+        selectedChannelIdRef.current = selectedChannelId;
         fetchPolls(selectedChannelId);
         resyncPollsRef.current = () => fetchPolls(selectedChannelId);
 
@@ -322,6 +340,78 @@ export const useChat = () => {
     // Oluşturma POST'u PollCreateModal'ın içinde — modal onCreated ile haritaya merge eder
     const handlePollCreated = (poll: any) => {
         if (poll?.id) setPolls(prev => ({ ...prev, [poll.id]: poll }));
+    };
+
+    // ── Sabitlenmiş mesajlar (§97) ───────────────────────────────────────────
+    const fetchPins = useCallback(async (channelId: string) => {
+        try {
+            const res = await api.get(`/chat/channels/${channelId}/pins`);
+            if (selectedChannelIdRef.current !== channelId) return; // bayat yanıt
+            setPins(res.data ?? []);
+        } catch {
+            // 404 = eski sunucu → bar hiç çizilmez (feature-detect)
+        } finally {
+            if (selectedChannelIdRef.current === channelId) setPinsLoaded(true);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!selectedChannelId) return;
+        fetchPins(selectedChannelId);
+        resyncPinsRef.current = () => fetchPins(selectedChannelId);
+
+        // Canlı sabit güncellemesi — sunucu tam listeyi yollar, replace (§89)
+        const onPinUpdated = (data: any) => {
+            if (data?.channelId !== selectedChannelId) return;
+            setPins(Array.isArray(data.pins) ? data.pins : []);
+        };
+        if (socket) socket.on('pinUpdated', onPinUpdated);
+        return () => {
+            resyncPinsRef.current = null;
+            if (socket) socket.off('pinUpdated', onPinUpdated);
+        };
+    }, [selectedChannelId, socket, fetchPins]);
+
+    // Sabitle: kendi takımımın FARKLI bir sabiti varsa değiştirme onayı sorulur.
+    // Mutasyon yanıtı tam PinView listesi — socket yankısı beklenmeden replace.
+    const handlePin = (messageId: string) => {
+        if (!selectedChannelId) return;
+        const doPin = async () => {
+            try {
+                const res = await api.post(`/chat/channels/${selectedChannelId}/pins`, { messageId });
+                setPins(res.data ?? []);
+            } catch (error: any) {
+                alert(error.response?.data?.message || 'Mesaj sabitlenemedi.');
+            }
+        };
+        const myTeamPin = pins.find(p => p.teamId === currentUser?.team?.id);
+        if (myTeamPin && myTeamPin.messageId !== messageId) {
+            setConfirmTitle('Mesajı Sabitle');
+            setConfirmMessage('Takımınızın mevcut sabitlenmiş mesajı kaldırılıp bu mesaj sabitlenecek. Devam edilsin mi?');
+            setConfirmIsDangerous(false);
+            setConfirmButtonText('Sabitle');
+            setConfirmAction(() => doPin);
+            setConfirmModalOpen(true);
+        } else {
+            void doPin();
+        }
+    };
+
+    const handleUnpin = () => {
+        if (!selectedChannelId) return;
+        setConfirmTitle('Sabitlemeyi Kaldır');
+        setConfirmMessage('Sabitlenmiş mesaj tepeden kaldırılacak. Devam edilsin mi?');
+        setConfirmIsDangerous(true);
+        setConfirmButtonText('Kaldır');
+        setConfirmAction(() => async () => {
+            try {
+                const res = await api.delete(`/chat/channels/${selectedChannelId}/pins`);
+                setPins(res.data ?? []);
+            } catch (error: any) {
+                alert(error.response?.data?.message || 'Sabitleme kaldırılamadı.');
+            }
+        });
+        setConfirmModalOpen(true);
     };
 
     // Diğer aktif katılımcıların en KÜÇÜK watermark'ı — bir mesaj bundan eskiyse
@@ -740,8 +830,9 @@ export const useChat = () => {
         readStates, othersMinLastReadAt, fetchReadStates,
         input, setInput,
         replyingTo, setReplyingTo,
-        polls, handleVote, handleClosePoll, handlePollCreated,
+        polls, pollsLoaded, handleVote, handleClosePoll, handlePollCreated,
         isPollCreateOpen, setIsPollCreateOpen,
+        pins, pinsLoaded, handlePin, handleUnpin,
         isSending,
         isInviteModalOpen, setIsInviteModalOpen,
         matchDetailData, setMatchDetailData,

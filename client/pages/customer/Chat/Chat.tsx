@@ -20,6 +20,7 @@ import { KendiAramizdaMatchModal } from './components/KendiAramizdaMatchModal';
 import { PollCard } from './components/PollCard';
 import { PollCreateModal } from './components/PollCreateModal';
 import { PollVotersModal } from './components/PollVotersModal';
+import { PinnedMessageBar } from './components/PinnedMessageBar';
 import { InviteJokerModal } from '../../../components/Modals/InviteJokerModal';
 import { MatchDetailModal } from './components/MatchDetailModal';
 import { SubscriptionDetailModal } from './components/SubscriptionDetailModal';
@@ -40,8 +41,9 @@ export const Chat: React.FC = () => {
     readStates, othersMinLastReadAt, fetchReadStates,
     input, setInput, isSending,
     replyingTo, setReplyingTo,
-    polls, handleVote, handleClosePoll, handlePollCreated,
+    polls, pollsLoaded, handleVote, handleClosePoll, handlePollCreated,
     isPollCreateOpen, setIsPollCreateOpen,
+    pins, handlePin, handleUnpin,
     isInviteModalOpen, setIsInviteModalOpen,
     matchDetailData,
     isMatchDetailOpen, setIsMatchDetailOpen,
@@ -151,6 +153,26 @@ export const Chat: React.FC = () => {
     || currentUser?.team?.viceCaptainIds?.includes(currentUser?.id);
   // "Oyları Görüntüle" bottom-sheet'inin hedef anketi (canlı polls haritasından okunur)
   const [votersPollId, setVotersPollId] = React.useState<string | null>(null);
+
+  // ── Mesaj sabitleme (§97) ─────────────────────────────────────────────────
+  // Bağlam takımları: sabit yetkisi "kanalın taraf takımlarından birinin
+  // kaptanı/yardımcısı"dır (jokerin ilgisiz takım kaptanlığı yetki VERMEZ).
+  // Client tarafı UX kolaylığıdır; sunucu kontrolü otoriterdir.
+  const pinContextTeamIds: string[] = (() => {
+    if (activeChannel?.type === 'MATCH_GROUP' || activeChannel?.type === 'JOKER_NEGOTIATION') {
+      return [activeChannel?.reservation?.teamId, activeChannel?.reservation?.opponentTeamId]
+        .filter((id: any): id is string => !!id);
+    }
+    if (activeChannel?.type === 'SUBSCRIPTION') {
+      const sub = activeChannel?.avatarData?.subscription;
+      return [sub?.homeTeamId, sub?.awayTeamId].filter((id: any): id is string => !!id);
+    }
+    return [];
+  })();
+  const myTeamId = currentUser?.team?.id ?? null;
+  const canPin = !!isCaptainOrVice && !isMatchFinished && !!myTeamId
+    && pinContextTeamIds.includes(myTeamId);
+  const myTeamPin = pins.find((p: any) => p.teamId === myTeamId);
 
   const startReply = (m: any) => {
     if (m.isSystem || m.pending) return;
@@ -731,6 +753,18 @@ export const Chat: React.FC = () => {
         )}
       </div>
 
+      {/* SABİTLENMİŞ MESAJ BARI (§97) — scroll container'ın DIŞINDA flex kardeş:
+          prepend-anchor / auto-scroll matematiği (scrollHeight tabanlı) etkilenmez */}
+      <PinnedMessageBar
+        pins={pins}
+        myTeamId={myTeamId}
+        canManage={canPin}
+        teamChatColors={teamChatColors}
+        blockedUserIds={blockedUserIds}
+        onTapPin={scrollToMessage}
+        onUnpin={handleUnpin}
+      />
+
       {/* MESSAGES */}
       <div
         ref={scrollContainerRef}
@@ -813,23 +847,39 @@ export const Chat: React.FC = () => {
         )}
 
         {!isLoadingMessages && messages.filter(filterMessage).map((msg, index, arr) => {
-          // Anket duyurusu: anket haritada varsa etkileşimli kart çizilir; yoksa
-          // (eski sunucu / fetch başarısız) MessageBubble düz sistem metnini basar.
-          if (msg.isSystem && msg.metadata?.type === 'POLL' && polls[msg.metadata.pollId]) {
+          // Anket duyurusu üç yönlü: haritada varsa etkileşimli kart; anket isteği
+          // henüz sonuçlanmadıysa iskelet (düz metin flaşı ASLA görünmez); istek
+          // sonuçlandı ama anket yoksa (gerçek eski sunucu) MessageBubble düz metni basar.
+          if (msg.isSystem && msg.metadata?.type === 'POLL') {
             const poll = polls[msg.metadata.pollId];
-            return (
-              <div key={msg.id} className="flex justify-center my-4 animate-fade-in px-4 w-full">
-                <PollCard
-                  poll={poll}
-                  currentUserId={currentUser?.id}
-                  canVote={!poll.isClosed && !isMatchFinished}
-                  canClose={!!isCaptainOrVice && !poll.isClosed && !isMatchFinished}
-                  onVote={handleVote}
-                  onClose={handleClosePoll}
-                  onShowVoters={setVotersPollId}
-                />
-              </div>
-            );
+            if (poll) {
+              return (
+                <div key={msg.id} className="flex justify-center my-4 animate-fade-in px-4 w-full">
+                  <PollCard
+                    poll={poll}
+                    currentUserId={currentUser?.id}
+                    canVote={!poll.isClosed && !isMatchFinished}
+                    canClose={!!isCaptainOrVice && !poll.isClosed && !isMatchFinished}
+                    onVote={handleVote}
+                    onClose={handleClosePoll}
+                    onShowVoters={setVotersPollId}
+                  />
+                </div>
+              );
+            }
+            if (!pollsLoaded) {
+              return (
+                <div key={msg.id} className="flex justify-center my-4 px-4 w-full">
+                  <div className="w-full bg-slate-800/80 border border-slate-700 rounded-xl p-4 animate-pulse">
+                    <div className="h-4 w-2/3 bg-slate-700 rounded mb-4" />
+                    <div className="h-9 bg-slate-700/60 rounded-lg mb-2" />
+                    <div className="h-9 bg-slate-700/60 rounded-lg mb-2" />
+                    <div className="h-3 w-1/3 bg-slate-700/60 rounded mt-3" />
+                  </div>
+                </div>
+              );
+            }
+            // pollsLoaded && anket yok → aşağıdaki MessageBubble düz metne düşer
           }
           return (
           <MessageBubble
@@ -1291,6 +1341,14 @@ export const Chat: React.FC = () => {
           closeContextMenu();
           if (m) startReply(m);
         } : undefined}
+        onPin={canPin && contextMenuMsg && !(contextMenuMsg as any).isSystem ? () => {
+          const m = contextMenuMsg;
+          closeContextMenu();
+          if (!m) return;
+          if (myTeamPin?.messageId === m.id) handleUnpin();
+          else handlePin(m.id);
+        } : undefined}
+        pinLabel={myTeamPin && contextMenuMsg && myTeamPin.messageId === contextMenuMsg.id ? 'Sabitlemeyi Kaldır' : 'Sabitle'}
         onClose={closeContextMenu}
       />
 

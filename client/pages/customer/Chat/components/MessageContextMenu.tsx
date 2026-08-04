@@ -1,5 +1,5 @@
 import React from 'react';
-import { Copy, Flag, Info, Reply } from 'lucide-react';
+import { Copy, Flag, Info, Reply, Pin } from 'lucide-react';
 import type { ActionMessage, MenuPosition } from '../hooks/useMessageActions';
 
 const MENU_WIDTH = 192;
@@ -16,11 +16,15 @@ interface Props {
     onInfo?: () => void;
     // Cevapla — undefined ise (kapalı sohbet) satır hiç çizilmez.
     onReply?: () => void;
+    // Sabitle — undefined ise (yetkisiz/izinsiz kanal) satır hiç çizilmez.
+    // Etiket duruma göre "Sabitle" veya "Sabitlemeyi Kaldır" (pinLabel).
+    onPin?: () => void;
+    pinLabel?: string;
     onClose: () => void;
 }
 
 export const MessageContextMenu: React.FC<Props> = ({
-    visible, msg, position, onCopy, onReport, onInfo, onReply, onClose,
+    visible, msg, position, onCopy, onReport, onInfo, onReply, onPin, pinLabel, onClose,
 }) => {
     if (!visible || !msg) return null;
 
@@ -28,8 +32,8 @@ export const MessageContextMenu: React.FC<Props> = ({
     const vw = window.innerWidth;
     const GAP = 10;
 
-    // Yerleşim hesabı görünen satır sayısına göre — Cevapla satırı opsiyonel
-    const menuHeight = (onReply ? 3 : 2) * MENU_ROW_HEIGHT;
+    // Yerleşim hesabı görünen satır sayısına göre — Cevapla/Sabitle opsiyonel
+    const menuHeight = ((onReply ? 3 : 2) + (onPin ? 1 : 0)) * MENU_ROW_HEIGHT;
 
     // Menüyü bubble'ın altında göster; yeterli alan yoksa üstte
     const showBelow = position.bottom + GAP + menuHeight < vh - 24;
@@ -96,6 +100,19 @@ export const MessageContextMenu: React.FC<Props> = ({
                     <Copy className="w-5 h-5 text-slate-200 flex-shrink-0" />
                     <span className="text-sm font-medium text-white">Kopyala</span>
                 </button>
+
+                {onPin && (
+                    <>
+                        <div className="h-px bg-slate-700 mx-3" />
+                        <button
+                            className="flex flex-row items-center gap-3 px-4 py-3 w-full active:bg-slate-700 transition-colors"
+                            onClick={e => { e.stopPropagation(); onPin(); }}
+                        >
+                            <Pin className="w-5 h-5 text-turf-400 flex-shrink-0" />
+                            <span className="text-sm font-medium text-turf-400">{pinLabel ?? 'Sabitle'}</span>
+                        </button>
+                    </>
+                )}
 
                 {msg.isMe ? (
                     onInfo && (
