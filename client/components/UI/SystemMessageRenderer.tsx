@@ -33,6 +33,24 @@ const icons: Record<string, React.ReactNode> = {
         </svg>
     ),
 
+    // Anket duyurusu (yatay oy çubukları) — {{POLL}} Anket: ...
+    POLL: (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="inline-block align-middle mr-1">
+            <line x1="4" y1="6" x2="20" y2="6" stroke="#4ade80" strokeWidth="2.4" strokeLinecap="round" />
+            <line x1="4" y1="12" x2="13" y2="12" stroke="#4ade80" strokeWidth="2.4" strokeLinecap="round" opacity="0.8" />
+            <line x1="4" y1="18" x2="17" y2="18" stroke="#4ade80" strokeWidth="2.4" strokeLinecap="round" opacity="0.6" />
+        </svg>
+    ),
+
+    // Sabitlenmiş mesaj (raptiye) — {{PINNED}} ... bir mesajı sabitledi.
+    // Harita iğnesi PIN'den bilinçli olarak farklı bir çizim.
+    PINNED: (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="inline-block align-middle mr-1">
+            <path d="M9 3h6l-1 6 3 3v2H7v-2l3-3-1-6z" stroke="#fbbf24" strokeWidth="1.8" strokeLinejoin="round" fill="none" />
+            <line x1="12" y1="14" x2="12" y2="21" stroke="#fbbf24" strokeWidth="1.8" strokeLinecap="round" />
+        </svg>
+    ),
+
     CALENDAR: (
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="inline-block align-middle mr-1">
             <rect x="3" y="4" width="18" height="18" rx="2" stroke="#60a5fa" strokeWidth="1.8" fill="none" />

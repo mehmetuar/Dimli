@@ -854,7 +854,8 @@ export const Chat: React.FC = () => {
             const poll = polls[msg.metadata.pollId];
             if (poll) {
               return (
-                <div key={msg.id} className="flex justify-center my-4 animate-fade-in px-4 w-full">
+                // data-msgid: sabit bar dokunuşu scrollToMessage ile karta kaydırabilsin
+                <div key={msg.id} data-msgid={msg.id} className="flex justify-center my-4 animate-fade-in px-4 w-full">
                   <PollCard
                     poll={poll}
                     currentUserId={currentUser?.id}
@@ -863,13 +864,17 @@ export const Chat: React.FC = () => {
                     onVote={handleVote}
                     onClose={handleClosePoll}
                     onShowVoters={setVotersPollId}
+                    isPinned={myTeamPin?.messageId === msg.id}
+                    onTogglePin={canPin
+                      ? () => (myTeamPin?.messageId === msg.id ? handleUnpin() : handlePin(msg.id))
+                      : undefined}
                   />
                 </div>
               );
             }
             if (!pollsLoaded) {
               return (
-                <div key={msg.id} className="flex justify-center my-4 px-4 w-full">
+                <div key={msg.id} data-msgid={msg.id} className="flex justify-center my-4 px-4 w-full">
                   <div className="w-full bg-slate-800/80 border border-slate-700 rounded-xl p-4 animate-pulse">
                     <div className="h-4 w-2/3 bg-slate-700 rounded mb-4" />
                     <div className="h-9 bg-slate-700/60 rounded-lg mb-2" />

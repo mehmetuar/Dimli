@@ -3,7 +3,7 @@ import { Users, Star, Repeat } from 'lucide-react';
 import { getMatchStatusInfo, formatMessageDate, teamAvatarFallback, userAvatarFallback } from '../utils/chatUtils';
 import { realAvatarUrl } from './UserAvatar';
 import { MatchStatusBadge } from './MatchStatusBadge';
-import { stripSystemMessageMarkers } from '../../../../components/UI/SystemMessageRenderer';
+import { SystemMessageRenderer, stripSystemMessageMarkers } from '../../../../components/UI/SystemMessageRenderer';
 import { useLongPress } from '../hooks/useLongPress';
 
 interface ChannelItemProps {
@@ -49,9 +49,14 @@ export const ChannelItem: React.FC<ChannelItemProps> = ({
 
         const content = lm.content ? stripSystemMessageMarkers(lm.content) : '';
 
-        // Sistem mesajı
+        // Sistem mesajı — {{TOKEN}}'lar önizlemede de uygulama-içi özel ikon
+        // olarak çizilir ({{POLL}} anket, {{PINNED}} raptiye, {{PIN}} saha vb.)
         if (lm.isSystemMessage || !lm.senderId) {
-            return <span className="text-slate-500">{content}</span>;
+            return (
+                <span className="text-slate-500">
+                    <SystemMessageRenderer text={lm.content ?? ''} />
+                </span>
+            );
         }
 
         // Gönderen adı

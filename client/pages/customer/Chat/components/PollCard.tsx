@@ -1,5 +1,5 @@
 import React from 'react';
-import { BarChart3, CheckCircle, Circle, CheckSquare, Square, Lock } from 'lucide-react';
+import { BarChart3, CheckCircle, Circle, CheckSquare, Square, Lock, Pin } from 'lucide-react';
 
 interface PollVoter {
     id: string;
@@ -38,12 +38,17 @@ interface Props {
     onVote: (pollId: string, optionIds: string[]) => void;
     onClose: (pollId: string) => void;
     onShowVoters: (pollId: string) => void;
+    // Anket duyurusu sabitleme (§97): takımımın sabiti bu anket mi?
+    isPinned?: boolean;
+    // undefined = sabitleme yetkisi yok → raptiye butonu hiç çizilmez
+    onTogglePin?: () => void;
 }
 
 // WhatsApp tarzı anket kartı — sistem mesajı akışında ortalanmış tam genişlik
 // kart olarak çizilir. Veri PollView'dur (useChat polls haritasından canlı gelir).
 export const PollCard: React.FC<Props> = ({
     poll, currentUserId, canVote, canClose, onVote, onClose, onShowVoters,
+    isPinned, onTogglePin,
 }) => {
     const myOptionIds = poll.options
         .filter(o => o.voters.some(v => v.id === currentUserId))
@@ -83,6 +88,19 @@ export const PollCard: React.FC<Props> = ({
                     <span className="flex items-center gap-1 text-[10px] font-semibold text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded-full px-2 py-0.5 shrink-0">
                         <Lock className="w-3 h-3" /> Kapalı
                     </span>
+                )}
+                {onTogglePin && (
+                    <button
+                        onClick={onTogglePin}
+                        aria-label={isPinned ? 'Sabitlemeyi Kaldır' : 'Sabitle'}
+                        className={`p-1.5 rounded-full shrink-0 transition-colors ${
+                            isPinned
+                                ? 'text-turf-400 bg-turf-600/15 border border-turf-500/40'
+                                : 'text-slate-500 active:text-slate-300'
+                        }`}
+                    >
+                        <Pin className="w-4 h-4" fill={isPinned ? 'currentColor' : 'none'} />
+                    </button>
                 )}
             </div>
 
