@@ -148,23 +148,34 @@ export class PollsService {
 
   // ── Serileştirme ───────────────────────────────────────────────────────────
 
-  private async serializePoll(pollId: string): Promise<PollView> {
-    const poll = await this.pollRepository.findOne({
-      where: { id: pollId },
-      relations: ['options'],
-    });
-    if (!poll) throw new NotFoundException('Anket bulunamadı.');
+  // Toplu serileştirme: N anket için seçenekler TEK sorgu + oylar TEK sorgu
+  // (anket başına 2 sorguluk N+1 yerine) — kanal açılışındaki GET buradan geçer.
+  private async serializePolls(polls: Poll[]): Promise<PollView[]> {
+    if (polls.length === 0) return [];
+    const ids = polls.map((p) => p.id);
 
-    const votes = await this.pollVoteRepository.find({
-      where: { pollId },
+    const allOptions = await this.pollOptionRepository.find({
+      where: { pollId: In(ids) },
+    });
+    const allVotes = await this.pollVoteRepository.find({
+      where: { pollId: In(ids) },
       relations: ['user'],
       order: { createdAt: 'ASC' },
     });
 
+    const optionsByPoll = new Map<string, PollOption[]>();
+    for (const option of allOptions) {
+      const list = optionsByPoll.get(option.pollId) ?? [];
+      list.push(option);
+      optionsByPoll.set(option.pollId, list);
+    }
+
     const votersByOption = new Map<string, PollVoterView[]>();
-    const voterIds = new Set<string>();
-    for (const vote of votes) {
+    const voterIdsByPoll = new Map<string, Set<string>>();
+    for (const vote of allVotes) {
+      const voterIds = voterIdsByPoll.get(vote.pollId) ?? new Set<string>();
       voterIds.add(vote.userId);
+      voterIdsByPoll.set(vote.pollId, voterIds);
       const list = votersByOption.get(vote.optionId) ?? [];
       list.push({
         id: vote.userId,
@@ -174,31 +185,38 @@ export class PollsService {
       votersByOption.set(vote.optionId, list);
     }
 
-    const options = [...(poll.options ?? [])]
-      .sort((a, b) => a.sortOrder - b.sortOrder)
-      .map((option) => {
-        const voters = votersByOption.get(option.id) ?? [];
-        return {
-          id: option.id,
-          text: option.text,
-          sortOrder: option.sortOrder,
-          voteCount: voters.length,
-          voters,
-        };
-      });
+    return polls.map((poll) => {
+      const options = (optionsByPoll.get(poll.id) ?? [])
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map((option) => {
+          const voters = votersByOption.get(option.id) ?? [];
+          return {
+            id: option.id,
+            text: option.text,
+            sortOrder: option.sortOrder,
+            voteCount: voters.length,
+            voters,
+          };
+        });
+      return {
+        id: poll.id,
+        channelId: poll.channelId,
+        title: poll.title,
+        allowMultiple: poll.allowMultiple,
+        isClosed: poll.isClosed,
+        createdById: poll.createdById,
+        createdAt: poll.createdAt,
+        closedAt: poll.closedAt,
+        totalVoters: (voterIdsByPoll.get(poll.id) ?? new Set()).size,
+        options,
+      };
+    });
+  }
 
-    return {
-      id: poll.id,
-      channelId: poll.channelId,
-      title: poll.title,
-      allowMultiple: poll.allowMultiple,
-      isClosed: poll.isClosed,
-      createdById: poll.createdById,
-      createdAt: poll.createdAt,
-      closedAt: poll.closedAt,
-      totalVoters: voterIds.size,
-      options,
-    };
+  private async serializePoll(pollId: string): Promise<PollView> {
+    const poll = await this.pollRepository.findOne({ where: { id: pollId } });
+    if (!poll) throw new NotFoundException('Anket bulunamadı.');
+    return (await this.serializePolls([poll]))[0];
   }
 
   // Kanal odası yok — aktif katılımcıların kullanıcı odalarına tek tek yayın
@@ -292,7 +310,7 @@ export class PollsService {
       order: { createdAt: 'DESC' },
       take: 50,
     });
-    return Promise.all(polls.map((p) => this.serializePoll(p.id)));
+    return this.serializePolls(polls);
   }
 
   // Deklaratif oy: client istenen TAM seçimi gönderir. [] = geri çekme,
