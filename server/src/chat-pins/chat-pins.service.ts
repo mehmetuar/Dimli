@@ -11,6 +11,7 @@ import { PinnedMessage } from './pinned-message.entity';
 import { ChatParticipant } from '../chat/chat-participant.entity';
 import { ChatChannel } from '../chat/chat-channel.entity';
 import { ChatMessage } from '../chat/chat-message.entity';
+import type { ChatMessageMetadata } from '../chat/chat-message.entity';
 import { MatchAnnouncement } from '../match-announcements/match-announcement.entity';
 import { Reservation } from '../reservations/entities/reservation.entity';
 import { RecurringClosure } from '../reservations/entities/recurring-closure.entity';
@@ -33,6 +34,8 @@ export interface PinView {
     senderName: string | null;
     content: string;
     isSystemMessage: boolean;
+    // Anket sabiti ayrımı için (client bar'da POLL ikonlu özel satır çizer)
+    metadata: ChatMessageMetadata | null;
   };
 }
 
@@ -188,6 +191,7 @@ export class ChatPinsService {
           null,
         content: (pin.message?.content ?? '').slice(0, 200),
         isSystemMessage: pin.message?.isSystemMessage ?? false,
+        metadata: pin.message?.metadata ?? null,
       },
     }));
   }
@@ -231,7 +235,9 @@ export class ChatPinsService {
     });
     if (!message)
       throw new BadRequestException('Sabitlenecek mesaj bulunamadı.');
-    if (message.isSystemMessage) {
+    // Sistem mesajları sabitlenemez — TEK istisna anket duyurusu ({type:'POLL'}):
+    // kaptan anketi tepeye sabitleyip katılımı artırabilsin.
+    if (message.isSystemMessage && message.metadata?.type !== 'POLL') {
       throw new BadRequestException('Sistem mesajları sabitlenemez.');
     }
 
@@ -254,11 +260,12 @@ export class ChatPinsService {
     const pins = await this.serializePins(channelId);
     await this.emitPinUpdated(channelId, pins);
 
-    // Sohbet geçmişine iz — push YOK (bar zaten canlı sinyal, çift bildirim olmasın)
+    // Sohbet geçmişine iz — push YOK (bar zaten canlı sinyal, çift bildirim olmasın).
+    // {{PINNED}} uygulama-içi özel raptiye ikonuna çevrilir (SystemMessageRenderer).
     await this.chatService.sendMessage(
       channelId,
       null,
-      `📌 ${userName} bir mesajı sabitledi`,
+      `{{PINNED}} ${userName} bir mesajı sabitledi`,
       true,
       undefined,
       true, // skipPush

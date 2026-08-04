@@ -288,10 +288,12 @@ export class PollsService {
     await this.emitPollUpdated(view);
 
     // Duyuru sistem mesajı — push, normal sendMessage yolundan otomatik gider.
+    // {{POLL}} uygulama-içi özel ikona çevrilir (SystemMessageRenderer);
+    // push gövdesinde ve kanal listesinde token strip edilir.
     const message = await this.chatService.sendMessage(
       channelId,
       null,
-      `📊 Anket: ${title}`,
+      `{{POLL}} Anket: ${title}`,
       true,
       { type: 'POLL', pollId: poll.id },
     );
