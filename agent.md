@@ -4382,3 +4382,42 @@ anket sabiti BarChart3 ikonu + gönderen adı yerine strip edilmiş "Anket: {ba�
 PollCard/iskelet sarmalayıcılarına data-msgid eklendi → bar dokunuşu scrollToMessage ile karta
 kaydırır. Uzun basma menüsündeki Sabitle sistem mesajlarında (anket dahil) kapalı kalır — anket
 sabitleme girişi karttaki raptiyedir.
+
+### §98. Capacitor 6→8 + targetSdk 36 + Billing Library 8 geçişi (2026-08-12)
+Play'in 31 Ağu 2026 çifte zorunluluğu: targetSdk 36 VE Billing Library 8+ (ikisi de güncelleme
+kapısı). RevenueCat'in BL8 kullanan ilk sürümü (11.x) Capacitor 8 istediğinden Cap 6'da kalıp
+SDK bump yapmak imkânsızdı → tam geçiş: core/cli/android/ios **tam 8.4.2'ye sabitli (caret'siz)**.
+KURAL: 8.5.x'e çıkarma — 8.5'in `cap migrate`'i UIScene migrasyonunu SORUSUZ otomatik uygular
+(SceneDelegate.swift + Info.plist manifest + AppDelegate patch); SceneDelegate varken appUrlOpen
+derin linkleri ApplicationDelegateProxy'den AKMAZ, Firebase/APNs kablolaması risk altında.
+Bu turda bir kez başımıza geldi ve dört dosyadan geri alındı. UIScene = Xcode 27 işi, ayrı görev.
+Sürümler: tüm @capacitor/* v8, @capacitor-firebase/messaging 8.3.0, @capawesome/capacitor-app-update
+8.0.3, capacitor-native-settings 8.2.0, @revenuecat/purchases-capacitor 13.4.0 (BL 8.3.0 —
+`gradlew :app:dependencies | grep billingclient` ile doğrulandı), firebase ^12 (yalnız peer, app
+kodunda import yok). RevenueCat 9→13 JS API'si birebir aynı çıktı; revenuecatService.ts değişmedi
+(sandbox'ta iptal-kodu eşlemesi `purchaseErrorToTurkish` test edilecek). legacy-peer-deps BİTTİ:
+düz `npm install` temiz; Node 22+ şart (client/.nvmrc). Gradle: AGP 8.13.0 + wrapper 8.14.3 +
+minSdk 24 / compile-target 36; androidx.browser force-pin kaldırıldı (AGP 8.13'te gereksiz);
+Cap 8 eklentileri Java 21 toolchain ister → android/gradle.properties'e
+org.gradle.java.installations.paths=AS JBR yolu eklendi (JBR 21.0.10).
+EDGE-TO-EDGE: Android 16 + targetSdk 36'da opt-out tamamen kalktı (setDecorFitsSystemWindows(true),
+set*BarColor, windowOptOutEdgeToEdgeEnforcement → hepsi no-op/yok). Çözüm MainActivity'de iki rejim:
+API<35 eski gövde aynen (sıfır regresyon); API≥35 (a) WebView parent'ına systemBars+displayCutout
+padding (çubuklar arası WebView geometrisi korunur; koyu #0f172a görünüm şeffaf çubukların ardındaki
+windowBackground=dimliPitch'ten gelir), (b) dönüşte systemBars+cutout inset'leri Insets.of(0,0,0,0)
+ile TÜKETİLİR (CONSUMED değil — Chromium yeniden hesaplama bug'ı): viewport-fit=cover olduğundan
+tüketilmezse env(safe-area-inset-*) gerçek değer üretir → native padding'le ÇİFT boşluk olurdu.
+KURAL: capacitor.config.ts SystemBars.insetsHandling='disable' KALACAK — core'un 'css' modu ya
+env() değerlerini aktive eder (0 varsayan ~46 kullanım bozulur) ya da klavyede WebView'i resize
+eder (resize:'none' overlay modeli bozulur); tek inset otoritesi MainActivity listener'ıdır.
+--android-nav-inset/--android-keyboard-inset boru hattı ve web/CSS katmanı SIFIR değişiklikle
+korundu. Manifest: PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY=true (Android 16 sw600dp+'ta
+portre kilidini yok saymasın; GEÇİCİ — targetSdk 37'de kalkacak, büyük-ekran uyarlaması gerekecek).
+enableOnBackInvokedCallback EKLENMEDİ: @capacitor/app 8.x geri tuşunu OnBackPressedDispatcher ile
+kurar (predictive-back uyumlu); Android 16 cihazda backButton listener'ı ateşlenmezse yedek plan
+application'a android:enableOnBackInvokedCallback="false". StatusBar.backgroundColor config'den
+silindi (15+'ta ölü). versionCode 36 / 1.5.0. Doğrulanan: assembleDebug BAŞARILI, birleşik manifest
+targetSdk 36/minSdk 24, BL 8.3.0, Podfile.lock Cap 8.4.2 + RC 13.4.0, CocoaPods korundu (SPM yok),
+IPHONEOS_DEPLOYMENT_TARGET 15.0 (iOS 14 düştü). bundleRelease yalnız imzada düşer: keystore.properties
+bu çekimde yok (NPE=boş storeFile) — kullanıcının imza akışıyla çözülür. Cihaz testi bekliyor:
+Android 15/16'da çubuklar/klavye (özellikle Samsung OneUI)/geri, sandbox satın alma, iOS TestFlight.

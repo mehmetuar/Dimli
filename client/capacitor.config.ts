@@ -21,8 +21,17 @@ const config: CapacitorConfig = {
       sound: "beep.wav",
     },
     StatusBar: {
+      // backgroundColor kaldırıldı: Android 15+/targetSdk 36 edge-to-edge zorunluluğunda no-op;
+      // Android'de koyu çubuklar MainActivity + windowBackground(dimliPitch) üzerinden sağlanır.
       style: 'dark',
-      backgroundColor: '#0f172a',
+    },
+    SystemBars: {
+      // Core'un inset otomasyonu KAPALI: 'css' modu ya gerçek env(safe-area-inset-*) değerlerini
+      // aktive eder (bugün 0 varsayan tüm kullanımlar bozulur) ya da klavyede WebView'i resize
+      // eder (resize:'none' overlay modeliyle çelişir). Tüm inset mantığı MainActivity'de.
+      // style DARK yine çalışır: açık ikonlar + decor arka planı windowBackground ile boyanır.
+      insetsHandling: 'disable',
+      style: 'DARK',
     },
     SplashScreen: {
       // DİKKAT: 0 YAPMA — plugin launchShowDuration===0'da launch splash'ı HİÇ göstermez
