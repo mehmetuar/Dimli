@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project Structure
 
 Monorepo with three independent sub-projects:
-- `client/` — React 19 + Capacitor 6 mobile app (iOS/Android), never deployed as web
+- `client/` — React 19 + Capacitor 8 mobile app (iOS/Android), never deployed as web
 - `client-admin/` — React 18 + Vite admin dashboard, runs at port 5174
 - `server/` — NestJS 11 + TypeORM + PostgreSQL backend
 
@@ -76,7 +76,7 @@ NestJS feature modules under `server/src/`. Each module follows entity → servi
 - API base URL hardcoded in `client/src/services/api.ts` — axios instance with Bearer token interceptor
 - Auth persisted via `authStorage.ts` (Capacitor Preferences, not localStorage)
 - **Modal placement (feature-first colocation):** a modal used by a single feature lives in that feature's `components/` folder (e.g. `pages/customer/Chat/components/MatchDetailModal.tsx`); `client/components/Modals/` holds only modals shared by 2+ features or mounted globally in `App.tsx`. If a modal gains a second consumer, move it back to `components/Modals/`. See agent.md §42
-- `npm install` in `client/` requires `--legacy-peer-deps` (`@capacitor-firebase/messaging@8` ↔ `@capacitor/core@6` peer conflict)
+- `npm install` in `client/` works plain (no `--legacy-peer-deps`) since Capacitor 8; Node 22+ required (`client/.nvmrc`). Capacitor core/cli/android/ios are pinned to **exact 8.4.2** — do not let them float to 8.5.x (its `cap migrate` auto-runs the UIScene migration, which breaks the `AppDelegate.swift` Firebase/APNs wiring and `appUrlOpen` deep links); UIScene adoption is a separate task gated on Xcode 27
 - Provider order in `App.tsx`: `AuthProvider → SocketProvider → LocationProvider → FilterProvider`
 - Long-press on chat messages uses **native non-passive** `touchstart` listeners attached via `useEffect` — React's synthetic `onTouchStart` cannot call `e.preventDefault()` in React 17+ (passive by default)
 

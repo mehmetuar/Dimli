@@ -7,19 +7,19 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace "com.dimli.app"
-    compileSdk rootProject.ext.compileSdkVersion
+    namespace = "com.dimli.app"
+    compileSdk = rootProject.ext.compileSdkVersion
     androidResources {
         // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
         // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
-        ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
     }
     defaultConfig {
         applicationId "com.dimli.app"
         minSdk rootProject.ext.minSdkVersion
         targetSdk rootProject.ext.targetSdkVersion
-        versionCode 35
-        versionName "1.4.7"
+        versionCode 36
+        versionName "1.5.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
     signingConfigs {
@@ -42,13 +42,6 @@ android {
 repositories {
     flatDir{
         dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
-    }
-}
-
-configurations.all {
-    resolutionStrategy {
-        // androidx.browser:1.9.0 requires AGP 8.9.1+; pin to 1.8.0 which is compatible with AGP 8.2.1
-        force 'androidx.browser:browser:1.8.0'
     }
 }
 
