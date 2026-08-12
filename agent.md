@@ -4416,7 +4416,7 @@ portre kilidini yok saymasın; GEÇİCİ — targetSdk 37'de kalkacak, büyük-e
 enableOnBackInvokedCallback EKLENMEDİ: @capacitor/app 8.x geri tuşunu OnBackPressedDispatcher ile
 kurar (predictive-back uyumlu); Android 16 cihazda backButton listener'ı ateşlenmezse yedek plan
 application'a android:enableOnBackInvokedCallback="false". StatusBar.backgroundColor config'den
-silindi (15+'ta ölü). versionCode 36 / 1.5.0. Doğrulanan: assembleDebug BAŞARILI, birleşik manifest
+silindi (15+'ta ölü). versionCode 37 / 1.4.8 (36 Play taslağına yüklenip silindi — versionCode tek kullanımlık, atlandı). Doğrulanan: assembleDebug BAŞARILI, birleşik manifest
 targetSdk 36/minSdk 24, BL 8.3.0, Podfile.lock Cap 8.4.2 + RC 13.4.0, CocoaPods korundu (SPM yok),
 IPHONEOS_DEPLOYMENT_TARGET 15.0 (iOS 14 düştü). bundleRelease yalnız imzada düşer: keystore.properties
 bu çekimde yok (NPE=boş storeFile) — kullanıcının imza akışıyla çözülür. Cihaz testi bekliyor:

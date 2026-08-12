@@ -18,8 +18,8 @@ android {
         applicationId "com.dimli.app"
         minSdk rootProject.ext.minSdkVersion
         targetSdk rootProject.ext.targetSdkVersion
-        versionCode 36
-        versionName "1.5.0"
+        versionCode 37
+        versionName "1.4.8"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
     signingConfigs {
