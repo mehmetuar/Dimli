@@ -1,31 +1,32 @@
 PODS:
-  - Capacitor (6.2.1):
+  - Capacitor (7.6.8):
     - CapacitorCordova
-  - CapacitorApp (6.0.3):
+  - CapacitorApp (7.1.2):
     - Capacitor
-  - CapacitorBrowser (8.0.3):
+  - CapacitorBrowser (7.0.5):
     - Capacitor
-  - CapacitorCordova (6.2.1)
-  - CapacitorFirebaseMessaging (8.2.0):
+  - CapacitorCordova (7.6.8)
+  - CapacitorFirebaseMessaging (8.3.0):
     - Capacitor
     - FirebaseMessaging (~> 12.7.0)
-  - CapacitorGeolocation (6.1.1):
+  - CapacitorGeolocation (7.1.8):
     - Capacitor
-  - CapacitorKeyboard (6.0.4):
+    - IONGeolocationLib (= 1.0.1)
+  - CapacitorKeyboard (7.0.6):
     - Capacitor
-  - CapacitorLocalNotifications (6.1.3):
+  - CapacitorLocalNotifications (7.0.7):
     - Capacitor
   - CapacitorNativeSettings (6.0.6):
     - Capacitor
-  - CapacitorNetwork (6.0.4):
+  - CapacitorNetwork (7.0.4):
     - Capacitor
-  - CapacitorPreferences (8.0.1):
+  - CapacitorPreferences (7.0.4):
     - Capacitor
-  - CapacitorPushNotifications (6.0.5):
+  - CapacitorPushNotifications (7.0.7):
     - Capacitor
-  - CapacitorSplashScreen (6.0.4):
+  - CapacitorSplashScreen (7.0.5):
     - Capacitor
-  - CapacitorStatusBar (6.0.3):
+  - CapacitorStatusBar (7.0.6):
     - Capacitor
   - CapawesomeCapacitorAppUpdate (6.1.0):
     - Capacitor
@@ -76,6 +77,7 @@ PODS:
   - GoogleUtilities/UserDefaults (8.1.0):
     - GoogleUtilities/Logger
     - GoogleUtilities/Privacy
+  - IONGeolocationLib (1.0.1)
   - nanopb (3.30910.0):
     - nanopb/decode (= 3.30910.0)
     - nanopb/encode (= 3.30910.0)
@@ -115,6 +117,7 @@ SPEC REPOS:
     - FirebaseMessaging
     - GoogleDataTransport
     - GoogleUtilities
+    - IONGeolocationLib
     - nanopb
     - PromisesObjC
     - PurchasesHybridCommon
@@ -155,20 +158,20 @@ EXTERNAL SOURCES:
     :path: "../../node_modules/@revenuecat/purchases-capacitor"
 
 SPEC CHECKSUMS:
-  Capacitor: c95400d761e376be9da6be5a05f226c0e865cebf
-  CapacitorApp: a19ccb4f5f32d2534be5c6f524d5a9b614a1e8a7
-  CapacitorBrowser: c987c73d09d8bd3b5ec13f06338b1e14d5d2be69
-  CapacitorCordova: 8d93e14982f440181be7304aa9559ca631d77fff
-  CapacitorFirebaseMessaging: 09f9402613a755af4ef37c6ce2fd7b4c02250246
-  CapacitorGeolocation: ef657a46a125be74010f4ce57caae173c23204d2
-  CapacitorKeyboard: e8cd50fd5cbdd023a5947a5c0f5cca6e5aa5a253
-  CapacitorLocalNotifications: 801867e687c42dd2b33c1e22e08f48e6738d2f72
+  Capacitor: ff6bf01336ac353098378828aff465095a89e459
+  CapacitorApp: f01a913211780e0718dae9750442c3e23f96e106
+  CapacitorBrowser: 6d09f59655e89aede71654ef08b98de55cf032b6
+  CapacitorCordova: e61ee8c40101b8cd011d0224261606a290c082cf
+  CapacitorFirebaseMessaging: d48c9156ee96e166416f1d910cb8de53143cea5f
+  CapacitorGeolocation: ab54d708e2fcf99a7bafe0219eaa6f7a932f001a
+  CapacitorKeyboard: a2e0869edd229490ce36aed2549c0d6b95e27ee8
+  CapacitorLocalNotifications: 71124afe526ac00585314bff34651bd023f86e37
   CapacitorNativeSettings: 453aa001834006fe051ffa8e5f0bdde7409ec69f
-  CapacitorNetwork: 093efa3664b692a971bdd01be70523291cd6a87f
-  CapacitorPreferences: cca2021f386efb75947c850334447d9ff22b14f1
-  CapacitorPushNotifications: 35abece14371c57172e8321c9ccc8b6fa35fabfe
-  CapacitorSplashScreen: ef140a8b1ea7244e0c245ce2dd4ce5251e7ab86a
-  CapacitorStatusBar: 149cde8f1328ec3aa6cbdd872a55137ae3f98b16
+  CapacitorNetwork: b719d692a8d1310da8d26d6648d3aa1ef1e100e1
+  CapacitorPreferences: 69d9991307507aeab8ef8019c10b9babfda0e9ca
+  CapacitorPushNotifications: 0527809a9619ed775439d5ab2c2d996122b48319
+  CapacitorSplashScreen: 409eeaaeac603d264f209c0fcb718aa22fe1f7bb
+  CapacitorStatusBar: 416e9e53fd6397e668d4a181cd2131617d949bd6
   CapawesomeCapacitorAppUpdate: 385ad62a9f529cdedaca5df3599b9b7f6d03e880
   FirebaseCore: c7b57863ce0859281a66d16ca36d665c45d332b5
   FirebaseCoreInternal: 571a2dd8c975410966199623351db3a3265c874d
@@ -176,6 +179,7 @@ SPEC CHECKSUMS:
   FirebaseMessaging: b5f7bdc62b91b6102015991fb7bc6fa75f643908
   GoogleDataTransport: aae35b7ea0c09004c3797d53c8c41f66f219d6a7
   GoogleUtilities: 00c88b9a86066ef77f0da2fab05f65d7768ed8e1
+  IONGeolocationLib: 20f9d0248a0b5264511fb57a37e25dd2badf797a
   nanopb: fad817b59e0457d11a5dfbde799381cd727c1275
   PromisesObjC: f5707f49cb48b9636751c5b2e7d227e43fba9f47
   PurchasesHybridCommon: fa166fc8b385cf80f581f923c91d8ccffe5dd7f8
