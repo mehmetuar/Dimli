@@ -29,6 +29,7 @@ import { AdminModerationService } from './services/admin-moderation.service';
 import { AdminPitchReviewService } from './services/admin-pitch-review.service';
 import { AdminBusinessService } from './services/admin-business.service';
 import { AdminSupportService } from './services/admin-support.service';
+import { AdminMaintenanceService } from './services/admin-maintenance.service';
 
 @Module({
   imports: [
@@ -68,6 +69,7 @@ import { AdminSupportService } from './services/admin-support.service';
     AdminPitchReviewService,
     AdminBusinessService,
     AdminSupportService,
+    AdminMaintenanceService,
   ],
   exports: [AdminService],
 })

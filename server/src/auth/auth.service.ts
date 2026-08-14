@@ -24,6 +24,7 @@ import type { User } from '../users/user.entity';
 import { SubscriptionService } from '../subscription/subscription.service';
 import { PromoCodesService } from '../promo-codes/promo-codes.service';
 import { OtpSecurityService } from './otp-security.service';
+import { CloudinaryService } from '../files/cloudinary.service';
 
 @Injectable()
 export class AuthService {
@@ -41,6 +42,7 @@ export class AuthService {
     private subscriptionService: SubscriptionService,
     private promoCodesService: PromoCodesService,
     private otpSecurity: OtpSecurityService,
+    private cloudinaryService: CloudinaryService,
     @InjectRepository(OtpCode)
     private otpRepository: Repository<OtpCode>,
   ) {}
@@ -726,6 +728,16 @@ export class AuthService {
       };
     } catch (err) {
       await queryRunner.rollbackTransaction();
+      // Kayıt başarısız → bu istekte yüklenen görseller artık yetim; Cloudinary'den
+      // sil. rollback DB referanslarını kaldırdı ve bu URL'ler bu isteğe özel taze
+      // yüklemeler (her upload benzersiz public_id) → koşulsuz destroy güvenli.
+      const orphanUrls = [
+        data.business?.coverImageUrl,
+        ...(data.pitches ?? []).map((p) => p.imageUrl),
+      ].filter((u): u is string => !!u);
+      await Promise.all(
+        orphanUrls.map((u) => this.cloudinaryService.destroy(u)),
+      );
       throw err;
     } finally {
       await queryRunner.release();

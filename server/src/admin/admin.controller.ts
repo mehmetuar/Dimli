@@ -10,9 +10,11 @@ import {
   UseGuards,
   Request,
   Delete,
+  ForbiddenException,
 } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { AdminJwtAuthGuard } from './admin-jwt-auth.guard';
+import { AdminMaintenanceService } from './services/admin-maintenance.service';
 import { PromoCodesService } from '../promo-codes/promo-codes.service';
 import { CreatePromoCodesDto } from '../promo-codes/dto/create-promo-codes.dto';
 import { ReportStatus } from '../user-reports/user-report.entity';
@@ -27,6 +29,7 @@ export class AdminController {
   constructor(
     private readonly adminService: AdminService,
     private readonly promoCodesService: PromoCodesService,
+    private readonly maintenanceService: AdminMaintenanceService,
   ) {}
 
   // ─── Auth ─────────────────────────────────────────────────────────────────
@@ -347,5 +350,40 @@ export class AdminController {
   async seedSubscriptions() {
     const result = await this.adminService.seedMissingSubscriptions();
     return { success: true, ...result };
+  }
+
+  /**
+   * Cloudinary'de hiçbir DB kaydına bağlı olmayan yetim görselleri tarar (dry-run).
+   * GET /admin/maintenance/orphan-images?olderThanHours=24
+   * Hiçbir şey SİLMEZ — yalnız listeler.
+   */
+  @UseGuards(AdminJwtAuthGuard)
+  @Get('maintenance/orphan-images')
+  async scanOrphanImages(@Query('olderThanHours') olderThanHours?: string) {
+    const hours = olderThanHours ? parseInt(olderThanHours, 10) : 24;
+    return this.maintenanceService.scanOrphanImages(
+      Number.isFinite(hours) && hours >= 0 ? hours : 24,
+    );
+  }
+
+  /**
+   * Raporlanan yetim görselleri toplu siler. Yıkıcı işlem → yalnız superadmin.
+   * POST /admin/maintenance/orphan-images/cleanup  body: { publicIds: string[] }
+   */
+  @UseGuards(AdminJwtAuthGuard)
+  @Post('maintenance/orphan-images/cleanup')
+  async cleanupOrphanImages(
+    @Body('publicIds') publicIds: string[],
+    @Request() req: { user: Express.User },
+  ) {
+    if (req.user.adminRole !== 'superadmin') {
+      throw new ForbiddenException('Bu işlem için superadmin yetkisi gerekli.');
+    }
+    if (!Array.isArray(publicIds) || publicIds.length === 0) {
+      throw new BadRequestException(
+        'Silinecek görsel listesi (publicIds) boş.',
+      );
+    }
+    return this.maintenanceService.cleanupOrphanImages(publicIds);
   }
 }

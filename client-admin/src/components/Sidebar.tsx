@@ -18,6 +18,7 @@ import {
     IconTrash,
     IconTicket,
     IconSubscription,
+    IconImage,
 } from './Icons';
 import LogoutModal from './LogoutModal';
 import adminApi from '../services/adminApi';
@@ -168,6 +169,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed = false, onToggle }) => {
                     <NavItem to="/subscriptions"   icon={<IconSubscription size={18} />} label={collapsed ? '' : 'Abonelikler'}          collapsed={collapsed} />
                     <NavItem to="/promo-codes"     icon={<IconTicket    size={18} />} label={collapsed ? '' : 'Promosyon Kodları'}       collapsed={collapsed} />
                     <NavItem to="/deleted"         icon={<IconTrash     size={18} />} label={collapsed ? '' : 'Silinen İşletmeler'}      collapsed={collapsed} />
+                    <NavItem to="/maintenance"     icon={<IconImage     size={18} />} label={collapsed ? '' : 'Görsel Temizliği'}       collapsed={collapsed} />
                 </nav>
 
                 {/* Alt — Çıkış */}
