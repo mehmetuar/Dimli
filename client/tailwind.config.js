@@ -46,6 +46,7 @@ export default {
             animation: {
                 'fade-in': 'fadeIn 0.5s ease-out',
                 'slide-up': 'slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
+                'typing-dot': 'typingDot 1.2s ease-in-out infinite',
             },
             keyframes: {
                 fadeIn: {
@@ -55,6 +56,12 @@ export default {
                 slideUp: {
                     '0%': { transform: 'translateY(100%)', opacity: '0' },
                     '100%': { transform: 'translateY(0)', opacity: '1' },
+                },
+                // "Yazıyor..." balonundaki nokta dalgası — sıralama inline
+                // animationDelay (0/160/320ms) ile yapılır (TypingIndicator.tsx)
+                typingDot: {
+                    '0%, 60%, 100%': { transform: 'translateY(0)', opacity: '0.35' },
+                    '30%': { transform: 'translateY(-3px)', opacity: '1' },
                 },
             }
         },

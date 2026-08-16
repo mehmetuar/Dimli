@@ -9,6 +9,7 @@ import { MessageBubble } from './components/MessageBubble';
 import { MessageContextMenu } from './components/MessageContextMenu';
 import { ReadInfoModal } from './components/ReadInfoModal';
 import { realAvatarUrl } from './components/UserAvatar';
+import { TypingIndicator } from './components/TypingIndicator';
 import { MessageActionModal } from './components/MessageActionModal';
 import { ReportNoteModal } from './components/ReportNoteModal';
 import { getMatchStatusInfo, formatMessageDate, teamAvatarFallback, userAvatarFallback } from './utils/chatUtils';
@@ -40,6 +41,7 @@ export const Chat: React.FC = () => {
     messages, currentUser,
     readStates, othersMinLastReadAt, fetchReadStates,
     input, setInput, isSending,
+    typingUsers, typingByChannel, handleInputChange,
     replyingTo, setReplyingTo,
     polls, pollsLoaded, handleVote, handleClosePoll, handlePollCreated,
     isPollCreateOpen, setIsPollCreateOpen,
@@ -326,6 +328,14 @@ export const Chat: React.FC = () => {
     }
   }, [keyboardHeight]);
 
+  // Yazıyor balonu belirince yalnız en alttaysa görünür tut — geçmişi okuyan
+  // kullanıcı asla aşağı çekilmez (append auto-scroll'la aynı disiplin).
+  useEffect(() => {
+    if (Object.keys(typingUsers).length > 0 && isUserAtBottomRef.current) {
+      scrollToBottom('smooth');
+    }
+  }, [typingUsers]);
+
   // Ban modalı açılınca klavyeyi kapat
   useEffect(() => {
     if (banModalExpiry !== undefined) {
@@ -415,6 +425,7 @@ export const Chat: React.FC = () => {
                   channel={channel}
                   currentUserId={currentUser?.id}
                   blockedUserIds={blockedUserIds}
+                  typingUser={typingByChannel[channel.id] ?? null}
                   onClick={() => setSelectedChannelId(channel.id)}
                   onLongPress={() => setOptionsModalChannel(channel)}
                 />
@@ -920,6 +931,34 @@ export const Chat: React.FC = () => {
           );
         })}
 
+        {/* Yazıyor... balonu — listenin sonunda, endRef'ten hemen önce. Grup:
+            avatar(lar) + nokta balonu; 1:1 (DM/JOKER_NEGOTIATION): yalnız balon.
+            Engelli kullanıcılar filterMessage ile aynı mantıkla gizlenir. */}
+        {(() => {
+          const typers = Object.entries(typingUsers)
+            .filter(([uid]) => !blockedUserIds.includes(uid))
+            .map(([uid, t]: [string, any]) => {
+              // Takım vurgusu — MessageBubble ile birebir aynı çözümleme
+              // (güncel takım iki taraftan biri değilse jokerTeamId fallback)
+              const effTeamId = teamChatColors
+                ? (t.teamId === teamChatColors.homeTeamId || t.teamId === teamChatColors.awayTeamId)
+                  ? t.teamId
+                  : (jokerTeamByUser[uid] ?? null)
+                : null;
+              const accentHex = teamChatColors && effTeamId
+                ? (effTeamId === teamChatColors.homeTeamId
+                  ? teamChatColors.homeAccent.base
+                  : effTeamId === teamChatColors.awayTeamId
+                    ? teamChatColors.awayAccent.base
+                    : null)
+                : null;
+              return { userId: uid, name: t.name, avatarUrl: t.avatarUrl, accentHex };
+            });
+          if (typers.length === 0) return null;
+          const isOneToOne = activeChannel?.type === 'DM' || activeChannel?.type === 'JOKER_NEGOTIATION';
+          return <TypingIndicator typers={typers} isOneToOne={isOneToOne} />;
+        })()}
+
         <div ref={endRef} />
 
         {showScrollButton && (
@@ -1022,7 +1061,7 @@ export const Chat: React.FC = () => {
                       ref={inputRef}
                       type="text"
                       value={input}
-                      onChange={(e) => setInput(e.target.value)}
+                      onChange={(e) => handleInputChange(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
                           handleSend();

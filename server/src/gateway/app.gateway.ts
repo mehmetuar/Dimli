@@ -5,17 +5,27 @@ import {
   OnGatewayDisconnect,
   SubscribeMessage,
   ConnectedSocket,
+  MessageBody,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import type { DefaultEventsMap } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
 import { Logger } from '@nestjs/common';
 import type { JwtPayload } from '../auth/types';
+import { TypingService } from './typing.service';
 
 // socket.data sözleşmesi — handleConnection doldurur, presence/disconnect okur.
 interface SocketData {
   userId?: string;
   username?: string;
+  // Kanal başına son 'chat:typing' (isTyping:true) zamanı — soketle birlikte GC olur.
+  lastTypingAt?: Map<string, number>;
+}
+
+// 'chat:typing' gövdesi — istemciden gelen ham veri, alan alan doğrulanır.
+interface TypingBody {
+  channelId?: unknown;
+  isTyping?: unknown;
 }
 
 type AppSocket = Socket<
@@ -49,7 +59,10 @@ export class AppGateway implements OnGatewayConnection, OnGatewayDisconnect {
   // çift event ile sayaç "takılı kalma" riski YOK. Push baskılama bunu okur.
   private foregroundSockets = new Map<string, Set<string>>();
 
-  constructor(private jwtService: JwtService) {}
+  constructor(
+    private jwtService: JwtService,
+    private typingService: TypingService,
+  ) {}
 
   // Kullanıcı uygulamayı ön planda açık tutuyor mu? Aktifse OS push gönderilmez
   // (uygulama-içi websocket olayı zaten iletildi). gateway enjekte edilmemişse
@@ -125,6 +138,42 @@ export class AppGateway implements OnGatewayConnection, OnGatewayDisconnect {
   handlePresenceInactive(@ConnectedSocket() socket: AppSocket) {
     const userId = socket.data.userId;
     if (userId) this.removeForeground(userId, socket.id);
+  }
+
+  // İstemci yazarken ~2.5sn'de bir 'chat:typing' gönderir; gönderim/temizleme/
+  // kanal değişiminde isTyping:false. Sunucu durum TUTMAZ — yetki + zenginleştirme
+  // + fan-out TypingService'te. Alıcı 6sn yenileme gelmezse kendisi düşürür.
+  @SubscribeMessage('chat:typing')
+  async handleChatTyping(
+    @ConnectedSocket() socket: AppSocket,
+    @MessageBody() body: TypingBody,
+  ): Promise<void> {
+    const userId = socket.data.userId;
+    const channelId =
+      typeof body?.channelId === 'string' ? body.channelId : null;
+    if (!userId || !channelId) return;
+    const isTyping = body?.isTyping !== false; // eksik alan = true (ileri uyum)
+    if (isTyping) {
+      // Soket+kanal başına 1sn hız guard'ı — istemci zaten 2.5sn throttle'lar,
+      // bu bozuk/kötü niyetli istemciye karşı ikinci hat.
+      const now = Date.now();
+      const last = socket.data.lastTypingAt?.get(channelId) ?? 0;
+      if (now - last < 1000) return;
+      (socket.data.lastTypingAt ??= new Map<string, number>()).set(
+        channelId,
+        now,
+      );
+    }
+    try {
+      await this.typingService.relayTyping(
+        this.server,
+        channelId,
+        userId,
+        isTyping,
+      );
+    } catch {
+      // Efemeral özellik — hata sohbeti asla bozmasın.
+    }
   }
 
   @SubscribeMessage('ping')

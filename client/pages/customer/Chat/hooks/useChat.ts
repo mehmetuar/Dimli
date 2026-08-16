@@ -39,6 +39,21 @@ export const useChat = () => {
     const [channels, setChannels] = useState<any[]>(() => readListCache(CHANNELS_CACHE_KEY));
     const [messages, setMessages] = useState<any[]>([]);
     const [input, setInput] = useState('');
+    // ── Yazıyor göstergesi (typing) durumu ──────────────────────────────────
+    // Açık kanalın typer'ları: userId → {name, avatarUrl, teamId}. Süre aşımı
+    // timer'ları ref'te. Eski sunucu 'userTyping' yaymaz → state boş kalır,
+    // UI hiç çizilmez (otomatik feature-detect, readStates null deseniyle aynı).
+    const [typingUsers, setTypingUsers] = useState<Record<string, { name: string; avatarUrl: string | null; teamId: string | null }>>({});
+    const typingTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+    // isTyping:true yolladığımız kanal + son emit zamanı (2.5sn leading-edge throttle)
+    const typingSentForRef = useRef<string | null>(null);
+    const lastTypingEmitAtRef = useRef(0);
+    // Liste önizlemesi: channelId → tek temsilci typer (ChannelItem "yazıyor...").
+    // Ref aynası: handler'lar arası yarışta bayat state okumamak için state ile
+    // birlikte güncellenir (yalnız effect içindeki handler'lar yazar).
+    const [typingByChannel, setTypingByChannel] = useState<Record<string, { userId: string; name: string }>>({});
+    const typingByChannelRef = useRef<Record<string, { userId: string; name: string }>>({});
+    const typingChannelTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
     // Cevaplanmakta olan mesaj (WhatsApp tarzı) — input üstündeki banner'ı besler,
     // handleSend POST body'sine replyToId olarak gider.
     const [replyingTo, setReplyingTo] = useState<any | null>(null);
@@ -253,6 +268,143 @@ export const useChat = () => {
             }
         };
     }, [selectedChannelId, socket, fetchReadStates]);
+
+    // ── Yazıyor göstergesi (WhatsApp tarzı "yazıyor...") ─────────────────────
+    // Durumsuz sunucu rölesi: 'chat:typing' emit edilir, sunucu katılımcılara
+    // 'userTyping' dağıtır. Süre aşımı TAMAMEN istemcide (6sn > 2×2.5sn throttle
+    // → kesintisiz yazımda titreme yok).
+
+    // Stop: yalnız isTyping:true yolladığımız kanal varsa gönderilir.
+    const emitTypingStop = useCallback(() => {
+        const ch = typingSentForRef.current;
+        if (!ch) return;
+        typingSentForRef.current = null;
+        lastTypingEmitAtRef.current = 0;
+        if (socket?.connected) socket.emit('chat:typing', { channelId: ch, isTyping: false });
+    }, [socket]);
+
+    // Input onChange BUNU çağırır. Programatik setInput (send temizliği / hata
+    // geri yüklemesi) typing tetiklemez — bu yüzden effect ile input izlemek
+    // DEĞİL, onChange sarmalayıcı kullanılır.
+    const handleInputChange = useCallback((value: string) => {
+        setInput(value);
+        if (!selectedChannelId) return;
+        if (!value.trim()) { emitTypingStop(); return; } // input silindi → hemen dur
+        const now = Date.now();
+        if (typingSentForRef.current === selectedChannelId
+            && now - lastTypingEmitAtRef.current < 2500) return; // leading-edge throttle
+        typingSentForRef.current = selectedChannelId;
+        lastTypingEmitAtRef.current = now;
+        if (socket?.connected) socket.emit('chat:typing', { channelId: selectedChannelId, isTyping: true });
+    }, [selectedChannelId, socket, emitTypingStop]);
+
+    // Kanal değişimi / unmount → ESKİ kanala stop (cleanup ref'ten eski kanalı okur)
+    useEffect(() => () => { emitTypingStop(); }, [selectedChannelId, emitTypingStop]);
+
+    // Uygulama arka plana → stop (Capacitor WebView'da visibilitychange çalışır;
+    // App.tsx'teki presence kablolamasına dokunulmaz)
+    useEffect(() => {
+        const onVis = () => { if (document.visibilityState === 'hidden') emitTypingStop(); };
+        document.addEventListener('visibilitychange', onVis);
+        return () => document.removeEventListener('visibilitychange', onVis);
+    }, [emitTypingStop]);
+
+    // Alma (açık kanal): userTyping → typer ekle + 6sn süre aşımı; isTyping:false
+    // veya o göndericiden newMessage → anında kaldır (hayalet balon olmasın).
+    useEffect(() => {
+        // Kanal/soket değişti → önceki kanalın typer'ları taşınmasın
+        typingTimersRef.current.forEach(clearTimeout);
+        typingTimersRef.current.clear();
+        setTypingUsers({});
+        if (!selectedChannelId || !socket) return;
+
+        const removeTyper = (uid: string) => {
+            const t = typingTimersRef.current.get(uid);
+            if (t) { clearTimeout(t); typingTimersRef.current.delete(uid); }
+            setTypingUsers(prev => {
+                if (!(uid in prev)) return prev;
+                const { [uid]: _removed, ...rest } = prev;
+                return rest;
+            });
+        };
+        const onUserTyping = (data: any) => {
+            if (data?.channelId !== selectedChannelId || !data?.userId) return;
+            if (data.userId === currentUser?.id) return; // çok cihaz emniyet kemeri (sunucu zaten dışlar)
+            if (data.isTyping === false) { removeTyper(data.userId); return; }
+            setTypingUsers(prev => ({
+                ...prev,
+                [data.userId]: { name: data.name ?? '', avatarUrl: data.avatarUrl ?? null, teamId: data.teamId ?? null },
+            }));
+            const old = typingTimersRef.current.get(data.userId);
+            if (old) clearTimeout(old);
+            typingTimersRef.current.set(data.userId, setTimeout(() => removeTyper(data.userId), 6000));
+        };
+        const onNewMessageClearsTyping = (data: any) => {
+            if (data?.channelId !== selectedChannelId) return;
+            const sid = data.message?.senderId;
+            if (sid) removeTyper(sid);
+        };
+        socket.on('userTyping', onUserTyping);
+        socket.on('newMessage', onNewMessageClearsTyping);
+        return () => {
+            socket.off('userTyping', onUserTyping);
+            socket.off('newMessage', onNewMessageClearsTyping);
+            typingTimersRef.current.forEach(clearTimeout);
+            typingTimersRef.current.clear();
+        };
+    }, [selectedChannelId, socket, currentUser?.id]);
+
+    // Alma (liste önizlemesi): kanaldan bağımsız her zaman açık — kanal başına
+    // TEK temsilci typer tutulur (ChannelItem satırındaki "yazıyor..." için).
+    useEffect(() => {
+        if (!socket) return;
+        const timers = typingChannelTimersRef.current;
+
+        const removeChannelTyper = (channelId: string) => {
+            const t = timers.get(channelId);
+            if (t) { clearTimeout(t); timers.delete(channelId); }
+            if (!(channelId in typingByChannelRef.current)) return;
+            const { [channelId]: _removed, ...rest } = typingByChannelRef.current;
+            typingByChannelRef.current = rest;
+            setTypingByChannel(rest);
+        };
+        const onUserTyping = (data: any) => {
+            if (!data?.channelId || !data?.userId) return;
+            if (data.userId === currentUser?.id) return;
+            if (data.isTyping === false) {
+                // Yalnız temsilci typer aynı kişiyse kaldır (başkası hâlâ yazıyor olabilir)
+                if (typingByChannelRef.current[data.channelId]?.userId === data.userId) {
+                    removeChannelTyper(data.channelId);
+                }
+                return;
+            }
+            typingByChannelRef.current = {
+                ...typingByChannelRef.current,
+                [data.channelId]: { userId: data.userId, name: data.name ?? '' },
+            };
+            setTypingByChannel(typingByChannelRef.current);
+            const old = timers.get(data.channelId);
+            if (old) clearTimeout(old);
+            timers.set(data.channelId, setTimeout(() => removeChannelTyper(data.channelId), 6000));
+        };
+        const onNewMessageClearsChannelTyper = (data: any) => {
+            const sid = data?.message?.senderId;
+            if (!data?.channelId || !sid) return;
+            if (typingByChannelRef.current[data.channelId]?.userId === sid) {
+                removeChannelTyper(data.channelId);
+            }
+        };
+        socket.on('userTyping', onUserTyping);
+        socket.on('newMessage', onNewMessageClearsChannelTyper);
+        return () => {
+            socket.off('userTyping', onUserTyping);
+            socket.off('newMessage', onNewMessageClearsChannelTyper);
+            timers.forEach(clearTimeout);
+            timers.clear();
+            typingByChannelRef.current = {};
+            setTypingByChannel({});
+        };
+    }, [socket, currentUser?.id]);
 
     // ── Anketler (kendi aramızda maç sohbetleri, §96) ────────────────────────
     const fetchPolls = useCallback(async (channelId: string) => {
@@ -537,6 +689,8 @@ export const useChat = () => {
         setIsSending(true);
         // Input'u await'ten ÖNCE temizle → ikinci dokunuş boş input'la erken döner.
         setInput('');
+        // Gönderim = yazma bitti; alıcıdaki balon mesajla çakışmadan kalksın.
+        emitTypingStop();
         // Cevap hedefini yakala ve banner'ı hemen kapat (input ile aynı yaşam döngüsü).
         const reply = replyingTo;
         setReplyingTo(null);
@@ -829,6 +983,7 @@ export const useChat = () => {
         messages, currentUser,
         readStates, othersMinLastReadAt, fetchReadStates,
         input, setInput,
+        typingUsers, typingByChannel, handleInputChange,
         replyingTo, setReplyingTo,
         polls, pollsLoaded, handleVote, handleClosePoll, handlePollCreated,
         isPollCreateOpen, setIsPollCreateOpen,

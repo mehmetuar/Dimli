@@ -12,6 +12,8 @@ interface ChannelItemProps {
     onLongPress: () => void;
     currentUserId?: string;
     blockedUserIds?: string[];
+    // "Yazıyor..." önizlemesi — kanal başına tek temsilci typer (useChat.typingByChannel)
+    typingUser?: { userId: string; name: string } | null;
 }
 
 // iOS native image context menu'yü engeller
@@ -22,7 +24,7 @@ const noCalloutStyle: React.CSSProperties = {
 };
 
 export const ChannelItem: React.FC<ChannelItemProps> = ({
-    channel, onClick, onLongPress, currentUserId, blockedUserIds,
+    channel, onClick, onLongPress, currentUserId, blockedUserIds, typingUser,
 }) => {
     // Güvenilir tap (aç) + native long-press (Seçenekler). Kaydırma long-press'i tetiklemez;
     // dokununca "Seçenekler..." flaşı yok. onClick KULLANILMAZ — tap hook'ta touchend ile yakalanır.
@@ -41,6 +43,15 @@ export const ChannelItem: React.FC<ChannelItemProps> = ({
 
     // Son mesaj satırı: gönderen + içerik
     const renderLastMessage = () => {
+        // Biri yazıyorsa önizleme yerine WhatsApp tarzı "yazıyor..." (yeşil).
+        // Grup tipi kanallarda kim yazdığı belli olsun; 1:1'de gereksiz.
+        if (typingUser && !blockedUserIds?.includes(typingUser.userId)) {
+            const isGroupLike = isGroup || isSubscription || channel.type === 'TEAM_INTERNAL';
+            const firstName = typingUser.name.trim().split(/\s+/)[0] || '';
+            const label = isGroupLike && firstName ? `${firstName} yazıyor...` : 'yazıyor...';
+            return <span className="text-turf-500 font-medium italic">{label}</span>;
+        }
+
         const lm = channel.lastMessage;
         if (!lm) return <span className="text-slate-600">Sohbete girmek için tıkla</span>;
 

@@ -4421,3 +4421,161 @@ targetSdk 36/minSdk 24, BL 8.3.0, Podfile.lock Cap 8.4.2 + RC 13.4.0, CocoaPods 
 IPHONEOS_DEPLOYMENT_TARGET 15.0 (iOS 14 düştü). bundleRelease yalnız imzada düşer: keystore.properties
 bu çekimde yok (NPE=boş storeFile) — kullanıcının imza akışıyla çözülür. Cihaz testi bekliyor:
 Android 15/16'da çubuklar/klavye (özellikle Samsung OneUI)/geri, sandbox satın alma, iOS TestFlight.
+
+### §99. Web sitesi sinematik 3D scroll yeniden tasarımı (2026-08-12)
+
+`web/` (AYRI repo: Dimliweb.git) ana sayfa + /is-ortagi, awwwards tarzı scroll-driven 3D deneyime
+dönüştürüldü. Görsel %100 kodla üretilen low-poly Three.js sahneleri (AI video/foto YOK); metinler
+DOM'da SSR (SEO korunur), canvas `fixed inset-0 z-0 aria-hidden` salt dekor. Kurgu: `/` gece
+halısahasına inen drone hero → yol ayrımı kartları (Oyuncuyum→#ozellikler'e smooth scroll /
+İşletmeyim→karartma+push /is-ortagi) → P1-P6 oyuncu bölümleri (saha kiralama, maç duyuruları,
+takım sohbeti+kulübe, joker spot ışığı, fair play yıldızları, neon Dimli finali); /is-ortagi:
+sokak cephesi → kapıdan içeri → kasa/doluluk takvimi → arka ofis/ciro barları → soyunma odası →
+yelek-krampon kiralama → dış oturma alanı + saha manzarası → fiyatlandırma DOM şeridi.
+MİMARİ: stack three 0.169 + @react-three/fiber 8.x + drei 9.x (React 18 hattı — fiber 9/drei 10
+React 19 ister, YÜKSELTME) + maath + lenis (yalnız fine-pointer). Scroll sürücüsü framer-motion
+`useScroll` MotionValue'su (GSAP/ScrollControls YOK); canvas `frameloop="demand"` + scroll'da
+invalidate → GPU scroll durunca uyur. Kamera: `CameraRail` — keyframe'ler (`scenes/*Timeline.ts`)
+iki CatmullRomCurve3'te PARÇA-PARÇA örneklenir + maath damp3. KRİTİK: rail `at` değerleri bölüm
+(vh) yüksekliklerinden türetilir — bölüm yüksekliği değişirse timeline dosyasındaki at'ler yeniden
+hesaplanmalı (kaydırılabilir = toplam - 100vh; bölüm ortası = (kümülatif + h/2 - 50vh)/kaydırılabilir).
+Kalite katmanı `useQuality`: off=reduced-motion/WebGL yok → `fallback/PlayerStatic|BusinessStatic`
+(eski sayfa düzeni, three chunk'ı HİÇ inmez — dynamic(ssr:false) render edilmez), low=coarse+zayıf
+cihaz → DPR 1.25. İçerik TEK KAYNAK: `components/cinematic/playerContent.tsx` + `businessContent.tsx`
+(eski sayfalardan birebir taşındı) — kopya değişikliği hem sinematik hem statik varyantı günceller.
+Ekran görüntüleri DOM `PhoneShot` (keskinlik+erişilebilirlik; GPU dokusu değil), kaynak
+`public/3d/tex/*.webp` (640w, sharp ile üretildi). drei Text fontu `public/3d/fonts/Inter-SemiBold.ttf`
+(Türkçe glifler cmap'ten doğrulandı; woff2 troika'da ÇALIŞMAZ). Chunk izolasyonu doğrulandı:
+legal/diğer sayfalar three yüklemez (first load 137kB vs deneyim sayfaları 147kB + lazy three).
+Doğrulanan: prod build temiz, headless Chrome ile 20+ scroll noktası görsel kontrol (masaüstü+mobil
+390px), reduced-motion fallback'te canvas yok, SSR HTML'de tüm kopya mevcut. Deploy: web/ kendi
+reposundan (commit ayrı atılır, ana repoda gitlink oynar). Bekleyen: gerçek cihaz/tarayıcı testi
+(iOS Safari momentum, Android WebView), Lighthouse ölçümü, kullanıcı görsel onayı.
+
+**§99 revizyon turu 1 (2026-08-12, cihaz geri bildirimi):** (1) Marka tipografisi artık %100 özel:
+`marketing/dimli-lockup.svg` (splash el yazısı kilidi, #2f8a22) bellekte #4ade80'e boyanıp sharp ile
+rasterize edildi → `web/public/3d/tex/dimli-lockup.webp` (P6 finali) + `dimli-wordmark.webp` (tesis
+tabelası); "İŞ ORTAĞI"/"OYUNCU" Anton fontuyla headless Chrome'da şeffaf render → `is-ortagi.webp`/
+`oyuncu.webp` (tabela + fork kapıları). 3D'de drei Text yerine `models/shared/BrandPlane.tsx`
+(useTexture plane, FrontSide — arkadan ayna yazı yok); SceneCanvas'a Suspense sınırı eklendi.
+DİKKAT: sharp `trim()` glif içine kesiyor — alfa bbox'ı elle taranıp `extract` kullanıldı; element
+screenshot da Anton'un taşan aksanlarını (İ noktası) kırpar → tam sayfa screenshot şart.
+(2) Mobilde P3/P5 ikiz telefonlar artık görünür (hidden md:block kaldırıldı; PhoneShot responsive
+w-132/168/196). (3) Oyuncu hero rozeti kaldırıldı. (4) ScrollHint bileşeni: akan chevron animasyonu
+(tailwind `hint-flow` keyframe). (5) Sahne aydınlatıldı: ambient 0.5 + hemisphere, zemin #131e33,
+arka plan #0c1426 (poster/palette senkron). (6) "Oyuncuyum" tıklaması: anında ring/scale tepkisi +
+Lenis varsa lenis.scrollTo, yoksa rAF eased scroll (scrollIntoView smooth mobilde güvenilmez —
+kaldırıldı); puppeteer'da mobil emülasyonla asserte edildi. (7) B3 ekranı login→istatistik.
+(8) Oyuncular insansı low-poly: parça başına Instances (bacak/kol/kafa/saç ortak; forma/şort takım
+bazlı), ölçüler `models/pitch/figure.ts` TEK KAYNAK; JokerFigure aynı gövdeyi `HumanFigure.tsx`
+(instancing'siz) ile kullanır. FacadeSign penceresi [0.06,0.115]'e kaydı (mobil hero çakışması).
+Tüm değişiklikler masaüstü+mobil headless screenshot'la doğrulandı; commit yine kullanıcıda.
+
+**§99 revizyon turu 2 (2026-08-12):** (1) Cephe saçak trim şeridi ikiye bölündü (x∈±[4.8,16]) +
+tabela y=6.4 — İŞ ORTAĞI ile çizgi çakışması bitti. (2) Yeşil marka dokuları #4ade80→#22c55e
+(turf-500) ile yeniden üretildi — hero H1'in `text-turf-500`'i ile birebir aynı ton.
+(3) Navbar'lar (Navbar + BusinessNavbar): tepede şeffaf degrade perde (from-pitch-deep/90 →
+transparent, border/blur yok), scroll'da eski opak+blur hâl; NavAtmosphere yalnız scrolled'ken.
+(4) Kenar karanlığı: hemisphere 0.5, fog [62,215], zemin #1a2740, saha çevresine additive radyal
+zemin parlaması (PitchField'da glow dokusu, opacity 0.24). (5) B4 "geç/hiç yüklenmiyor" İKİ kök:
+(a) drei Instances frustum culling — InstancedMesh bounding'i origin-bazlı, yakın kamerada
+yelekler/dolaplar cull ediliyordu → TÜM <Instances>'a frustumCulled={false} (KURAL: yeni Instances
+eklerken hep ekle); (b) BrandPlane'in useTexture'ı SceneCanvas'ın tek Suspense'ini bekletiyordu →
+Suspense sınırı BrandPlane'in KENDİ içinde + Canvas köklerinde useTexture.preload. RentalRoom'a
+köşe ışığı eklendi. Doğrulama: headless screenshot masaüstü (hero kenarları, cephe, B4 ilk
+yükleme, koyu yeşil final); build temiz. Commit hâlâ kullanıcıda.
+
+### §100. İşletme kaydında yetim Cloudinary görsellerinin temizliği + kayıt kontrolü (2026-08-14)
+
+> Sorun: İşletme kayıt sihirbazı görselleri (işletme kapağı + saha foto) Cloudinary'ye
+> **kayıttan ayrı ve önce** yüklüyor — client `handleSubmit`'te önce `POST /files/upload`
+> ile yüklenip URL alınıyor, sonra `POST /auth/business/register` yalnız URL'leri gönderiyor.
+> Kayıt başarısız olunca (`registerBusinessFull` catch → `rollbackTransaction`) DB geri
+> alınıyor ama **Cloudinary görselleri silinmiyordu** → `dimli/logos/`'da yetim birikiyordu.
+> Kullanıcı adımda kalıp yeniden deneyince görseller **tekrar** yükleniyor, eskiler yetim
+> kalıyordu. `POST /files/delete-cloud` JWT-korumalı olduğundan token'sız kayıt akışı
+> kendini temizleyemiyor. §56 "geçmiş yetim Cloudinary dosyaları kapsam dışı" notunun devamı.
+
+**Çözüm iki parçalı:**
+
+1. **Önleme (server-tarafı telafi silme):** `AuthModule` artık `FilesModule`'ü import ediyor
+   (döngüsel bağımlılık yok), `AuthService` `CloudinaryService`'i enjekte ediyor.
+   `registerBusinessFull` catch bloğu, rollback sonrası bu isteğe ait görselleri
+   (`business.coverImageUrl` + her `pitch.imageUrl`) **koşulsuz** `cloudinaryService.destroy`
+   ile siler. KURAL: `safeDestroy` DEĞİL `destroy` — rollback DB referanslarını kaldırdı ve
+   bu URL'ler bu isteğe özel taze yüklemeler (her upload benzersiz public_id), referans yok.
+   `destroy` hataları zaten yutar; orijinal `err` maskelenmez, `throw err` korunur. Bu, hem
+   sunucu-tarafı hata hem client yeniden-deneme birikimini kapatır.
+
+2. **Toplu temizlik (admin panel, dry-run + onaylı silme):**
+   - `CloudinaryService.findOrphans(olderThanHours=24)`: DB'den tek turda referanslı public_id
+     set'i (Team.logoUrl, User.avatarUrl, Business.coverImageUrl/logoUrl, Pitch.imageUrl),
+     `cloudinary.api.resources({ prefix:'dimli/logos' })` sayfalı gezme, yetim = referans
+     set'inde YOK **VE** `created_at` eşikten eski. **KRİTİK:** referans sorguları
+     `withDeleted: true` — soft-delete edilmiş işletme/saha görselleri KORUNUR (§56: restore
+     edilince görsel sağlam kalmalı); aksi halde arşivdeki kapak yetim sanılıp silinirdi.
+     `olderThanHours` eşiği devam eden/taze kaydı vurmaz.
+   - `CloudinaryService.deleteOrphans(publicIds)`: `cloudinary.api.delete_resources` ile 100'lük
+     partiler; güvenlik ağı olarak yalnız `dimli/logos/` önekli id'leri kabul eder.
+   - `AdminMaintenanceService` + admin uçları: `GET /admin/maintenance/orphan-images` (dry-run,
+     silmez), `POST /admin/maintenance/orphan-images/cleanup` (yıkıcı → **yalnız superadmin**,
+     `req.user.adminRole` kontrolü). AdminModule zaten FilesModule import ediyor.
+   - Admin panel: `client-admin` yeni "Görsel Temizliği" sayfası (`MaintenancePage` + hook),
+     tara → seç → onay modalı → sil; superadmin değilse silme butonu gizli (backend yine
+     zorluyor). Route `/maintenance`, Sidebar nav item (IconImage).
+
+Doğrulama: server build + lint temiz, client-admin build temiz. Deploy sırası: server (Render)
+→ admin panel. Client değişikliği YOK (yeni native sürüm gerekmez). İlk gerçek silme öncesi
+dry-run raporu gözden geçir (kullanıcı kararı). Commit + deploy bekliyor.
+
+### §101. Chat "yazıyor..." göstergesi (typing indicator, tüm 5 kanal tipi) (2026-08-16)
+
+> Operasyon Merkezi sohbetlerine WhatsApp tarzı "yazıyor..." eklendi. Grup kanallarında
+> (MATCH_GROUP kendi aramızda/rakipli, TEAM_INTERNAL, SUBSCRIPTION) KİMİN yazdığı belli:
+> 28px `UserAvatar` (takım halkalı, en fazla 3 bindirmeli) + animasyonlu üç nokta balonu;
+> 1:1'de (DM/JOKER_NEGOTIATION) yalnız nokta balonu. Liste ekranında satırın son-mesaj
+> önizlemesi yerine yeşil "Ahmet yazıyor..." görünür. Başlık (header) alt yazısına
+> bilinçli olarak DOKUNULMADI (kullanıcı kararı; Chat.tsx'teki sahte "Çevrimiçi" duruyor).
+
+**Mimari — DURUMSUZ sunucu rölesi:** sunucu typing durumu TUTMAZ; yalnız yetki (katılımcı
+mı?) + zenginleştirme (isim/avatar/teamId) + kanonik per-user-room fan-out yapar. Süre
+aşımı tamamen alıcı istemcide. Olaylar: istemci→sunucu `chat:typing {channelId, isTyping}`;
+sunucu→istemciler `userTyping {channelId, userId, name, avatarUrl, teamId, isTyping}`
+(channelId ilk alan kuralı). Zamanlama sabitleri: istemci emit throttle **2.5sn**
+(leading edge), alıcı auto-expiry **6sn** (throttle×2'den büyük → kesintisiz yazımda
+titreme yok), sunucu soket+kanal başına **1sn** hız guard'ı.
+
+**DI KURALI (§88'in devamı):** `GatewayModule` → `TypeOrmModule.forFeature([ChatParticipant,
+User])` + gateway içinde `TypingService` (`server/src/gateway/typing.service.ts`). Entity
+sınıfı import etmek ChatModule'ü import ETMEZ → bağımlılık yönü chat→gateway kalır,
+forwardRef gerekmez. Gateway'e ChatService enjekte etmek REDDEDİLDİ (§88 boot-crash
+sınıfı). Boot `node dist/main.js` → "successfully started" ile doğrulandı.
+
+- `TypingService.relayTyping`: üyelik `find({channelId, deletedAt: IsNull()})` (30sn TTL
+  cache, max 500) — üye değilse SESSİZCE düş (WS'de 403 muadili yok, markAsRead emsali);
+  kullanıcı bilgisi `select: ['id','full_name','username','avatarUrl','teamId']`
+  projeksiyonu (5dk TTL, max 1000; parola hash'i asla yüklenmez); fan-out `senderId`
+  HARİÇ (çok cihaz: kendi diğer cihazı kendi typing'ini görmesin). Cache'ler tek-instance
+  (§16); ölçeklenirse Redis adapter yeter, özellik durumsuz olduğundan değişmez.
+- `app.gateway.ts`: `@SubscribeMessage('chat:typing')`, `body` alan alan doğrulanır
+  (`typeof channelId === 'string'`), `isTyping !== false` → true (ileri uyum), tümü
+  try/catch — efemeral özellik sohbeti asla bozamaz. `SocketData.lastTypingAt` soketle GC.
+- İstemci (`useChat.ts`): emit YALNIZ `handleInputChange` onChange sarmalayıcısından —
+  programatik `setInput` (send temizliği/hata geri yüklemesi) typing TETİKLEMEZ; effect
+  ile input izleme YANLIŞ olurdu. Stop tetikleri: gönderim (`handleSend`), input boşaldı,
+  kanal değişimi/unmount (cleanup ref'ten ESKİ kanalı okur), `visibilitychange→hidden`.
+  Alıcı: kanal-içi `typingUsers` (userId→{name,avatarUrl,teamId}, 6sn timer) + liste için
+  `typingByChannel` (kanal başına TEK temsilci, ref aynası ile). O göndericiden
+  `newMessage` gelince typing ANINDA silinir (hayalet balon olmaz). Engelli kullanıcı
+  filtresi render'da `blockedUserIds` ile (filterMessage tutarlılığı — sunucu mesaj
+  emit'lerinde de filtrelemiyor).
+- Balon `TypingIndicator.tsx` SALT sunum; accent çözümleme Chat.tsx'te MessageBubble ile
+  birebir aynı (`senderTeamId` iki taraftan biri değilse `jokerTeamByUser` fallback).
+  Auto-scroll yalnız `isUserAtBottomRef` true iken — geçmiş okuyan asla aşağı çekilmez.
+  Nokta animasyonu tailwind `typing-dot` keyframe + inline `animationDelay` 0/160/320ms.
+
+**Geri uyum:** eski istemci `userTyping`'i yok sayar; eski sunucu `chat:typing`'i yok
+sayar → yeni istemcide UI hiç çizilmez (otomatik feature-detect, readStates null deseni).
+Deploy sırası: server → client. İstemci JS-only — yeni native sürüm gerekmez.
+Doğrulama: server build + boot OK, client build OK. İki cihazlı saha testi bekliyor
+(plan dosyasındaki 8 maddelik senaryo). Commit + deploy bekliyor.
