@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { ChevronLeft, Users, MoreVertical } from 'lucide-react';
 import { MatchStatusBadge } from '../../pages/customer/Chat/components/MatchStatusBadge';
 import { getMatchStatusInfo } from '../../pages/customer/Chat/utils/chatUtils';
-import { SystemMessageRenderer } from '../UI/SystemMessageRenderer';
+import { SystemMessageCard } from '../../pages/customer/Chat/components/SystemMessageCard';
 import { requestTourSkipConfirm } from '../../services/tourStore';
 import { DEMO_TEAM } from '../../pages/customer/PitchBooking/demo/demoTourData';
 
@@ -12,9 +12,9 @@ import { DEMO_TEAM } from '../../pages/customer/PitchBooking/demo/demoTourData';
 // hafif bir GÖRSEL replikası: rota değişmez, socket/kanal listesi hiç çalışmaz
 // (gerçek Chat'e sahte kanal enjekte etmek socket olaylarıyla bozulurdu).
 // Saf parçalar yeniden kullanılır: MatchStatusBadge + getMatchStatusInfo
-// (üretimle birebir "Onay Bekliyor") ve SystemMessageRenderer (ikonlu sistem
-// mesajı). MessageBubble bilinçli olarak KULLANILMAZ (native long-press
-// dinleyicileri ve zorunlu handler'ları var).
+// (üretimle birebir "Onay Bekliyor") ve SystemMessageCard (§105 — Chat ile
+// aynı sistem kartı, tek kaynak). MessageBubble bilinçli olarak KULLANILMAZ
+// (native long-press dinleyicileri ve zorunlu handler'ları var).
 // z-[9980]: modallar z-[70] üstü, TourOverlay z-[9990] altı.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -68,26 +68,22 @@ export const DemoChat: React.FC = () => {
             {/* MESAJLAR */}
             <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 space-y-6 bg-pitch">
                 <div className="flex justify-center">
-                    <span className="bg-slate-800 text-slate-400 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wide mt-6">
+                    <span className="bg-slate-800/80 border border-slate-700/60 text-slate-400 text-[10px] font-bold px-3.5 py-1.5 rounded-full uppercase tracking-widest mt-6">
                         Maç Grubu Oluşturuldu
                     </span>
                 </div>
 
-                {/* Sistem mesajları — MessageBubble'ın isSystem stiliyle birebir */}
+                {/* Sistem mesajları — §105: SystemMessageCard tek kaynak (Chat ile birebir) */}
                 <div className="flex justify-center my-4 animate-fade-in px-4 w-full">
-                    <div className="bg-slate-800/95 border border-slate-700 text-slate-200 text-sm font-medium px-6 py-4 rounded-xl text-center w-full shadow-lg whitespace-pre-wrap">
-                        <SystemMessageRenderer
-                            text={'{{CLIPBOARD}} Maç ilanı oluşturuldu!\n{{STADIUM}} Dimli Halı Saha — Ana Saha\n{{CLOCK}} 20:00 - 21:00\n{{SHIELD}} Kendi Aramızda'}
-                        />
-                    </div>
+                    <SystemMessageCard
+                        text={'{{CLIPBOARD}} Maç ilanı oluşturuldu!\n{{STADIUM}} Dimli Halı Saha — Ana Saha\n{{CLOCK}} 20:00 - 21:00\n{{SHIELD}} Kendi Aramızda'}
+                    />
                 </div>
 
                 <div data-tour-id="demo-chat-system" className="flex justify-center my-4 animate-fade-in px-4 w-full">
-                    <div className="bg-slate-800/95 border border-slate-700 text-slate-200 text-sm font-medium px-6 py-4 rounded-xl text-center w-full shadow-lg whitespace-pre-wrap">
-                        <SystemMessageRenderer
-                            text={'{{CLOCK}} Rezervasyonun işletme onayı bekliyor. Maçı kesinleştirmek için işletmeyi arayıp teyit etmen gerekir. Onaylandığında maç durumu "Kesinleşti" olarak güncellenecek. {{CHECK}}'}
-                        />
-                    </div>
+                    <SystemMessageCard
+                        text={'{{CLOCK}} Rezervasyonun işletme onayı bekliyor. Maçı kesinleştirmek için işletmeyi arayıp teyit etmen gerekir. Onaylandığında maç durumu "Kesinleşti" olarak güncellenecek. {{CHECK}}'}
+                    />
                 </div>
 
                 {/* Dummy oyuncu mesajları — MessageBubble other-user sınıf reçetesiyle elle
@@ -116,9 +112,7 @@ export const DemoChat: React.FC = () => {
 
                     {/* Kapanış hatırlatması — kullanıcı isteği: değerlendirme alışkanlığı */}
                     <div className="flex justify-center pt-2 animate-fade-in px-4 w-full">
-                        <div className="bg-slate-800/95 border border-slate-700 text-slate-200 text-sm font-medium px-6 py-3 rounded-xl text-center w-full shadow-lg">
-                            <SystemMessageRenderer text={'{{PARTY}} Maçtan sonra işletmeyi değerlendirmeyi unutma!'} />
-                        </div>
+                        <SystemMessageCard text={'{{PARTY}} Maçtan sonra işletmeyi değerlendirmeyi unutma!'} />
                     </div>
                 </div>
             </div>

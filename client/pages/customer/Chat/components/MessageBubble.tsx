@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { Swords, Check, CheckCheck, Reply } from 'lucide-react';
-import { SystemMessageRenderer } from '../../../../components/UI/SystemMessageRenderer';
+import { SystemMessageCard } from './SystemMessageCard';
 import { UserAvatar } from './UserAvatar';
 import { JokerBadge } from './JokerBadge';
 import type { TeamAccent } from '../../../../utils/colorUtils';
@@ -260,15 +260,16 @@ export const MessageBubble: React.FC<Props> = ({
     if (msg.isSystem) {
         return (
             <div className="flex justify-center my-4 animate-fade-in px-4 w-full">
-                <div className="bg-slate-800/95 border border-slate-700 text-slate-200 text-sm font-medium px-6 py-4 rounded-xl text-center w-full shadow-lg whitespace-pre-wrap">
-                    <SystemMessageRenderer text={msg.text} />
-
+                {/* §105: kart görünümü tek kaynak — çok satırlılar yapılandırılır,
+                    tek satırlılar bugünkü kompakt görünümde kalır */}
+                <SystemMessageCard text={msg.text}>
                     {msg.metadata?.type === 'PROPOSAL_ACTION' && (
                         <button
                             onClick={() => onAcceptProposal(msg.metadata.reservationId)}
-                            className="mt-3 bg-green-600 hover:bg-green-700 text-white font-bold py-1.5 px-4 rounded-full text-xs transition-colors flex items-center gap-1 mx-auto"
+                            className="mt-3 bg-green-600 hover:bg-green-700 text-white font-bold py-1.5 px-4 rounded-full text-xs transition-colors flex items-center gap-1.5 mx-auto"
                         >
-                            <span>✅</span>
+                            {/* §97-ek: sistem UI'ında emoji yok — SVG */}
+                            <Check className="w-3.5 h-3.5" />
                             <span>Teklifi Kabul Et</span>
                         </button>
                     )}
@@ -290,7 +291,7 @@ export const MessageBubble: React.FC<Props> = ({
                         }
                         return null;
                     })()}
-                </div>
+                </SystemMessageCard>
             </div>
         );
     }

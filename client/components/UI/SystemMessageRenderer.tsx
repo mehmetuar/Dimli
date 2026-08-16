@@ -173,6 +173,17 @@ const icons: Record<string, React.ReactNode> = {
 
 };
 
+// §105: token adı → SVG düğümü (SystemMessageCard madalyon/detay satırları için).
+// Bilinmeyen token → null. Tek ikon kaynağı yukarıdaki `icons` map'idir.
+export const getSystemIcon = (name: string): React.ReactNode | null =>
+    icons[name.toUpperCase()] ?? null;
+
+// §105: metindeki İLK token adını döndürür (kart başlığının madalyon ikonu seçimi).
+export const firstSystemToken = (text: string): string | null => {
+    const m = /(\{\{(\w+)\}\}|\[ICON:(\w+)\])/.exec(text);
+    return m ? (m[2] || m[3]).toUpperCase() : null;
+};
+
 // Parse text and replace {{ICON}} or [ICON:name] markers with SVG components
 const parseSystemMessage = (text: string): React.ReactNode[] => {
     const parts: React.ReactNode[] = [];
@@ -190,7 +201,10 @@ const parseSystemMessage = (text: string): React.ReactNode[] => {
         const iconName = (match[2] || match[3]).toUpperCase();
         if (icons[iconName]) {
             parts.push(
-                <span key={`icon-${match.index}`} className="inline-flex items-center">
+                // align-[-0.125em]: satır-içi ikon optik düzeltmesi (§105 tur 2) —
+                // inline-flex sarmalayıcı baseline'a oturunca 16px ikon metne göre
+                // yukarıda kalıyordu; -0.125em kanıtlanmış hiza (FontAwesome deseni).
+                <span key={`icon-${match.index}`} className="inline-flex items-center align-[-0.125em]">
                     {icons[iconName]}
                 </span>
             );
