@@ -258,7 +258,7 @@ const TimeSlotsModalContent: React.FC<TimeSlotsModalProps> = ({
             {/* Footer */}
             <div style={{
                 flexShrink: 0, padding: '12px 16px',
-                paddingBottom: 'max(20px, env(safe-area-inset-bottom))',
+                paddingBottom: 'max(20px, var(--safe-bottom))',
             }}>
                 <button
                     onClick={onClose}

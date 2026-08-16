@@ -25,7 +25,7 @@ export const PollVotersModal: React.FC<PollVotersModalProps> = ({ isOpen, onClos
         >
             <div
                 className="bg-gradient-to-b from-slate-800 to-slate-900 w-full max-w-lg rounded-t-3xl border-t border-slate-700 relative overflow-x-hidden animate-slide-up max-h-[90vh] overflow-y-auto"
-                style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}
+                style={{ paddingBottom: 'max(16px, var(--safe-bottom))' }}
                 onClick={e => e.stopPropagation()}
             >
                 {/* Header */}

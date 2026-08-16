@@ -86,7 +86,7 @@ export const TourSheet: React.FC<Props> = ({ step, stepIndex, total, hole }) => 
                 style={{
                     pointerEvents: 'auto',
                     paddingTop: miniTop ? 'max(10px, env(safe-area-inset-top))' : undefined,
-                    paddingBottom: miniTop ? undefined : 'max(12px, env(safe-area-inset-bottom))',
+                    paddingBottom: miniTop ? undefined : 'max(12px, var(--safe-bottom))',
                 }}
             >
                 <div className={`absolute left-0 right-0 h-[3px] bg-gradient-to-r from-transparent via-turf-500 to-transparent ${miniTop ? 'bottom-0' : 'top-0'}`} />
@@ -152,7 +152,7 @@ export const TourSheet: React.FC<Props> = ({ step, stepIndex, total, hole }) => 
             style={{
                 pointerEvents: 'auto',
                 paddingTop: flipToTop ? 'max(12px, env(safe-area-inset-top))' : undefined,
-                paddingBottom: flipToTop ? undefined : 'max(16px, env(safe-area-inset-bottom))',
+                paddingBottom: flipToTop ? undefined : 'max(16px, var(--safe-bottom))',
             }}
         >
             {/* Dekor: ince turf gradyan şerit (sheet'in sayfaya bakan kenarında) */}

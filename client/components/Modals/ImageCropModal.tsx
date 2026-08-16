@@ -163,7 +163,7 @@ const ImageCropModalContent: React.FC<ImageCropModalProps> = ({
             <div style={{
                 flexShrink: 0,
                 padding: '12px 16px',
-                paddingBottom: 'max(16px, env(safe-area-inset-bottom))',
+                paddingBottom: 'max(16px, var(--safe-bottom))',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: 10,

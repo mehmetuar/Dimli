@@ -54,7 +54,7 @@ export const TeamSettings: React.FC = () => {
             {errorMessage && <Toast message={errorMessage} type="error" />}
 
             <div className="flex-1 overflow-y-auto overscroll-contain scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
-                <div className="max-w-lg mx-auto px-4 py-5 space-y-4" style={{ paddingBottom: 'calc(2.5rem + env(safe-area-inset-bottom))' }}>
+                <div className="max-w-lg mx-auto px-4 py-5 space-y-4" style={{ paddingBottom: 'calc(2.5rem + var(--safe-bottom))' }}>
 
                     {/* Canlı Önizleme */}
                     <TeamPreviewCard

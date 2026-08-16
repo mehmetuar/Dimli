@@ -6,6 +6,10 @@ import { openLocationSettings } from '../utils/openLocationSettings';
 export type LocationErrorType =
     | 'permission_denied'
     | 'gps_disabled'
+    // §104: konum AÇIK ama ağ sağlayıcısı (Google Konum Doğruluğu) KAPALI —
+    // kapalı mekânda GPS fix imkânsız; LocationAccessGate özel kart gösterir
+    // (bu sheet bu tipi render etmez, null döner — mevcut davranış).
+    | 'network_location_off'
     | 'timeout'
     | 'unknown';
 
@@ -46,7 +50,12 @@ export const LocationPermissionSheet: React.FC<Props> = ({ errorType, onClose })
             />
 
             {/* Bottom Sheet */}
-            <div className="fixed bottom-0 left-0 right-0 z-50 bg-slate-900 border-t border-slate-700 rounded-t-2xl px-6 pt-5 pb-10 animate-slide-up">
+            <div
+                className="fixed bottom-0 left-0 right-0 z-50 bg-slate-900 border-t border-slate-700 rounded-t-2xl px-6 pt-5 animate-slide-up"
+                // inset'siz cihazda bugünkü 40px korunur; home indicator / Android nav bar'lı
+                // cihazda barın üstünde kalır (§102)
+                style={{ paddingBottom: 'max(2.5rem, calc(1rem + var(--safe-bottom)))' }}
+            >
                 {/* Drag handle */}
                 <div className="w-10 h-1 bg-slate-700 rounded-full mx-auto mb-5" />
 

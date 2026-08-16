@@ -31,7 +31,12 @@ export const BusinessSupport: React.FC = () => {
             >
                 <div
                     className="px-4 py-5 space-y-6"
-                    style={{ paddingBottom: `calc(${keyboardHeight}px + env(safe-area-inset-bottom) + 1.25rem)` }}
+                    style={{
+                        // Klavye açıkken kb navDp'yi zaten içerir (§102) — safe-bottom EKLENMEZ (çift sayım)
+                        paddingBottom: keyboardHeight > 0
+                            ? `calc(${keyboardHeight}px + env(safe-area-inset-bottom) + 1.25rem)`
+                            : 'calc(var(--safe-bottom) + 1.25rem)',
+                    }}
                 >
                     {/* ── Alternatif iletişim ─────────────────────────────── */}
                     <a

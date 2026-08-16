@@ -13,13 +13,22 @@
 
   <!-- Fonts bundled via @fontsource/inter (no network request) -->
   <style>
+    /* Tek alt güvenli-alan kaynağı (§102): iOS → env() (var hiç set edilmez);
+       Android ≥35 → --android-nav-inset (MainActivity yazar, env=0);
+       Android <35 → ikisi de 0 (eski davranış piksel-aynı).
+       KURAL: web kodunda alt boşluk için YALNIZ var(--safe-bottom) kullanılır —
+       ham env(safe-area-inset-bottom) alt boşluk için yasak (üst env() serbest). */
+    :root {
+      --safe-bottom: max(env(safe-area-inset-bottom, 0px), var(--android-nav-inset, 0px));
+    }
+
     /* Custom Safe Area Utilities */
     .pt-safe-top {
       padding-top: env(safe-area-inset-top);
     }
 
     .pb-safe-bottom {
-      padding-bottom: env(safe-area-inset-bottom);
+      padding-bottom: var(--safe-bottom);
     }
 
     .top-safe-top {
@@ -27,13 +36,13 @@
     }
 
     .bottom-safe-bottom {
-      bottom: env(safe-area-inset-bottom);
+      bottom: var(--safe-bottom);
     }
 
     /* Ensure fixed elements respect safe area */
     body {
       padding-top: env(safe-area-inset-top);
-      padding-bottom: env(safe-area-inset-bottom);
+      padding-bottom: var(--safe-bottom);
     }
 
     /* Notification bell — sits below status bar on both iOS and Android.

@@ -89,7 +89,12 @@ export const BusinessInfoSettings: React.FC = () => {
             >
                 <div
                     className="px-4 py-5 space-y-6"
-                    style={{ paddingBottom: `calc(${keyboardHeight}px + env(safe-area-inset-bottom) + 1.25rem)` }}
+                    style={{
+                        // Klavye açıkken kb navDp'yi zaten içerir (§102) — safe-bottom EKLENMEZ (çift sayım)
+                        paddingBottom: keyboardHeight > 0
+                            ? `calc(${keyboardHeight}px + env(safe-area-inset-bottom) + 1.25rem)`
+                            : 'calc(var(--safe-bottom) + 1.25rem)',
+                    }}
                 >
                     {success && (
                         <div className="p-4 bg-green-600/20 border border-green-500/40 rounded-2xl text-green-400 font-semibold text-center flex items-center justify-center gap-2" style={noticeText}>

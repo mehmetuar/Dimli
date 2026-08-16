@@ -46,7 +46,12 @@ export const SupportPage: React.FC = () => {
             <div className="flex-1 overflow-y-auto overscroll-contain scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
                 <div
                     className="max-w-lg mx-auto px-4 pt-5 space-y-6"
-                    style={{ paddingBottom: `calc(${keyboardHeight}px + env(safe-area-inset-bottom) + 2.5rem)` }}
+                    style={{
+                        // Klavye açıkken kb navDp'yi zaten içerir (§102) — safe-bottom EKLENMEZ (çift sayım)
+                        paddingBottom: keyboardHeight > 0
+                            ? `calc(${keyboardHeight}px + env(safe-area-inset-bottom) + 2.5rem)`
+                            : 'calc(var(--safe-bottom) + 2.5rem)',
+                    }}
                 >
                     {/* ── Alternatif iletişim ─────────────────────────────── */}
                     <a

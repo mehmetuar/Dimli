@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Geolocation } from '@capacitor/geolocation';
+import { classifyGeoError } from '../../../../utils/geolocationErrors';
 import api from '../../../../services/api';
 import { getOwnerId } from '../../../../services/authStorage';
 import { locationService } from '../../../../services/locationService';
@@ -138,7 +139,7 @@ export const useBusinessInfoSettings = () => {
                 setLocationErrorType('permission_denied');
                 return;
             }
-            const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 10000 });
+            const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
             const lat = pos.coords.latitude;
             const lng = pos.coords.longitude;
             setMapCoords({ lat, lng });
@@ -146,9 +147,10 @@ export const useBusinessInfoSettings = () => {
             await doReverseGeocode(lat, lng);
         } catch (err: any) {
             console.error(err);
-            const code = err?.code;
-            if (code === 1) setLocationErrorType('permission_denied');
-            else if (code === 2) setLocationErrorType('gps_disabled');
+            // §103: tek kaynak sınıflandırıcı (numeric code Android'de hiç yoktu)
+            const cls = classifyGeoError(err);
+            if (cls === 'denied') setLocationErrorType('permission_denied');
+            else if (cls === 'gps_disabled') setLocationErrorType('gps_disabled');
         } finally {
             setIsLocating(false);
         }

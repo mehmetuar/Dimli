@@ -56,7 +56,7 @@ export const TeamProfile: React.FC = () => {
             {/* ELASTIC içerik: altındaki sayfa esnek kayar (iOS bounce); başlık sabit kalır */}
             <div
                 className="flex-1 overflow-y-auto overscroll-contain scrollbar-hide"
-                style={{ WebkitOverflowScrolling: 'touch', paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' } as React.CSSProperties}
+                style={{ WebkitOverflowScrolling: 'touch', paddingBottom: 'calc(5rem + var(--safe-bottom))' } as React.CSSProperties}
             >
                 <div className="px-4 max-w-3xl mx-auto">
                     {activeTab === 'PLAYER' ? <UserProfile /> : <MyTeam />}

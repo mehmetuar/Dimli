@@ -301,7 +301,7 @@ const AllMatchesModal: React.FC<AllMatchesModalProps> = ({
                 {/* Scrollable list */}
                 <div
                     className="bg-slate-900 overflow-y-auto modal-scroll flex-1 px-4 py-4"
-                    style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)' }}
+                    style={{ paddingBottom: 'calc(var(--safe-bottom) + 16px)' }}
                 >
                     {/* ── Own team section (always at top) ── */}
                     {ownMatches.length > 0 && (

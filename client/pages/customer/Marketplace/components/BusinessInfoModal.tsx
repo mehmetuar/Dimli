@@ -229,7 +229,7 @@ export const BusinessInfoModal: React.FC<BusinessInfoModalProps> = ({
                             className={`${isDemoId(businessId) ? 'p-3' : 'p-4'} bg-slate-900 border-t border-slate-700 shrink-0`}
                             // Demo'da panel ekran dibinde DEĞİL (v17 sığdırması) — safe-area
                             // eklemesi gereksiz yer yiyordu
-                            style={{ paddingBottom: isDemoId(businessId) ? 12 : 'max(16px, env(safe-area-inset-bottom))' }}
+                            style={{ paddingBottom: isDemoId(businessId) ? 12 : 'max(16px, var(--safe-bottom))' }}
                         >
                             <div className="flex gap-3">
                                 {phone ? (

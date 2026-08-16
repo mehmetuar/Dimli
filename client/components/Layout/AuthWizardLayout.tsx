@@ -51,7 +51,7 @@ export const AuthWizardLayout: React.FC<AuthWizardLayoutProps> = ({
         >
             <div
                 className="relative flex-1 w-full min-h-0 flex flex-col"
-                style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
+                style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'var(--safe-bottom)' }}
             >
                 {/* ── Üst bölge: geri oku + logo + adım sayacı + progress + başlık ── */}
                 {/* Üst boşluk safe-area inset'ine EK: min 34px — geri oku/sayaç hiçbir
@@ -136,7 +136,7 @@ export const AuthWizardLayout: React.FC<AuthWizardLayoutProps> = ({
                             padding: '10px clamp(16px, 5vw, 32px)',
                             paddingBottom: keyboardHeight > 0
                                 ? keyboardHeight
-                                : 'max(12px, env(safe-area-inset-bottom))',
+                                : 'max(12px, var(--safe-bottom))',
                         }}
                     >
                         {footer}

@@ -129,7 +129,7 @@ export const Login: React.FC = () => {
 
             <div
                 className={`flip-card-3d relative flex-1 w-full min-h-0 flex flex-col overflow-y-auto scrollbar-hide ${animClass}`}
-                style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
+                style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'var(--safe-bottom)' }}
             >
                 {/* Header: orta saha çemberi içinde logo */}
                 <div

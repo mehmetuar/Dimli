@@ -395,14 +395,14 @@ input, textarea, select, [contenteditable="true"] {
   padding-top: calc(max(env(safe-area-inset-top, 0px), 20px) + 0.75rem);
 }
 
-/* Navbar clearance — safe area dahil (80px navbar + iPhone home indicator) */
+/* Navbar clearance — safe area dahil (80px navbar + iOS home indicator / Android nav bar §102) */
 .pb-nav {
-  padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(5rem + var(--safe-bottom));
 }
 
 /* Business navbar clearance — 68px navbar + safe area + görsel nefes alanı */
 .pb-business-nav {
-  padding-bottom: calc(8rem + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(8rem + var(--safe-bottom));
 }
 
 /* Scrollbar gizle — Android'de zaten görünmez ama iOS/web için */

@@ -129,7 +129,7 @@ export const PitchBooking: React.FC = () => {
    return (
       <div
          className="fixed inset-0 bg-pitch text-white flex flex-col overflow-hidden"
-         style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))' }}
+         style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'calc(5rem + var(--safe-bottom))' }}
       >
          {/* Modals */}
          {/* Rakip takım kartı: Maç Pazarı/Bildirimler'le AYNI paylaşılan modal (yerel kopya silindi). */}

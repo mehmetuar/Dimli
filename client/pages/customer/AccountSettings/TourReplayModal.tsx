@@ -68,7 +68,7 @@ export const TourReplayModal: React.FC<Props> = ({ isOpen, onClose }) => {
         <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in" onClick={onClose}>
             <div
                 className="bg-slate-800 w-full max-w-md sm:rounded-3xl rounded-t-3xl border border-slate-700 shadow-2xl overflow-hidden"
-                style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}
+                style={{ paddingBottom: 'max(16px, var(--safe-bottom))' }}
                 onClick={(e) => e.stopPropagation()}
             >
                 <div className="p-5 border-b border-slate-700 bg-slate-900 flex justify-between items-center">

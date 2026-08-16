@@ -71,7 +71,7 @@ export const BusinessRegister: React.FC = () => {
             >
                 <div
                     className="flex-1 min-h-0 overflow-y-auto scrollbar-hide"
-                    style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
+                    style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'var(--safe-bottom)' }}
                 >
                     <div
                         className="min-h-full w-full max-w-md mx-auto flex flex-col"

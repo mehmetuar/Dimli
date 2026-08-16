@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { APIProvider, Map, AdvancedMarker, useMap } from '@vis.gl/react-google-maps';
 import { Navigation, MapPin, Loader2, Lock, Settings } from 'lucide-react';
 import { Geolocation } from '@capacitor/geolocation';
+import { classifyGeoError } from '../../../../../utils/geolocationErrors';
 import { locationService } from '../../../../../services/locationService';
 import { openLocationSettings } from '../../../../../utils/openLocationSettings';
 import { useKeyboardHeight } from '../../../../../utils/useKeyboardHeight';
@@ -79,7 +80,7 @@ export const LocationStep: React.FC<LocationStepProps> = ({
                 }
                 return;
             }
-            const position = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 10000 });
+            const position = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
             const lat = position.coords.latitude;
             const lng = position.coords.longitude;
 
@@ -91,11 +92,13 @@ export const LocationStep: React.FC<LocationStepProps> = ({
         } catch (err: any) {
             console.error('Geolocation error:', err);
             if (!silent) {
-                const code = err?.code;
-                if (code === 1) {
+                // §103: sınıflandırma tek kaynak — sayısal code yalnız web'de var,
+                // Android v8 string OS-PLUG-GLOC-* kodu taşır (eski numeric dal ölüydü).
+                const cls = classifyGeoError(err);
+                if (cls === 'denied') {
                     setLocationError('Konum izni reddedildi. Ayarlardan konum iznini etkinleştirin.');
                     setLocationNeedsSettings(true);
-                } else if (code === 2) {
+                } else if (cls === 'gps_disabled') {
                     setLocationError('GPS kapalı. Cihazınızın konum servislerini açın.');
                     setLocationNeedsSettings(true);
                 } else {

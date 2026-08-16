@@ -5,6 +5,8 @@ import { App as CapApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 import { LocationErrorType } from '../components/LocationPermissionSheet';
 import { calculateDistance } from '../utils/location';
+import { classifyGeoError, isUnrecoverableGpsError } from '../utils/geolocationErrors';
+import { getLastKnownSnapshot, isNetworkProviderOff } from '../utils/locationSnapshot';
 import api from '../services/api';
 import { getToken } from '../services/authStorage';
 import { seedCurrentUser } from '../services/currentUserStore';
@@ -90,37 +92,59 @@ function watchFirstFix(ms: number): Promise<Position> {
   return new Promise((resolve, reject) => {
     let watchId: string | null = null;
     let settled = false;
+    // §103: watch kendi timeout'unda öldüyse clearWatch "WatchId not found" ile
+    // reddeder — NORMAL durum, sessiz yut (yutulmazsa unhandled rejection).
+    const safeClear = (id: string) => { Geolocation.clearWatch({ id }).catch(() => { }); };
     const finish = (fn: () => void) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
-      if (watchId) void Geolocation.clearWatch({ id: watchId });
+      if (watchId) safeClear(watchId);
       fn();
     };
     const timer = setTimeout(() => finish(() => reject({ code: 3, message: 'watch-timeout' })), ms);
-    Geolocation.watchPosition({ enableHighAccuracy: true, timeout: ms }, (pos, err) => {
+    // §103: v8'de (ION) native timeout WATCH'I ÖLDÜRÜR (v6/7'de süresiz beklerdi) —
+    // karar verici JS timer'ı (ms) kalsın diye native timeout daha büyük geçilir.
+    // interval default'u timeout'a eşit (=10sn) olurdu; MIUI uzun aralıklı GPS isteğini
+    // "blocked by policy" ile kesiyor — kısa explicit interval aktif önplan isteği
+    // görünümü verir (v8 Android-only opsiyonları).
+    Geolocation.watchPosition({
+      enableHighAccuracy: true,
+      timeout: ms + 5000,
+      interval: 3000,
+      minimumUpdateInterval: 1000,
+    }, (pos, err) => {
       if (err) { finish(() => reject(err)); return; }
       if (pos) finish(() => resolve(pos));
     }).then((id) => {
       watchId = id;
-      if (settled) void Geolocation.clearWatch({ id });
+      if (settled) safeClear(id);
     }).catch((err) => finish(() => reject(err)));
   });
 }
 
 // Konum servisi kapalı / izin reddi / Play Services yok gibi hatalar tekrar
-// denemeyle DÜZELMEZ — watch fallback bu mesajlarda atlanır, hata üst kata çıkar.
-const isUnrecoverableGpsError = (err: any): boolean => {
-  const msg = String(err?.message ?? '').toLowerCase();
-  return msg.includes('not enabled') || msg.includes('location disabled')
-    || msg.includes('location services') || msg.includes('denied')
-    || msg.includes('play services');
-};
+// denemeyle DÜZELMEZ — watch fallback bunlarda atlanır, hata üst kata çıkar.
+// Sınıflandırma tek kaynak: utils/geolocationErrors.ts (§103, code-first).
 
-// Üç adımlı konum: hızlı düşük-doğruluk (3 dk'lık önbellek fix'i kabul) →
+// Konum merdiveni: Adım 0 son-bilinen önbellek (ANINDA) → hızlı düşük-doğruluk →
 // yüksek-doğruluk (GPS) → watchPosition son çaresi. Hepsi JS zaman aşımıyla
-// sınırlı (asla asılı kalmaz). MIUI'de network sağlayıcı kapalıysa GPS'e düşülür.
-async function getPositionRobust() {
+// sınırlı (asla asılı kalmaz).
+async function getPositionRobust(): Promise<Position> {
+  // §104 Adım 0: geolocation v8 (ION 2.2.2) maximumAge'i önbellek okuması olarak
+  // KULLANMAZ — v6/7 dönemindeki "son bilinen konumu anında dön" davranışı app-yerel
+  // LocationSnapshotPlugin ile geri getirildi (fused GMS önbelleği + framework kemeri).
+  // 30 dk'lık bayatlık kabul edilir: sunucu ilçe kapısı >250m zaten filtreler, 2dk
+  // interval healer taze fix'i arkadan getirir. iOS/web/eski APK'da sessizce atlanır.
+  const cached = await getLastKnownSnapshot(30 * 60_000);
+  if (cached) {
+    // Tüketici (requestLocation→updateCoords) yalnız coords.latitude/longitude okur;
+    // Position'ın kalan zorunlu alanları (heading vb.) kullanılmadığından cast güvenli.
+    return {
+      timestamp: Date.now(),
+      coords: { latitude: cached.lat, longitude: cached.lng, accuracy: 0 },
+    } as unknown as Position;
+  }
   try {
     return await withTimeout(
       Geolocation.getCurrentPosition({ enableHighAccuracy: false, timeout: 8000, maximumAge: 180000 }),
@@ -256,8 +280,7 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         try {
           permStatus = await withTimeout(Geolocation.checkPermissions(), 8000);
         } catch (permErr: any) {
-          const pmsg = String(permErr?.message ?? '').toLowerCase();
-          if (pmsg.includes('not enabled') || pmsg.includes('location services')) {
+          if (classifyGeoError(permErr) === 'gps_disabled') {
             setLocationError('gps_disabled');
             return;
           }
@@ -272,9 +295,13 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           setCoords(null);
           return;
         }
-        // İzin verilmemiş ama promptable (userInitiated=false ile geldik): yeni dialog açma, sessizce çık.
-        // Hiçbir hata/konum state'i değiştirme → denied/promptable durumunda idle kal.
+        // İzin verilmemiş ama promptable (userInitiated=false ile geldik): yeni dialog açma.
+        // §103: eskiden hiçbir state set etmeden dönüyordu → gate süresiz 'loading'da
+        // kalıyordu (girişli boot'ta prompt hiç açılmaz — tek requestLocation(true)
+        // Login'de ve token'lıyken mount olmaz). 'timeout' set edilir → gate "Tekrar
+        // Dene" kartını gösterir; buton userInitiated=true olduğundan OS istemi açılır.
         if (permStatus.location !== 'granted') {
+          setLocationError('timeout');
           return;
         }
         permissionStatusRef.current = 'granted';
@@ -285,26 +312,23 @@ export const LocationProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setLocationError(null);
       } catch (err: any) {
         console.warn('LocationContext GPS error:', err);
-        // KRİTİK: W3C sayısal code'ları (1/2/3) yalnız WEB implementasyonu üretir.
-        // Native Capacitor plugin'leri (Android/iOS) code TAŞIMAYAN düz string
-        // mesajlarla reject eder ("location disabled", "Location services are not
-        // enabled", "Google Play Services not available"...). Mesaj-tabanlı
-        // sınıflandırma olmadan Android'de HER hata 'timeout'a düşüyordu — GPS
-        // kapalıyken "Ayarlara Git" kartı hiç çıkmıyor, Tekrar Dene döngüleniyordu.
-        const code = err?.code;
-        const msg = String(err?.message ?? '').toLowerCase();
-        if (code === 1 || msg.includes('denied')) {
+        // §103: sınıflandırma tek kaynak utils/geolocationErrors.ts — v8'in string
+        // OS-PLUG-GLOC-* kodları ÖNCE (kararlı kimlik), sonra W3C sayısal (yalnız
+        // web üretir, §79), sonra mesaj fallback'i. Kod-öncelik olmadan 0009
+        // ("Request to enable location was denied") mesajındaki 'denied' yüzünden
+        // yanlışlıkla izin-reddi kartına düşüyordu.
+        const cls = classifyGeoError(err);
+        if (cls === 'denied') {
           permissionStatusRef.current = 'denied';
           setPermissionStatus('denied');
           setCoords(null);
-        } else if (
-          code === 2 ||
-          msg.includes('not enabled') ||
-          msg.includes('location disabled') ||
-          msg.includes('location services') ||
-          msg.includes('play services') // Play Services yok → aynı aksiyon: cihaz ayarları
-        ) {
+        } else if (cls === 'gps_disabled') {
           setLocationError('gps_disabled');
+        } else if (await isNetworkProviderOff()) {
+          // §104: merdiven komple öldü VE cihazda konum AÇIK ama ağ sağlayıcısı
+          // (Google Konum Doğruluğu) KAPALI — kapalı mekânda GPS tek başına fix
+          // üretemez; "Tekrar Dene" döngüsü yerine doğru ayara yönlendiren kart.
+          setLocationError('network_location_off');
         } else {
           // timeout (plugin/JS) ve bilinmeyen her şey → yeniden denenebilir hata
           setLocationError('timeout');

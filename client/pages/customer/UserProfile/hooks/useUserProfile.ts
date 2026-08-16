@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Geolocation } from '@capacitor/geolocation';
+import { classifyGeoError } from '../../../../utils/geolocationErrors';
 import { useLocationContext } from '../../../../contexts/LocationContext';
 import { useCurrentUser } from '../../../../hooks/useCurrentUser';
 import { calculateAge } from '../../../../utils/calculateAge';
@@ -53,9 +54,12 @@ export const useUserProfile = () => {
         } catch (error: any) {
             console.error('Location update failed:', error);
             if (!isAuto) {
-                const code = error?.code;
-                if (code === 2) {
+                // §103: tek kaynak sınıflandırıcı (numeric code Android'de hiç yoktu)
+                const cls = classifyGeoError(error);
+                if (cls === 'gps_disabled') {
                     setLocationErrorType('gps_disabled');
+                } else if (cls === 'denied') {
+                    setLocationErrorType('permission_denied');
                 } else {
                     setErrorMessage('Konum alınamadı. Lütfen tekrar deneyin.');
                 }

@@ -929,6 +929,9 @@ doldur; Render log'unda 2 cron'un tek sefer çalıştığı teyit. Yalnız serve
   (+8px). iOS dalı: Capacitor `keyboardWillShow.info.keyboardHeight` (aynen). native+JS `cap sync` ile
   birlikte paketlenir → değişken hep mevcut.
 - Korunanlar: `--android-nav-inset` yazımı, IME-inset tüketimi, koyu sistem çubukları, `KEYBOARD_GAP_PX=8`.
+- **§102 eki:** API≥35'te WebView alt padding'i kalktığı için `--android-keyboard-inset` (→ keyboardHeight)
+  nav bar derinliğini otomatik İÇERİR. KURAL: `keyboardHeight + var(--safe-bottom)` TOPLANMAZ (çift sayım) —
+  klavye-açık dal bugünkü ifadeyle aynen, klavye-kapalı dal `var(--safe-bottom)` (ya-o-ya-bu deseni).
 
 ### ⚠️ Deploy/doğrulama notu
 - Native (MainActivity.java) değiştiği için **yalnız web/OTA yetmez → yeni Android build** (Android Studio,
@@ -3516,7 +3519,7 @@ Doğrulama: `tsc --noEmit` (yalnız önceden var LocationStep) + `vite build` �
 
 Doğrulama: `tsc --noEmit` (yalnız önceden var LocationStep) + `vite build` ✓. Cihaz testi bekliyor.
 
-### §79. Android konum arızası — native hata sınıflandırması + watch fallback (2026-07-13)
+### §79. [§103 ile revize] Android konum arızası — native hata sınıflandırması + watch fallback (2026-07-13)
 
 **Belirti:** Android'de Maç Pazarı/Sahalar/Joker "Konumunuz alınıyor..." → "Tekrar Dene"
 döngüsü; iOS sorunsuz. **Kök neden (2 katman):**
@@ -4400,18 +4403,19 @@ düz `npm install` temiz; Node 22+ şart (client/.nvmrc). Gradle: AGP 8.13.0 + w
 minSdk 24 / compile-target 36; androidx.browser force-pin kaldırıldı (AGP 8.13'te gereksiz);
 Cap 8 eklentileri Java 21 toolchain ister → android/gradle.properties'e
 org.gradle.java.installations.paths=AS JBR yolu eklendi (JBR 21.0.10).
-EDGE-TO-EDGE: Android 16 + targetSdk 36'da opt-out tamamen kalktı (setDecorFitsSystemWindows(true),
-set*BarColor, windowOptOutEdgeToEdgeEnforcement → hepsi no-op/yok). Çözüm MainActivity'de iki rejim:
-API<35 eski gövde aynen (sıfır regresyon); API≥35 (a) WebView parent'ına systemBars+displayCutout
-padding (çubuklar arası WebView geometrisi korunur; koyu #0f172a görünüm şeffaf çubukların ardındaki
-windowBackground=dimliPitch'ten gelir), (b) dönüşte systemBars+cutout inset'leri Insets.of(0,0,0,0)
+EDGE-TO-EDGE (§102 ile REVİZE — alt inset artık web katmanında): Android 16 + targetSdk 36'da
+opt-out tamamen kalktı (setDecorFitsSystemWindows(true), set*BarColor,
+windowOptOutEdgeToEdgeEnforcement → hepsi no-op/yok). MainActivity'de iki rejim:
+API<35 eski gövde aynen (sıfır regresyon; --android-nav-inset burada ZORUNLU 0 yazılır);
+API≥35 (a) WebView parent'ına yalnız ÜST+YAN systemBars+displayCutout padding — ALT padding YOK,
+WebView şeffaf nav bar'ın altına uzanır, alt boşluğu web katmanı --android-nav-inset →
+--safe-bottom ile kendisi padler (§102; §98'in ilk halindeki "dört yana padding" modeli MIUI'de
+tek dispatch kaçınca çöktü — yedeksizdi), (b) dönüşte systemBars+cutout inset'leri Insets.of(0,0,0,0)
 ile TÜKETİLİR (CONSUMED değil — Chromium yeniden hesaplama bug'ı): viewport-fit=cover olduğundan
-tüketilmezse env(safe-area-inset-*) gerçek değer üretir → native padding'le ÇİFT boşluk olurdu.
+tüketilmezse env(safe-area-inset-*) gerçek değer üretir → --safe-bottom'la ÇİFT boşluk olurdu.
 KURAL: capacitor.config.ts SystemBars.insetsHandling='disable' KALACAK — core'un 'css' modu ya
-env() değerlerini aktive eder (0 varsayan ~46 kullanım bozulur) ya da klavyede WebView'i resize
-eder (resize:'none' overlay modeli bozulur); tek inset otoritesi MainActivity listener'ıdır.
---android-nav-inset/--android-keyboard-inset boru hattı ve web/CSS katmanı SIFIR değişiklikle
-korundu. Manifest: PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY=true (Android 16 sw600dp+'ta
+env() değerlerini aktive eder (0 varsayan kullanımlar bozulur) ya da klavyede WebView'i resize
+eder (resize:'none' overlay modeli bozulur); tek NATIVE inset otoritesi MainActivity listener'ıdır. Manifest: PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY=true (Android 16 sw600dp+'ta
 portre kilidini yok saymasın; GEÇİCİ — targetSdk 37'de kalkacak, büyük-ekran uyarlaması gerekecek).
 enableOnBackInvokedCallback EKLENMEDİ: @capacitor/app 8.x geri tuşunu OnBackPressedDispatcher ile
 kurar (predictive-back uyumlu); Android 16 cihazda backButton listener'ı ateşlenmezse yedek plan
@@ -4579,3 +4583,200 @@ sayar → yeni istemcide UI hiç çizilmez (otomatik feature-detect, readStates 
 Deploy sırası: server → client. İstemci JS-only — yeni native sürüm gerekmez.
 Doğrulama: server build + boot OK, client build OK. İki cihazlı saha testi bekliyor
 (plan dosyasındaki 8 maddelik senaryo). Commit + deploy bekliyor.
+
+### §102. [§103 ile revize] Android alt navbar çakışması — alt inset otoritesi web katmanına taşındı (2026-08-16)
+
+> §98 geçişi sonrası MIUI/3-tuş navigasyonlu cihazda tab bar + chat input sistem nav bar'ının
+> ALTINA girdi. Kök neden: §98'in ilk modelinde alt boşluğun TEK kaynağı MainActivity DecorView
+> listener'ının WebView parent'ına verdiği native padding'di; aynı listener env()'i 0'a sabitliyor,
+> yazdığı --android-nav-inset'i ise web'de HİÇBİR ŞEY okumuyordu (sıfır tüketici). MIUI tek
+> dispatch kaçırınca/0 verince yedek yoktu.
+
+**Yeni model — alt otorite WEB, üst native:**
+- MainActivity ≥35: parent padding yalnız (left, top, right, **0**) → WebView şeffaf nav bar'ın
+  altına uzanır (iOS home-indicator modeliyle birebir aynı geometri). `--android-nav-inset` kaynağı
+  artık systemBars|displayCutout alt inset'i (kaldırılan padding'in birebir kendisi; 3-tuş bar,
+  gesture pill, alt cutout dahil). **KAPI: API<35'te var ZORUNLU 0 yazılır** — decorFits(true)
+  WebView'i zaten barın üstünde tutar, var>0 olsaydı eski cihazlarda ÇİFT boşluk olurdu.
+- env()=0 invariant'ı KORUNDU (dönüşte Insets.of(0,0,0,0), CONSUMED değil): iOS-ayarlı env()
+  siteleri Chromium ≥140'ta çift boşluğa düşmez. SystemBars.insetsHandling='disable' yerinde.
+- Dayanıklılık: onResume'a `requestApplyInsets` eklendi (nav-modu değişimi, split-screen, MIUI
+  kaçırmaları); core SystemBars'ın page-commit `requestApplyInsets`'i (disable'da bile çalışır) +
+  açılıştaki tetik zaten vardı → kaçan dispatch salt CSS re-render'ıyla kendini onarır.
+- ≥35'te `setNavigationBarContrastEnforced(false)`: OEM scrim bandı kapatıldı (koyu zemin
+  uygulamanın kendi yüzeyinden gelir, açık ikonlar setAppearanceLight*Bars(false) ile garanti).
+- `StatusBar.overlaysWebView:false` config'e BİLEREK KONMADI: CapacitorConfig'de platform-bazlı
+  plugins scoping yok → iOS'u da etkilerdi (orada default true yük taşıyor); Android<35 riski
+  sıralamayla nötr (applyDarkSystemBars onCreate sonunda + her onResume'da decorFits/renkleri
+  yeniden basar; app JS'i StatusBar.* hiç çağırmıyor). İzlenen risk olarak not edildi.
+
+**Web — tek kanonik değişken (index.html):**
+`:root { --safe-bottom: max(env(safe-area-inset-bottom, 0px), var(--android-nav-inset, 0px)); }`
+iOS: var yok → env kazanır (birebir aynı render). Android ≥35: env=0, var=navDp. API<35: ikisi de
+0 → piksel-aynı eski davranış. **KURAL: web kodunda alt boşluk için TEK ilkel `var(--safe-bottom)`;
+ham `env(safe-area-inset-bottom)` alt boşluk için YASAK** (üst env() kullanımı serbest — üst inset
+native padding'de kalır, agent.md:1948 kuralı geçerli). İstisnalar: tam-ekran negatif satırlar
+(`calc(-1 * env(...))`, Login/BusinessLogin/BusinessRegister/AuthWizard — arka plan barın altına
+uzanmalı, env=0 doğru) ve klavye-AÇIK dalların bugünkü ifadeleri (aşağıda).
+- Dönüştürülen tanımlar: `.pb-safe-bottom`, `.bottom-safe-bottom`, `body` padding-bottom
+  (index.html); `.pb-nav`, `.pb-business-nav` (index.css) → tüm navbar/scroll/sheet tüketicileri
+  tek noktadan düzeldi. ~17 dosyada inline env→var mekanik dönüşüm + 4 auth CTA paddingBottom'ı.
+- Klavye etkileşimli 6 site (SupportPage, BusinessSupport/Info/OwnerProfile/Password, CreateTeamModal,
+  AuthWizardLayout footer) ya-o-ya-bu'ya çevrildi (§24 eki: kb navDp içerir, toplama çift sayardı).
+- Geçerken düzeltilen mevcut bug: LocationPermissionSheet safe-area'sız `pb-10` →
+  `max(2.5rem, calc(1rem + var(--safe-bottom)))`.
+
+versionCode 38 (native değişiklik → yeni AAB şart; versionName 1.4.8 kaldı, yayında kullanıcı
+kararıyla değişebilir). iOS build gerekmez (sıfır iOS değişikliği). Doğrulama: client build temiz,
+cap sync; cihaz matrisi {3-tuş, gesture} × {klavye açık/kapalı} × {tab bar, chat, sheet'ler,
+business panel, auth} + API<35 emülatörde piksel-aynılık (chrome://inspect'te --android-nav-inset
+0px olmalı) + iOS smoke. MIUI cihaz testi bekliyor.
+
+### §103. [§104 ile tamamlandı] Redmi (API 30) alt navbar + konum çözümü — StatusBar v8 bayrakları ve Geolocation v8 (2026-08-16)
+
+> §102 sonrası cihaz testi: çakışma sürdü + konum "Konumunuz alınıyor..."da takılı. adb ile
+> tespit: test cihazı Redmi Note 10S = Android 11 / **API 30** / MIUI 12.5 — yani §102'nin
+> düzelttiği ≥35 dalında değil, "eski yol" <35 dalında ve o yol Capacitor 8'de bozulmuş.
+
+**Navbar kök nedeni (dumpsys + plugin kaynağıyla KANITLI):** `@capacitor/status-bar` v8'in
+`overlaysWebView` varsayılanı **true** (v6'da false). Plugin `load()`'da decor'a legacy
+`SYSTEM_UI_FLAG_LAYOUT_STABLE|LAYOUT_FULLSCREEN` basar + status barı şeffaflaştırır. AOSP
+30-34'ün varsayılan içerik-inset uygulayıcısı **herhangi bir legacy layout bayrağı görünce
+hiç fit yapmadan çıkar** → `setDecorFitsSystemWindows(true)` fiilen no-op (dump kanıtı:
+`fitSides=` boş, `vsysui=LAYOUT_FULLSCREEN`); üst taraf yalnız `.pt-page-top`'un 32dp sabit
+fallback'i sayesinde görünüşte kurtuluyordu, altta koruma yoktu. İki kalıcı düzeltme:
+1. **applyDarkSystemBars <35 dalı** decorFits(true) sonrası legacy LAYOUT_* bayraklarını
+   temizler — onCreate sonunda (plugin load()'ından SONRA) + her onResume'da çalışır, v8'i
+   her zaman ezer. JS StatusBar.overlaysWebView'i hiç çağırmıyor → bayrak geri gelemez.
+   KURAL: config'e `StatusBar.overlaysWebView:false` KONMAZ (platform-bazlı scoping yok →
+   iOS bozulur); Android çözümü bu bayrak temizliğidir.
+2. **`--android-nav-inset` artık ÖLÇÜLEN değerdir, SDK varsayımı değil** (§24 "gerçek
+   geometri" kuralının nav'a genellenmesi): post bloğunda
+   `navOverlap = clamp(webViewBottom − (windowHeight − sysBarsBottom), 0, sysBarsBottom)`.
+   Fit çalışıyorsa 0 (çift boşluk imkânsız), fit bozuksa (≥35 zorunlu edge-to-edge VEYA
+   herhangi bir OEM/eklenti sabotajı) bar yüksekliği → web `--safe-bottom` ile padler.
+   §102'deki "<35'te var ZORUNLU 0" kapısı KALKTI — ölçüm her API'de doğruyu söyler,
+   geçici yanlış değer bir sonraki dispatch'te kendini onarır. Web/CSS katmanı bu turda
+   SIFIR değişiklik.
+
+**Konum kök nedeni (logcat + @capacitor/geolocation 8.2.1 kaynağıyla KANITLI):** v8 = yeni
+ION implementasyonu, davranış değişti:
+- `watchPosition` da `timeout` içinde ilk fix yoksa KENDİNİ ÖLDÜRÜR (`OS-PLUG-GLOC-0010`,
+  "channel closed") — §79'un "watch ilk fix'e kadar bekler" varsayımı v8'de geçersiz.
+  KURAL: `watchFirstFix` native timeout'u JS timer'dan BÜYÜK geçer (ms+5000); karar verici
+  JS timer'dır. Ölen watch'a `clearWatch` → "WatchId not found" NORMALDİR → clearWatch
+  daima `.catch(() => {})` ile (yutulmazsa unhandled rejection).
+- v8'de `interval` default = timeout → 10sn aralıklı GPS isteği MIUI'de
+  "Request... is blocked by policy" yiyordu. `watchFirstFix` artık explicit
+  `interval: 3000, minimumUpdateInterval: 1000` geçer (aktif önplan isteği görünümü).
+- Hata kimliği artık **string `err.code` = "OS-PLUG-GLOC-XXXX"** (kararlı). KURAL:
+  sınıflandırma TEK KAYNAK `client/utils/geolocationErrors.ts` → `classifyGeoError`:
+  önce string kod, sonra W3C sayısal (yalnız web üretir — §79 kuralı geçerli), sonra mesaj
+  fallback, default 'retryable'. Kritik: 0009 "Request to enable location was denied" bir
+  AYAR-çözümleme reddidir — mesajındaki 'denied' yüzünden yanlışlıkla izin-reddi kartına
+  düşüyordu; kod-öncelik + mesaj fallback'inde 'request to enable location' deseninin
+  'denied'dan önce kontrolü bunu düzeltir. 0018 (manifest dev hatası) → gps_disabled.
+  Üç ikincil site (LocationStep, useBusinessInfoSettings, useUserProfile) ölü numeric-code
+  dallarından bu yardımcıya geçirildi; getCurrentPosition'lara `maximumAge: 60000` eklendi.
+- **Sessiz-dönüş deliği kapatıldı:** `requestLocation(!userInitiated)` izin `prompt*` iken
+  hiçbir state set etmeden dönüyordu → girişli boot'ta gate süresiz 'loading' (tek
+  `requestLocation(true)` Login'de, token'lıyken hiç mount olmaz). Artık `locationError=
+  'timeout'` set edilir → "Tekrar Dene" kartı çıkar (buton userInitiated → OS istemi).
+
+Doğrulama (cihazda ölçüldü): bayrak temizliği sonrası `vsysui`de LAYOUT_FULLSCREEN YOK
+(gerekli hijyen) ama MIUI 12.5 `fitSides=`'i YİNE boş bırakıyor — yani bu OEM'de fit
+decorFits(true)'ya rağmen kurulmuyor (tam da bu yüzden yük taşıyan düzeltme ölçülen
+örtüşmedir: WebView bar altına uzanınca navOverlap=130px≈47dp → --safe-bottom padler).
+KURAL: MIUI'de fitSides'a güvenme; görsel doğruluk her zaman ölçülen var üzerinden gelir.
+build + assembleDebug temiz; görsel cihaz testi kullanıcıda. §79 ve §102 bu bölümle
+revize edilmiştir.
+
+### §104. Konum kesin çözümü — fused önbellek fast-path + network_location_off teşhisi (2026-08-16)
+
+> §103 sonrası konum hâlâ takılıyordu. Kesin kök neden zinciri (cihaz + eklenti bytecode
+> decompile ile): (1) Gerileme geolocation 7.1.8→8.2.1 değil, içindeki **ION kütüphanesi
+> 1.0.0→2.2.2** arasında (7.x de ION'du). ION 2.2.2'de `maximumAge` Android'de ÖNBELLEK
+> OKUMASI DEĞİL — fused `getCurrentLocation(setMaxUpdateAgeMillis)` ipucu; null sonuç →
+> doğrudan OS-PLUG-GLOC-0010. Kütüphanenin `getLastKnownLocation` yolu YALNIZ Play Services
+> ön-kontrolü başarısızsa çalışan fallback'te → sağlıklı cihazda önbelleğe HİÇ girilmiyor;
+> v6/7'nin "son bilineni anında dön" davranışı sessizce kayboldu. (2) Test Redmi'sinde
+> `location_providers_allowed=gps` — AĞ SAĞLAYICISI OS düzeyinde kapalı (Google Konum
+> Doğruluğu kapatılmış) + tüm sağlayıcılarda `last location=null` → kapalı mekânda hiçbir
+> kod konum üretemez; dürüst yönlendirme şart.
+
+**Çözüm A — app-yerel mikro-plugin `LocationSnapshotPlugin` (`com.dimli.app`):**
+`getLastKnown(maxAgeMs)` = fused `getLastLocation()` (GMS sistem önbelleği; her uygulamanın
+fix'ini taşır) + framework `getAllProviders()` taraması kemeri, yaş filtresiyle;
+`getProviderStatus()` = `{locationEnabled, gps, network}`. MainActivity'de
+`registerPlugin(...)` super.onCreate'ten ÖNCE. KURAL: Android'de anında konum =
+merdivenin 0. basamağı `getLastKnownSnapshot(30dk)` (`utils/locationSnapshot.ts` köprüsü;
+iOS/web'de plugin yok → null, akış aynı). `maximumAge`'e önbellek diye GÜVENME.
+Gradle: `variables.gradle` → `playServicesLocationVersion='21.3.0'` (geolocation eklentisi
+hasProperty ile aynı pin'i okur — TEK sürüm kaynağı) + `app/build.gradle`'a explicit
+`play-services-location` (eklenti `implementation` ile gömdüğünden compile-classpath'te
+görünmüyordu; APK'da zaten vardı, boyut etkisi yok).
+
+**Çözüm B — `network_location_off` durumu:** merdiven komple ölürse ve
+`getProviderStatus` "konum AÇIK ama network KAPALI" diyorsa `locationError=
+'network_location_off'` → LocationAccessGate'te özel kart ("Konum Doğruluğu Kapalı"):
+"Konum Ayarlarını Aç" → YENİ `openLocationServiceSettings()` (`AndroidSettings.Location`
+— Google Konum Doğruluğu o ekranda) + "Tekrar Dene". KURAL: bu durumu `gps_disabled`
+(master kapalı) kartıyla KARIŞTIRMA; mevcut `openLocationSettings` (ApplicationDetails)
+izin akışına aittir, değişmedi. `LocationErrorType` union'ına tip eklendi (sheet bu tipi
+render etmez, null döner).
+
+Doğrulama planı: Redmi mevcut durumda ≤30sn'de "Konum Doğruluğu Kapalı" kartı; ayar
+açıldıktan sonra ağ fix'i sn'ler içinde + sonraki açılışlarda Adım 0 ANINDA; iOS/emülatör
+regresyonsuz. §103 bu bölümle tamamlandı.
+
+### §105. Chat tasarım rafinesi — sistem kartı + chip/banner + anket modalı (2026-08-16)
+
+> Kullanıcı isteği: sistem mesajları ve anket modalında profesyonel küçük dokunuşlar.
+> Üç paket AskUserQuestion ile onaylanıp uygulandı.
+
+**1. `SystemMessageCard` (Chat/components/) — sistem mesajı görünümünün TEK KAYNAĞI
+(MessageBubble + DemoChat).** Sunucunun ~15 şablonda kullandığı düzen artık istemcide
+GÖRSEL SÖZLEŞMEDİR: *ilk satır = başlık [+ ilk token → madalyon ikonu], token'la BAŞLAYAN
+satırlar = detay satırları, kalan satırlar = alt not.* KURAL: yeni sistem mesajı şablonları
+bu düzeni korumalı (başlık \n token'lı detaylar \n\n alt not); ayrıştırıcı hem `\n\n` hem
+tek `\n` ayrımını destekler (satır bazlı). Tek satırlık mesajlar (sabitleme, anket duyurusu)
+kompakt ortalı görünümde DEĞİŞMEZ. Görsel dil PollCard'dan: `bg-slate-800/95 rounded-xl
+p-4 text-left` + `w-9 h-9 rounded-full bg-turf-600/15 border-turf-600/30` madalyon +
+sola hizalı ikon+metin detayları + `border-t border-slate-700/60` ayraçlı `text-xs
+text-slate-400` alt not. `SystemMessageRenderer`'dan `getSystemIcon`/`firstSystemToken`
+export edildi (ikon map'i tek kaynak kaldı). §97-ek ihlali düzeltildi: PROPOSAL_ACTION
+butonundaki ham `✅` → lucide `Check`. DemoChat'in 3 el kopyası karta geçti —
+`data-tour-id` çapaları SARMALAYICI div'lerde korunuyor (TourOverlay spotlight).
+
+**2. Chip + uyarı banner'ı:** "Maç Grubu Oluşturuldu" rozeti `bg-slate-800/80 border
+border-slate-700/60 px-3.5 py-1.5 tracking-widest` (Chat.tsx + DemoChat kilitli kopya
+birlikte). Eksik-oyuncu banner'ı orange→amber (PollCard "Kapalı" çipiyle tutarlılık):
+`bg-amber-500/10 border-amber-500/25`, metinlere noktalama eklendi ("...bulunmuyor.
+Lütfen...").
+
+**3. Anket modalı:** `KeyboardAwareModal`'a taşındı (elle overlay/keyboardHeight kopyası
+silindi; panelin klavye arkasına taşma bug'ı kendiliğinden düzeldi — kabuk maxHeight
+telafisini de yapıyor). Backdrop'a `onClose` BİLEREK verilmedi: yazılmış anket yanlış
+dokunuşla kaybolmasın (kapatma yalnız X). Soru alanına `{len}/200` sayacı; seçenek
+satırlarına numara rozeti; "Seçenek Ekle" kesikli tam-genişlik satır; hata ikonunda
+X→AlertTriangle; seçenek state'i stable-id'li (`{id,text}[]` — index key silmede input
+kaydırıyordu). YENİ paylaşılan primitif `components/UI/Switch.tsx` (`role="switch"` +
+`aria-checked`) — kod tabanının ilk ortak toggle'ı; yeni toggle'lar bunu kullanmalı.
+
+JS-only; versionCode 38 hattıyla gider. Doğrulama: build + tsc temiz; cihazda görsel tur
+(saha isteği kartı, kısa mesajlar değişmedi, tur spotlight'ları, klavye açıkken CTA görünür).
+
+**§105 hizalama revizyonu (cihaz geri bildirimi):** başlık+madalyon ve detay satırları
+MERKEZE alındı (alt not paragrafları SOLDA kaldı); ikon-metin dikey hizası `items-center`
+ile düzeltildi. KURAL: `icons` map'indeki SVG'ler satır-içi kullanım için `mr-1` taşır —
+madalyon/detay-satırı gibi flex bağlamlarında bu marj `[&_svg]:mr-0` arbitrary variant'ıyla
+DAİMA nötrlenir (`.x svg` (0,1,1) > `.mr-1` (0,1,0)); boşluk yalnız `gap`'ten gelir,
+yoksa ikon daire merkezinden kayar / satırda çift boşluk oluşur.
+
+**§105 hizalama tur 2 (cihaz geri bildirimi):** (1) kart başlığı DİKEY istife geçti —
+madalyon üstte ortada, başlık altında ortada (yatay grupta başlık metni kart ekseninden
+sağa kayıyor, detaylarla hizasız görünüyordu); (2) madalyon w-9→w-8; (3) satır-içi ikon
+optik düzeltmesi KAYNAĞINDA: SystemMessageRenderer parser sarmalayıcısına
+`align-[-0.125em]` (FontAwesome deseni) — inline-flex span baseline'a oturunca 16px ikon
+metne göre yukarıda kalıyordu; kompakt sistem mesajları ("...bir mesajı sabitledi"),
+ChannelItem önizlemeleri ve kart alt notları tek noktadan hizalandı.

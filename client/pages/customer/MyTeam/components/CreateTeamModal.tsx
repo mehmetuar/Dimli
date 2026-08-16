@@ -290,7 +290,12 @@ const CreateTeamModalContent: React.FC<Props> = ({ isOpen, onClose, onCreate }) 
                 {/* Sabit footer */}
                 <div
                     className="flex-shrink-0 px-5 pt-3 bg-pitch border-t border-slate-800"
-                    style={{ paddingBottom: `calc(max(env(safe-area-inset-bottom), 16px) + ${keyboardHeight > 0 ? keyboardHeight : 0}px)` }}
+                    style={{
+                        // Klavye açıkken kb navDp'yi zaten içerir (§102) — safe-bottom EKLENMEZ (çift sayım)
+                        paddingBottom: keyboardHeight > 0
+                            ? `calc(max(env(safe-area-inset-bottom), 16px) + ${keyboardHeight}px)`
+                            : 'max(var(--safe-bottom), 16px)',
+                    }}
                 >
                     <button
                         onClick={handleSubmit}

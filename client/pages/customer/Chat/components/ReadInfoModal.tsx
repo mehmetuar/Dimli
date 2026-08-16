@@ -126,7 +126,7 @@ export const ReadInfoModal: React.FC<Props> = ({
             <div
                 className="bg-gradient-to-b from-slate-800 to-slate-900 w-full max-w-lg rounded-t-3xl border-t border-slate-700 relative overflow-x-hidden animate-slide-up max-h-[85vh] overflow-y-auto"
                 onClick={e => e.stopPropagation()}
-                style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}
+                style={{ paddingBottom: 'max(16px, var(--safe-bottom))' }}
             >
                 {/* Grab handle */}
                 <div className="flex justify-center pt-3 pb-1">

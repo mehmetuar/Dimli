@@ -208,7 +208,7 @@ export const ReservationRequestDetailModal: React.FC<ReservationRequestDetailMod
                 {/* Footer */}
                 <div
                     className="shrink-0 p-[clamp(0.875rem,4vw,1.25rem)] border-t border-slate-700/60"
-                    style={{ paddingBottom: 'max(clamp(0.875rem,4vw,1.25rem), env(safe-area-inset-bottom))' }}
+                    style={{ paddingBottom: 'max(clamp(0.875rem,4vw,1.25rem), var(--safe-bottom))' }}
                 >
                     <button
                         onClick={goToRequest}

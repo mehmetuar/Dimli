@@ -90,7 +90,7 @@ export const LocationMapModal: React.FC<LocationMapModalProps> = ({
             {/* Footer */}
             <div 
                 className="bg-slate-900 border-t border-white/5 rounded-t-3xl shadow-[0_-8px_30px_rgba(0,0,0,0.5)] relative z-10"
-                style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+                style={{ paddingBottom: 'var(--safe-bottom)' }}
             >
                 <div className="p-5 space-y-4">
                     <div className="flex items-center justify-between gap-3 bg-slate-800/50 rounded-xl p-3 border border-white/5">
