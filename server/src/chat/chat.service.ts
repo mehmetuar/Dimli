@@ -75,6 +75,8 @@ export interface ChannelReservationInfo {
   status: string;
   slotTime: Date;
   cancelRequested?: boolean;
+  // §108: iptal isteğini gönderen takım — yalnız o takım "Geri Al" görür.
+  cancelRequestedByTeamId?: string | null;
   teamId?: string;
   opponentTeamId?: string;
   homeTeamPlayerCount?: number;
@@ -591,6 +593,7 @@ export class ChatService {
         status: string;
         slotTime: Date;
         cancelRequested?: boolean;
+        cancelRequestedByTeamId?: string | null;
         teamId?: string;
         opponentTeamId?: string;
         homeTeamPlayerCount?: number;
@@ -609,6 +612,8 @@ export class ChatService {
             status: reservation.status,
             slotTime: reservation.slotTime,
             cancelRequested: reservation.cancelRequested,
+            cancelRequestedByTeamId:
+              reservation.cancelRequestedByTeamId ?? null,
             teamId: reservation.teamId,
             opponentTeamId: reservation.opponentTeamId,
             homeTeamPlayerCount: playerCountByTeam.get(reservation.teamId) ?? 0,

@@ -117,6 +117,29 @@ export class ReservationLifecycleService {
     return user.team.id;
   }
 
+  // §108: Müşteri iptal uçları (cancel / request-cancel / undo-cancel-request) —
+  // token kullanıcısının takımı + kaptan/yardımcı kaptan mı? (challenges.service
+  // isLeader kalıbı). Sıradan üye → 403. Dönen Team, maçın iki takımından biri
+  // olmalı; o eşleme çağıranın where [team | opponentTeam] filtresinde yapılır.
+  async resolveUserLeaderTeam(userId: string): Promise<Team> {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+      relations: ['team'],
+    });
+    if (!user?.team) {
+      throw new ForbiddenException('Bir takıma ait değilsiniz.');
+    }
+    const isLeader =
+      user.team.captainId === userId ||
+      (user.team.viceCaptainIds || []).includes(userId);
+    if (!isLeader) {
+      throw new ForbiddenException(
+        'Bu işlemi yalnız takım kaptanı veya yardımcı kaptan yapabilir.',
+      );
+    }
+    return user.team;
+  }
+
   @Cron(CronExpression.EVERY_MINUTE)
   async checkMatchReminders() {
     const now = new Date();
@@ -1394,12 +1417,16 @@ export class ReservationLifecycleService {
   }
 
   async cancel(id: string, userId: string) {
-    // GÜVENLİK: takım body yerine token kullanıcısından türetilir (IDOR kapalı).
-    // where team.id filtresi host-only iptal semantiğini korur (yalnız ev sahibi takım).
-    const teamId = await this.resolveUserTeamId(userId);
+    // GÜVENLİK: takım body yerine token kullanıcısından türetilir (IDOR kapalı);
+    // kaptan/yardımcı kaptan zorunlu. §108: rakipli maçta maçın İKİ takımı da
+    // (ev sahibi `team` VEYA teklifi kabul edilen `opponentTeam`) iptal edebilir.
+    const actingTeam = await this.resolveUserLeaderTeam(userId);
     return this.dataSource.transaction(async (manager) => {
       const reservation = await manager.findOne(Reservation, {
-        where: { id, team: { id: teamId } },
+        where: [
+          { id, team: { id: actingTeam.id } },
+          { id, opponentTeam: { id: actingTeam.id } },
+        ],
         relations: [
           'team',
           'team.captain',
@@ -1454,7 +1481,7 @@ export class ReservationLifecycleService {
           manager,
           reservation.matchAnnouncement.id,
           reservation.team,
-          `Takım kaptanı maçı iptal etti. {{CANCEL}}\n\n` +
+          `${actingTeam.name} kaptanı maçı iptal etti. {{CANCEL}}\n\n` +
             `{{STADIUM}} ${businessName}\n` +
             `{{PIN}} ${pitchName}\n` +
             `{{CALENDAR}} ${dateStr}\n` +
@@ -1474,7 +1501,7 @@ export class ReservationLifecycleService {
               userId: player.id,
               type: 'SYSTEM',
               title: 'Maç İptal Edildi',
-              message: `${businessName} - ${pitchName}\n${dateStr} ${timeStr}\n\nTakım kaptanı maçı iptal etti.`,
+              message: `${businessName} - ${pitchName}\n${dateStr} ${timeStr}\n\n${actingTeam.name} kaptanı maçı iptal etti.`,
               relatedId: reservation.id,
               read: false,
               metadata: {
@@ -1505,11 +1532,15 @@ export class ReservationLifecycleService {
   }
 
   async requestCancel(id: string, userId: string) {
-    // GÜVENLİK: takım body yerine token kullanıcısından türetilir (IDOR kapalı).
-    const teamId = await this.resolveUserTeamId(userId);
+    // GÜVENLİK: takım body yerine token kullanıcısından türetilir (IDOR kapalı);
+    // kaptan/yardımcı kaptan zorunlu. §108: maçın iki takımı da istek gönderebilir.
+    const actingTeam = await this.resolveUserLeaderTeam(userId);
     const reservation = await this.reservationRepository.findOne({
-      where: { id, team: { id: teamId } },
-      relations: ['team', 'pitch', 'pitch.business'],
+      where: [
+        { id, team: { id: actingTeam.id } },
+        { id, opponentTeam: { id: actingTeam.id } },
+      ],
+      relations: ['team', 'opponentTeam', 'pitch', 'pitch.business'],
     });
 
     if (!reservation) {
@@ -1528,7 +1559,7 @@ export class ReservationLifecycleService {
 
     // Update reservation
     reservation.cancelRequested = true;
-    reservation.cancelRequestedByTeamId = teamId;
+    reservation.cancelRequestedByTeamId = actingTeam.id;
     await this.reservationRepository.save(reservation);
 
     // Notify chat
@@ -1555,7 +1586,7 @@ export class ReservationLifecycleService {
         this.dataSource.manager,
         reservation.matchAnnouncementId,
         reservation.team,
-        `${userName} maç iptal etme isteği gönderdi. Hızlandırmak için işletmeyle iletişime geçebilirsiniz.\n\n` +
+        `${userName} (${actingTeam.name}) maç iptal etme isteği gönderdi. Hızlandırmak için işletmeyle iletişime geçebilirsiniz.\n\n` +
           `{{STADIUM}} ${businessName}\n` +
           `{{PIN}} ${pitchName}\n` +
           `{{CALENDAR}} ${dateStr}\n` +
@@ -1583,7 +1614,7 @@ export class ReservationLifecycleService {
             userId: owner.id,
             type: 'CANCEL_REQUEST',
             title: 'Talebe Dikkat: Maç İptal İsteği!',
-            message: `${reservation.pitch.name} için ${dateStr} saat ${timeStr} dilimindeki maç takımı tarafından iptal edilmek isteniyor.`,
+            message: `${reservation.pitch.name} için ${dateStr} saat ${timeStr} dilimindeki maç ${actingTeam.name} takımı tarafından iptal edilmek isteniyor.`,
             relatedId: reservation.id,
             read: false,
             metadata: {
@@ -1607,11 +1638,16 @@ export class ReservationLifecycleService {
   }
 
   async undoCancelRequest(id: string, userId: string) {
-    // GÜVENLİK: takım body yerine token kullanıcısından türetilir (IDOR kapalı).
-    const teamId = await this.resolveUserTeamId(userId);
+    // GÜVENLİK: takım body yerine token kullanıcısından türetilir (IDOR kapalı);
+    // kaptan/yardımcı kaptan zorunlu. §108: iki takım da erişir, ama isteği
+    // yalnız GÖNDEREN takım (cancelRequestedByTeamId) geri alabilir.
+    const actingTeam = await this.resolveUserLeaderTeam(userId);
     const reservation = await this.reservationRepository.findOne({
-      where: { id, team: { id: teamId } },
-      relations: ['team', 'pitch', 'pitch.business'],
+      where: [
+        { id, team: { id: actingTeam.id } },
+        { id, opponentTeam: { id: actingTeam.id } },
+      ],
+      relations: ['team', 'opponentTeam', 'pitch', 'pitch.business'],
     });
 
     if (!reservation) {
@@ -1620,6 +1656,15 @@ export class ReservationLifecycleService {
 
     if (!reservation.cancelRequested) {
       throw new NotFoundException('İptal isteği bulunmuyor.');
+    }
+
+    if (
+      reservation.cancelRequestedByTeamId &&
+      reservation.cancelRequestedByTeamId !== actingTeam.id
+    ) {
+      throw new ForbiddenException(
+        'İptal isteğini yalnız gönderen takım geri alabilir.',
+      );
     }
 
     // Revert cancelRequested
@@ -1658,7 +1703,7 @@ export class ReservationLifecycleService {
         this.dataSource.manager,
         reservation.matchAnnouncementId,
         reservation.team,
-        `${userName} iptal isteğini geri aldı. Maçınız planlandığı gibi devam edecektir. \n\n` +
+        `${userName} (${actingTeam.name}) iptal isteğini geri aldı. Maçınız planlandığı gibi devam edecektir. \n\n` +
           `{{STADIUM}} ${businessName}\n` +
           `{{PIN}} ${pitchName}\n` +
           `{{CALENDAR}} ${dateStr}\n` +

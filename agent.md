@@ -4780,3 +4780,48 @@ optik düzeltmesi KAYNAĞINDA: SystemMessageRenderer parser sarmalayıcısına
 `align-[-0.125em]` (FontAwesome deseni) — inline-flex span baseline'a oturunca 16px ikon
 metne göre yukarıda kalıyordu; kompakt sistem mesajları ("...bir mesajı sabitledi"),
 ChannelItem önizlemeleri ve kart alt notları tek noktadan hizalandı.
+
+### §108. Rakipli maçta rakip takım kaptanının iptal yetkisi + sunucu kaptan zorlaması (2026-08-21)
+
+**Sorun:** Rakipli (`rakip_araniyor`) akışta ilan sahibi takım (Özeller) kaptanı maçı iptal edebiliyor,
+teklifi kabul edilen rakip takım (Suskunlar) kaptanı edemiyordu — butonlar görünüyor, basınca
+`403 Rezervasyon bulunamadı veya yetkiniz yok.`.
+
+**Kök neden (iki katman):**
+- Sunucu: `reservation-lifecycle.service.ts` `cancel()` / `requestCancel()` / `undoCancelRequest()`
+  rezervasyonu `where: { id, team: { id: kullanıcınınTakımı } }` ile arıyordu — yalnız ev sahibi
+  (`reservation.teamId`). Teklifi kabul edilen takım `challenges.service.ts` otomatik PENDING
+  rezervasyonunda **`opponentTeamId`** olarak yazılır (`teamId = ilan sahibi`), filtreye hiç girmiyordu.
+  Ayrıca sunucu kaptanlığı hiç kontrol etmiyordu (`resolveUserTeamId` yalnız takım üyeliği) — API'yi
+  doğrudan çağıran sıradan üye iptal edebilirdi.
+- İstemci: `Chat.tsx` iptal butonları `isCaptain || isViceCaptain` (kendi takımımın kaptanıyım) ile
+  gösteriliyordu; maçın iki takımını da kontrol eden mevcut `isCaptainOfPlayingTeam` yalnız
+  "Jokerleri Yönet"te kullanılıyordu.
+
+**Çözüm:**
+- `resolveUserLeaderTeam(userId): Team` (lifecycle, `resolveUserTeamId` yanında): takım yoksa 403,
+  kaptan/yardımcı kaptan değilse 403 "Bu işlemi yalnız takım kaptanı veya yardımcı kaptan yapabilir."
+  (`challenges.service` `isLeader` kalıbı). Üç iptal ucu bunu kullanır; `resolveUserTeamId`
+  `findUpcomingForUser` için yerinde kaldı.
+- Üç metotta filtre **TypeORM OR dizisi**: `where: [{ id, team: {id} }, { id, opponentTeam: {id} }]`.
+  `kendi_aramizda` rezervasyonunda iki alan aynı takım → davranış değişmez; jokerler iki takımın da
+  üyesi olmadığından takılmaz.
+- `undoCancelRequest`: `cancelRequestedByTeamId` doluysa ve acting takım değilse 403 "İptal isteğini
+  yalnız gönderen takım geri alabilir." (kullanıcı kararı: geri alma yalnız gönderen takımda).
+- Metinler takım adı taşır (rakipli sohbette kimin yaptığı belli olsun): "`{Takım}` kaptanı maçı iptal
+  etti." (sistem mesajı + oyuncu bildirimi), "`{Ad}` (`{Takım}`) maç iptal etme isteği gönderdi /
+  geri aldı", işletme bildirimi "… maç `{Takım}` takımı tarafından iptal edilmek isteniyor".
+- `chat.service.ts` kanal payload'ı `reservation.cancelRequestedByTeamId` alanını taşır
+  (`ChannelReservationInfo`, eklemeli alan).
+- `Chat.tsx`: iki iptal butonu da `isCaptainOfPlayingTeam` ile gösterilir. Kesinleşti bloğunda
+  `cancelRequested && cancelRequestedByTeamId !== benimTakımım` → pasif (disabled, slate) satır
+  "İptal İsteği Gönderildi / Rakip takım gönderdi — işletme onayı bekleniyor"; alan yoksa (eski payload)
+  eski "Geri Al" davranışı korunur.
+
+**Kural:** Müşteri tarafı rezervasyon mutasyonu (iptal, istek, geri alma) = `resolveUserLeaderTeam` +
+iki-takım OR filtresi. Yeni bir müşteri ucu eklenirse aynı ikili uygulanır; "host-only" filtre
+yalnız bilinçli bir ürün kararıysa ve yorumla belirtilerek kullanılır.
+
+**Deploy sırası:** server → client (alan eklemeli; eski istemci rakip kaptana butonu zaten gösteriyordu,
+artık 200 döner). Cihaz testi: iki hesap (ev sahibi + rakip kaptan), Onay Bekliyor'da iptal,
+Kesinleşti'de istek/pasif satır/geri al, sıradan üye API 403, kendi aramızda regresyon.

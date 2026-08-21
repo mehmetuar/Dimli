@@ -1234,8 +1234,10 @@ export const Chat: React.FC = () => {
                       </button>
                     )}
 
-                    {/* MATCH REFUSAL / CANCELLATION */}
-                    {(isCaptain || isViceCaptain) && statusInfo?.type === 'pending' && !isJokerNegotiation && !isJokerInMatch && (
+                    {/* MATCH REFUSAL / CANCELLATION — §108: maçın iki takımının da
+                        kaptanı/yardımcısı (isCaptainOfPlayingTeam); yalnız "kendi takımımın
+                        kaptanıyım" yetmez, sunucu da aynı kuralı zorlar */}
+                    {isCaptainOfPlayingTeam && statusInfo?.type === 'pending' && !isJokerNegotiation && !isJokerInMatch && (
                       <button
                         onClick={() => {
                           if (isJokerNegotiationBlocked) return;
@@ -1261,9 +1263,13 @@ export const Chat: React.FC = () => {
                       </button>
                     )}
 
-                    {(isCaptain || isViceCaptain) && statusInfo?.type === 'confirmed' && !isJokerNegotiation && !isJokerInMatch && (() => {
+                    {isCaptainOfPlayingTeam && statusInfo?.type === 'confirmed' && !isJokerNegotiation && !isJokerInMatch && (() => {
                       const isCancelRequested = activeChannel?.reservation?.cancelRequested;
-                      const isDisabled = isJokerNegotiationBlocked;
+                      // §108: isteği RAKİP takım gönderdiyse geri alınamaz — pasif bilgi satırı.
+                      // cancelRequestedByTeamId yoksa (eski payload) eski "Geri Al" davranışı korunur.
+                      const requestedByTeamId = activeChannel?.reservation?.cancelRequestedByTeamId;
+                      const isRequestedByOtherTeam = !!isCancelRequested && !!requestedByTeamId && requestedByTeamId !== currentUser?.team?.id;
+                      const isDisabled = isJokerNegotiationBlocked || isRequestedByOtherTeam;
 
                       return (
                         <button
@@ -1281,12 +1287,13 @@ export const Chat: React.FC = () => {
                         >
                           <div className="flex items-center gap-4">
                             <div className={`w-12 h-12 rounded-full flex items-center justify-center border ${isDisabled ? 'bg-slate-800 border-slate-700 text-slate-500' : isCancelRequested ? 'bg-blue-500/10 border-blue-500/20 text-blue-500' : 'bg-orange-500/10 border-orange-500/20 text-orange-500'}`}>
-                              {isCancelRequested ? <Undo2 className="w-6 h-6" /> : <AlertTriangle className="w-6 h-6" />}
+                              {isRequestedByOtherTeam ? <AlertTriangle className="w-6 h-6" /> : isCancelRequested ? <Undo2 className="w-6 h-6" /> : <AlertTriangle className="w-6 h-6" />}
                             </div>
                             <div className="flex flex-col">
-                              <span>{isCancelRequested ? 'İptal İsteğini Geri Al' : 'İptal Etme İsteği Gönder'}</span>
+                              <span>{isRequestedByOtherTeam ? 'İptal İsteği Gönderildi' : isCancelRequested ? 'İptal İsteğini Geri Al' : 'İptal Etme İsteği Gönder'}</span>
                               {!isCancelRequested && !isDisabled && <span className="text-xs font-normal text-orange-500/70 mt-0.5">İşletme onayı gerektirir</span>}
-                              {isDisabled && <span className="text-[10px] font-normal text-slate-500 mt-1">Sohbet kapalı</span>}
+                              {isRequestedByOtherTeam && <span className="text-[10px] font-normal text-slate-500 mt-1">Rakip takım gönderdi — işletme onayı bekleniyor</span>}
+                              {isJokerNegotiationBlocked && <span className="text-[10px] font-normal text-slate-500 mt-1">Sohbet kapalı</span>}
                             </div>
                           </div>
                           <ChevronRight className="w-5 h-5 opacity-50" />
