@@ -4781,6 +4781,136 @@ optik düzeltmesi KAYNAĞINDA: SystemMessageRenderer parser sarmalayıcısına
 metne göre yukarıda kalıyordu; kompakt sistem mesajları ("...bir mesajı sabitledi"),
 ChannelItem önizlemeleri ve kart alt notları tek noktadan hizalandı.
 
+### §106. Giriş ekranı ilk-açılış yönlendirme animasyonu — "login coach" (2026-08-17)
+
+**Amaç:** İlk kurulumda login ekranı kendini anlatmıyordu. Material "feature discovery"
+standardında tek seferlik yönlendirme katmanı: oyuncu için turf ipucu → "Kayıt Ol" satırı,
+işletmeci için turuncu ipucu → "İşletme Hesabına Geçiş Yap"; işletme login'ine geçince tek
+seferlik turuncu ipucu → "İşletme Kaydı Oluştur". %100 client-side; server/DB değişikliği yok.
+
+**Kullanıcı kararları (AskUserQuestion):** (1) %15 hafif karartma — vurgulu hedefler
+tıklanabilir, delik DIŞINA her dokunuş = atlama (ayrı chip yok); (2) iki ipucu AYNI ANDA;
+(3) aksiyon (hedef dokunuşu / atlama) gelene dek her soğuk açılışta tekrar gösterilir;
+temel kural: bu cihazda daha önce GİRİŞ yapılmışsa (çıkış yapılsa bile) HİÇ gösterilmez.
+
+**Mimari:**
+- `services/coachStorage.ts` — localStorage (splash INTRO_SEEN deseni; senkron, kaybı
+  zararsız): `dimli_coach_login_done`, `dimli_coach_bizreg_done`; `isCoachDone/markCoachDone/
+  markAllCoachDone`. Bayrak yalnız AKSİYONDA yazılır (gösterimde değil — kullanıcı kararı 3).
+  `AuthContext.loginAsCustomer/loginAsBusiness` başarıda `markAllCoachDone()` çağırır.
+- `components/Coach/CoachOverlay.tsx` — paylaşımlı motor (Tour'un kardeşi; kütüphanesiz):
+  - Karartma TEK tam-ekran SVG + `<mask>` (delik başına siyah rounded-rect, rx=20).
+    Tur'un box-shadow tekniği ÇOK-DELİKTE KULLANILMAZ: iki ayrı shadow deliği birbirinin
+    içine tint basar (delikler temiz kalmaz).
+  - Dokunma yakalayıcı: delikler dışını kaplayan bant div'leri (TourOverlay 4-kenar bloker
+    deseninin çok-delikli genellemesi), tık = onDismiss. Delik alanı boş → dokunuş alttaki
+    GERÇEK butona geçer; capture-phase click dinleyicisi hedefin kendi onClick'inden sonraki
+    macrotask'te onTargetTap bildirir (tur target-tap deseni).
+  - Hedef ölçümü `[data-coach-id]` + mount'ta SENKRON ilk ölçüm + rAF rect takibi.
+  - Yerleşim: ok HEP kendi deliğinin hemen üstünde (üstteki deliğe sığmazsa küçülür,
+    <16px'te hiç çizilmez — dar ekranda üst halkaya taşmasın); kartlar en alttaki ipucundan
+    yukarı, delik/ok/diğer kartlarla çakışmadan istiflenir (login'de iki hedef bitişik —
+    kartlar karartılmış form bölgesine taşar, renk bağını sol şerit + ok + halka taşır).
+    Kart yükseklikleri ilk commit'te gizli render + offsetHeight ölçümüyle alınır (zıplama yok).
+  - Ok çift katman: koyu alt-chevron (+1.5px, strokeWidth 5) + renkli üst — parlak zeminde
+    (GİRİŞ YAP) kontrast. Animasyonlar yalnız transform/opacity (`coach-*` prefix, bileşen-içi
+    style); reduce-motion: pulse/bounce/pop kapalı statik görünüm. z-[9985] (Tour 9990 altı).
+- Kurulumlar: `pages/customer/Login/components/LoginCoach.tsx` (iki ipucu),
+  `pages/business/BusinessLogin/components/BusinessRegisterCoach.tsx` (tek ipucu).
+- Çapalar: Login "Kayıt Ol" paragrafı `data-coach-id="register-link"`, turuncu buton
+  `"business-switch"`; BusinessLoginForm kayıt paragrafı `"business-register-link"`.
+
+**Zamanlama (kritik):** müşteri coach'u §67 konum izni AKIŞINDAN SONRA açılır —
+`Login.tsx` efekti: 800ms → `await requestLocation(true)` (withTimeout'lu, asılı kalmaz)
+→ `.finally` → bayrak/sessionExpired/odaklı-input kontrolü → +500ms → göster. İşletme
+coach'u: mount + splashDone + 800ms (flip 400ms + enter-up oturunca); `sessionExpired`
+state'inde gösterilmez.
+
+**Doğrulama:** build (tsc+vite) + cap sync temiz. CDP tabanlı gerçek-zaman headless
+doğrulama (scratchpad `cdp-shot.cjs`): 320×568 / 390×844 / 430×932 login + işletme
+görüntüleri; boş alana tık → unmount + bayrak + input odaklanabilir; hedef tık → bayrak +
+flip + işletme coach'u. NOT: tek-atım `--screenshot`/`--virtual-time-budget` splash'ın
+kare-ısınma kapısını (§66) ISITMAZ — perde bitmez; kalıcı headless + CDP (rAF ~60fps) şart.
+Cihaz testi bekliyor: temiz kurulum sırası (splash→izin→coach), aksiyonsuz öldür→tekrar,
+giriş→çıkış→coach yok, reduce-motion, gidiş-dönüş flip'te tekrar yok.
+
+**§106 v2 revizyonu — "renkli yol" tasarımı (cihaz geri bildirimi, 2026-08-18):** v1'de
+kartlar formun üstüne biniyordu (iPhone görüntüsüyle geri bildirim). Yeni yerleşim:
+- Kartlar `[data-coach-anchor]` öğesinin ALTINDA yan yana (Login: logo sarmalayıcısı,
+  BusinessLoginHeader: "İŞLETME PANELİ" h1'i); 2 ipucu → flex-1 eşit iki kart, 1 ipucu →
+  ortalanmış tek kart (maxW 300). Engel-farkındalıklı kart istifi + offsetHeight ölçüm
+  makineleri SİLİNDİ (v1 arkeolojisi — geri getirme).
+- Ok yerine ana metafor KESİKLİ RENKLİ YOL: kartın alt-ortasından hedef halkasının (ok
+  varsa okun) üstüne kübik bezier; kontrol noktaları kartın kendi tarafındaki kenar
+  koridorunda (x≈24 / vw-24) → yollar birbirini ve diğer halkayı kesmez. Ortalanmış tek
+  kartta kayan-nokta yön flip'ine karşı eşik: `sx < vw/2 - 4` değilse SAĞ koridor.
+  Stil: 3px yuvarlak uçlu `strokeDasharray "1 12"` nokta izi + altında 7px düşük-alfa
+  glow kopyası (CSS filter YOK); `coach-march` (stroke-dashoffset → -13, 1.1s linear
+  infinite) izi hedefe akıtır — §54 pitch-draw istisnasıyla aynı sınıf, eski-WebView
+  güvenli. reduce-motion: akış durur.
+- Kayıt cümleleri span-sarıldı: `data-coach-id` <p>'den `inline-block` span'e taşındı
+  (Login "register-link", BusinessLoginForm "business-register-link") → halka TAM SATIRA
+  değil METNE sarılır, yanlarda yol koridorları açılır.
+- `SCRIM` 0.15 → 0.45 (%15 cihazda fark edilmiyordu).
+- Metinler: "Oyuncu musun? / Yeşil yolu takip et, hemen kayıt ol.", "İşletmeci misin? /
+  Turuncu yolu takip et, işletme girişine geç.", işletme: "İşletmeni Dimli'ye ekle /
+  Turuncu yolu takip et, kaydını buradan oluştur."
+- Doğrulama: build + cap sync temiz; CDP düzeneğiyle 320/390/430 müşteri + 320/390
+  işletme görüntüleri (yollar halka kesmiyor, tek kartta yön sağ), bant-tık atlama testi
+  (unmount + bayrak + input odaklanabilir) yeniden geçti. Cihaz testi bekliyor.
+
+### §107. Web sitesi oyuncu ekran görüntüleri yenileme + durum çubuğu temizleme konvansiyonu (2026-08-21)
+
+**Kapsam (`web/` — AYRI repo Dimliweb.git, commit kullanıcıda):** oyuncu tarafı ekran
+görüntüleri yeni UI ile değiştirildi ve HEPSİNDE iOS durum çubuğu (saat/pil/wifi/Dynamic Island)
+kaldırıldı — işletme görselleriyle (commit `0c1da0b`) aynı görünüm.
+
+**Görsel eşlemesi (`public/screenshots/*.png` tam boy + `public/3d/tex/*.webp` 640w):**
+- `sahalar` ← Simulator 2026-07-14 16.37.46 (yeni Sahalar listesi: arama + Yakınımda + tarih + Sırala).
+- `saha_detay` (YENİ, yalnız carousel) ← Simulator 2026-07-13 19.26.31 (Maç Pazarı saha detay modalı).
+- `mac_degerlendirme` ← IMG_6929 (Maç Değerlendirmesi / İşletme sekmesi, sarı); `rakip_degerlendirme`
+  ← IMG_6930 (Fair Play sekmesi, yeşil). Eski mor-vurgulu sürümler üzerine yazıldı (dosya adları korundu).
+- `rezervasyon`, `joker_havuzu`, `sohbet_kesinlesti`, `rakiple_iletisim`: içerik aynı, yalnız bant temizliği.
+
+**Durum çubuğu temizleme kuralı (kırpma YOK, kanvas aynen kalır):** sol-üst köşeden (12,12) zemin
+rengi örneklenir (köşeler düz renk; sol/sağ/bant-altı eşitliği kontrol edilir) ve üst bant o renkle
+düz dikdörtgen composite ile örtülür — **1320×2868 → 0..165px, 1179×2556 → 0..150px** (saat/ada/pil
+bandın içinde, içerik başlangıcı ≥185px). Sonra `sharp(png).resize({width:640}).webp()` ile doku.
+Script repoya eklenmez (scratchpad, `createRequire(web/package.json)` ile `web/node_modules/sharp`).
+Bileşenlerdeki sahte Dynamic Island pill'i (`PhoneShot`, `PhoneCarousel`) düz bandın üstüne biner —
+bu yüzden bant renginde "ada" izi bırakılmaz. Zemini degrade/fotoğraf olan bir ekran gelirse bu
+düz-dolgu yöntemi yetmez; işletme tarafındaki gibi header degradesiyle örtme gerekir.
+
+**Metin değişiklikleri (`components/cinematic/playerContent.tsx` TEK KAYNAK):**
+- `FEATURES[0]`: "Maç Duyuruları" → **"Müsait Saatleri Anlık Gör"**; açıklama canlı takvim +
+  anında rezervasyon + onay takibi (P2 bölümündeki görsel rezervasyon/slot ekranı olduğu için);
+  P2 kicker `PlayerExperience.tsx` "Rakip Bul" → "Canlı Takvim". `/ozellikler` sayfasındaki
+  "Rakip Bul & Maç Duyuruları" ayrı liste, bilinçli olarak korundu.
+- `STEPS[3]` "Takımınla Haberleş": "Her maça özel sohbet odası: …" vurgusu eklendi.
+- `SHOTS` alt metinleri: "işletme puanlama" / "fair play puanlama".
+- `PhoneCarousel.tsx` ITEMS: "Saha Bul" sonrasına "Saha Detayı — Ücret, adres ve imkanları tek
+  ekranda gör" (`/screenshots/saha_detay.png`) eklendi (carousel `/indir` + PlayerStatic fallback).
+
+**Doğrulama:** `npm run build` temiz; işlenmiş png/webp'ler görsel olarak kontrol edildi (bant
+temiz, içerik kesilmemiş, webp 640×1391 / 640×1387). NOT: yeni `sahalar.png` fotoğraf ağırlıklı
+(3.5MB, `unoptimized` Image) — gerekirse ileride lossy sıkıştırma.
+
+**§107-ek2 — Sahte Dynamic Island pill'i KALDIRILDI (2026-08-20, cihaz geri bildirimi):** gerçek
+telefonda (132px dar mockup) `bg-pitch-deep` hap katmanı ekran görüntüsünün üst bandına değil,
+ölçeklenmiş başlığın (ör. "SAHALAR") üstüne biniyordu — görüntü bozuk/karartılmış görünüyordu.
+Durum çubukları zaten düz-dolguyla temizlendiği için katmanın işlevi kalmamıştı. Dört yerden de
+silindi: `cinematic/PhoneShot.tsx`, `PhoneCarousel.tsx`, `BusinessScreenshots.tsx`,
+`cinematic/fallback/BusinessStatic.tsx`. Kural: telefon çerçevelerine artık çentik/ada overlay'i
+EKLENMEZ; çerçeve = yuvarlatılmış köşe + ince kenarlık + gölge, görsel olduğu gibi gösterilir.
+
+**§107-ek — İş ortağı navbar "Ana Sayfa" (aynı gün):** `/is-ortagi`'de `BusinessNavbar` "Ana Sayfa"
+soluk (muted) skorboard linki idi — fark edilmiyordu. Artık ana sayfadaki turuncu "Dimli İş Ortağı"
+pill'inin YEŞİL (turf) aynası: masaüstünde "İletişime Geç"in solunda ev ikonlu pill
+(`bg-turf-500/10 border-turf-500/30 text-turf-400`), mobil menüde CTA alanında aynı pill (eski
+"Ana Sayfaya Dön" satırı kaldırıldı). Kural: iki navbar birbirinin renk-aynası — oyuncu tarafında
+turuncu işletme kapısı, işletme tarafında yeşil oyuncu kapısı; `NavItem.muted` artık kullanılmıyor
+(ScoreboardLinks'te korunuyor). Yayında (Dimliweb).
+
 ### §108. Rakipli maçta rakip takım kaptanının iptal yetkisi + sunucu kaptan zorlaması (2026-08-21)
 
 **Sorun:** Rakipli (`rakip_araniyor`) akışta ilan sahibi takım (Özeller) kaptanı maçı iptal edebiliyor,

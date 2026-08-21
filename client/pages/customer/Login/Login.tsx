@@ -10,9 +10,11 @@ import { useKeyboardHeight } from '../../../utils/useKeyboardHeight';
 import { sanitizeUsernameInput } from '../../../utils/username';
 import { CUSTOMER_HOME } from '../../../constants/routes';
 import { useBootSplashDone } from '../../../services/bootSplashStore';
+import { isCoachDone } from '../../../services/coachStorage';
 import { LottiePlayer } from '../../../components/UI/LottiePlayer';
 import { PitchCenterCircle } from '../../../components/UI/PitchCenterCircle';
 import { PitchGoalArea } from '../../../components/UI/PitchGoalArea';
+import { LoginCoach } from './components/LoginCoach';
 
 type Phase = 'entering' | 'idle' | 'exiting-left';
 
@@ -53,12 +55,31 @@ export const Login: React.FC = () => {
     // Konum izni istemi: boot'ta değil, splash bittikten SONRA login ekranı yerleşince gösterilir
     // (agent.md §67). Yalnız oturumsuz kullanıcıda ve BİR KEZ; kısa gecikme giriş koreografisinin
     // (logo/form enter-up) oturmasını bekler → dialog sakin bir ekranda belirir.
+    // Yönlendirme katmanı (coach, §106) izin diyaloğu KAPANDIKTAN sonra açılır —
+    // requestLocation awaitable + içeride zaman aşımı sigortalı, asla asılı kalmaz.
+    const [showCoach, setShowCoach] = useState(false);
     const locationAskedRef = useRef(false);
     useEffect(() => {
         if (!splashDone || token || locationAskedRef.current) return;
         locationAskedRef.current = true;
-        const timer = setTimeout(() => { void requestLocation(true); }, 800);
-        return () => clearTimeout(timer);
+        let cancelled = false;
+        let coachTimer: ReturnType<typeof setTimeout> | undefined;
+        const timer = setTimeout(() => {
+            void requestLocation(true).finally(() => {
+                if (cancelled || isCoachDone('login') || location.state?.sessionExpired) return;
+                coachTimer = setTimeout(() => {
+                    // Kullanıcı bu arada forma odaklandıysa (klavye açık) araya girme
+                    const ae = document.activeElement;
+                    if (cancelled || ae instanceof HTMLInputElement || ae instanceof HTMLTextAreaElement) return;
+                    setShowCoach(true);
+                }, 500);
+            });
+        }, 800);
+        return () => {
+            cancelled = true;
+            clearTimeout(timer);
+            if (coachTimer) clearTimeout(coachTimer);
+        };
     }, [splashDone, token, requestLocation]);
 
     if (token && !location.state?.sessionExpired) {
@@ -142,8 +163,10 @@ export const Login: React.FC = () => {
                         maxHeight: keyboardOpen ? '20vh' : '46vh',
                     }}
                 >
-                    {/* Logo + orta saha çemberi/çizgisi (çember logoya çapalı → her cihazda ortalı) */}
+                    {/* Logo + orta saha çemberi/çizgisi (çember logoya çapalı → her cihazda ortalı).
+                        data-coach-anchor: yönlendirme kartları (§106) bu kutunun altına yerleşir */}
                     <div
+                        data-coach-anchor
                         className="relative flex items-center justify-center transition-all duration-200"
                         style={{ width: keyboardOpen ? 'clamp(92px, 23.5vw, 132px)' : (isAndroid ? 'clamp(120px, 48vw, 210px)' : 'clamp(140px, min(54vw, 30vh), 258px)') }}
                     >
@@ -292,11 +315,15 @@ export const Login: React.FC = () => {
                             )}
                         </button>
 
+                        {/* data-coach-id span'de: halka tam satıra değil METNE sarılır (§106 v2 —
+                            yanlarda renkli yolların geçeceği koridor açık kalır) */}
                         <p className="text-slate-400 font-bold text-center" style={{ fontSize: 'clamp(0.8rem, 2.2vh, 0.95rem)', marginTop: 'clamp(4px, 1vh, 10px)' }}>
-                            Hesabın yok mu?{' '}
-                            <Link to="/register" className="text-turf-500 font-bold hover:underline">
-                                Kayıt Ol
-                            </Link>
+                            <span data-coach-id="register-link" className="inline-block">
+                                Hesabın yok mu?{' '}
+                                <Link to="/register" className="text-turf-500 font-bold hover:underline">
+                                    Kayıt Ol
+                                </Link>
+                            </span>
                         </p>
                     </form>
                 </div>
@@ -320,6 +347,7 @@ export const Login: React.FC = () => {
 
                     <button
                         type="button"
+                        data-coach-id="business-switch"
                         onClick={goToBusiness}
                         className="relative z-10 block w-full rounded-2xl text-center font-bold tracking-wide text-white active:scale-[0.98] transition-all pointer-events-auto"
                         style={{
@@ -335,6 +363,9 @@ export const Login: React.FC = () => {
                     </button>
                 </div>
             </div>
+
+            {/* İlk açılış yönlendirme katmanı (§106) — izin diyaloğu sonrası, aksiyona kadar */}
+            {showCoach && <LoginCoach onClose={() => setShowCoach(false)} />}
         </div>
     );
 };

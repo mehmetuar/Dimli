@@ -41,6 +41,7 @@ export const BusinessLoginHeader: React.FC<BusinessLoginHeaderProps> = ({ keyboa
                 }}
             />
             <h1
+                data-coach-anchor
                 className="relative z-10 font-sport font-black italic animate-enter-up transition-all duration-200"
                 style={{
                     fontSize: keyboardOpen ? 'clamp(1rem, 4.5vw, 1.4rem)' : 'clamp(1.5rem, 8vw, 2.25rem)',

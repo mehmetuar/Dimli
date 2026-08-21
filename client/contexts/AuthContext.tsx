@@ -8,6 +8,7 @@ import {
 } from '../services/authStorage';
 import { unregisterPushOnLogout } from '../services/pushNotificationService';
 import { clearCurrentUserCache } from '../services/currentUserStore';
+import { markAllCoachDone } from '../services/coachStorage';
 import {
     JOKERS_CACHE_KEY,
     MATCHES_CACHE_KEY,
@@ -90,6 +91,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const loginAsCustomer = async (newToken: string) => {
         await saveCustomerSession(newToken);
+        markAllCoachDone(); // §106: bu cihazda hesap izi var → login coach bir daha gösterilmez
         setToken(newToken);
         setOwnerId(null);
         setRole('user');
@@ -97,6 +99,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const loginAsBusiness = async (newToken: string, newOwnerId: string) => {
         await saveBusinessSession(newToken, newOwnerId);
+        markAllCoachDone(); // §106: bu cihazda hesap izi var → login coach bir daha gösterilmez
         setToken(newToken);
         setOwnerId(newOwnerId);
         setRole('business_owner');

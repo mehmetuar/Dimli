@@ -151,11 +151,14 @@ export const BusinessLoginForm: React.FC<BusinessLoginFormProps> = ({
                     )}
                 </button>
 
+                {/* data-coach-id span'de: halka tam satıra değil METNE sarılır (§106 v2) */}
                 <p className="text-slate-400 font-bold text-center" style={{ fontSize: 'clamp(0.8rem, 2.2vh, 0.95rem)', marginTop: 'clamp(4px, 1vh, 10px)' }}>
-                    Hesabın yok mu?{' '}
-                    <Link to="/business/register" className="text-orange-500 font-bold hover:underline">
-                        İşletme Kaydı Oluştur
-                    </Link>
+                    <span data-coach-id="business-register-link" className="inline-block">
+                        Hesabın yok mu?{' '}
+                        <Link to="/business/register" className="text-orange-500 font-bold hover:underline">
+                            İşletme Kaydı Oluştur
+                        </Link>
+                    </span>
                 </p>
             </form>
         </div>

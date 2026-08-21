@@ -1,12 +1,18 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 
 // Hooks
 import { useBusinessLogin } from './hooks/useBusinessLogin';
+
+// Services
+import { isCoachDone } from '../../../services/coachStorage';
+import { useBootSplashDone } from '../../../services/bootSplashStore';
 
 // Components
 import { BusinessLoginHeader } from './components/BusinessLoginHeader';
 import { BusinessLoginForm } from './components/BusinessLoginForm';
 import { BackToCustomerButton } from './components/BackToCustomerButton';
+import { BusinessRegisterCoach } from './components/BusinessRegisterCoach';
 
 export const BusinessLogin: React.FC = () => {
     const {
@@ -20,6 +26,18 @@ export const BusinessLogin: React.FC = () => {
         handleLogin,
         goToCustomer,
     } = useBusinessLogin();
+
+    // Tek seferlik "İşletme Kaydı Oluştur" yönlendirmesi (§106): flip girişi +
+    // enter-up oturduktan sonra (~800ms). Oturum süresi dolup düşen işletmeci
+    // (sessionExpired) zaten hesaplı — gösterilmez; splash perdesi varken de açılmaz.
+    const location = useLocation();
+    const splashDone = useBootSplashDone();
+    const [showCoach, setShowCoach] = useState(false);
+    useEffect(() => {
+        if (!splashDone || isCoachDone('bizreg') || location.state?.sessionExpired) return;
+        const timer = setTimeout(() => setShowCoach(true), 800);
+        return () => clearTimeout(timer);
+    }, [splashDone]);
 
     return (
         <div
@@ -52,6 +70,9 @@ export const BusinessLogin: React.FC = () => {
 
                 <BackToCustomerButton keyboardOpen={keyboardOpen} onClick={goToCustomer} />
             </div>
+
+            {/* Tek seferlik işletme kaydı yönlendirmesi (§106) */}
+            {showCoach && <BusinessRegisterCoach onClose={() => setShowCoach(false)} />}
         </div>
     );
 };
